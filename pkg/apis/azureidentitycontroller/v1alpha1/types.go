@@ -25,6 +25,7 @@ type AzureIdentitySpec struct {
 	// EMSI or Service Principle
 	Type  IdentityType `json:"type"`
 	Id  string      `json:"id"`
+	Password SecretReference
 }
 
 type AzureIdentityStatus {
@@ -52,8 +53,12 @@ type AzureIdentityBindingSpec struct {
 	MatchType  MatchType
 	MatchName string
 	Weight int
- }
+}
 
+type AzureAssignedIdentity struct {
+	AzureIdRef *AzureIdentity
+	PodRef PodReference
+}
 
 
 
