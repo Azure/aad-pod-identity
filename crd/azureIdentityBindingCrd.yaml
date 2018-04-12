@@ -4,7 +4,7 @@ metadata:
   name: azureidentitybindings.aadpodidentity.k8s.io
 spec:
   group: aadpodidentity.k8s.io
-  version: v1alpha1
+  version: v1
   names:
     kind: AzureIdentityBinding
     plural: azureidentitybindings
