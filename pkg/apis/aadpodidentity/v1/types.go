@@ -3,6 +3,7 @@ package v1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	api "k8s.io/api/core/v1"
 )
 
 /*** Global datastructures ***/
@@ -70,7 +71,7 @@ type AzureIdentitySpec struct {
 	// EMSI or Service Principle
 	Type  IdentityType       `json:"type"`
 	Id  string               `json:"id"`
-	Password SecretReference `json:"password"`
+	Password api.SecretReference `json:"password"`
 	Replicas  *int32         `json:"replicas"`
 }
 
@@ -101,9 +102,9 @@ type AzureIdentityBindingStatus struct {
 }
 
 /*** AzureAssignedIdentitySpec ***/
-type AzureAsssignedIdentitySpec struct {
+type AzureAssignedIdentitySpec struct {
 	AzureIdRef *AzureIdentity `json:"azureidref"`
-	PodRef PodReference       `json:"podref"`
+	Pod  string               `json:"podref"`
 	Replicas  *int32          `json:"replicas"`
 }
 
