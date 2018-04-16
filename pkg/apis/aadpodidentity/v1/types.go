@@ -64,11 +64,11 @@ const (
 	ServicePrincipal IdentityType = 1
 )
 
-// AzureIdentitySpec specifies the identity. It can either be User assigned MSI or can be service principal based.
+// AzureIdentitySpec specifies the identity. It can either be User assigned MSI or service principal based.
 type AzureIdentitySpec struct {
 	// EMSI or Service Principle
 	Type     IdentityType        `json:"type"`
-	Id       string              `json:"id"`
+	ID       string              `json:"id"`
 	Password api.SecretReference `json:"password"`
 	Replicas *int32              `json:"replicas"`
 }
@@ -92,7 +92,8 @@ type AzureIdentityBindingSpec struct {
 	AzureIdRef *AzureIdentity `json:"azureidref"`
 	MatchType  MatchType      `json:"matchtype"`
 	MatchName  string         `json:"matchname"`
-	Weight     int            `json:"weight"`
+	// Weight is used to figure out which of the matching identities would be selected.
+	Weight int `json:"weight"`
 }
 
 type AzureIdentityBindingStatus struct {
@@ -100,12 +101,15 @@ type AzureIdentityBindingStatus struct {
 }
 
 /*** AzureAssignedIdentitySpec ***/
+
+// AzureAssignedIdentitySpec has the contents of Azure identity<->POD
 type AzureAssignedIdentitySpec struct {
-	AzureIdRef *AzureIdentity `json:"azureidref"`
+	AzureIDRef *AzureIdentity `json:"azureidref"`
 	Pod        string         `json:"podref"`
 	Replicas   *int32         `json:"replicas"`
 }
 
+// AzureAssignedIdentityStatus has the replica status of the resouce.
 type AzureAssignedIdentityStatus struct {
 	AvailableReplicas int32 `json:"availableReplicas"`
 }
