@@ -1,7 +1,10 @@
 package aadpodidentity
 
 import (
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 )
 
@@ -11,10 +14,12 @@ const (
 )
 
 func NewAadPodIdentityCrdClient(client *rest.Config) (*rest.RESTClient, error) {
+
 	crdconfig := *client
 	crdconfig.GroupVersion = &schema.GroupVersion{Group: CRDGroup, Version: CRDVersion}
 	crdconfig.APIPath = "/apis"
-	crdconfig.NegotiatedSerializer = client.NegotiatedSerializer
+	crdconfig.ContentType = runtime.ContentTypeJSON
+	crdconfig.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: scheme.Codecs}
 
 	crdclient, err := rest.RESTClientFor(&crdconfig)
 	if err != nil {
