@@ -14,6 +14,7 @@ func NewAadPodIdentityCrdClient(client *rest.Config) (*rest.RESTClient, error) {
 	crdconfig := *client
 	crdconfig.GroupVersion = &schema.GroupVersion{Group: CRDGroup, Version: CRDVersion}
 	crdconfig.APIPath = "/apis"
+	crdconfig.NegotiatedSerializer = client.NegotiatedSerializer
 
 	crdclient, err := rest.RESTClientFor(&crdconfig)
 	if err != nil {
