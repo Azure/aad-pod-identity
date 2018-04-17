@@ -2,9 +2,12 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"time"
 
+	"../pkg/apis/aadpodidentity/v1"
 	"github.com/golang/glog"
-	"k8s.io/client-go/kubernetes"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -26,19 +29,27 @@ func main() {
 		glog.Fatalf("Could not read config properly. Check the k8s config file")
 	}
 
-	kubeClient := kubernetes.NewForConfigOrDie(config)
+	crdClient, err := aadpodidentity.NewAadPodIdentityCrdClient(config)
+
 	_, controller := cache.NewInformer(
-	,,time.Minutes*10, cache.ResourceEventHandlerFuncs {
-		AddFunc: func(obj interface{}) {
-			fmt.Printf("Adding: %s \n", obj)			
-		}, 
-		DeleteFunc: func(obj interface{}) {
-			fmt.Printf("Delete: %s \n", obj)
-		},
-		UpdateFunc: func(OldObj, newObj interface{}) {
-			fmt.Printf("Update: %s \n, New: %s\n", OldObj, newObj)
+		cache.NewListWatchFromClient(crdClient, "azureidentities",
+			"default", fields.Everything()),
+		&aadpodidentity.AzureIdentity{},
+		time.Minute*10,
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				fmt.Printf("Adding: %s \n", obj)
+			},
+			DeleteFunc: func(obj interface{}) {
+				fmt.Printf("Delete: %s \n", obj)
+			},
+			UpdateFunc: func(OldObj, newObj interface{}) {
+				fmt.Printf("Update: %s \n, New: %s\n", OldObj, newObj)
 			},
 		},
 	)
-
+	exit := make(chan struct{})
+	go controller.Run(exit)
+	//Infinite loop :-)
+	select {}
 }

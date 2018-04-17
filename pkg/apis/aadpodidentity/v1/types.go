@@ -1,4 +1,4 @@
-package v1
+package aadpodidentity
 
 import (
 	api "k8s.io/api/core/v1"
@@ -8,6 +8,7 @@ import (
 /*** Global data structures ***/
 
 // AzureIdentity is the specification of the identity data structure.
+//+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AzureIdentity struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
