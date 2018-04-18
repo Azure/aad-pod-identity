@@ -30,6 +30,9 @@ func main() {
 	}
 
 	crdClient, err := aadpodidentity.NewAadPodIdentityCrdClient(config)
+	if err != nil {
+		glog.Fatalf("Could not get the crd client: %+v", err)
+	}
 
 	_, controller := cache.NewInformer(
 		cache.NewListWatchFromClient(crdClient, "azureidentities",
