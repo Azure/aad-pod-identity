@@ -8,6 +8,8 @@ import (
 	"../pkg/apis/aadpodidentity/v1"
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -53,6 +55,27 @@ func main() {
 	)
 	exit := make(chan struct{})
 	go controller.Run(exit)
+
+	kubeClient, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		glog.Fatalf("Could not create the kubernete client: %+v", kubeClient)
+	}
+
+	k8sinformers := informers.NewSharedInformerFactory(kubeClient, time.Minute*5)
+
+	k8sinformers.Core().V1().Pods().Informer().AddEventHandler(
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				fmt.Printf("Adding pod: %+v \n", obj)
+			},
+			DeleteFunc: func(obj interface{}) {
+				fmt.Printf("Delete pod : %+v \n", obj)
+			},
+			UpdateFunc: func(OldObj, newObj interface{}) {
+				fmt.Printf("Update: %+v \n, New: %+v\n", OldObj, newObj)
+			},
+		})
+
 	//Infinite loop :-)
 	select {}
 }
