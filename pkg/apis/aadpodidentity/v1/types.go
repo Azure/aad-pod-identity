@@ -100,9 +100,9 @@ const (
 // and the identities present..
 type AzureIdentityBindingSpec struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	AzureIdRef        *AzureIdentity `json:"azureidref"`
-	MatchType         MatchType      `json:"matchtype"`
-	MatchName         string         `json:"matchname"`
+	AzureIdentityRef  string    `json:"azureidref"`
+	MatchType         MatchType `json:"matchtype"`
+	MatchName         string    `json:"matchname"`
 	// Weight is used to figure out which of the matching identities would be selected.
 	Weight int `json:"weight"`
 }
@@ -118,9 +118,9 @@ type AzureIdentityBindingStatus struct {
 
 type AzureAssignedIdentitySpec struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	AzureIDRef        *AzureIdentity `json:"azureidref"`
-	Pod               string         `json:"podref"`
-	Replicas          *int32         `json:"replicas"`
+	AzureIdentityRef  string `json:"azureidref"`
+	Pod               string `json:"podref"`
+	Replicas          *int32 `json:"replicas"`
 }
 
 // AzureAssignedIdentityStatus has the replica status of the resouce.

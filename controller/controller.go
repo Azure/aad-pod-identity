@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 
 	aadpodidentity "../pkg/apis/aadpodidentity/v1"
 	"github.com/golang/glog"
@@ -36,14 +35,14 @@ func main() {
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				pod := obj.(*v1.Pod)
-				crdClient.MatchBinding(pod.Name)
-				fmt.Printf("Adding pod: %+v \n", obj)
+				crdClient.Bind(pod.Name)
+				//fmt.Printf("Adding pod: %+v \n", obj)
 			},
 			DeleteFunc: func(obj interface{}) {
-				fmt.Printf("Delete pod : %+v \n", obj)
+				//fmt.Printf("Delete pod : %+v \n", obj)
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
-				fmt.Printf("Update: %+v \n, New: %+v\n", OldObj, newObj)
+				//fmt.Printf("Update: %+v \n, New: %+v\n", OldObj, newObj)
 			},
 		})
 	exit := make(chan struct{})

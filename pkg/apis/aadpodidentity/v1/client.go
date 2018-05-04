@@ -3,6 +3,8 @@ package aadpodidentity
 import (
 	"time"
 
+	"github.com/golang/glog"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -74,11 +76,29 @@ func AssignUserMSI(userAssignedMSIID string, nodeName string) error {
 func (c *Client) AssignIdentity(idName string, podName string) error {
 	// Create a new AzureAssignedIdentity which maps the relationship between
 	// id and pod
+	assignedID := &AzureAssignedIdentity{
+		ObjectMeta: v1.ObjectMeta{
+			Name: idName,
+		},
+		Spec: AzureAssignedIdentitySpec{
+			AzureIdentityRef: idName,
+			Pod:              podName,
+		},
+		Status: AzureAssignedIdentityStatus{
+			AvailableReplicas: 1,
+		},
+	}
+	var res AzureAssignedIdentity
+	err := c.CRDClient.Post().Namespace("default").Resource("azureassignedidentities").Body(assignedID).Do().Into(&res)
+	if err != nil {
+		return err
+	}
+	//TODO: Assign the MSI to the corresponding node.
 	return nil
 }
 
 func (c *Client) ListBindings() (res *AzureIdentityBindingList, err error) {
-	err = c.CRDClient.Get().Namespace("default").Resource("azureidentities").Do().Into(res)
+	err = c.CRDClient.Get().Namespace("default").Resource("azureidentitybindings").Do().Into(res)
 	if err != nil {
 		return nil, err
 	}
@@ -89,17 +109,18 @@ func (c *Client) ListBindings() (res *AzureIdentityBindingList, err error) {
 // MatchBinding - matches the name of the pod with the bindings. Return back
 // the name of the identity which is matching. This name
 // will be used to assign the azureidentity to the pod.
-func (c *Client) MatchBinding(podName string) (idName string, err error) {
+func (c *Client) Bind(podName string) (err error) {
 	// List the AzureIdentityBindings and check if the pod name matches
 	// any selector.
 	bindings, err := c.ListBindings()
 	if err != nil {
-		return "", err
+		return err
 	}
 	for _, v := range bindings.Items {
-		if v.Spec.Name == podName {
-			return v.Spec.AzureIdRef.Name, nil
+		glog.Infof("Matching pod name %s with binding name %s", podName, v.Spec.Name)
+		if v.Spec.MatchName == podName {
+			return c.AssignIdentity(v.Spec.AzureIdentityRef, podName)
 		}
 	}
-	return "", nil
+	return nil
 }
