@@ -36,7 +36,7 @@ type AzureAssignedIdentity struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec   AzureAssignedIdentitySpec   `json:"spec"`
-	Status AzureAssignedIdentityStatus `json:"spec"`
+	Status AzureAssignedIdentityStatus `json:"Status"`
 }
 
 /*** Lists ***/
@@ -120,6 +120,7 @@ type AzureAssignedIdentitySpec struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	AzureIdentityRef  string `json:"azureidref"`
 	Pod               string `json:"podref"`
+	NodeName          string `json:"nodename"`
 	Replicas          *int32 `json:"replicas"`
 }
 

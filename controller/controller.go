@@ -11,11 +11,13 @@ import (
 )
 
 var (
-	kubeconfig string
+	kubeconfig    string
+	azurecredfile string
 )
 
 func main() {
 	flag.StringVar(&kubeconfig, "kubeconfig", "config", "Path to the kube config")
+	flag.StringVar(&azurecredfile, "azurecred", "config", "Path to the azure cred file (azure.json)")
 	flag.Parse()
 	if kubeconfig == "" {
 		glog.Fatalf("Could not get the kubernetes cluster config to connect")
@@ -26,7 +28,7 @@ func main() {
 		glog.Fatalf("Could not read config properly. Check the k8s config file")
 	}
 
-	crdClient, err := aadpodidentity.NewAadPodIdentityCrdClient(config)
+	crdClient, err := aadpodidentity.NewAadPodIdentityCrdClient(config, azurecredfile)
 	if err != nil {
 		glog.Fatalf("Could not get the crd client: %+v", err)
 	}
@@ -35,7 +37,7 @@ func main() {
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				pod := obj.(*v1.Pod)
-				crdClient.Bind(pod.Name)
+				crdClient.Bind(pod.Name, pod.Spec.NodeName)
 				//fmt.Printf("Adding pod: %+v \n", obj)
 			},
 			DeleteFunc: func(obj interface{}) {
