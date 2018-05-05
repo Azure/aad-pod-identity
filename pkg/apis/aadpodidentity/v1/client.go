@@ -1,6 +1,7 @@
 package aadpodidentity
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -130,7 +131,30 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 func (c *Client) AssignUserMSI(userAssignedMSIID string, nodeName string) error {
 	// Get the vm using the VmClient
 	// Update the assigned identity into the VM using the CreateOrUpdate
+	ctx := context.Background()
+	vm, err := c.VMClient.Get(ctx, c.CredConfig.NodeResourceGroup, nodeName, "")
+	if err != nil {
+		return err
+	}
 
+	glog.Infof("Got VM info: %+v", vm)
+	vm.Identity.Type = compute.ResourceIdentityTypeUserAssigned
+	vm.Identity.IdentityIds = &[]string{userAssignedMSIID}
+
+	ctx = context.Background()
+	future, err := c.VMClient.CreateOrUpdate(ctx, c.CredConfig.NodeResourceGroup, nodeName, vm)
+	if err != nil {
+		return err
+	}
+	err = future.WaitForCompletion(ctx, c.VMClient.Client)
+	if err != nil {
+		return err
+	}
+	vm, err = future.Result(c.VMClient)
+	if err != nil {
+		return err
+	}
+	glog.Info("After update the vm info: %+v", vm)
 	return nil
 }
 
