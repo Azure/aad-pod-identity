@@ -177,7 +177,7 @@
   version = "v2.2.1"
 
 [[projects]]
-  branch = "master"
+  branch = "release-1.10"
   name = "k8s.io/api"
   packages = [
     "admissionregistration/v1alpha1",
@@ -209,16 +209,17 @@
     "storage/v1alpha1",
     "storage/v1beta1"
   ]
-  revision = "b7d77fa220f5130ec63c2ca7167dd9653449c64d"
+  revision = "590a9173e3b65d74e907fcfd94b78465cf314760"
 
 [[projects]]
-  branch = "master"
+  branch = "release-1.10"
   name = "k8s.io/apimachinery"
   packages = [
     "pkg/api/errors",
     "pkg/api/meta",
     "pkg/api/resource",
     "pkg/apis/meta/v1",
+    "pkg/apis/meta/v1/unstructured",
     "pkg/apis/meta/v1beta1",
     "pkg/conversion",
     "pkg/conversion/queryparams",
@@ -250,9 +251,10 @@
     "pkg/watch",
     "third_party/forked/golang/reflect"
   ]
-  revision = "de72e86e9df78c1a855ca76677a2350985c1756e"
+  revision = "01bc873149a1802eb74df583613872d126449ed5"
 
 [[projects]]
+  branch = "release-7.0"
   name = "k8s.io/client-go"
   packages = [
     "discovery",
@@ -305,12 +307,11 @@
     "util/homedir",
     "util/integer"
   ]
-  revision = "23781f4d6632d88e869066eaebb743857aa1ef9b"
-  version = "v7.0.0"
+  revision = "33f2870a2b83179c823ddc90e5513f9e5fe43b38"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "f32ae2699f060c4569288aef9a95e1f111db0a4d36b4ee1c2a1011196a56e44e"
+  inputs-digest = "aacb8f5888d3c94813b1a00006114c84efc23523de707b65000ec7371998724d"
   solver-name = "gps-cdcl"
   solver-version = 1

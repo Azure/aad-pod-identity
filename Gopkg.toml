@@ -41,17 +41,17 @@
   name = "github.com/spf13/cobra"
   version = "0.0.2"
 
-[[constraint]]
-  branch = "master"
-  name = "k8s.io/api"
-
-[[constraint]]
-  branch = "master"
+[[override]]
   name = "k8s.io/apimachinery"
+  branch = "release-1.10" # correct branch
 
-[[constraint]]
+[[override]]
   name = "k8s.io/client-go"
-  version = "7.0.0"
+  branch = "release-7.0" # correct branch
+
+[[override]]
+  name = "k8s.io/api"
+  branch = "release-1.10" # correct branch
 
 [prune]
   go-tests = true
