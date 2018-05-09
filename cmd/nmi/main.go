@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/golang/glog"
+	log "github.com/sirupsen/logrus"
 
 	"github.com/spf13/cobra"
 )
@@ -39,4 +40,9 @@ func Execute() {
 func run(cmd *cobra.Command, args []string) {
 	defer glog.Flush()
 	glog.Info("starting nmi process")
+	s := NewServer()
+
+	if err := s.Run(); err != nil {
+		log.Fatalf("%s", err)
+	}
 }

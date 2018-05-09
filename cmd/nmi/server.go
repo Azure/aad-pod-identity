@@ -13,6 +13,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	defaultMetadataAddress = "169.254.169.254"
+)
+
 func parseRemoteAddr(addr string) string {
 	n := strings.IndexByte(addr, ':')
 	if n <= 1 {
@@ -28,8 +32,9 @@ func parseRemoteAddr(addr string) string {
 // Server encapsulates all of the parameters necessary for starting up
 // the server. These can either be set via command line or directly.
 type Server struct {
-	NmiClient nmi.Client
-	NMIPort   string
+	NmiClient       nmi.Client
+	NMIPort         string
+	MetadataAddress string
 }
 
 type appHandler func(*log.Entry, http.ResponseWriter, *http.Request)
@@ -82,8 +87,8 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Server", "EC2ws")
 	remoteIP := parseRemoteAddr(r.RemoteAddr)
+	logger.Info(remoteIP)
 }
 
 func (s *Server) reverseProxyHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
@@ -93,19 +98,26 @@ func (s *Server) reverseProxyHandler(logger *log.Entry, w http.ResponseWriter, r
 }
 
 // Run runs the specified Server.
-func (s *Server) Run(host, token string, insecure bool) error {
-	kubeClient, err := NewKubeClient()
+func (s *Server) Run() error {
+	kubeClient, err := nmi.NewKubeClient()
 	if err != nil {
 		return err
 	}
-	s.KubeClient = kubeClient
-	r := mux.NewRouter()
-	r.Handle("/metadata/identity/aauth2/token{role:.*}", appHandler(s.roleHandler))
-	r.Handle("/{path:.*}", appHandler(s.reverseProxyHandler))
+	s.NmiClient = kubeClient
+	mux := http.NewServeMux()
+	mux.Handle("/metadata/identity/aauth2/token{role:.*}", appHandler(s.roleHandler))
+	mux.Handle("/{path:.*}", appHandler(s.reverseProxyHandler))
 
 	log.Infof("Listening on port %s", s.NMIPort)
-	if err := http.ListenAndServe(":"+s.NMIPort, r); err != nil {
+	if err := http.ListenAndServe(":"+s.NMIPort, mux); err != nil {
 		log.Fatalf("Error creating http server: %+v", err)
 	}
 	return nil
+}
+
+// NewServer will create a new Server with default values.
+func NewServer() *Server {
+	return &Server{
+		MetadataAddress: defaultMetadataAddress,
+	}
 }

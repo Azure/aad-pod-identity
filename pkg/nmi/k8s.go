@@ -7,6 +7,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Client api client
@@ -22,7 +24,7 @@ type KubeClient struct {
 
 // NewKubeClient new kubernetes api client
 func NewKubeClient() (Client, error) {
-	clientset, err = getkubeclient()
+	clientset, err := getkubeclient()
 	if err != nil {
 		return nil, nil
 	}
@@ -34,21 +36,21 @@ func NewKubeClient() (Client, error) {
 
 // GetPodCidr get node cidr for from apiserver
 func (c *KubeClient) GetPodCidr(hostname string) (podcidr string, err error) {
-	if kubeclient == nil {
+	if c == nil {
 		return "", fmt.Errorf("kubeclinet is nil")
 	}
 
-	if hostname == nil {
+	if hostname == "" {
 		return "", fmt.Errorf("hostname is nil")
 	}
 
 	n, err := c.ClientSet.CoreV1().Nodes().Get(hostname, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	if n.Spec == nil || n.Spec.PodCIDR == nil || n.Spec.PodCIDR == "" {
-		return nil, fmt.Errorf("podcidr is nil or empty, hostname: %s", hostname)
+	if n.Spec.PodCIDR == "" {
+		return "", fmt.Errorf("podcidr is nil or empty, hostname: %s", hostname)
 	}
 
 	return n.Spec.PodCIDR, nil
