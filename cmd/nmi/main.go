@@ -1,48 +1,29 @@
 package main
 
 import (
-	"fmt"
-	"os"
+	iptable "github.com/Azure/aad-pod-identity/nmi/iptable"
+	server "github.com/Azure/aad-pod-identity/nmi/server"
 
 	"github.com/golang/glog"
-	log "github.com/sirupsen/logrus"
 
-	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
-// ctlCmd is a representation of the control loop (ctl) command.
-var execute = &cobra.Command{
-	Use:   "nmi",
-	Short: "Node Managed Identity",
-	Long:  `Microsoft`,
-	Run: func(cmd *cobra.Command, args []string) {
-		run(cmd, args)
-	},
-}
-
-// init will bootstrap the command with command line flags a user can optionally define
-func init() {
-}
+var (
+	nmiPort       = pflag.String("nmi-port", "2579", "NMI application port")
+	hostInterface = pflag.String("host-interface", "eth0", "Host interface for instance metadata traffic")
+)
 
 func main() {
-	Execute()
-}
-
-// Execute passes control to the root command and handles the error it may return.
-func Execute() {
-	if err := execute.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
-	}
-}
-
-// run starts the nmi operations
-func run(cmd *cobra.Command, args []string) {
 	defer glog.Flush()
 	glog.Info("starting nmi process")
-	s := NewServer()
+	s := server.NewServer()
+
+	if err := iptable.AddRule(s.NMIPort, s.MetadataAddress, s.HostInterface, "127.0.0.1"); err != nil {
+		glog.Fatalf("%s", err)
+	}
 
 	if err := s.Run(); err != nil {
-		log.Fatalf("%s", err)
+		glog.Fatalf("%s", err)
 	}
 }

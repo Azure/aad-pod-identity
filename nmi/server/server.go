@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"errors"
@@ -9,12 +9,14 @@ import (
 	"strings"
 	"time"
 
-	nmi "github.com/Azure/aad-pod-identity/pkg/nmi"
+	k8s "github.com/Azure/aad-pod-identity/nmi/k8s"
 	log "github.com/sirupsen/logrus"
 )
 
 const (
 	defaultMetadataAddress = "169.254.169.254"
+	defaultNmiPort         = "2579"
+	defaultHostInterface   = "eth0"
 )
 
 func parseRemoteAddr(addr string) string {
@@ -32,9 +34,10 @@ func parseRemoteAddr(addr string) string {
 // Server encapsulates all of the parameters necessary for starting up
 // the server. These can either be set via command line or directly.
 type Server struct {
-	NmiClient       nmi.Client
+	NMIClient       k8s.Client
 	NMIPort         string
 	MetadataAddress string
+	HostInterface   string
 }
 
 type appHandler func(*log.Entry, http.ResponseWriter, *http.Request)
@@ -99,11 +102,12 @@ func (s *Server) reverseProxyHandler(logger *log.Entry, w http.ResponseWriter, r
 
 // Run runs the specified Server.
 func (s *Server) Run() error {
-	kubeClient, err := nmi.NewKubeClient()
+
+	kubeClient, err := k8s.NewKubeClient()
 	if err != nil {
 		return err
 	}
-	s.NmiClient = kubeClient
+	s.NMIClient = kubeClient
 	mux := http.NewServeMux()
 	mux.Handle("/metadata/identity/aauth2/token{role:.*}", appHandler(s.roleHandler))
 	mux.Handle("/{path:.*}", appHandler(s.reverseProxyHandler))
@@ -119,5 +123,7 @@ func (s *Server) Run() error {
 func NewServer() *Server {
 	return &Server{
 		MetadataAddress: defaultMetadataAddress,
+		NMIPort:         defaultNmiPort,
+		HostInterface:   defaultHostInterface,
 	}
 }

@@ -1,4 +1,4 @@
-package nmi
+package iptable
 
 import (
 	"errors"
