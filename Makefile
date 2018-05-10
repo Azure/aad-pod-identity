@@ -2,6 +2,7 @@ ORG_PATH=github.com/Azure
 PROJECT_NAME := aad-pod-identity
 REPO_PATH="$(ORG_PATH)/$(PROJECT_NAME)"
 NMI_BINARY_NAME := nmi
+NMI_VERSION=1.0
 VERSION_VAR := $(REPO_PATH)/version.Version
 GIT_VAR := $(REPO_PATH)/version.GitCommit
 BUILD_DATE_VAR := $(REPO_PATH)/version.BuildDate
@@ -20,18 +21,23 @@ else
 	endif
 endif
 
-GO_BUILD_OPTIONS := -buildmode=${GO_BUILD_MODE} -ldflags "-s -X $(VERSION_VAR)=1.0 -X $(GIT_VAR)=$(GIT_HASH) -X $(BUILD_DATE_VAR)=$(BUILD_DATE)"
+GO_BUILD_OPTIONS := -buildmode=${GO_BUILD_MODE} -ldflags "-s -X $(VERSION_VAR)=$(NMI_VERSION) -X $(GIT_VAR)=$(GIT_HASH) -X $(BUILD_DATE_VAR)=$(BUILD_DATE)"
 
 # useful for other docker repos
-DOCKER_REPO ?= nikhilbh
-IMAGE_NAME := $(DOCKER_REPO)/$(NMI)
-ARCH ?= darwin
-METALINTER_CONCURRENCY ?= 4
-METALINTER_DEADLINE ?= 180
-# useful for passing --build-arg http_proxy :)
-DOCKER_BUILD_FLAGS :=
+REGISTRY ?= nikhilbh
+IMAGE_NAME := $(REGISTRY)/$(NMI_BINARY_NAME)
 
-#clean: 
-#    rm -rf build
-build:
-	go build -o build/bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(NMI_BINARY_NAME)
+clean:
+	rm -rf bin/$(PROJECT_NAME)
+
+build:clean
+	go build -o bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(NMI_BINARY_NAME)
+
+image:
+	cp bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) images/nmi
+	docker build -t $(IMAGE_NAME):$(NMI_VERSION) images/nmi
+
+push:
+	docker push $(IMAGE_NAME):$(NMI_VERSION)
+
+.PHONY: build

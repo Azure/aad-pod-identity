@@ -1,7 +1,6 @@
 package main
 
 import (
-	iptable "github.com/Azure/aad-pod-identity/nmi/iptable"
 	server "github.com/Azure/aad-pod-identity/nmi/server"
 
 	"github.com/golang/glog"
@@ -18,10 +17,11 @@ func main() {
 	defer glog.Flush()
 	glog.Info("starting nmi process")
 	s := server.NewServer()
+	s.HostInterface = *hostInterface
 
-	if err := iptable.AddRule(s.NMIPort, s.MetadataAddress, s.HostInterface, "127.0.0.1"); err != nil {
-		glog.Fatalf("%s", err)
-	}
+	//	if err := iptable.AddRule(s.NMIPort, s.MetadataAddress, s.HostInterface, "127.0.0.1"); err != nil {
+	//		glog.Fatalf("%s", err)
+	//	}
 
 	if err := s.Run(); err != nil {
 		glog.Fatalf("%s", err)

@@ -13,6 +13,7 @@ import (
 
 // Client api client
 type Client interface {
+	GetNodeIP(hostname string) (nodeip string, err error)
 	GetPodCidr(hostname string) (podcidr string, err error)
 }
 
@@ -32,6 +33,11 @@ func NewKubeClient() (Client, error) {
 	kubeClient := &KubeClient{ClientSet: clientset}
 
 	return kubeClient, nil
+}
+
+// GetNodeIP get node ip for from apiserver
+func (c *KubeClient) GetNodeIP(hostname string) (nodeip string, err error) {
+	return "127.0.0.1", nil
 }
 
 // GetPodCidr get node cidr for from apiserver

@@ -1,9 +1,22 @@
-FROM alpine:3.6
+FROM k8s-gcrio.azureedge.net/hyperkube-amd64:v1.7.7
 
-RUN apk --no-cache add \
-    ca-certificates \
-    iptables
+ARG WD=.
+ENV WD ${WD}
+WORKDIR $WD
 
-ADD build/bin/aad-pod-identity/nmi /bin/nmi
+#RUN apk --no-cache add \
+   # ca-certificates \
+   # iptables \
+   # bash
 
-ENTRYPOINT ["nmi"]
+# install, remove cached list
+RUN apt-get update && \
+    apt-get install -y ca-certificates iptables bash && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN mkdir "/lib/nmi/"
+COPY ./nmi /lib/nmi/nmi
+
+WORKDIR /lib/nmi/
+CMD ["/lib/nmi/nmi", "--logtostderr=1"]

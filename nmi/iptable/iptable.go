@@ -2,20 +2,18 @@ package iptable
 
 import (
 	"errors"
-	"net"
-	"strings"
 
 	"github.com/coreos/go-iptables/iptables"
 )
 
 // AddRule adds the required rule to the host's nat table.
-func AddRule(appPort, metadataAddress, hostInterface, hostIP string) error {
-	if err := checkInterfaceExists(hostInterface); err != nil {
-		return err
+func AddRule(podcidr, metadataAddress, nodeip, nmiport string) error {
+	if podcidr == "" {
+		return errors.New("podcidr must be set")
 	}
 
-	if hostIP == "" {
-		return errors.New("--host-ip must be set")
+	if nodeip == "" {
+		return errors.New("nodeip must be set")
 	}
 
 	ipt, err := iptables.New()
@@ -24,19 +22,7 @@ func AddRule(appPort, metadataAddress, hostInterface, hostIP string) error {
 	}
 
 	return ipt.AppendUnique(
-		"nat", "PREROUTING", "-p", "tcp", "-d", metadataAddress, "--dport", "80",
-		"-j", "DNAT", "--to-destination", hostIP+":"+appPort, "-i", hostInterface,
+		"nat", "PREROUTING", "-p", "tcp", "-s", podcidr, "-d", metadataAddress, "--dport", "80",
+		"-j", "DNAT", "--to-destination", nodeip+":"+nmiport,
 	)
-}
-
-// checkInterfaceExists validates the interface passed exists for the given system.
-// checkInterfaceExists ignores wildcard networks.
-func checkInterfaceExists(hostInterface string) error {
-	if strings.Contains(hostInterface, "+") {
-		// wildcard networks ignored
-		return nil
-	}
-
-	_, err := net.InterfaceByName(hostInterface)
-	return err
 }
