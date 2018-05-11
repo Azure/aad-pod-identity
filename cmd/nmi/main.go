@@ -1,6 +1,10 @@
 package main
 
 import (
+	"os"
+
+	"github.com/Azure/aad-pod-identity/nmi/iptable"
+	"github.com/Azure/aad-pod-identity/nmi/k8s"
 	server "github.com/Azure/aad-pod-identity/nmi/server"
 
 	"github.com/golang/glog"
@@ -16,12 +20,34 @@ var (
 func main() {
 	defer glog.Flush()
 	glog.Info("starting nmi process")
-	s := server.NewServer()
-	s.HostInterface = *hostInterface
+	kubeClient, err := k8s.NewKubeClient()
+	if err != nil {
+		glog.Fatalf("%+v", err)
+	}
 
-	//	if err := iptable.AddRule(s.NMIPort, s.MetadataAddress, s.HostInterface, "127.0.0.1"); err != nil {
-	//		glog.Fatalf("%s", err)
-	//	}
+	s := server.NewServer()
+	s.KubeClient = kubeClient
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		glog.Fatalf("%+v", err)
+	}
+	s.Host = hostname
+	glog.Infof("hostname: %s", hostname)
+
+	podcidr, err := kubeClient.GetPodCidr(hostname)
+	if err != nil {
+		glog.Fatalf("%+v", err)
+	}
+
+	nodeip, err := kubeClient.GetNodeIP(hostname)
+	if err != nil {
+		glog.Fatalf("%+v", err)
+	}
+
+	if err := iptable.AddRule(podcidr, s.MetadataAddress, nodeip, s.NMIPort); err != nil {
+		glog.Fatalf("%s", err)
+	}
 
 	if err := s.Run(); err != nil {
 		glog.Fatalf("%s", err)

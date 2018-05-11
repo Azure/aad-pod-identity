@@ -15,6 +15,7 @@ import (
 type Client interface {
 	GetNodeIP(hostname string) (nodeip string, err error)
 	GetPodCidr(hostname string) (podcidr string, err error)
+	GetPodName(podip string) (podns, podname string, err error)
 }
 
 // KubeClient k8s client
@@ -35,12 +36,35 @@ func NewKubeClient() (Client, error) {
 	return kubeClient, nil
 }
 
-// GetNodeIP get node ip for from apiserver
+// GetNodeIP get node ip from apiserver
 func (c *KubeClient) GetNodeIP(hostname string) (nodeip string, err error) {
 	return "127.0.0.1", nil
 }
 
-// GetPodCidr get node cidr for from apiserver
+// GetPodName get pod ns,name from apiserver
+func (c *KubeClient) GetPodName(podip string) (podns, poddname string, err error) {
+	if c == nil {
+		return "", "", fmt.Errorf("kubeclinet is nil")
+	}
+
+	if podip == "" {
+		return "", "", fmt.Errorf("podip is nil")
+	}
+
+	podipFieldSel := fmt.Sprintf("status.podIp=%s", podip)
+	podList, err := c.ClientSet.CoreV1().Pods("default").List(metav1.ListOptions{FieldSelector: podipFieldSel})
+	if err != nil {
+		return "", "", err
+	}
+
+	if len(podList.Items) != 1 {
+		return "", "", fmt.Errorf("Expected 1 item in podList, got %d", len(podList.Items))
+	}
+
+	return podList.Items[0].Namespace, podList.Items[0].Name, nil
+}
+
+// GetPodCidr get node pod cidr from apiserver
 func (c *KubeClient) GetPodCidr(hostname string) (podcidr string, err error) {
 	if c == nil {
 		return "", fmt.Errorf("kubeclinet is nil")

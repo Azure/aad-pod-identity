@@ -1,7 +1,9 @@
 package server
 
 import (
+	"encoding/json"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -16,7 +18,6 @@ import (
 const (
 	defaultMetadataAddress = "169.254.169.254"
 	defaultNmiPort         = "2579"
-	defaultHostInterface   = "eth0"
 )
 
 func parseRemoteAddr(addr string) string {
@@ -34,10 +35,10 @@ func parseRemoteAddr(addr string) string {
 // Server encapsulates all of the parameters necessary for starting up
 // the server. These can either be set via command line or directly.
 type Server struct {
-	NMIClient       k8s.Client
+	KubeClient      k8s.Client
 	NMIPort         string
 	MetadataAddress string
-	HostInterface   string
+	Host            string
 }
 
 type appHandler func(*log.Entry, http.ResponseWriter, *http.Request)
@@ -89,8 +90,25 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Infof("%s %s (%d) took %d ns", r.Method, r.URL.Path, rw.statusCode, latency.Nanoseconds())
 	}
 }
+
+type msiTokenRequestBody struct {
+	Resource string `json:"resource"`
+}
+
 func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
 	remoteIP := parseRemoteAddr(r.RemoteAddr)
+
+	dec := json.NewDecoder(r.Body)
+	for {
+		var trb msiTokenRequestBody
+		if err := dec.Decode(&trb); err == io.EOF {
+			break
+		} else if err != nil {
+			logger.Fatal(err)
+		}
+		logger.Printf("%s\n", trb.Resource)
+	}
+
 	logger.Info(remoteIP)
 }
 
@@ -102,14 +120,8 @@ func (s *Server) reverseProxyHandler(logger *log.Entry, w http.ResponseWriter, r
 
 // Run runs the specified Server.
 func (s *Server) Run() error {
-
-	kubeClient, err := k8s.NewKubeClient()
-	if err != nil {
-		return err
-	}
-	s.NMIClient = kubeClient
 	mux := http.NewServeMux()
-	mux.Handle("/metadata/identity/aauth2/token{role:.*}", appHandler(s.roleHandler))
+	mux.Handle("/oauth2/token{role:.*}", appHandler(s.roleHandler))
 	mux.Handle("/{path:.*}", appHandler(s.reverseProxyHandler))
 
 	log.Infof("Listening on port %s", s.NMIPort)
@@ -124,6 +136,5 @@ func NewServer() *Server {
 	return &Server{
 		MetadataAddress: defaultMetadataAddress,
 		NMIPort:         defaultNmiPort,
-		HostInterface:   defaultHostInterface,
 	}
 }
