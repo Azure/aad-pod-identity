@@ -8,14 +8,20 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Client api client
 type Client interface {
-	GetNodeIP(hostname string) (nodeip string, err error)
-	GetPodCidr(hostname string) (podcidr string, err error)
+	// GetNodeIP return the node ip
+	GetNodeIP(nodename string) (nodeip string, err error)
+	// GetPodCidr return the pod cidr for the node
+	GetPodCidr(nodename string) (podcidr string, err error)
+	// GetPodName return the matching azure identity or nil
 	GetPodName(podip string) (podns, podname string, err error)
+	// GetAzureAssignedIdentity return the matching azure identity or nil
+	GetAzureAssignedIdentity(podns, podname string) (azID *aadpodid.AzureIdentity, err error)
 }
 
 // KubeClient k8s client
@@ -37,7 +43,7 @@ func NewKubeClient() (Client, error) {
 }
 
 // GetNodeIP get node ip from apiserver
-func (c *KubeClient) GetNodeIP(hostname string) (nodeip string, err error) {
+func (c *KubeClient) GetNodeIP(nodename string) (nodeip string, err error) {
 	return "127.0.0.1", nil
 }
 
@@ -65,25 +71,30 @@ func (c *KubeClient) GetPodName(podip string) (podns, poddname string, err error
 }
 
 // GetPodCidr get node pod cidr from apiserver
-func (c *KubeClient) GetPodCidr(hostname string) (podcidr string, err error) {
+func (c *KubeClient) GetPodCidr(nodename string) (podcidr string, err error) {
 	if c == nil {
 		return "", fmt.Errorf("kubeclinet is nil")
 	}
 
-	if hostname == "" {
-		return "", fmt.Errorf("hostname is nil")
+	if nodename == "" {
+		return "", fmt.Errorf("nodename is nil")
 	}
 
-	n, err := c.ClientSet.CoreV1().Nodes().Get(hostname, metav1.GetOptions{})
+	n, err := c.ClientSet.CoreV1().Nodes().Get(nodename, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 
 	if n.Spec.PodCIDR == "" {
-		return "", fmt.Errorf("podcidr is nil or empty, hostname: %s", hostname)
+		return "", fmt.Errorf("podcidr is nil or empty, nodename: %s", nodename)
 	}
 
 	return n.Spec.PodCIDR, nil
+}
+
+// GetAzureAssignedIdentity return the matching azure identity or nil
+func (c *KubeClient) GetAzureAssignedIdentity(podns, podname string) (azID *aadpodid.AzureIdentity, err error) {
+	return nil, nil
 }
 
 func getkubeclient() (*kubernetes.Clientset, error) {

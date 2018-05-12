@@ -11,7 +11,8 @@ import (
 	"strings"
 	"time"
 
-	k8s "github.com/Azure/aad-pod-identity/nmi/k8s"
+	aadpodidentity "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -96,9 +97,8 @@ type msiTokenRequestBody struct {
 }
 
 func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
-	remoteIP := parseRemoteAddr(r.RemoteAddr)
-
 	dec := json.NewDecoder(r.Body)
+	clientID := ""
 	for {
 		var trb msiTokenRequestBody
 		if err := dec.Decode(&trb); err == io.EOF {
@@ -107,9 +107,30 @@ func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 			logger.Fatal(err)
 		}
 		logger.Printf("%s\n", trb.Resource)
+		split := strings.Split(trb.Resource, "client_id=")
+		clientID = split[1]
+	}
+	logger.Infof("client_id: %s", clientID)
+
+	podIP := parseRemoteAddr(r.RemoteAddr)
+	podns, podname, err := s.KubeClient.GetPodName(podIP)
+	if err != nil {
+
+	}
+	azID, err := s.KubeClient.GetAzureAssignedIdentity(podns, podname)
+	if err != nil {
+
+	}
+	switch azID.Spec.Type {
+	case aadpodidentity.UserAssignedMSI:
+		break
+	case aadpodidentity.ServicePrincipal:
+		break
+	default:
+		break
 	}
 
-	logger.Info(remoteIP)
+	logger.Info(podIP)
 }
 
 func (s *Server) reverseProxyHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {

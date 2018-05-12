@@ -3,9 +3,9 @@ package main
 import (
 	"os"
 
-	"github.com/Azure/aad-pod-identity/nmi/iptable"
-	"github.com/Azure/aad-pod-identity/nmi/k8s"
-	server "github.com/Azure/aad-pod-identity/nmi/server"
+	"github.com/Azure/aad-pod-identity/pkg/iptable"
+	"github.com/Azure/aad-pod-identity/pkg/k8s"
+	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
 
 	"github.com/golang/glog"
 
