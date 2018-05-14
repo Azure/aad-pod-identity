@@ -13,6 +13,7 @@ import (
 
 	aadpodidentity "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
+	auth "github.com/Azure/aad-pod-identity/pkg/nmi/auth"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -97,21 +98,6 @@ type msiTokenRequestBody struct {
 }
 
 func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
-	dec := json.NewDecoder(r.Body)
-	clientID := ""
-	for {
-		var trb msiTokenRequestBody
-		if err := dec.Decode(&trb); err == io.EOF {
-			break
-		} else if err != nil {
-			logger.Fatal(err)
-		}
-		logger.Printf("%s\n", trb.Resource)
-		split := strings.Split(trb.Resource, "client_id=")
-		clientID = split[1]
-	}
-	logger.Infof("client_id: %s", clientID)
-
 	podIP := parseRemoteAddr(r.RemoteAddr)
 	podns, podname, err := s.KubeClient.GetPodName(podIP)
 	if err != nil {
@@ -121,22 +107,52 @@ func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 	if err != nil {
 
 	}
+
+	validateRequestClientID := false
+	rqClientID, err := parseRequestClientID(r.Body)
+	if err != nil {
+		validateRequestClientID = true
+	}
+	if validateRequestClientID {
+		log.Infof("request clientid validation %s %v", rqClientID, validateRequestClientID)
+	}
+
 	switch azID.Spec.Type {
 	case aadpodidentity.UserAssignedMSI:
-		break
-	case aadpodidentity.ServicePrincipal:
+		token, err = auth.GetServicePrincipalToken(rqClientID, "")
+		response, err := json.Marshal(*token)
+		if err != nil {
+			return
+		}
+		w.Write(response)
 		break
 	default:
 		break
 	}
+}
 
-	logger.Info(podIP)
+func parseRequestClientID(r io.Reader) (clientID string, err error) {
+	dec := json.NewDecoder(r)
+	clientID = ""
+	for {
+		var trb msiTokenRequestBody
+		if err := dec.Decode(&trb); err == io.EOF {
+			break
+		} else if err != nil {
+			return "", err
+		}
+
+		split := strings.Split(trb.Resource, "client_id=")
+		clientID = split[1]
+	}
+
+	return clientID, err
 }
 
 func (s *Server) reverseProxyHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
 	proxy := httputil.NewSingleHostReverseProxy(&url.URL{Scheme: "http", Host: s.MetadataAddress})
 	proxy.ServeHTTP(w, r)
-	logger.WithField("metadata.url", s.MetadataAddress).Debug("Proxy metadata request")
+	logger.WithField("metadata.url", s.MetadataAddress).Debug("proxy metadata request")
 }
 
 // Run runs the specified Server.
