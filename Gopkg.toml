@@ -37,10 +37,6 @@
   name = "github.com/sirupsen/logrus"
   version = "1.0.5"
 
-[[constraint]]
-  name = "github.com/spf13/cobra"
-  version = "0.0.2"
-
 [[override]]
   name = "k8s.io/apimachinery"
   branch = "release-1.10" # correct branch

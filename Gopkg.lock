@@ -2,10 +2,25 @@
 
 
 [[projects]]
+  name = "github.com/Azure/go-autorest"
+  packages = [
+    "autorest/adal",
+    "autorest/date"
+  ]
+  revision = "eaa7994b2278094c904d31993d26f56324db3052"
+  version = "v10.8.1"
+
+[[projects]]
   name = "github.com/coreos/go-iptables"
   packages = ["iptables"]
   revision = "b5b1876b170881a8259f036445ee89c8669db386"
   version = "v0.3.0"
+
+[[projects]]
+  name = "github.com/dgrijalva/jwt-go"
+  packages = ["."]
+  revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
+  version = "v3.2.0"
 
 [[projects]]
   name = "github.com/ghodss/yaml"
@@ -300,6 +315,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "35eefde67e730836929fdde7afd2dbe4ab9d54ea095f78f2754db66a226384a2"
+  inputs-digest = "f1d34d50eac4934329900c95ea922e7138cffed15c87f7cac86edc45daacadfe"
   solver-name = "gps-cdcl"
   solver-version = 1
