@@ -1,4 +1,4 @@
-package aadpodidentity
+package v1
 
 import (
 	api "k8s.io/api/core/v1"
@@ -100,7 +100,7 @@ const (
 // and the identities present..
 type AzureIdentityBindingSpec struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	AzureIdentityRef  string    `json:"azureidref"`
+	AzureIdentityRef  string    `json:"azureidentityref"`
 	MatchType         MatchType `json:"matchtype"`
 	MatchName         string    `json:"matchname"`
 	// Weight is used to figure out which of the matching identities would be selected.
@@ -118,7 +118,7 @@ type AzureIdentityBindingStatus struct {
 
 type AzureAssignedIdentitySpec struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	AzureIdentityRef  string `json:"azureidref"`
+	AzureIdentityRef  string `json:"azureidentityref"`
 	Pod               string `json:"podref"`
 	NodeName          string `json:"nodename"`
 	Replicas          *int32 `json:"replicas"`

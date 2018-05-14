@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 
-	aadpodidentity "../pkg/apis/aadpodidentity/v1"
+	aadpodidentity "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/golang/glog"
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -49,6 +49,7 @@ func main() {
 		})
 	exit := make(chan struct{})
 	crdClient.K8sInformers.Start(exit)
+	glog.Info("AAD Pod identity controller initialized!!")
 	//Infinite loop :-)
 	select {}
 }
