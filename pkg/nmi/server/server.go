@@ -23,18 +23,6 @@ const (
 	defaultNmiPort      = "2579"
 )
 
-func parseRemoteAddr(addr string) string {
-	n := strings.IndexByte(addr, ':')
-	if n <= 1 {
-		return ""
-	}
-	hostname := addr[0:n]
-	if net.ParseIP(hostname) == nil {
-		return ""
-	}
-	return hostname
-}
-
 // Server encapsulates all of the parameters necessary for starting up
 // the server. These can either be set via command line or directly.
 type Server struct {
@@ -43,6 +31,28 @@ type Server struct {
 	MetadataIP   string
 	MetadataPort string
 	Host         string
+}
+
+// NewServer will create a new Server with default values.
+func NewServer() *Server {
+	return &Server{
+		MetadataIP:   defaultMetadataIP,
+		MetadataPort: defaultMetadataPort,
+		NMIPort:      defaultNmiPort,
+	}
+}
+
+// Run runs the specified Server.
+func (s *Server) Run() error {
+	mux := http.NewServeMux()
+	mux.Handle("/metadata/identity/oauth2/token", appHandler(s.roleHandler))
+	mux.Handle("/{path:.*}", appHandler(s.reverseProxyHandler))
+
+	log.Infof("Listening on port %s", s.NMIPort)
+	if err := http.ListenAndServe(":"+s.NMIPort, mux); err != nil {
+		log.Fatalf("Error creating http server: %+v", err)
+	}
+	return nil
 }
 
 type appHandler func(*log.Entry, http.ResponseWriter, *http.Request)
@@ -95,38 +105,36 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type msiTokenRequestBody struct {
-	Resource string `json:"resource"`
-}
-
 func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
 	podIP := parseRemoteAddr(r.RemoteAddr)
 	podns, podname, err := s.KubeClient.GetPodName(podIP)
 	if err != nil {
-		log.Errorf("Error getting podname for podip:%s, %+v", podIP, err)
+		logger.Errorf("Error getting podname for podip:%s, %+v", podIP, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	azID, err := s.KubeClient.GetAzureAssignedIdentity(podns, podname)
 	if err != nil {
-		log.Errorf("No AzureAssignedIdentity found for pod:%s/%s, %+v", podns, podname, err)
+		logger.Errorf("No AzureAssignedIdentity found for pod:%s/%s, %+v", podns, podname, err)
 		msg := fmt.Sprintf("No AzureAssignedIdentity found for pod:%s/%s", podns, podname)
 		http.Error(w, msg, http.StatusForbidden)
 		return
 	}
-	log.Infof("found matching azID %s", azID.Name)
+	logger.Infof("found matching azID %s", azID.Name)
 	rqClientID := parseRequestClientID(r)
-	log.Infof("request clientid %s", rqClientID)
+	logger.Infof("request clientid %s", rqClientID)
 
 	switch azID.Spec.Type {
 	case aadpodidentity.UserAssignedMSI:
 		token, err := auth.GetServicePrincipalToken(rqClientID, "")
 		if err != nil {
+			logger.Errorf("failed to get service pricipal token, %+v", err)
 			http.Error(w, err.Error(), http.StatusFailedDependency)
 			return
 		}
 		response, err := json.Marshal(*token)
 		if err != nil {
+			logger.Errorf("failed to Marshal service pricipal token, %+v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -137,12 +145,23 @@ func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 	}
 }
 
+func parseRemoteAddr(addr string) string {
+	n := strings.IndexByte(addr, ':')
+	if n <= 1 {
+		return ""
+	}
+	hostname := addr[0:n]
+	if net.ParseIP(hostname) == nil {
+		return ""
+	}
+	return hostname
+}
+
 func parseRequestClientID(r *http.Request) (clientID string) {
 	vals := r.URL.Query()
 	if vals != nil {
 		clientID = vals.Get("client_id")
 	}
-
 	return clientID
 }
 
@@ -150,26 +169,4 @@ func (s *Server) reverseProxyHandler(logger *log.Entry, w http.ResponseWriter, r
 	proxy := httputil.NewSingleHostReverseProxy(&url.URL{Scheme: "http", Host: s.MetadataIP})
 	proxy.ServeHTTP(w, r)
 	logger.WithField("metadata.url", s.MetadataIP).Debug("proxy metadata request")
-}
-
-// Run runs the specified Server.
-func (s *Server) Run() error {
-	mux := http.NewServeMux()
-	mux.Handle("/metadata/identity/oauth2/token", appHandler(s.roleHandler))
-	mux.Handle("/{path:.*}", appHandler(s.reverseProxyHandler))
-
-	log.Infof("Listening on port %s", s.NMIPort)
-	if err := http.ListenAndServe(":"+s.NMIPort, mux); err != nil {
-		log.Fatalf("Error creating http server: %+v", err)
-	}
-	return nil
-}
-
-// NewServer will create a new Server with default values.
-func NewServer() *Server {
-	return &Server{
-		MetadataIP:   defaultMetadataIP,
-		MetadataPort: defaultMetadataPort,
-		NMIPort:      defaultNmiPort,
-	}
 }
