@@ -155,7 +155,7 @@ func (s *Server) reverseProxyHandler(logger *log.Entry, w http.ResponseWriter, r
 // Run runs the specified Server.
 func (s *Server) Run() error {
 	mux := http.NewServeMux()
-	mux.Handle("/oauth2/token", appHandler(s.roleHandler))
+	mux.Handle("/metadata/identity/oauth2/token", appHandler(s.roleHandler))
 	mux.Handle("/{path:.*}", appHandler(s.reverseProxyHandler))
 
 	log.Infof("Listening on port %s", s.NMIPort)
