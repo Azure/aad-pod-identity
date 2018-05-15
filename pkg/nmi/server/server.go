@@ -12,8 +12,8 @@ import (
 	"time"
 
 	aadpodidentity "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
-	auth "github.com/Azure/aad-pod-identity/pkg/nmi/auth"
 	log "github.com/sirupsen/logrus"
 )
 
