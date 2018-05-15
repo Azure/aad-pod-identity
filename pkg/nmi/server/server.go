@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -18,8 +19,9 @@ import (
 )
 
 const (
-	defaultMetadataAddress = "169.254.169.254"
-	defaultNmiPort         = "2579"
+	defaultMetadataIP   = "169.254.169.254"
+	defaultMetadataPort = "80"
+	defaultNmiPort      = "2579"
 )
 
 func parseRemoteAddr(addr string) string {
@@ -37,10 +39,11 @@ func parseRemoteAddr(addr string) string {
 // Server encapsulates all of the parameters necessary for starting up
 // the server. These can either be set via command line or directly.
 type Server struct {
-	KubeClient      k8s.Client
-	NMIPort         string
-	MetadataAddress string
-	Host            string
+	KubeClient   k8s.Client
+	NMIPort      string
+	MetadataIP   string
+	MetadataPort string
+	Host         string
 }
 
 type appHandler func(*log.Entry, http.ResponseWriter, *http.Request)
@@ -99,15 +102,23 @@ type msiTokenRequestBody struct {
 
 func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
 	podIP := parseRemoteAddr(r.RemoteAddr)
+	log.Infof("received request %s", podIP)
+
 	podns, podname, err := s.KubeClient.GetPodName(podIP)
 	if err != nil {
-
+		log.Errorf("Error getting podname for podip:%s, %+v", podIP, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	azID, err := s.KubeClient.GetAzureAssignedIdentity(podns, podname)
 	if err != nil {
-
+		log.Errorf("No AzureAssignedIdentity found for pod:%s/%s, %+v", podns, podname, err)
+		msg := fmt.Sprintf("No AzureAssignedIdentity found for pod:%s/%s", podns, podname)
+		http.Error(w, msg, http.StatusForbidden)
+		return
 	}
 
+	log.Infof("found matching azID %s", azID.Name)
 	validateRequestClientID := false
 	rqClientID, err := parseRequestClientID(r.Body)
 	if err != nil {
@@ -150,15 +161,15 @@ func parseRequestClientID(r io.Reader) (clientID string, err error) {
 }
 
 func (s *Server) reverseProxyHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
-	proxy := httputil.NewSingleHostReverseProxy(&url.URL{Scheme: "http", Host: s.MetadataAddress})
+	proxy := httputil.NewSingleHostReverseProxy(&url.URL{Scheme: "http", Host: s.MetadataIP})
 	proxy.ServeHTTP(w, r)
-	logger.WithField("metadata.url", s.MetadataAddress).Debug("proxy metadata request")
+	logger.WithField("metadata.url", s.MetadataIP).Debug("proxy metadata request")
 }
 
 // Run runs the specified Server.
 func (s *Server) Run() error {
 	mux := http.NewServeMux()
-	mux.Handle("/oauth2/token{role:.*}", appHandler(s.roleHandler))
+	mux.Handle("/oauth2/token", appHandler(s.roleHandler))
 	mux.Handle("/{path:.*}", appHandler(s.reverseProxyHandler))
 
 	log.Infof("Listening on port %s", s.NMIPort)
@@ -171,7 +182,8 @@ func (s *Server) Run() error {
 // NewServer will create a new Server with default values.
 func NewServer() *Server {
 	return &Server{
-		MetadataAddress: defaultMetadataAddress,
-		NMIPort:         defaultNmiPort,
+		MetadataIP:   defaultMetadataIP,
+		MetadataPort: defaultMetadataPort,
+		NMIPort:      defaultNmiPort,
 	}
 }
