@@ -107,6 +107,8 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
 	podIP := parseRemoteAddr(r.RemoteAddr)
+	log.Infof("received request %s", podIP)
+
 	podns, podname, err := s.KubeClient.GetPodName(podIP)
 	if err != nil {
 		logger.Errorf("Error getting podname for podip:%s, %+v", podIP, err)
