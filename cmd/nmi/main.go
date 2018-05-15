@@ -13,20 +13,30 @@ import (
 )
 
 var (
-	nmiPort       = pflag.String("nmi-port", "2579", "NMI application port")
-	hostInterface = pflag.String("host-interface", "eth0", "Host interface for instance metadata traffic")
+	nmiPort      = pflag.String("nmi-port", "2579", "NMI application port")
+	metadataIP   = pflag.String("metadata-ip", "169.254.169.254", "instance metadata host ip")
+	metadataPort = pflag.String("metadata-port", "80", "instance metadata host ip")
+	test         = pflag.Bool("test", false, "set to true to use fake client")
 )
 
 func main() {
 	defer glog.Flush()
+	pflag.Parse()
 	glog.Info("starting nmi process")
-	kubeClient, err := k8s.NewKubeClient()
-	if err != nil {
-		glog.Fatalf("%+v", err)
+	s := server.NewServer()
+	if !*test {
+		client, err := k8s.NewKubeClient()
+		if err != nil {
+			glog.Fatalf("%+v", err)
+		}
+		s.KubeClient = client
+	} else {
+		client, _ := k8s.NewFakeClient()
+		s.KubeClient = client
 	}
 
-	s := server.NewServer()
-	s.KubeClient = kubeClient
+	s.MetadataIP = *metadataIP
+	s.MetadataPort = *metadataPort
 
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -35,17 +45,15 @@ func main() {
 	s.Host = hostname
 	glog.Infof("hostname: %s", hostname)
 
-	podcidr, err := kubeClient.GetPodCidr(hostname)
+	podcidr, err := s.KubeClient.GetPodCidr(hostname)
 	if err != nil {
 		glog.Fatalf("%+v", err)
 	}
-
-	nodeip, err := kubeClient.GetNodeIP(hostname)
+	nodeip, err := s.KubeClient.GetNodeIP(hostname)
 	if err != nil {
 		glog.Fatalf("%+v", err)
 	}
-
-	if err := iptable.AddRule(podcidr, s.MetadataAddress, nodeip, s.NMIPort); err != nil {
+	if err := iptable.AddRule(podcidr, s.MetadataIP, s.MetadataPort, nodeip, s.NMIPort); err != nil {
 		glog.Fatalf("%s", err)
 	}
 

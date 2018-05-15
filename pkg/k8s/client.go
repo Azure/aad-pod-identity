@@ -3,6 +3,7 @@ package k8s
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -34,7 +35,7 @@ type KubeClient struct {
 func NewKubeClient() (Client, error) {
 	clientset, err := getkubeclient()
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	kubeClient := &KubeClient{ClientSet: clientset}
@@ -44,7 +45,7 @@ func NewKubeClient() (Client, error) {
 
 // GetNodeIP get node ip from apiserver
 func (c *KubeClient) GetNodeIP(nodename string) (nodeip string, err error) {
-	return "127.0.0.1", nil
+	return "", nil
 }
 
 // GetPodName get pod ns,name from apiserver
@@ -54,20 +55,23 @@ func (c *KubeClient) GetPodName(podip string) (podns, poddname string, err error
 	}
 
 	if podip == "" {
-		return "", "", fmt.Errorf("podip is nil")
+		return "", "", fmt.Errorf("podip is empty")
 	}
 
-	podipFieldSel := fmt.Sprintf("status.podIp=%s", podip)
-	podList, err := c.ClientSet.CoreV1().Pods("default").List(metav1.ListOptions{FieldSelector: podipFieldSel})
+	//podipFieldSel := fmt.Sprintf("status.podIp=%s", podip)
+	podList, err := c.ClientSet.CoreV1().Pods("").List(metav1.ListOptions{})
 	if err != nil {
 		return "", "", err
 	}
+	for _, pod := range podList.Items {
+		if !strings.EqualFold(pod.Status.PodIP, podip) {
+			continue
+		}
 
-	if len(podList.Items) != 1 {
-		return "", "", fmt.Errorf("Expected 1 item in podList, got %d", len(podList.Items))
+		return pod.Namespace, pod.Name, nil
 	}
 
-	return podList.Items[0].Namespace, podList.Items[0].Name, nil
+	return "", "", fmt.Errorf("not found")
 }
 
 // GetPodCidr get node pod cidr from apiserver
