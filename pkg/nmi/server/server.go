@@ -131,7 +131,6 @@ func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 	switch azID.Spec.Type {
 	case aadpodidentity.UserAssignedMSI:
 		token, err := auth.GetServicePrincipalToken(rqClientID, "")
-		log.Infof("request clientid validation %s %v", rqClientID, validateRequestClientID)
 		response, err := json.Marshal(*token)
 		if err != nil {
 			return

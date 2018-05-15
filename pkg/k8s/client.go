@@ -29,16 +29,29 @@ type Client interface {
 type KubeClient struct {
 	// Main Kubernetes client
 	ClientSet *kubernetes.Clientset
+	// Crd client used to access our CRD resources.
+	CrdClient *aadpodid.CrdClient
 }
 
 // NewKubeClient new kubernetes api client
 func NewKubeClient() (Client, error) {
-	clientset, err := getkubeclient()
+
+	config, err := buildConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	kubeClient := &KubeClient{ClientSet: clientset}
+	clientset, err := getkubeclient(config)
+	if err != nil {
+		return nil, err
+	}
+
+	crdclient, err := aadpodid.NewCRDClient(config)
+	if err != nil {
+		return nil, err
+	}
+
+	kubeClient := &KubeClient{ClientSet: clientset, CrdClient: crdclient}
 
 	return kubeClient, nil
 }
@@ -98,14 +111,10 @@ func (c *KubeClient) GetPodCidr(nodename string) (podcidr string, err error) {
 
 // GetAzureAssignedIdentity return the matching azure identity or nil
 func (c *KubeClient) GetAzureAssignedIdentity(podns, podname string) (azID *aadpodid.AzureIdentity, err error) {
-	return nil, nil
+	return c.CrdClient.GetAzureAssignedIdentity(podns, podname)
 }
 
-func getkubeclient() (*kubernetes.Clientset, error) {
-	config, err := buildConfig()
-	if err != nil {
-		return nil, err
-	}
+func getkubeclient(config *rest.Config) (*kubernetes.Clientset, error) {
 	// creates the clientset
 	kubeClient, err := kubernetes.NewForConfig(config)
 	if err != nil {

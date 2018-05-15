@@ -2,6 +2,7 @@ ORG_PATH=github.com/Azure
 PROJECT_NAME := aad-pod-identity
 REPO_PATH="$(ORG_PATH)/$(PROJECT_NAME)"
 NMI_BINARY_NAME := nmi
+MIC_BINARY_NAME := mic
 NMI_VERSION=1.0
 VERSION_VAR := $(REPO_PATH)/version.Version
 GIT_VAR := $(REPO_PATH)/version.GitCommit
@@ -32,6 +33,7 @@ clean:
 
 build:clean
 	go build -o bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(NMI_BINARY_NAME)
+	go build -o bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(MIC_BINARY_NAME)
 
 image:
 	cp bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) images/nmi
