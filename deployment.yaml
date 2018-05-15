@@ -6,7 +6,7 @@ metadata:
     component: nmi
     tier: node
   name: nmi
-  namespace: kube-system
+  namespace: default
 spec:
   template:
     metadata:

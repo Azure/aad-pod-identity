@@ -99,6 +99,7 @@ type msiTokenRequestBody struct {
 
 func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
 	podIP := parseRemoteAddr(r.RemoteAddr)
+	log.Infof("received request %s", podIP)
 	podns, podname, err := s.KubeClient.GetPodName(podIP)
 	if err != nil {
 
@@ -119,7 +120,8 @@ func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 
 	switch azID.Spec.Type {
 	case aadpodidentity.UserAssignedMSI:
-		token, err = auth.GetServicePrincipalToken(rqClientID, "")
+		token, err := auth.GetServicePrincipalToken(rqClientID, "")
+		log.Infof("request clientid validation %s %v", rqClientID, validateRequestClientID)
 		response, err := json.Marshal(*token)
 		if err != nil {
 			return
@@ -158,7 +160,7 @@ func (s *Server) reverseProxyHandler(logger *log.Entry, w http.ResponseWriter, r
 // Run runs the specified Server.
 func (s *Server) Run() error {
 	mux := http.NewServeMux()
-	mux.Handle("/oauth2/token{role:.*}", appHandler(s.roleHandler))
+	mux.Handle("/oauth2/token", appHandler(s.roleHandler))
 	mux.Handle("/{path:.*}", appHandler(s.reverseProxyHandler))
 
 	log.Infof("Listening on port %s", s.NMIPort)
