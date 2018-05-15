@@ -55,7 +55,7 @@ func withInspection() autorest.PrepareDecorator {
 func NewAadPodIdentityCrdClient(config *rest.Config, credConfigFile string) (*Client, error) {
 	glog.Infof("Starting to create the pod identity client")
 
-	crdClient, err := NewCRDClient(config, credConfigFile)
+	crdClient, err := NewCRDClient(config)
 	if err != nil {
 		return nil, err
 	}

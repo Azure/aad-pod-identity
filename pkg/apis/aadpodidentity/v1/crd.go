@@ -20,7 +20,7 @@ type CrdClient struct {
 	rest *rest.RESTClient
 }
 
-func NewCRDClient(config *rest.Config, credConfigFile string) (*CrdClient, error) {
+func NewCRDClient(config *rest.Config) (*CrdClient, error) {
 	crdconfig := *config
 	crdconfig.GroupVersion = &schema.GroupVersion{Group: CRDGroup, Version: CRDVersion}
 	crdconfig.APIPath = "/apis"
