@@ -13,18 +13,9 @@ import (
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-)
-
-const (
-	CRDGroup   = "aadpodidentity.k8s.io"
-	CRDVersion = "v1"
 )
 
 type Config struct {
@@ -39,7 +30,7 @@ type Config struct {
 // Client has the required pointers to talk to the api server
 // and interact with the CRD related datastructure.
 type Client struct {
-	CRDClient    *rest.RESTClient
+	CRDClient    *CrdClient
 	ClientSet    *kubernetes.Clientset
 	K8sInformers informers.SharedInformerFactory
 	CredConfig   Config
@@ -59,31 +50,6 @@ func withInspection() autorest.PrepareDecorator {
 			return p.Prepare(r)
 		})
 	}
-}
-
-func NewCRDClient(config *rest.Config, credConfigFile string) (*rest.RESTClient, error) {
-	crdconfig := *config
-	crdconfig.GroupVersion = &schema.GroupVersion{Group: CRDGroup, Version: CRDVersion}
-	crdconfig.APIPath = "/apis"
-	crdconfig.ContentType = runtime.ContentTypeJSON
-	s := runtime.NewScheme()
-	s.AddKnownTypes(*crdconfig.GroupVersion,
-		&AzureIdentity{},
-		&AzureIdentityList{},
-		&AzureIdentityBinding{},
-		&AzureIdentityBindingList{},
-		&AzureAssignedIdentity{},
-		&AzureAssignedIdentityList{})
-	crdconfig.NegotiatedSerializer = serializer.DirectCodecFactory{
-		CodecFactory: serializer.NewCodecFactory(s)}
-
-	//Client interacting with our CRDs
-	crdClient, err := rest.RESTClientFor(&crdconfig)
-	if err != nil {
-		glog.Error(err)
-		return nil, err
-	}
-	return crdClient, nil
 }
 
 func NewAadPodIdentityCrdClient(config *rest.Config, credConfigFile string) (*Client, error) {
@@ -148,17 +114,6 @@ func NewAadPodIdentityCrdClient(config *rest.Config, credConfigFile string) (*Cl
 		VMClient:     virtualMachinesClient,
 		ExtClient:    extClient,
 	}, nil
-}
-
-var (
-	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
-	AddToScheme   = SchemeBuilder.AddToScheme
-)
-
-// Adds the list of known types to Scheme.
-func addKnownTypes(scheme *runtime.Scheme) error {
-
-	return nil
 }
 
 func (c *Client) AssignUserMSI(userAssignedMSIID string, nodeName string) error {
@@ -228,85 +183,6 @@ func (c *Client) AssignUserMSI(userAssignedMSIID string, nodeName string) error 
 	return nil
 }
 
-func (c *Client) AssignIdentity(idName string, podName string, nodeName string) error {
-	glog.Infof("Got id %s to assign", idName)
-	// Create a new AzureAssignedIdentity which maps the relationship between
-	// id and pod
-	assignedID := &AzureAssignedIdentity{
-		ObjectMeta: v1.ObjectMeta{
-			Name: "azureassignedidentities.aadpodidentity.k8s.io",
-		},
-		Spec: AzureAssignedIdentitySpec{
-			AzureIdentityRef: idName,
-			Pod:              podName,
-			NodeName:         nodeName,
-		},
-		Status: AzureAssignedIdentityStatus{
-			AvailableReplicas: 1,
-		},
-	}
-
-	var res AzureAssignedIdentity
-	// TODO: Ensure that the status reflects the corresponding
-	err := c.CRDClient.Post().Namespace("default").Resource("azureassignedidentities").Body(assignedID).Do().Into(&res)
-	if err != nil {
-		glog.Error(err)
-		return err
-	}
-	glog.Infof("Looking up id: %s", idName)
-	id, err := c.Lookup(idName)
-	if err != nil {
-		glog.Error(err)
-		return err
-	}
-	glog.Infof("Assigning MSI ID: %s to node %s", id.Spec.ID, nodeName)
-	err = c.AssignUserMSI(id.Spec.ID, nodeName)
-	if err != nil {
-		glog.Error(err)
-		return err
-	}
-
-	//TODO: Update the status of the assign identity to indicate that the node assignment got done.
-	return nil
-}
-
-func (c *Client) ListBindings() (res *AzureIdentityBindingList, err error) {
-	var ret AzureIdentityBindingList
-	err = c.CRDClient.Get().Namespace("default").Resource("azureidentitybindings").Do().Into(&ret)
-	if err != nil {
-		glog.Error(err)
-		return nil, err
-	}
-	//glog.Infof("%+v", ret)
-	return &ret, nil
-
-}
-
-func (c *Client) Lookup(idName string) (res *AzureIdentity, err error) {
-	ids, err := c.ListIds()
-	if err != nil {
-		return nil, err
-	}
-	for _, v := range ids.Items {
-		glog.Infof("%+v", v)
-		glog.Infof("Looking for idName %s in %s", idName, v.Name)
-		if v.Name == idName {
-			return &v, nil
-		}
-	}
-	return nil, fmt.Errorf("Lookup of %s failed", idName)
-}
-
-func (c *Client) ListIds() (res *AzureIdentityList, err error) {
-	var ret AzureIdentityList
-	err = c.CRDClient.Get().Namespace("default").Resource("azureidentities").Do().Into(&ret)
-	if err != nil {
-		glog.Error(err)
-		return nil, err
-	}
-	return &ret, nil
-}
-
 // MatchBinding - matches the name of the pod with the bindings. Return back
 // the name of the identity which is matching. This name
 // will be used to assign the azureidentity to the pod.
@@ -314,7 +190,7 @@ func (c *Client) Bind(podName string, nodeName string) (err error) {
 	// List the AzureIdentityBindings and check if the pod name matches
 	// any selector.
 	glog.Infof("Created pod with Name: %s", podName)
-	bindings, err := c.ListBindings()
+	bindings, err := c.CRDClient.ListBindings()
 	if err != nil {
 		glog.Error(err)
 		return err
@@ -323,7 +199,7 @@ func (c *Client) Bind(podName string, nodeName string) (err error) {
 		glog.Infof("Matching pod name %s with binding name %s", podName, v.Spec.MatchName)
 		if v.Spec.MatchName == podName {
 			glog.Infof("%+v", v.Spec)
-			return c.AssignIdentity(v.Spec.AzureIdentityRef, podName, nodeName)
+			return c.CRDClient.AssignIdentity(v.Spec.AzureIdentityRef, podName, nodeName)
 		}
 	}
 	return nil

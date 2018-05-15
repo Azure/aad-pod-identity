@@ -59,7 +59,7 @@ func (in *AzureAssignedIdentityList) DeepCopyInto(out *AzureAssignedIdentityList
 	out.ListMeta = in.ListMeta
 	if in.Items != nil {
 		in, out := &in.Items, &out.Items
-		*out = make([]AzureAssignedIdentityList, len(*in))
+		*out = make([]AzureAssignedIdentity, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

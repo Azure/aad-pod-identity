@@ -28,6 +28,8 @@ type Client interface {
 type KubeClient struct {
 	// Main Kubernetes client
 	ClientSet *kubernetes.Clientset
+	//Crd client
+	aadpodid.CrdClient
 }
 
 // NewKubeClient new kubernetes api client
