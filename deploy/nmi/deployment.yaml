@@ -1,0 +1,27 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  labels:
+    kubernetes.io/cluster-service: "true"
+    component: nmi
+    tier: node
+  name: nmi
+  namespace: default
+spec:
+  template:
+    metadata:
+      labels:
+        component: nmi
+        tier: node
+    spec:
+      hostNetwork: true
+      containers:
+      - name: nmi
+        image: "nikhilbh/nmi:1.0"
+        imagePullPolicy: Always
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+      nodeSelector:
+        beta.kubernetes.io/os: linux
