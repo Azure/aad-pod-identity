@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -102,8 +101,6 @@ type msiTokenRequestBody struct {
 
 func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
 	podIP := parseRemoteAddr(r.RemoteAddr)
-	log.Infof("received request %s", podIP)
-
 	podns, podname, err := s.KubeClient.GetPodName(podIP)
 	if err != nil {
 		log.Errorf("Error getting podname for podip:%s, %+v", podIP, err)
@@ -117,22 +114,20 @@ func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 		http.Error(w, msg, http.StatusForbidden)
 		return
 	}
-
 	log.Infof("found matching azID %s", azID.Name)
-	validateRequestClientID := false
-	rqClientID, err := parseRequestClientID(r.Body)
-	if err != nil {
-		validateRequestClientID = true
-	}
-	if validateRequestClientID {
-		log.Infof("request clientid validation %s %v", rqClientID, validateRequestClientID)
-	}
+	rqClientID := parseRequestClientID(r)
+	log.Infof("request clientid %s", rqClientID)
 
 	switch azID.Spec.Type {
 	case aadpodidentity.UserAssignedMSI:
 		token, err := auth.GetServicePrincipalToken(rqClientID, "")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusFailedDependency)
+			return
+		}
 		response, err := json.Marshal(*token)
 		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 		w.Write(response)
@@ -142,22 +137,13 @@ func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 	}
 }
 
-func parseRequestClientID(r io.Reader) (clientID string, err error) {
-	dec := json.NewDecoder(r)
-	clientID = ""
-	for {
-		var trb msiTokenRequestBody
-		if err := dec.Decode(&trb); err == io.EOF {
-			break
-		} else if err != nil {
-			return "", err
-		}
-
-		split := strings.Split(trb.Resource, "client_id=")
-		clientID = split[1]
+func parseRequestClientID(r *http.Request) (clientID string) {
+	vals := r.URL.Query()
+	if vals != nil {
+		clientID = vals.Get("client_id")
 	}
 
-	return clientID, err
+	return clientID
 }
 
 func (s *Server) reverseProxyHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
