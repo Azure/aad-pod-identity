@@ -76,10 +76,11 @@ const (
 type AzureIdentitySpec struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// EMSI or Service Principle
-	Type     IdentityType        `json:"type"`
-	ID       string              `json:"id"`
-	Password api.SecretReference `json:"password"`
-	Replicas *int32              `json:"replicas"`
+	Type       IdentityType        `json:"type"`
+	ResourceID string              `json:"resourceid"`
+	ClientID   string              `json:"clientid"`
+	Password   api.SecretReference `json:"password"`
+	Replicas   *int32              `json:"replicas"`
 }
 
 type AzureIdentityStatus struct {
@@ -93,6 +94,17 @@ type MatchType int
 const (
 	Explicit MatchType = 0
 	Selector MatchType = 1
+)
+
+//AssignedIDState -  State indicator for the AssignedIdentity
+type AssignedIDState int
+
+const (
+	//Created - Default state of the assigned identity
+	Created AssignedIDState = 0
+	//Assigned - When the underlying platform assignment of EMSI is complete
+	//the state moves to assigned
+	Assigned AssignedIDState = 1
 )
 
 // AzureIdentityBindingSpec matches the pod with the Identity.
@@ -114,19 +126,19 @@ type AzureIdentityBindingStatus struct {
 
 /*** AzureAssignedIdentitySpec ***/
 
-// AzureAssignedIdentitySpec has the contents of Azure identity<->POD
-
+//AzureAssignedIdentitySpec has the contents of Azure identity<->POD
 type AzureAssignedIdentitySpec struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	AzureIdentityRef  string `json:"azureidentityref"`
-	Pod               string `json:"podref"`
+	Pod               string `json:"pod"`
+	PodNamespace      string `json:"podnamespace"`
 	NodeName          string `json:"nodename"`
 	Replicas          *int32 `json:"replicas"`
 }
 
 // AzureAssignedIdentityStatus has the replica status of the resouce.
-
 type AzureAssignedIdentityStatus struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	AvailableReplicas int32 `json:"availableReplicas"`
+	Status            string `json:"status"`
+	AvailableReplicas int32  `json:"availableReplicas"`
 }

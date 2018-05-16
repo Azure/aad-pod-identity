@@ -9,7 +9,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	crd "github.com/Azure/aad-pod-identity/pkg/crd"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -20,7 +20,7 @@ type Client interface {
 	// GetPodName return the matching azure identity or nil
 	GetPodName(podip string) (podns, podname string, err error)
 	// GetAzureAssignedIdentity return the matching azure identity or nil
-	GetAzureAssignedIdentity(podns, podname string) (azID *aadpodid.AzureIdentity, err error)
+	GetUserAssignedMSI(podns, podname string) (userMSIClientID *string, err error)
 }
 
 // KubeClient k8s client
@@ -28,7 +28,7 @@ type KubeClient struct {
 	// Main Kubernetes client
 	ClientSet *kubernetes.Clientset
 	// Crd client used to access our CRD resources.
-	CrdClient *aadpodid.CrdClient
+	CrdClient *crd.CrdClient
 }
 
 // NewKubeClient new kubernetes api client
@@ -44,7 +44,7 @@ func NewKubeClient() (Client, error) {
 		return nil, err
 	}
 
-	crdclient, err := aadpodid.NewCRDClient(config)
+	crdclient, err := crd.NewCRDClient(config)
 	if err != nil {
 		return nil, err
 	}
@@ -103,8 +103,8 @@ func (c *KubeClient) GetPodCidr(nodename string) (podcidr string, err error) {
 }
 
 // GetAzureAssignedIdentity return the matching azure identity or nil
-func (c *KubeClient) GetAzureAssignedIdentity(podns, podname string) (azID *aadpodid.AzureIdentity, err error) {
-	return c.CrdClient.GetAzureAssignedIdentity(podns, podname)
+func (c *KubeClient) GetUserAssignedMSI(podns, podname string) (userMSIClientID *string, err error) {
+	return c.CrdClient.GetUserAssignedMSI(podns, podname)
 }
 
 func getkubeclient(config *rest.Config) (*kubernetes.Clientset, error) {

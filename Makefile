@@ -40,6 +40,9 @@ build:clean
 	go build -o bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(MIC_BINARY_NAME)
 	go build -o bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(DEMO_BINARY_NAME)
 
+deepcopy-gen:
+	deepcopy-gen -i ./pkg/apis/aadpodidentity/v1/ -o ../../../ -O aadpodidentity_deepcopy_generated -p aadpodidentity 
+
 image-nmi:
 	cp bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) images/nmi
 	docker build -t $(NMI_IMAGE_NAME):$(NMI_VERSION) images/nmi

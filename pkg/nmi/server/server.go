@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	aadpodidentity "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	log "github.com/sirupsen/logrus"
@@ -115,36 +114,30 @@ func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	azID, err := s.KubeClient.GetAzureAssignedIdentity(podns, podname)
+	azID, err := s.KubeClient.GetUserAssignedMSI(podns, podname)
 	if err != nil {
 		logger.Errorf("No AzureAssignedIdentity found for pod:%s/%s, %+v", podns, podname, err)
 		msg := fmt.Sprintf("No AzureAssignedIdentity found for pod:%s/%s", podns, podname)
 		http.Error(w, msg, http.StatusForbidden)
 		return
 	}
-	logger.Infof("found matching azID %s", azID.Name)
-	rqClientID := parseRequestClientID(r)
+	logger.Infof("found matching azID %s", azID)
+	rqClientID := *azID
 	logger.Infof("request clientid %s", rqClientID)
 
-	switch azID.Spec.Type {
-	case aadpodidentity.UserAssignedMSI:
-		token, err := auth.GetServicePrincipalToken(rqClientID, "")
-		if err != nil {
-			logger.Errorf("failed to get service pricipal token, %+v", err)
-			http.Error(w, err.Error(), http.StatusFailedDependency)
-			return
-		}
-		response, err := json.Marshal(*token)
-		if err != nil {
-			logger.Errorf("failed to Marshal service pricipal token, %+v", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Write(response)
-		break
-	default:
-		break
+	token, err := auth.GetServicePrincipalToken(rqClientID, "")
+	if err != nil {
+		logger.Errorf("failed to get service pricipal token, %+v", err)
+		http.Error(w, err.Error(), http.StatusFailedDependency)
+		return
 	}
+	response, err := json.Marshal(*token)
+	if err != nil {
+		logger.Errorf("failed to Marshal service pricipal token, %+v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(response)
 }
 
 func parseRemoteAddr(addr string) string {
