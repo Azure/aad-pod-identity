@@ -32,7 +32,7 @@ bld/
 #!owners*.txt
 /.corext
 /.gen*
-/vendor/pkg
+/vendor
 junit.xml
 junit_*.xml
 

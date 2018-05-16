@@ -20,6 +20,7 @@ const (
 	defaultMetadataIP   = "169.254.169.254"
 	defaultMetadataPort = "80"
 	defaultNmiPort      = "2579"
+	azureResourceName   = "https://management.azure.com/"
 )
 
 // Server encapsulates all of the parameters necessary for starting up
@@ -121,11 +122,16 @@ func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 		http.Error(w, msg, http.StatusForbidden)
 		return
 	}
-	logger.Infof("found matching azID %s", azID)
-	rqClientID := *azID
-	logger.Infof("request clientid %s", rqClientID)
+	logger.Infof("found matching azID %+v", *azID)
+	rqClientID := parseRequestClientID(r)
 
-	token, err := auth.GetServicePrincipalToken(rqClientID, "")
+	if rqClientID != "" && !strings.EqualFold(rqClientID, *azID) {
+		msg := fmt.Sprintf("request clientid (%s) azID %s", rqClientID, *azID)
+		logger.Error(msg)
+		http.Error(w, msg, http.StatusForbidden)
+		return
+	}
+	token, err := auth.GetServicePrincipalToken(*azID, azureResourceName)
 	if err != nil {
 		logger.Errorf("failed to get service pricipal token, %+v", err)
 		http.Error(w, err.Error(), http.StatusFailedDependency)
