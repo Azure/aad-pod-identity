@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 
-	aadpodidentity "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	"github.com/Azure/aad-pod-identity/pkg/mic"
 	"github.com/golang/glog"
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -28,7 +28,7 @@ func main() {
 		glog.Fatalf("Could not read config properly. Check the k8s config file")
 	}
 
-	crdClient, err := aadpodidentity.NewAadPodIdentityCrdClient(config, azurecredfile)
+	crdClient, err := mic.NewMICClient(config, azurecredfile)
 	if err != nil {
 		glog.Fatalf("Could not get the crd client: %+v", err)
 	}
@@ -37,7 +37,7 @@ func main() {
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				pod := obj.(*v1.Pod)
-				crdClient.Bind(pod.Name, pod.Spec.NodeName)
+				crdClient.AssignIdentity(pod.Name, pod.Namespace, pod.Spec.NodeName)
 				//fmt.Printf("Adding pod: %+v \n", obj)
 			},
 			DeleteFunc: func(obj interface{}) {
