@@ -24,6 +24,33 @@ bld/
 [Oo]bj/
 [Ll]og/
 
+# Everything outside the src directory
+#/*
+#/*/
+#!/src/
+#/src/.packages
+#!owners*.txt
+/.corext
+/.gen*
+/vendor/pkg
+junit.xml
+junit_*.xml
+
+/images/*/shared/*
+*.pem
+
+.vscode/*
+
+# Mac .DS_Store files
+.DS_Store
+
+**/*.coverprofile
+
+# Build artifacts
+images/nmi/nmi
+images/demo/demo
+images/mic/mic
+
 # Visual Studio 2015 cache/options directory
 .vs/
 # Uncomment if you have tasks that create the project's static files in wwwroot
