@@ -124,7 +124,6 @@ func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 	}
 	logger.Infof("found matching azID %+v", *azID)
 	rqClientID := parseRequestClientID(r)
-
 	if rqClientID != "" && !strings.EqualFold(rqClientID, *azID) {
 		msg := fmt.Sprintf("request clientid (%s) azID %s", rqClientID, *azID)
 		logger.Error(msg)
@@ -134,6 +133,11 @@ func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 	token, err := auth.GetServicePrincipalToken(*azID, azureResourceName)
 	if err != nil {
 		logger.Errorf("failed to get service pricipal token, %+v", err)
+		http.Error(w, err.Error(), http.StatusFailedDependency)
+		return
+	}
+	if token == nil {
+		err := fmt.Errorf("received nil token")
 		http.Error(w, err.Error(), http.StatusFailedDependency)
 		return
 	}

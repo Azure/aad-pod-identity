@@ -2,6 +2,7 @@ package iptable
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/coreos/go-iptables/iptables"
@@ -63,6 +64,18 @@ func LogCustomChain() error {
 	log.Infof("Rules for table(%s) chain(%s) rules(%+v)", tablename, customchainname, strings.Join(rules, ", "))
 
 	return nil
+}
+
+func generateRulesSpec(sourcecidr, destIP, destPort, targetip, targetport string) *[]string {
+	rules := []string{
+		// 1. metadata endpoint to nmi rule
+		fmt.Sprintf("-p tcp -s %s -d %s --dport %s -j DNAT --to-destination %s:%s",
+			sourcecidr, destIP, destPort, targetip, targetport),
+		// 2. jump rule
+		"-j RETURN",
+	}
+
+	return &rules
 }
 
 //	iptables -t nat -I "chain" 1 -j "customchainname"
