@@ -68,8 +68,8 @@ func (c *Client) RemoveUserMSI(userAssignedMSIID string, nodeName string, conf *
 	if err != nil {
 		return err
 	}
-	c.VMClient.Client.RequestInspector = withInspection()
-	glog.Infof("Got VM info: %+v. Assign %s\n", vm, userAssignedMSIID)
+	//c.VMClient.Client.RequestInspector = withInspection()
+	//glog.Infof("Got VM info: %+v. Assign %s\n", vm, userAssignedMSIID)
 	var newIds []string
 	if vm.Identity != nil {
 		//TODO: Handle both the system assigned and user assigned ID being present on one vm.
@@ -83,20 +83,57 @@ func (c *Client) RemoveUserMSI(userAssignedMSIID string, nodeName string, conf *
 					index++
 				}
 			}
+			// TODO: Handle more conditions.
+			// If the number went down, then we will update the vm.
+			if index < len(*vm.Identity.IdentityIds) {
+				if index == 0 { // Empty EMSI requires us to reset the type.
+					// TODO: Handle the User assigned and regular MSI case.
+					vm.Identity.Type = compute.ResourceIdentityTypeNone
+					vm.Identity.IdentityIds = nil
+				}
+				err := c.CreateOrUpdate(conf.NodeResourceGroup, nodeName, vm)
+				if err != nil {
+					glog.Error(err)
+					return err
+				}
+				return nil
+			}
 		} else {
 			glog.Error("User assigned identity not found for node: %s ", nodeName)
 			return fmt.Errorf("User assigned Identity not found for node: %s ", nodeName)
 		}
 	} else {
-		glog.Error("Identity null for vm: %s ", nodeName)
+		glog.Errorf("Identity null for vm: %s ", nodeName)
 		return fmt.Errorf("Identity null for vm: %s ", nodeName)
 	}
 
 	if len(newIds) != len(*vm.Identity.IdentityIds)-1 {
-		glog.Error("Identity %s not found", userAssignedMSIID)
+		glog.Errorf("Identity %s not found", userAssignedMSIID)
 		return fmt.Errorf("Identity %s not found", userAssignedMSIID)
 	}
-	vm.Identity.IdentityIds = &newIds
+	return nil
+}
+
+func (c *Client) CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachine) error {
+	// Set the read-only property of extension to null.
+	vm.Resources = nil
+	ctx := context.Background()
+	future, err := c.VMClient.CreateOrUpdate(ctx, rg, nodeName, vm)
+	if err != nil {
+		glog.Error(err)
+		return err
+	}
+	err = future.WaitForCompletion(ctx, c.VMClient.Client)
+	if err != nil {
+		glog.Error(err)
+		return err
+	}
+	vm, err = future.Result(c.VMClient)
+	if err != nil {
+		glog.Error(err)
+		return err
+	}
+	glog.Info("After update the vm info: %+v", vm)
 	return nil
 }
 
@@ -109,7 +146,7 @@ func (c *Client) AssignUserMSI(userAssignedMSIID string, nodeName string, conf *
 	if err != nil {
 		return err
 	}
-	c.VMClient.Client.RequestInspector = withInspection()
+	//c.VMClient.Client.RequestInspector = withInspection()
 	glog.Infof("Got VM info: %+v. Assign %s\n", vm, userAssignedMSIID)
 	/*
 		location := "eastus"
@@ -143,25 +180,9 @@ func (c *Client) AssignUserMSI(userAssignedMSIID string, nodeName string, conf *
 		Type:        compute.ResourceIdentityTypeUserAssigned,
 		IdentityIds: &[]string{userAssignedMSIID},
 	}
-
-	// Set the read-only property of extension to null.
-	vm.Resources = nil
-	ctx = context.Background()
-	future, err := c.VMClient.CreateOrUpdate(ctx, conf.NodeResourceGroup, nodeName, vm)
+	err = c.CreateOrUpdate(conf.NodeResourceGroup, nodeName, vm)
 	if err != nil {
-		glog.Error(err)
 		return err
 	}
-	err = future.WaitForCompletion(ctx, c.VMClient.Client)
-	if err != nil {
-		glog.Error(err)
-		return err
-	}
-	vm, err = future.Result(c.VMClient)
-	if err != nil {
-		glog.Error(err)
-		return err
-	}
-	glog.Info("After update the vm info: %+v", vm)
 	return nil
 }
