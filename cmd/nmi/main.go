@@ -6,9 +6,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/iptable"
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
-
-	"github.com/golang/glog"
-
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
 
@@ -20,14 +18,13 @@ var (
 )
 
 func main() {
-	defer glog.Flush()
-	pflag.Parse()
-	glog.Info("starting nmi process")
+	log.Info("starting nmi process")
 	s := server.NewServer()
+	pflag.Parse()
 	if !*test {
 		client, err := k8s.NewKubeClient()
 		if err != nil {
-			glog.Fatalf("%+v", err)
+			log.Fatalf("%+v", err)
 		}
 		s.KubeClient = client
 	} else {
@@ -40,24 +37,24 @@ func main() {
 
 	hostname, err := os.Hostname()
 	if err != nil {
-		glog.Fatalf("%+v", err)
+		log.Fatalf("%+v", err)
 	}
 	s.Host = hostname
-	glog.Infof("hostname: %s", hostname)
+	log.Infof("hostname: %s", hostname)
 
 	podcidr, err := s.KubeClient.GetPodCidr(hostname)
 	if err != nil {
-		glog.Fatalf("%+v", err)
+		log.Fatalf("%+v", err)
 	}
 	nodeip, err := s.KubeClient.GetNodeIP(hostname)
 	if err != nil {
-		glog.Fatalf("%+v", err)
+		log.Fatalf("%+v", err)
 	}
 	if err := iptable.AddRule(podcidr, s.MetadataIP, s.MetadataPort, nodeip, s.NMIPort); err != nil {
-		glog.Fatalf("%s", err)
+		log.Fatalf("%s", err)
 	}
 
 	if err := s.Run(); err != nil {
-		glog.Fatalf("%s", err)
+		log.Fatalf("%s", err)
 	}
 }

@@ -3,7 +3,10 @@ PROJECT_NAME := aad-pod-identity
 REPO_PATH="$(ORG_PATH)/$(PROJECT_NAME)"
 NMI_BINARY_NAME := nmi
 MIC_BINARY_NAME := mic
+DEMO_BINARY_NAME := demo
 NMI_VERSION=1.0
+DEMO_VERSION=1.0
+
 VERSION_VAR := $(REPO_PATH)/version.Version
 GIT_VAR := $(REPO_PATH)/version.GitCommit
 BUILD_DATE_VAR := $(REPO_PATH)/version.BuildDate
@@ -26,7 +29,8 @@ GO_BUILD_OPTIONS := -buildmode=${GO_BUILD_MODE} -ldflags "-s -X $(VERSION_VAR)=$
 
 # useful for other docker repos
 REGISTRY ?= nikhilbh
-IMAGE_NAME := $(REGISTRY)/$(NMI_BINARY_NAME)
+NMI_IMAGE_NAME := $(REGISTRY)/$(NMI_BINARY_NAME)
+DEMO_IMAGE_NAME := $(REGISTRY)/$(DEMO_BINARY_NAME)
 
 clean:
 	rm -rf bin/$(PROJECT_NAME)
@@ -34,12 +38,24 @@ clean:
 build:clean
 	go build -o bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(NMI_BINARY_NAME)
 	go build -o bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(MIC_BINARY_NAME)
+	go build -o bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(DEMO_BINARY_NAME)
 
-image:
+image-nmi:
 	cp bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) images/nmi
-	docker build -t $(IMAGE_NAME):$(NMI_VERSION) images/nmi
+	docker build -t $(NMI_IMAGE_NAME):$(NMI_VERSION) images/nmi
 
-push:
-	docker push $(IMAGE_NAME):$(NMI_VERSION)
+image-demo:
+	cp bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME) images/demo
+	docker build -t $(DEMO_IMAGE_NAME):$(DEMO_VERSION) images/demo
+
+image:image-nmi image-demo
+
+push:push-nmi push-demo
+
+push-nmi:
+	docker push $(NMI_IMAGE_NAME):$(NMI_VERSION)
+
+push-demo:
+	docker push $(DEMO_IMAGE_NAME):$(DEMO_VERSION)
 
 .PHONY: build

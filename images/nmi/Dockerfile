@@ -19,4 +19,4 @@ RUN mkdir "/lib/nmi/"
 COPY ./nmi /lib/nmi/nmi
 
 WORKDIR /lib/nmi/
-CMD ["/lib/nmi/nmi", "--logtostderr=1"]
+CMD ["/lib/nmi/nmi"]
