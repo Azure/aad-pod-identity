@@ -15,8 +15,6 @@ import (
 
 // Client api client
 type Client interface {
-	// GetNodeIP return the node ip
-	GetNodeIP(nodename string) (nodeip string, err error)
 	// GetPodCidr return the pod cidr for the node
 	GetPodCidr(nodename string) (podcidr string, err error)
 	// GetPodName return the matching azure identity or nil
@@ -54,11 +52,6 @@ func NewKubeClient() (Client, error) {
 	kubeClient := &KubeClient{ClientSet: clientset, CrdClient: crdclient}
 
 	return kubeClient, nil
-}
-
-// GetNodeIP get node ip from apiserver
-func (c *KubeClient) GetNodeIP(nodename string) (nodeip string, err error) {
-	return "", nil
 }
 
 // GetPodName get pod ns,name from apiserver

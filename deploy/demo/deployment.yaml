@@ -16,15 +16,24 @@ spec:
         image: "nikhilbh/demo:1.0"
         imagePullPolicy: Always
         env:
+        - valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+            name: MY_POD_NAME
+        - valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+            name: MY_POD_NAMESPACE
+        env:
         - name: MY_POD_NAME
           valueFrom:
-          fieldRef:
-            fieldPath: metadata.name
+            fieldRef:
+              fieldPath: metadata.name
         - name: MY_POD_NAMESPACE
           valueFrom:
-          fieldRef:
-            fieldPath: metadata.namespace
+            fieldRef:
+              fieldPath: metadata.namespace
         - name: MY_POD_IP
           valueFrom:
-          fieldRef:
-            fieldPath: status.podIP
+            fieldRef:
+              fieldPath: status.podIP

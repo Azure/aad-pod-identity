@@ -19,7 +19,20 @@ spec:
       - name: nmi
         image: "nikhilbh/nmi:1.0"
         imagePullPolicy: Always
+        args:
+          - "--host-ip=$(HOST_IP)"
+          - "--node=$(NODE_NAME)"
+        env:
+          - name: HOST_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
         securityContext:
+          privileged: true
           capabilities:
             add:
             - NET_ADMIN
