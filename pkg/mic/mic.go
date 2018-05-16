@@ -71,10 +71,27 @@ func NewMICClient(config *rest.Config, credConfigFile string) (*Client, error) {
 	}, nil
 }
 
+func (c *Client) RemoveAssignedIdentities(podName string, podNameSpace string) (err error) {
+	assignedIds, err := c.CRDClient.ListAssignedIds()
+	if err != nil {
+		return err
+	}
+	for _, v := range assignedIds.Items {
+		if v.Spec.Pod == podName && v.Spec.PodNamespace == podNameSpace {
+			glog.Info("Removing the assigned Id with name: %s", v.Name)
+			err := c.CRDClient.RemoveAssignedIdentity(v.Name)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // MatchBinding - matches the name of the pod with the bindings. Return back
 // the name of the identity which is matching. This name
 // will be used to assign the azureidentity to the pod.
-func (c *Client) AssignIdentity(podName string, podNameSpace string, nodeName string) (err error) {
+func (c *Client) AssignIdentities(podName string, podNameSpace string, nodeName string) (err error) {
 	// List the AzureIdentityBindings and check if the pod name matches
 	// any selector.
 	glog.Infof("Created pod with Name: %s", podName)

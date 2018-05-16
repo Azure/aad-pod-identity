@@ -28,19 +28,21 @@ func main() {
 		glog.Fatalf("Could not read config properly. Check the k8s config file")
 	}
 
-	crdClient, err := mic.NewMICClient(config, azurecredfile)
+	micClient, err := mic.NewMICClient(config, azurecredfile)
 	if err != nil {
 		glog.Fatalf("Could not get the crd client: %+v", err)
 	}
 
-	crdClient.K8sInformers.Core().V1().Pods().Informer().AddEventHandler(
+	micClient.K8sInformers.Core().V1().Pods().Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				pod := obj.(*v1.Pod)
-				crdClient.AssignIdentity(pod.Name, pod.Namespace, pod.Spec.NodeName)
+				micClient.AssignIdentities(pod.Name, pod.Namespace, pod.Spec.NodeName)
 				//fmt.Printf("Adding pod: %+v \n", obj)
 			},
 			DeleteFunc: func(obj interface{}) {
+				pod := obj.(*v1.Pod)
+				micClient.RemoveAssignedIdentities(pod.Name, pod.Namespace)
 				//fmt.Printf("Delete pod : %+v \n", obj)
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
@@ -48,7 +50,7 @@ func main() {
 			},
 		})
 	exit := make(chan struct{})
-	crdClient.K8sInformers.Start(exit)
+	micClient.K8sInformers.Start(exit)
 	glog.Info("AAD Pod identity controller initialized!!")
 	//Infinite loop :-)
 	select {}

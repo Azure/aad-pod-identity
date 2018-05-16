@@ -48,13 +48,22 @@ func NewCRDClient(config *rest.Config) (*CrdClient, error) {
 	}, nil
 }
 
+func (c *CrdClient) GetAssignedIDName(podName string, podNameSpace string, idName string) string {
+	return podName + "-" + podNameSpace + "-" + idName
+}
+
+func (c *CrdClient) RemoveAssignedIdentity(name string) error {
+	glog.Info("Deletion of id named: %s", name)
+	return c.rest.Delete().Namespace("default").Resource("azureassignedidentities").Name(name).Do().Error()
+}
+
 func (c *CrdClient) CreateAssignIdentity(idName string, podName string, podNameSpace string, nodeName string) error {
 	glog.Infof("Got id %s to assign", idName)
 	// Create a new AzureAssignedIdentity which maps the relationship between
 	// id and pod
 	assignedID := &aadpodid.AzureAssignedIdentity{
 		ObjectMeta: v1.ObjectMeta{
-			Name: "azureassignedidentities.aadpodidentity.k8s.io",
+			Name: c.GetAssignedIDName(podName, podNameSpace, idName),
 		},
 		Spec: aadpodid.AzureAssignedIdentitySpec{
 			AzureIdentityRef: idName,
@@ -66,6 +75,8 @@ func (c *CrdClient) CreateAssignIdentity(idName string, podName string, podNameS
 			AvailableReplicas: 1,
 		},
 	}
+
+	glog.Infof("Creating assigned Id: %s", assignedID.Name)
 
 	var res aadpodid.AzureAssignedIdentity
 	// TODO: Ensure that the status reflects the corresponding
@@ -104,6 +115,16 @@ func (c *CrdClient) Lookup(idName string) (res *aadpodid.AzureIdentity, err erro
 		}
 	}
 	return nil, fmt.Errorf("Lookup of %s failed", idName)
+}
+
+func (c *CrdClient) ListAssignedIds() (res *aadpodid.AzureAssignedIdentityList, err error) {
+	var ret aadpodid.AzureAssignedIdentityList
+	err = c.rest.Get().Namespace("default").Resource("azureassignedidentities").Do().Into(&ret)
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+	return &ret, nil
 }
 
 func (c *CrdClient) ListIds() (res *aadpodid.AzureIdentityList, err error) {
