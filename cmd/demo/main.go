@@ -39,6 +39,7 @@ func main() {
 		if err != nil {
 			logger.Errorf("Failed to acquire a token using the MSI VM extension, Error: %+v", err)
 		}
+		logger.Infof("succesfully acquired a token using the MSI VM extension, clientID: %s Token: %+v", spt.Token())
 
 		for _, userAssignedID := range *cids {
 			// Set up the configuration of the service principal
@@ -46,7 +47,7 @@ func main() {
 			if err != nil {
 				logger.Errorf("Failed to acquire a token using the EMSI VM extension, clientID: %s Error: %+v", userAssignedID, err)
 			} else {
-				logger.Infof("succesfully acquired a token using the EMSI VM extension, clientID: %s Error: %v", userAssignedID, sptuid.Token().AccessToken)
+				logger.Infof("succesfully acquired a token using the EMSI VM extension, clientID: %s AccessToken: %+v", userAssignedID, sptuid.Token().AccessToken)
 				if !strings.EqualFold(sptuid.Token().AccessToken, spt.Token().AccessToken) {
 					logger.Errorf("MSI and EMSI token endpoints have different access tokens, clientID")
 				}
