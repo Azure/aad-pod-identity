@@ -37,7 +37,10 @@ func main() {
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				pod := obj.(*v1.Pod)
-				micClient.AssignIdentities(pod.Name, pod.Namespace, pod.Spec.NodeName)
+				glog.Infof("NodeName:%s<===", pod.Spec.NodeName)
+				if pod.Spec.NodeName != "" {
+					micClient.AssignIdentities(pod.Name, pod.Namespace, pod.Spec.NodeName)
+				}
 				//fmt.Printf("Adding pod: %+v \n", obj)
 			},
 			DeleteFunc: func(obj interface{}) {
@@ -46,6 +49,12 @@ func main() {
 				//fmt.Printf("Delete pod : %+v \n", obj)
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
+				pastPod := OldObj.(*v1.Pod)
+				newPod := newObj.(*v1.Pod)
+				if pastPod.Spec.NodeName == "" && newPod.Spec.NodeName != "" {
+					glog.Infof("First NodeName update:%s<===", newPod.Spec.NodeName)
+					micClient.AssignIdentities(newPod.Name, newPod.Namespace, newPod.Spec.NodeName)
+				}
 				//fmt.Printf("Update: %+v \n, New: %+v\n", OldObj, newObj)
 			},
 		})

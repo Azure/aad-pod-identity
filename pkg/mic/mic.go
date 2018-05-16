@@ -79,8 +79,20 @@ func (c *Client) RemoveAssignedIdentities(podName string, podNameSpace string) (
 	for _, v := range assignedIds.Items {
 		if v.Spec.Pod == podName && v.Spec.PodNamespace == podNameSpace {
 			glog.Info("Removing the assigned Id with name: %s", v.Name)
-			err := c.CRDClient.RemoveAssignedIdentity(v.Name)
+			azID, err := c.CRDClient.Lookup(v.Spec.AzureIdentityRef)
 			if err != nil {
+				glog.Error(err)
+				return err
+			}
+			// TODO: Make sure that no other pod on the same vm is using this user identity.
+			err = c.CloudClient.RemoveUserMSI(azID.Spec.ResourceID, v.Spec.NodeName, c.CredConfig)
+			if err != nil {
+				glog.Error(err)
+				return err
+			}
+			err = c.CRDClient.RemoveAssignedIdentity(v.Name)
+			if err != nil {
+				glog.Error(err)
 				return err
 			}
 		}
