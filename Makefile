@@ -32,8 +32,26 @@ REGISTRY ?= nikhilbh
 NMI_IMAGE_NAME := $(REGISTRY)/$(NMI_BINARY_NAME)
 DEMO_IMAGE_NAME := $(REGISTRY)/$(DEMO_BINARY_NAME)
 
+clean-nmi:
+	rm -rf bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME)
+
+clean-mic:
+	rm -rf bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME)
+
+clean-demo:
+	rm -rf bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME)
+
 clean:
 	rm -rf bin/$(PROJECT_NAME)
+
+build-nmi:clean-nmi
+	go build -o bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(NMI_BINARY_NAME)
+
+build-mic:clean-mic
+	go build -o bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(MIC_BINARY_NAME)
+
+build-demo:clean-demo
+	go build -o bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(DEMO_BINARY_NAME)
 
 build:clean
 	go build -o bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(NMI_BINARY_NAME)

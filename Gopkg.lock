@@ -5,6 +5,7 @@
   name = "github.com/Azure/azure-sdk-for-go"
   packages = [
     "services/compute/mgmt/2018-04-01/compute",
+    "services/network/mgmt/2017-09-01/network",
     "version"
   ]
   revision = "4650843026a7fdec254a8d9cf893693a254edd0b"
@@ -16,6 +17,7 @@
     "autorest",
     "autorest/adal",
     "autorest/azure",
+    "autorest/azure/auth",
     "autorest/date",
     "autorest/to",
     "autorest/validation"
@@ -40,6 +42,12 @@
   packages = ["."]
   revision = "06ea1031745cb8b3dab3f6a236daf2b0aa468b7e"
   version = "v3.2.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/dimchansky/utfbom"
+  packages = ["."]
+  revision = "6c6132ff69f0f6c088739067407b5d32c52e1d0f"
 
 [[projects]]
   name = "github.com/ghodss/yaml"
@@ -144,7 +152,11 @@
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = ["ssh/terminal"]
+  packages = [
+    "pkcs12",
+    "pkcs12/internal/rc2",
+    "ssh/terminal"
+  ]
   revision = "4ec37c66abab2c7e02ae775328b2ff001c3f025a"
 
 [[projects]]
@@ -414,6 +426,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "c4b8a2c6a47fa36b9d5d948e4bc81203336e0e6eb64c18aa6b707b82005753dd"
+  inputs-digest = "54c80dc002d065a5ca8bc01fa02f26fabc2b3471b8877e8c22958c69db2cba3b"
   solver-name = "gps-cdcl"
   solver-version = 1

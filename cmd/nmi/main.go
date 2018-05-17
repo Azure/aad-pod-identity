@@ -18,9 +18,9 @@ var (
 )
 
 func main() {
+	pflag.Parse()
 	log.Info("starting nmi process")
 	s := server.NewServer()
-	pflag.Parse()
 	if !*test {
 		client, err := k8s.NewKubeClient()
 		if err != nil {
