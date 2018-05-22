@@ -27,6 +27,22 @@ var (
 func main() {
 	pflag.Parse()
 	log.Info("starting nmi process")
+<<<<<<< HEAD
+=======
+	s := server.NewServer()
+	if !*test {
+		client, err := k8s.NewKubeClient()
+		if err != nil {
+			log.Fatalf("%+v", err)
+		}
+		s.KubeClient = client
+	} else {
+		client, _ := k8s.NewFakeClient()
+		s.KubeClient = client
+	}
+	s.MetadataIP = *metadataIP
+	s.MetadataPort = *metadataPort
+>>>>>>> 62c5321f33178c6ce3a057949d1242434c50f026
 
 	client, err := k8s.NewKubeClient()
 	if err != nil {
