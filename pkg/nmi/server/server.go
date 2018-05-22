@@ -13,37 +13,36 @@ import (
 
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
+	iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	log "github.com/sirupsen/logrus"
 )
 
 const (
-	defaultMetadataIP   = "169.254.169.254"
-	defaultMetadataPort = "80"
-	defaultNmiPort      = "2579"
-	azureResourceName   = "https://management.azure.com/"
+	azureResourceName                  = "https://management.azure.com/"
+	iptableUpdateTimeIntervalInSeconds = 10
 )
 
 // Server encapsulates all of the parameters necessary for starting up
 // the server. These can either be set via command line or directly.
 type Server struct {
-	KubeClient   k8s.Client
-	NMIPort      string
-	MetadataIP   string
-	MetadataPort string
-	Host         string
+	KubeClient                         k8s.Client
+	NMIPort                            string
+	MetadataIP                         string
+	MetadataPort                       string
+	HostIP                             string
+	NodeName                           string
+	IPTableUpdateTimeIntervalInSeconds int
 }
 
 // NewServer will create a new Server with default values.
 func NewServer() *Server {
-	return &Server{
-		MetadataIP:   defaultMetadataIP,
-		MetadataPort: defaultMetadataPort,
-		NMIPort:      defaultNmiPort,
-	}
+	return &Server{}
 }
 
 // Run runs the specified Server.
 func (s *Server) Run() error {
+	go s.updateIPTableRules()
+
 	mux := http.NewServeMux()
 	mux.Handle("/metadata/identity/oauth2/token", appHandler(s.roleHandler))
 	mux.Handle("/{path:.*}", appHandler(s.reverseProxyHandler))
@@ -53,6 +52,25 @@ func (s *Server) Run() error {
 		log.Fatalf("Error creating http server: %+v", err)
 	}
 	return nil
+}
+
+// updateIPTableRules ensures the correct iptable rules are set
+// so that metadata requests are recevied by nmi assigned port
+func (s *Server) updateIPTableRules() {
+	log.Infof("node: %s", s.NodeName)
+	podcidr, err := s.KubeClient.GetPodCidr(s.NodeName)
+	if err != nil {
+		log.Fatalf("%+v", err)
+	}
+	for range time.Tick(time.Second * time.Duration(s.IPTableUpdateTimeIntervalInSeconds)) {
+		log.Infof("node(%s) hostip(%s) podcidr(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, podcidr, s.MetadataIP, s.MetadataPort, s.NMIPort)
+		if err := iptables.AddCustomChain(podcidr, s.MetadataIP, s.MetadataPort, s.HostIP, s.NMIPort); err != nil {
+			log.Fatalf("%s", err)
+		}
+		if err := iptables.LogCustomChain(); err != nil {
+			log.Fatalf("%s", err)
+		}
+	}
 }
 
 type appHandler func(*log.Entry, http.ResponseWriter, *http.Request)
