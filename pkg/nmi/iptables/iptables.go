@@ -1,4 +1,4 @@
-package iptable
+package iptables
 
 import (
 	"errors"
