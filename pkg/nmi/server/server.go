@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"runtime"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -22,7 +24,7 @@ const (
 )
 
 // Server encapsulates all of the parameters necessary for starting up
-// the server. These can either be set via command line.
+// the server. These can be set via command line.
 type Server struct {
 	KubeClient                         k8s.Client
 	NMIPort                            string
@@ -55,7 +57,7 @@ func (s *Server) Run() error {
 }
 
 // updateIPTableRules ensures the correct iptable rules are set
-// so that metadata requests are recevied by nmi assigned port
+// so that metadata requests are received by nmi assigned port
 func (s *Server) updateIPTableRules() {
 	log.Infof("node: %s", s.NodeName)
 	podcidr, err := s.KubeClient.GetPodCidr(s.NodeName)
@@ -89,7 +91,7 @@ func newResponseWriter(w http.ResponseWriter) *responseWriter {
 	return &responseWriter{w, http.StatusOK}
 }
 
-// ServeHTTP implements the net/http server Handler interface
+// ServeHTTP implements the net/http server handler interface
 // and recovers from panics.
 func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger := log.WithFields(log.Fields{
@@ -101,6 +103,8 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		var err error
 		if rec := recover(); rec != nil {
+			_, file, line, _ := runtime.Caller(3)
+			stack := string(debug.Stack())
 			switch t := rec.(type) {
 			case string:
 				err = errors.New(t)
@@ -110,17 +114,14 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				err = errors.New("Unknown error")
 			}
 			logger.WithField("res.status", http.StatusInternalServerError).
-				Errorf("PANIC error processing request: %+v", err)
+				Errorf("Panic processing request: %+v, file: %s, line: %d, stacktrace: '%s'", r, file, line, stack)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}()
 	rw := newResponseWriter(w)
 	fn(logger, rw, r)
-	if r.URL.Path != "/healthz" {
-		latency := time.Since(start)
-		logger.WithFields(log.Fields{"res.duration": latency.Nanoseconds(), "res.status": rw.statusCode}).
-			Infof("%s %s (%d) took %d ns", r.Method, r.URL.Path, rw.statusCode, latency.Nanoseconds())
-	}
+	latency := time.Since(start)
+	logger.Infof("Status (%d) took %d ns", rw.statusCode, latency.Nanoseconds())
 }
 
 // msiHandler uses the remote address to identify the pod ip and uses it
@@ -199,9 +200,7 @@ func parseRequestClientID(r *http.Request) (clientID string) {
 
 // defaultPathHandler creates a new request and returns the response body and code
 func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
-	client := &http.Client{
-		Timeout: time.Duration(2) * time.Second,
-	}
+	client := &http.Client{}
 	r.URL.Host = s.MetadataIP
 	req, err := http.NewRequest(r.Method, r.URL.String(), r.Body)
 	if err != nil {
