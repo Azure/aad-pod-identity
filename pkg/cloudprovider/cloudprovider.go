@@ -2,7 +2,9 @@ package cloudprovider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -14,40 +16,56 @@ import (
 	"github.com/golang/glog"
 )
 
+// Client is a cloud provider client
 type Client struct {
-	VMClient  compute.VirtualMachinesClient
-	ExtClient compute.VirtualMachineExtensionsClient
+	ResourceGroupName string
+	VMClient          compute.VirtualMachinesClient
+	ExtClient         compute.VirtualMachineExtensionsClient
 }
 
-func NewCloudProvider(conf config.Config) (c *Client, e error) {
-
-	oauthConfig, err := adal.NewOAuthConfig(azure.PublicCloud.ActiveDirectoryEndpoint, conf.TenantID)
+// NewCloudProvider returns a azure cloud provider client
+func NewCloudProvider(configFile string) (c *Client, e error) {
+	bytes, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		return nil, err
+	}
+	azureConfig := config.AzureConfig{}
+	if err = json.Unmarshal(bytes, &azureConfig); err != nil {
+		return nil, err
+	}
+	azureEnv, err := azure.EnvironmentFromName(azureConfig.Cloud)
+	if err != nil {
+		return nil, err
+	}
+	oauthConfig, _ := adal.NewOAuthConfig(azureEnv.ActiveDirectoryEndpoint, azureConfig.TenantID)
 	if err != nil {
 		return nil, fmt.Errorf("creating the OAuth config: %v", err)
 	}
 	glog.Info("%+v\n", oauthConfig)
 	spt, err := adal.NewServicePrincipalToken(
 		*oauthConfig,
-		conf.AADClientID,
-		conf.AADClientSecret,
-		azure.PublicCloud.ServiceManagementEndpoint)
+		azureConfig.ClientID,
+		azureConfig.ClientSecret,
+		azureEnv.ResourceManagerEndpoint,
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	extClient := compute.NewVirtualMachineExtensionsClient(conf.SubscriptionID)
+	extClient := compute.NewVirtualMachineExtensionsClient(azureConfig.SubscriptionID)
 	extClient.BaseURI = azure.PublicCloud.ResourceManagerEndpoint
 	extClient.Authorizer = autorest.NewBearerAuthorizer(spt)
 	extClient.PollingDelay = 5 * time.Second
 
-	virtualMachinesClient := compute.NewVirtualMachinesClient(conf.SubscriptionID)
+	virtualMachinesClient := compute.NewVirtualMachinesClient(azureConfig.SubscriptionID)
 	virtualMachinesClient.BaseURI = azure.PublicCloud.ResourceManagerEndpoint
 	virtualMachinesClient.Authorizer = autorest.NewBearerAuthorizer(spt)
 	virtualMachinesClient.PollingDelay = 5 * time.Second
 
 	return &Client{
-		VMClient:  virtualMachinesClient,
-		ExtClient: extClient,
+		ResourceGroupName: azureConfig.ResourceGroupName,
+		VMClient:          virtualMachinesClient,
+		ExtClient:         extClient,
 	}, nil
 }
 
@@ -61,10 +79,10 @@ func withInspection() autorest.PrepareDecorator {
 	}
 }
 
-func (c *Client) RemoveUserMSI(userAssignedMSIID string, nodeName string, conf *config.Config) error {
+func (c *Client) RemoveUserMSI(userAssignedMSIID string, nodeName string) error {
 	ctx := context.Background()
-	glog.Infof("Find %s in resource group: %s", nodeName, conf.NodeResourceGroup)
-	vm, err := c.VMClient.Get(ctx, conf.NodeResourceGroup, nodeName, "")
+	glog.Infof("Find %s in resource group: %s", nodeName, c.ResourceGroupName)
+	vm, err := c.VMClient.Get(ctx, c.ResourceGroupName, nodeName, "")
 	if err != nil {
 		return err
 	}
@@ -91,7 +109,7 @@ func (c *Client) RemoveUserMSI(userAssignedMSIID string, nodeName string, conf *
 					vm.Identity.Type = compute.ResourceIdentityTypeNone
 					vm.Identity.IdentityIds = nil
 				}
-				err := c.CreateOrUpdate(conf.NodeResourceGroup, nodeName, vm)
+				err := c.CreateOrUpdate(c.ResourceGroupName, nodeName, vm)
 				if err != nil {
 					glog.Error(err)
 					return err
@@ -99,7 +117,7 @@ func (c *Client) RemoveUserMSI(userAssignedMSIID string, nodeName string, conf *
 				return nil
 			}
 		} else {
-			glog.Error("User assigned identity not found for node: %s ", nodeName)
+			glog.Errorf("User assigned identity not found for node: %s ", nodeName)
 			return fmt.Errorf("User assigned Identity not found for node: %s ", nodeName)
 		}
 	} else {
@@ -137,12 +155,12 @@ func (c *Client) CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMa
 	return nil
 }
 
-func (c *Client) AssignUserMSI(userAssignedMSIID string, nodeName string, conf *config.Config) error {
+func (c *Client) AssignUserMSI(userAssignedMSIID string, nodeName string) error {
 	// Get the vm using the VmClient
 	// Update the assigned identity into the VM using the CreateOrUpdate
 	ctx := context.Background()
-	glog.Infof("Find %s in resource group: %s", nodeName, conf.NodeResourceGroup)
-	vm, err := c.VMClient.Get(ctx, conf.NodeResourceGroup, nodeName, "")
+	glog.Infof("Find %s in resource group: %s", nodeName, c.ResourceGroupName)
+	vm, err := c.VMClient.Get(ctx, c.ResourceGroupName, nodeName, "")
 	if err != nil {
 		return err
 	}
@@ -180,7 +198,7 @@ func (c *Client) AssignUserMSI(userAssignedMSIID string, nodeName string, conf *
 		Type:        compute.ResourceIdentityTypeUserAssigned,
 		IdentityIds: &[]string{userAssignedMSIID},
 	}
-	err = c.CreateOrUpdate(conf.NodeResourceGroup, nodeName, vm)
+	err = c.CreateOrUpdate(c.ResourceGroupName, nodeName, vm)
 	if err != nil {
 		return err
 	}

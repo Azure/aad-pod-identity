@@ -11,13 +11,11 @@ import (
 )
 
 var (
-	kubeconfig    string
-	azurecredfile string
+	kubeconfig string
 )
 
 func main() {
 	flag.StringVar(&kubeconfig, "kubeconfig", "config", "Path to the kube config")
-	flag.StringVar(&azurecredfile, "azurecred", "config", "Path to the azure cred file (azure.json)")
 	flag.Parse()
 	if kubeconfig == "" {
 		glog.Fatalf("Could not get the kubernetes cluster config to connect")
@@ -28,7 +26,7 @@ func main() {
 		glog.Fatalf("Could not read config properly. Check the k8s config file")
 	}
 
-	micClient, err := mic.NewMICClient(config, azurecredfile)
+	micClient, err := mic.NewMICClient(config)
 	if err != nil {
 		glog.Fatalf("Could not get the crd client: %+v", err)
 	}
