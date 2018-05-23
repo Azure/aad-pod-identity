@@ -1,12 +1,9 @@
 package mic
 
 import (
-	"encoding/json"
-	"os"
 	"time"
 
 	cloudprovider "github.com/Azure/aad-pod-identity/pkg/cloudprovider"
-	aadpodidconfig "github.com/Azure/aad-pod-identity/pkg/config"
 	crd "github.com/Azure/aad-pod-identity/pkg/crd"
 	"github.com/golang/glog"
 	"k8s.io/client-go/informers"
@@ -20,15 +17,10 @@ type Client struct {
 	CRDClient    *crd.CrdClient
 	ClientSet    *kubernetes.Clientset
 	K8sInformers informers.SharedInformerFactory
-	CredConfig   *aadpodidconfig.Config
 	CloudClient  *cloudprovider.Client
 }
 
-func Cleanup() {
-
-}
-
-func NewMICClient(config *rest.Config, credConfigFile string) (*Client, error) {
+func NewMICClient(config *rest.Config) (*Client, error) {
 	glog.Infof("Starting to create the pod identity client")
 
 	crdClient, err := crd.NewCRDClient(config)
@@ -38,26 +30,7 @@ func NewMICClient(config *rest.Config, credConfigFile string) (*Client, error) {
 
 	clientSet := kubernetes.NewForConfigOrDie(config)
 	k8sInformers := informers.NewSharedInformerFactory(clientSet, time.Minute*5)
-
-	glog.Infof("Going to open the file: %s", credConfigFile)
-	var conf aadpodidconfig.Config
-	f, err := os.Open(credConfigFile)
-	if err != nil {
-		Cleanup()
-		glog.Error(err)
-		return nil, err
-	}
-
-	glog.Infof("Going to decode: %+v\n", f)
-	jsonStream := json.NewDecoder(f)
-	err = jsonStream.Decode(&conf)
-	if err != nil {
-		glog.Error(err)
-		return nil, err
-	}
-	glog.Infof("%+v\n", conf)
-
-	cloudClient, err := cloudprovider.NewCloudProvider(conf)
+	cloudClient, err := cloudprovider.NewCloudProvider("/etc/kubernetes/azure.json")
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +39,6 @@ func NewMICClient(config *rest.Config, credConfigFile string) (*Client, error) {
 		CRDClient:    crdClient,
 		ClientSet:    clientSet,
 		K8sInformers: k8sInformers,
-		CredConfig:   &conf,
 		CloudClient:  cloudClient,
 	}, nil
 }
@@ -85,7 +57,7 @@ func (c *Client) RemoveAssignedIdentities(podName string, podNameSpace string) (
 				return err
 			}
 			// TODO: Make sure that no other pod on the same vm is using this user identity.
-			err = c.CloudClient.RemoveUserMSI(azID.Spec.ResourceID, v.Spec.NodeName, c.CredConfig)
+			err = c.CloudClient.RemoveUserMSI(azID.Spec.ResourceID, v.Spec.NodeName)
 			if err != nil {
 				glog.Error(err)
 				return err
@@ -128,7 +100,7 @@ func (c *Client) AssignIdentities(podName string, podNameSpace string, nodeName 
 				return err
 			}
 			glog.Infof("Assigning MSI ID: %s to node %s", id.Spec.ResourceID, nodeName)
-			err = c.CloudClient.AssignUserMSI(id.Spec.ResourceID, nodeName, c.CredConfig)
+			err = c.CloudClient.AssignUserMSI(id.Spec.ResourceID, nodeName)
 			if err != nil {
 				glog.Error(err)
 				return err

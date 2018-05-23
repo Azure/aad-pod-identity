@@ -5,6 +5,7 @@ NMI_BINARY_NAME := nmi
 MIC_BINARY_NAME := mic
 DEMO_BINARY_NAME := demo
 NMI_VERSION=1.0
+MIC_VERSION=1.0
 DEMO_VERSION=1.0
 
 VERSION_VAR := $(REPO_PATH)/version.Version
@@ -65,18 +66,28 @@ image-nmi:
 	cp bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) images/nmi
 	docker build -t $(NMI_IMAGE_NAME):$(NMI_VERSION) images/nmi
 
+image-mic:
+	cp bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME) images/mic
+	docker build -t $(MIC_IMAGE_NAME):$(MIC_VERSION) images/mic
+
 image-demo:
 	cp bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME) images/demo
 	docker build -t $(DEMO_IMAGE_NAME):$(DEMO_VERSION) images/demo
 
-image:image-nmi image-demo
+image:image-nmi image-mic image-demo
 
-push:push-nmi push-demo
+push:push-nmi push-mic push-demo
 
 push-nmi:
 	docker push $(NMI_IMAGE_NAME):$(NMI_VERSION)
 
+push-mic:
+	docker push $(MIC_IMAGE_NAME):$(MIC_VERSION)
+
 push-demo:
 	docker push $(DEMO_IMAGE_NAME):$(DEMO_VERSION)
+
+push-mic:
+	docker push $(MIC_IMAGE_NAME):$(MIC_VERSION)
 
 .PHONY: build

@@ -1,0 +1,33 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    component: mic
+  name: mic
+  namespace: default
+spec:
+  template:
+    metadata:
+      labels:
+        component: mic
+    spec:
+      containers:
+      - name: mic
+        image: "nikhilbh/mic:1.0"
+        imagePullPolicy: Always
+        args:
+          - "--kubeconfig=$(KUBECONFIG)"
+        env:
+          - name: KUBECONFIG
+            value: /etc/kubernetes/config/kubeconfig.yaml
+        volumeMounts:
+          - mountPath: /etc/kubernetes/addons
+            name: addons
+            readOnly: true
+          - mountPath: /etc/kubernetes/config
+            name: kubeconfig
+            readOnly: true
+      volumes:
+        - name: kubeconfig
+          secret:
+            secretName: kubeconfig-file
