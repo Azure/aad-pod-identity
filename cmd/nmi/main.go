@@ -15,6 +15,7 @@ const (
 )
 
 var (
+	debug                              = pflag.Bool("debug", true, "sets log to debug level")
 	nmiPort                            = pflag.String("nmi-port", defaultNmiPort, "NMI application port")
 	metadataIP                         = pflag.String("metadata-ip", defaultMetadataIP, "instance metadata host ip")
 	metadataPort                       = pflag.String("metadata-port", defaultMetadataPort, "instance metadata host ip")
@@ -26,29 +27,14 @@ var (
 
 func main() {
 	pflag.Parse()
-	log.Info("starting nmi process")
-<<<<<<< HEAD
-=======
-	s := server.NewServer()
-	if !*test {
-		client, err := k8s.NewKubeClient()
-		if err != nil {
-			log.Fatalf("%+v", err)
-		}
-		s.KubeClient = client
-	} else {
-		client, _ := k8s.NewFakeClient()
-		s.KubeClient = client
+	if *debug {
+		log.SetLevel(log.DebugLevel)
 	}
-	s.MetadataIP = *metadataIP
-	s.MetadataPort = *metadataPort
->>>>>>> 62c5321f33178c6ce3a057949d1242434c50f026
-
+	log.Info("starting nmi process")
 	client, err := k8s.NewKubeClient()
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}
-
 	s := server.NewServer()
 	s.KubeClient = client
 	s.MetadataIP = *metadataIP
