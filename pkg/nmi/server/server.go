@@ -4,10 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"strings"
 	"time"
 
@@ -23,7 +22,7 @@ const (
 )
 
 // Server encapsulates all of the parameters necessary for starting up
-// the server. These can either be set via command line or directly.
+// the server. These can either be set via command line.
 type Server struct {
 	KubeClient                         k8s.Client
 	NMIPort                            string
@@ -44,8 +43,9 @@ func (s *Server) Run() error {
 	go s.updateIPTableRules()
 
 	mux := http.NewServeMux()
-	mux.Handle("/metadata/identity/oauth2/token", appHandler(s.roleHandler))
-	mux.Handle("/{path:.*}", appHandler(s.reverseProxyHandler))
+	mux.Handle("/metadata/identity/oauth2/token", appHandler(s.msiHandler))
+	mux.Handle("/metadata/identity/oauth2/token/", appHandler(s.msiHandler))
+	mux.Handle("/", appHandler(s.defaultPathHandler))
 
 	log.Infof("Listening on port %s", s.NMIPort)
 	if err := http.ListenAndServe(":"+s.NMIPort, mux); err != nil {
@@ -123,10 +123,19 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
+// msiHandler uses the remote address to identify the pod ip and uses it
+// to find maching client id, and then returns the token sourced through
+// AAD using adal
+// if the requests contains client id it validates it againsts the admin
+// configured id.
+func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
 	podIP := parseRemoteAddr(r.RemoteAddr)
-	log.Infof("received request %s", podIP)
-
+	if podIP == "" {
+		msg := "request remote address is empty"
+		logger.Error(msg)
+		http.Error(w, msg, http.StatusInternalServerError)
+		return
+	}
 	podns, podname, err := s.KubeClient.GetPodName(podIP)
 	if err != nil {
 		logger.Errorf("Error getting podname for podip:%s, %+v", podIP, err)
@@ -135,8 +144,8 @@ func (s *Server) roleHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 	}
 	azID, err := s.KubeClient.GetUserAssignedMSI(podns, podname)
 	if err != nil {
-		logger.Errorf("No AzureAssignedIdentity found for pod:%s/%s, %+v", podns, podname, err)
 		msg := fmt.Sprintf("No AzureAssignedIdentity found for pod:%s/%s", podns, podname)
+		logger.Errorf("%s, %+v", msg, err)
 		http.Error(w, msg, http.StatusForbidden)
 		return
 	}
@@ -188,8 +197,39 @@ func parseRequestClientID(r *http.Request) (clientID string) {
 	return clientID
 }
 
-func (s *Server) reverseProxyHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
-	proxy := httputil.NewSingleHostReverseProxy(&url.URL{Scheme: "http", Host: s.MetadataIP})
-	proxy.ServeHTTP(w, r)
-	logger.WithField("metadata.url", s.MetadataIP).Debug("proxy metadata request")
+// defaultPathHandler creates a new request and returns the response body and code
+func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
+	client := &http.Client{
+		Timeout: time.Duration(2) * time.Second,
+	}
+	r.URL.Host = s.MetadataIP
+	req, err := http.NewRequest(r.Method, r.URL.String(), r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	req.Host = s.MetadataIP
+	copyHeader(req.Header, r.Header)
+	resp, err := client.Do(req)
+	if err != nil {
+		http.Error(w, err.Error(), resp.StatusCode)
+		return
+	}
+	defer func() {
+		if resp != nil && resp.Body != nil {
+			resp.Body.Close()
+		}
+	}()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	w.Write(body)
+}
+
+func copyHeader(dst, src http.Header) {
+	for k, vv := range src {
+		for _, v := range vv {
+			dst.Add(k, v)
+		}
+	}
 }

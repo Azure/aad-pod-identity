@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -61,6 +63,8 @@ func main() {
 			logger.Errorf("msi, emsi test failed %+v %+v", t1, t2)
 		}
 
+		testInstanceMetadataRequests(logger)
+
 		time.Sleep(time.Duration(*retryWaitTime) * time.Second)
 	}
 }
@@ -118,4 +122,21 @@ func testMSIEndpointFromUserAssignedID(logger *log.Entry, msiEndpoint, userAssig
 	}
 	logger.Infof("succesfully acquired a token, userAssignedID MSI, msiEndpoint(%s) clientID(%s)", msiEndpoint, userAssignedID)
 	return &token
+}
+
+// simulates health probe of non MSI instance metadata requests
+// e.g. curl -H Metadata:true "http://169.254.169.254/metadata/instance?api-version=2017-08-01"
+func testInstanceMetadataRequests(logger *log.Entry) {
+	client := &http.Client{
+		Timeout: time.Duration(2) * time.Second,
+	}
+	req, err := http.NewRequest("GET", "http://169.254.169.254/metadata/instance?api-version=2017-08-01", nil)
+	req.Header.Add("Metadata", "true")
+	resp, err := client.Do(req)
+	if err != nil {
+		logger.Errorf("failed, GET on instance metadata")
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	logger.Errorf("succesfully made GET on instance metadata, %s", body)
 }
