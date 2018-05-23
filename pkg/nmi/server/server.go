@@ -57,7 +57,7 @@ func (s *Server) Run() error {
 }
 
 // updateIPTableRules ensures the correct iptable rules are set
-// so that metadata requests are received by nmi assigned port
+// such that metadata requests are received by nmi assigned port
 func (s *Server) updateIPTableRules() {
 	log.Infof("node: %s", s.NodeName)
 	podcidr, err := s.KubeClient.GetPodCidr(s.NodeName)

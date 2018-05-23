@@ -31,12 +31,10 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 	log.Info("starting nmi process")
-
 	client, err := k8s.NewKubeClient()
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}
-
 	s := server.NewServer()
 	s.KubeClient = client
 	s.MetadataIP = *metadataIP
