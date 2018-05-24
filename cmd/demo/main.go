@@ -125,7 +125,7 @@ func testMSIEndpointFromUserAssignedID(logger *log.Entry, msiEndpoint, userAssig
 }
 
 // simulates health probe of non MSI instance metadata requests
-// e.g. curl -H Metadata:true "http://169.254.169.254/metadata/instance?api-version=2017-08-01"
+// e.g. curl -H Metadata:true "http://169.254.169.254/metadata/instance?api-version=2017-08-01" --header "X-Forwarded-For: 192.168.0.2"
 func testInstanceMetadataRequests(logger *log.Entry) {
 	client := &http.Client{
 		Timeout: time.Duration(2) * time.Second,
@@ -138,5 +138,5 @@ func testInstanceMetadataRequests(logger *log.Entry) {
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
-	logger.Errorf("succesfully made GET on instance metadata, %s", body)
+	logger.Infof("succesfully made GET on instance metadata, %s", body)
 }
