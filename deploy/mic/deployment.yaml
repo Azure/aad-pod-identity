@@ -1,0 +1,41 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    component: mic
+  name: mic
+  namespace: default
+spec:
+  template:
+    metadata:
+      labels:
+        component: mic
+    spec:
+      containers:
+      - name: mic
+        image: "nikhilbh/mic:1.0"
+        imagePullPolicy: Always
+        args:
+          - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"
+          - "--cloudconfig=/etc/kubernetes/azure.json"
+          - "--logtostderr"
+        volumeMounts:
+          - name: kubeconfig
+            mountPath: /etc/kubernetes/kubeconfig
+            readOnly: true
+          - name: certificates
+            mountPath: /etc/kubernetes/certs
+            readOnly: true
+          - name: k8s-azure-file
+            mountPath: /etc/kubernetes/azure.json
+            readOnly: true
+      volumes:
+      - name: kubeconfig
+        hostPath:
+          path: /var/lib/kubelet
+      - name: certificates
+        hostPath:
+          path: /etc/kubernetes/certs
+      - name: k8s-azure-file
+        hostPath: 
+          path: /etc/kubernetes/azure.json

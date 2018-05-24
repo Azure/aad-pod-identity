@@ -7,5 +7,6 @@ spec:
   version: v1
   names:
     kind: AzureIdentity
+    singular: azureidentity
     plural: azureidentities
   scope: Namespaced         
