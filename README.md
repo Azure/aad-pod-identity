@@ -1,19 +1,15 @@
-
-# Demo
-## Requirement 
-A running k8s cluster on Azure using AKS or ACS Engine 
-
-## Scenario 
 Applications running on the POD on Azure Container Service (AKS/ACS Engine) require access to identities in Azure Active Directory (AAD) to access resources that use an identity provider. AAD provides a construct called a Service Principal that allows applications to assume identities with limited permissions, and Managed Service Identity (MSI) - automatically generated and rotated credentials that easily retrieved by an application at run-time to authenticate as a service principal. 
 
 An cluster admin configures the Azure Identity Binding to the Pod. Without any change of auth code the application running on the pod works on the cluster.
 
-### Pod fetching Service Principal Token from MSI endpoint 
+# Demo Pod 
+
+## Pod fetching Service Principal Token from MSI endpoint 
 ```
 spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, resource)
 ```
 
-### Pod using identity to Azure Resource Manager (ARM) operation by doing seamless authorization 
+## Pod using identity to Azure Resource Manager (ARM) operation by doing seamless authorization 
 ```
 import "github.com/Azure/go-autorest/autorest/azure/auth"
 
@@ -28,6 +24,10 @@ vmlist, err := vmClient.List(context.Background(), resourceGroup)
 ```
 
 ## Deploy Specs
+
+### Requirement 
+A running k8s cluster on Azure using AKS or ACS Engine 
+
 ### Deploy the azure-aad-identity infra 
 ```
 kubectl create -f deploy/mic/deployment.yaml
