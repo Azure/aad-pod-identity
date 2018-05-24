@@ -20,7 +20,7 @@ type Client struct {
 	CloudClient  *cloudprovider.Client
 }
 
-func NewMICClient(config *rest.Config) (*Client, error) {
+func NewMICClient(cloudconfig string, config *rest.Config) (*Client, error) {
 	glog.Infof("Starting to create the pod identity client")
 
 	crdClient, err := crd.NewCRDClient(config)
@@ -30,7 +30,7 @@ func NewMICClient(config *rest.Config) (*Client, error) {
 
 	clientSet := kubernetes.NewForConfigOrDie(config)
 	k8sInformers := informers.NewSharedInformerFactory(clientSet, time.Minute*5)
-	cloudClient, err := cloudprovider.NewCloudProvider("/etc/kubernetes/azure.json")
+	cloudClient, err := cloudprovider.NewCloudProvider(cloudconfig)
 	if err != nil {
 		return nil, err
 	}
