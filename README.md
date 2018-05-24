@@ -6,7 +6,7 @@ A running k8s cluster on Azure using AKS or ACS Engine
 ## Scenario 
 ### Pod fetching Service Principal Token from MSI endpoint 
 ```
-spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, resource)
+	spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, resource)
 ```
 
 ### Pod using identity to Azure Resource Manager (ARM) operation by doing seamless authorization 
@@ -25,9 +25,9 @@ spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, resource)
 
 ## Deploy Specs
 ```
-kubectl create -f deploy/mic/deployment.yaml
-kubectl create -f deploy/nmi/deployment.yaml
-kubectl create -f deploy/demo/deployment.yaml
+	kubectl create -f deploy/mic/deployment.yaml
+	kubectl create -f deploy/nmi/deployment.yaml
+	kubectl create -f deploy/demo/deployment.yaml
 ```
 # Contributing
 
