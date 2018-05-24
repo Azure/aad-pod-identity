@@ -1,5 +1,5 @@
 
-# Demonstration
+# Demo
 ## Requirement 
 A running k8s cluster on Azure using AKS or ACS Engine 
 
