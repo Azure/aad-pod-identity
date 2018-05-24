@@ -1,4 +1,34 @@
 
+# Demonstration
+## Requirement 
+A running k8s cluster on Azure using AKS or ACS Engine 
+
+## Scenario 
+### Pod fetching Service Principal Token from MSI endpoint 
+```
+spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, resource)
+```
+
+### Pod using identity to Azure Resource Manager (ARM) operation by doing seamless authorization 
+```
+	import "github.com/Azure/go-autorest/autorest/azure/auth"
+  
+	authorizer, err := auth.NewAuthorizerFromEnvironment()
+	if err != nil {
+		logger.Errorf("failed NewAuthorizerFromEnvironment  %+v", authorizer)
+		return
+	}
+	vmClient := compute.NewVirtualMachinesClient(subscriptionID)
+	vmClient.Authorizer = authorizer
+	vmlist, err := vmClient.List(context.Background(), resourceGroup)
+```
+
+## Deploy Specs
+```
+kubectl create -f deploy/mic/deployment.yaml
+kubectl create -f deploy/nmi/deployment.yaml
+kubectl create -f deploy/demo/deployment.yaml
+```
 # Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
