@@ -8,7 +8,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-
+  
 	crd "github.com/Azure/aad-pod-identity/pkg/crd"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -19,7 +19,7 @@ type Client interface {
 	GetPodCidr(nodename string) (podcidr string, err error)
 	// GetPodName return the matching azure identity or nil
 	GetPodName(podip string) (podns, podname string, err error)
-	// GetAzureAssignedIdentity return the matching azure identity or nil
+	// GetUserAssignedMSI return the matching msi clientID or nil
 	GetUserAssignedMSI(podns, podname string) (userMSIClientID *string, err error)
 }
 
@@ -45,6 +45,7 @@ func NewKubeClient() (Client, error) {
 	}
 
 	crdclient, err := crd.NewCRDClient(config)
+
 	if err != nil {
 		return nil, err
 	}

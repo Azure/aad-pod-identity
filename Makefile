@@ -70,12 +70,14 @@ image-nmi:
 image-mic:
 	cp bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME) images/mic
 	docker build -t $(MIC_IMAGE_NAME):$(MIC_VERSION) images/mic
-
+  
 image-demo:
 	cp bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME) images/demo
 	docker build -t $(DEMO_IMAGE_NAME):$(DEMO_VERSION) images/demo
-
+  
 image:image-nmi image-mic image-demo
+
+image:image-nmi image-demo
 
 push-nmi:
 	docker push $(NMI_IMAGE_NAME):$(NMI_VERSION)
