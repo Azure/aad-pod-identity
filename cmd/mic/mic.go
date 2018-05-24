@@ -31,7 +31,7 @@ func main() {
 
 	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
-		glog.Fatalf("Could not read config properly. Check the k8s config file")
+		glog.Fatalf("Could not read config properly. Check the k8s config file, %+v", err)
 	}
 
 	micClient, err := mic.NewMICClient(cloudconfig, config)

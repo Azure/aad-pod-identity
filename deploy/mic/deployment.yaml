@@ -20,16 +20,22 @@ spec:
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
         volumeMounts:
-          - mountPath: /etc/kubernetes/kubeconfig
-            name: kubeconfig
+          - name: kubeconfig
+            mountPath: /etc/kubernetes/kubeconfig
             readOnly: true
-          - mountPath: /etc/kubernetes/azure.json
-            name: k8s-azure-file
+          - name: certificates
+            mountPath: /etc/kubernetes/certs
+            readOnly: true
+          - name: k8s-azure-file
+            mountPath: /etc/kubernetes/azure.json
             readOnly: true
       volumes:
       - name: kubeconfig
         hostPath:
           path: /var/lib/kubelet
+      - name: certificates
+        hostPath:
+          path: /etc/kubernetes/certs
       - name: k8s-azure-file
         hostPath: 
           path: /etc/kubernetes/azure.json
