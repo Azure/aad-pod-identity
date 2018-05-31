@@ -53,8 +53,7 @@ A running k8s cluster on Azure using AKS or ACS Engine
 ### Deploy the azure-aad-identity infra 
 
 ```
-kubectl create -f deploy/mic/deployment.yaml
-kubectl create -f deploy/nmi/deployment.yaml
+kubectl create -f deploy/infra/deployment.yaml
 kubectl create -f deploy/demo/deployment.yaml
 ```
 
