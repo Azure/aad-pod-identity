@@ -20,7 +20,7 @@ type Client interface {
 	// GetPodName return the matching azure identity or nil
 	GetPodName(podip string) (podns, podname string, err error)
 	// GetAzureAssignedIdentity return the matching azure identity or nil
-	GetUserAssignedMSI(podns, podname string) (userMSIClientID *string, err error)
+	GetUserAssignedMSI(podns, podname string) (userMSIClientIDs *[]string, err error)
 }
 
 // KubeClient k8s client
@@ -28,7 +28,7 @@ type KubeClient struct {
 	// Main Kubernetes client
 	ClientSet *kubernetes.Clientset
 	// Crd client used to access our CRD resources.
-	CrdClient *crd.CrdClient
+	CrdClient *crd.Client
 }
 
 // NewKubeClient new kubernetes api client
@@ -103,7 +103,7 @@ func (c *KubeClient) GetPodCidr(nodename string) (podcidr string, err error) {
 }
 
 // GetAzureAssignedIdentity return the matching azure identity or nil
-func (c *KubeClient) GetUserAssignedMSI(podns, podname string) (userMSIClientID *string, err error) {
+func (c *KubeClient) GetUserAssignedMSI(podns, podname string) (userMSIClientIDs *[]string, err error) {
 	return c.CrdClient.GetUserAssignedMSI(podns, podname)
 }
 

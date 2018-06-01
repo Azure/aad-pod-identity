@@ -152,13 +152,14 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	}
 	logger.Infof("found matching azID %+v", *azID)
 	rqClientID := parseRequestClientID(r)
-	if rqClientID != "" && !strings.EqualFold(rqClientID, *azID) {
-		msg := fmt.Sprintf("request clientid (%s) azID %s", rqClientID, *azID)
+	// TODO: Use the list instead of first element
+	if rqClientID != "" && !strings.EqualFold(rqClientID, (*azID)[0]) {
+		msg := fmt.Sprintf("request clientid (%s) azID %s", rqClientID, (*azID)[0])
 		logger.Error(msg)
 		http.Error(w, msg, http.StatusForbidden)
 		return
 	}
-	token, err := auth.GetServicePrincipalToken(*azID, azureResourceName)
+	token, err := auth.GetServicePrincipalToken((*azID)[0], azureResourceName)
 	if err != nil {
 		logger.Errorf("failed to get service pricipal token, %+v", err)
 		http.Error(w, err.Error(), http.StatusFailedDependency)
