@@ -28,8 +28,9 @@ func (c *FakeClient) GetPodName(podip string) (podns, podname string, err error)
 }
 
 // GetAzureAssignedIdentity returns fake pod name
-func (c *FakeClient) GetUserAssignedMSI(podns string, podname string) (userMSIClientID *string, err error) {
-	azID := userMSIClientID
+func (c *FakeClient) GetUserAssignedMSI(podns string, podname string) (userMSIClientID *[]string, err error) {
+	azList := userMSIClientID
+
 	err = nil
-	return azID, err
+	return azList, err
 }

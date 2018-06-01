@@ -112,12 +112,33 @@ kind: AzureIdentityBinding
 metadata:
  name: demo1-azure-identity-binding
 spec:
- AzureIdentityRef: <idname>
- MatchName: <demmopodname>
+ AzureIdentity: <idname>
+ Selector: <label value to match>
 ``` 
 
 ```
 kubectl create -f aadpodidentitybinding.yaml
+```
+The name of the identity which we created earlier needs to be filled in AzureIdentity.
+For a pod to match a binding, it should have a label with the key '**aadpodidbinding**' 
+whose value matches the  **Selector** field in the binding above.
+
+Here an example pod with the label specified:
+```
+$ kubectl get po busybox0 --show-labels
+NAME       READY     STATUS    RESTARTS   AGE       LABELS
+busybox0   1/1       Running   10         10h       aadpodidbinding=select_it,app=busybox0
+```
+
+This pod will match the binding below:
+```
+apiVersion: "aadpodidentity.k8s.io/v1"
+kind: AzureIdentityBinding
+metadata:
+  name: test-azure-id-binding
+spec: 
+  AzureIdentity: "test-azure-identity"
+  Selector: "select_it"
 ```
 
 # Contributing

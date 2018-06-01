@@ -89,6 +89,24 @@ func (in *AzureAssignedIdentityList) DeepCopyObject() runtime.Object {
 func (in *AzureAssignedIdentitySpec) DeepCopyInto(out *AzureAssignedIdentitySpec) {
 	*out = *in
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
+	if in.AzureIdentityRef != nil {
+		in, out := &in.AzureIdentityRef, &out.AzureIdentityRef
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(AzureIdentity)
+			(*in).DeepCopyInto(*out)
+		}
+	}
+	if in.AzureBindingRef != nil {
+		in, out := &in.AzureBindingRef, &out.AzureBindingRef
+		if *in == nil {
+			*out = nil
+		} else {
+			*out = new(AzureIdentityBinding)
+			(*in).DeepCopyInto(*out)
+		}
+	}
 	if in.Replicas != nil {
 		in, out := &in.Replicas, &out.Replicas
 		if *in == nil {
