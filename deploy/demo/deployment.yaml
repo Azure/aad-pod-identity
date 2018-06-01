@@ -15,6 +15,10 @@ spec:
       - name: demo
         image: "nikhilbh/demo:1.0"
         imagePullPolicy: Always
+        args:
+          - "--subscriptionID=<subscriptionID>"
+          - "--clientID=<clientid>"
+          - "--resourceGroup=<resourcegroupname>"
         env:
         - name: MY_POD_NAME
           valueFrom:

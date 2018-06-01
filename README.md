@@ -48,12 +48,23 @@ vmlist, err := vmClient.List(context.Background(), resourceGroup)
 ## Deploy Specs
 
 ### Requirement 
+
 A running k8s cluster on Azure using AKS or ACS Engine 
 
 ### Deploy the azure-aad-identity infra 
 
 ```
 kubectl create -f deploy/infra/deployment.yaml
+```
+
+
+### Demo app
+
+To deploy the demo app, update the deploy/demo/deployment.yaml arguments with your subscription, clientID and resource group.
+Make your your identity with the client ID has reader permission to the resource group provided in the input. 
+
+
+```
 kubectl create -f deploy/demo/deployment.yaml
 ```
 
