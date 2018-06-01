@@ -5,6 +5,27 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+type EventType int
+
+const (
+	PodCreated      EventType = 0
+	PodDeleted      EventType = 1
+	PodUpdated      EventType = 2
+	IdentityCreated EventType = 3
+	IdentityDeleted EventType = 4
+	IdentityUpdated EventType = 5
+	BindingCreated  EventType = 6
+	BindingDeleted  EventType = 7
+	BindingUpdated  EventType = 8
+	Exit            EventType = 9
+)
+
+const (
+	CRDGroup    = "aadpodidentity.k8s.io"
+	CRDVersion  = "v1"
+	CRDLabelKey = "aadpodidbinding"
+)
+
 /*** Global data structures ***/
 
 // AzureIdentity is the specification of the identity data structure.
@@ -107,14 +128,19 @@ const (
 	Assigned AssignedIDState = 1
 )
 
+const (
+	AzureIDResource        = "azureidentities"
+	AzureIDBindingResource = "azureidentitybindings"
+	AureAssignedIDResource = "azureassignedidentities"
+)
+
 // AzureIdentityBindingSpec matches the pod with the Identity.
 // Used to indicate the potential matches to look for between the pod/deployment
 // and the identities present..
 type AzureIdentityBindingSpec struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	AzureIdentityRef  string    `json:"azureidentityref"`
-	MatchType         MatchType `json:"matchtype"`
-	MatchName         string    `json:"matchname"`
+	AzureIdentity     string `json:"azureidentity"`
+	Selector          string `json:"selector"`
 	// Weight is used to figure out which of the matching identities would be selected.
 	Weight int `json:"weight"`
 }
@@ -129,11 +155,13 @@ type AzureIdentityBindingStatus struct {
 //AzureAssignedIdentitySpec has the contents of Azure identity<->POD
 type AzureAssignedIdentitySpec struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	AzureIdentityRef  string `json:"azureidentityref"`
-	Pod               string `json:"pod"`
-	PodNamespace      string `json:"podnamespace"`
-	NodeName          string `json:"nodename"`
-	Replicas          *int32 `json:"replicas"`
+	AzureIdentityRef  *AzureIdentity        `json:"azureidentityref"`
+	AzureBindingRef   *AzureIdentityBinding `json:"azurebindingref"`
+	Pod               string                `json:"pod"`
+	PodNamespace      string                `json:"podnamespace"`
+	NodeName          string                `json:"nodename"`
+
+	Replicas *int32 `json:"replicas"`
 }
 
 // AzureAssignedIdentityStatus has the replica status of the resouce.
