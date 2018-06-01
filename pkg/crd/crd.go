@@ -198,7 +198,7 @@ func (c *Client) GetUserAssignedMSI(podns, podname string) (userMSIClientID *[]s
 	for _, v := range azAssignedIDList.Items {
 		if v.Spec.Pod == podname {
 			id := v.Spec.AzureIdentityRef
-			listIDs = append(listIDs, id.Name)
+			listIDs = append(listIDs, id.Spec.ClientID)
 		}
 	}
 	if len(listIDs) > 0 {
