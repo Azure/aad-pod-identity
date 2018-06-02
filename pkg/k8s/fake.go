@@ -1,5 +1,9 @@
 package k8s
 
+import (
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+)
+
 // FakeClient implements Interface
 type FakeClient struct {
 }
@@ -27,10 +31,7 @@ func (c *FakeClient) GetPodName(podip string) (podns, podname string, err error)
 	return "ns", "podname", nil
 }
 
-// GetAzureAssignedIdentity returns fake pod name
-func (c *FakeClient) GetUserAssignedMSI(podns string, podname string) (userMSIClientID *[]string, err error) {
-	azList := userMSIClientID
-
-	err = nil
-	return azList, err
+// GetAzureAssignedIdentity returns fake aad pod ids
+func (c *FakeClient) GetUserAssignedIdentities(podns string, podname string) (*[]aadpodid.AzureAssignedIdentity, error) {
+	return nil, nil
 }

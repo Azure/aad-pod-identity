@@ -12,6 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/go-autorest/autorest/adal"
+
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
@@ -143,40 +146,51 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	azID, err := s.KubeClient.GetUserAssignedMSI(podns, podname)
-	if err != nil {
-		msg := fmt.Sprintf("No AzureAssignedIdentity found for pod:%s/%s", podns, podname)
+	azIDs, err := s.KubeClient.GetUserAssignedIdentities(podns, podname)
+	if err != nil || len(*azIDs) == 0 {
+		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s", podns, podname)
 		logger.Errorf("%s, %+v", msg, err)
 		http.Error(w, msg, http.StatusForbidden)
 		return
 	}
-	logger.Infof("found matching azID %+v", *azID)
 	rqClientID := parseRequestClientID(r)
-	// TODO: Use the list instead of first element
-	if rqClientID != "" && !strings.EqualFold(rqClientID, (*azID)[0]) {
-		msg := fmt.Sprintf("request clientid (%s) azID %s", rqClientID, (*azID)[0])
-		logger.Error(msg)
-		http.Error(w, msg, http.StatusForbidden)
-		return
-	}
-	token, err := auth.GetServicePrincipalToken((*azID)[0], azureResourceName)
+	token, err := getTokenForMatchingID(rqClientID, azIDs)
 	if err != nil {
-		logger.Errorf("failed to get service pricipal token, %+v", err)
-		http.Error(w, err.Error(), http.StatusFailedDependency)
-		return
-	}
-	if token == nil {
-		err := fmt.Errorf("received nil token")
-		http.Error(w, err.Error(), http.StatusFailedDependency)
+		logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
+		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 	response, err := json.Marshal(*token)
 	if err != nil {
-		logger.Errorf("failed to Marshal service pricipal token, %+v", err)
+		logger.Errorf("failed to marshal service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Write(response)
+}
+
+func getTokenForMatchingID(rqClientID string, azIDs *[]aadpodid.AzureAssignedIdentity) (token *adal.Token, err error) {
+	rqHasClientID := len(rqClientID) != 0
+	for _, v := range *azIDs {
+		clientID := v.Spec.AzureIdentityRef.Spec.ClientID
+		if rqHasClientID && !strings.EqualFold(rqClientID, clientID) {
+			break
+		}
+		idType := v.Spec.AzureIdentityRef.Spec.Type
+		switch idType {
+		case aadpodid.UserAssignedMSI:
+			return auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(v.Spec.AzureIdentityRef.Spec.ClientID, azureResourceName)
+		case aadpodid.ServicePrincipal:
+			tenantid := ""
+			secret := v.Spec.AzureIdentityRef.Spec.Password.String()
+			return auth.GetServicePrincipalToken(tenantid, clientID, secret)
+		default:
+			return nil, fmt.Errorf("Unknown identity type")
+		}
+	}
+
+	// We have not yet returned, so pass up an error
+	return nil, fmt.Errorf("AzureIdentity not found")
 }
 
 func parseRemoteAddr(addr string) string {

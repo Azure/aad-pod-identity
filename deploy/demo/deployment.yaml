@@ -2,7 +2,8 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    app: nmi
+    app: demo
+    aadpodidbinding: demo
   name: demo
   namespace: default
 spec:
@@ -10,15 +11,12 @@ spec:
     metadata:
       labels:
         app: demo
+        aadpodidbinding: demo
     spec:
       containers:
       - name: demo
         image: "nikhilbh/demo:1.0"
         imagePullPolicy: Always
-        args:
-          - "--subscriptionID=<subscriptionID>"
-          - "--clientID=<clientid>"
-          - "--resourceGroup=<resourcegroupname>"
         env:
         - name: MY_POD_NAME
           valueFrom:

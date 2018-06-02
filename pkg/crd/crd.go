@@ -184,26 +184,14 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 	return &ret.Items, nil
 }
 
-//GetUserAssignedMSI - given a pod with pod name space
-func (c *Client) GetUserAssignedMSI(podns, podname string) (userMSIClientID *[]string, err error) {
+//GetUserAssignedIdentities - given a pod with pod name space
+func (c *Client) GetUserAssignedIdentities(podns, podname string) (*[]aadpodid.AzureAssignedIdentity, error) {
 	var azAssignedIDList aadpodid.AzureAssignedIdentityList
-	err = c.rest.Get().Namespace("default").Resource("azureassignedidentities").Do().Into(&azAssignedIDList)
+	err := c.rest.Get().Namespace("default").Resource("azureassignedidentities").Do().Into(&azAssignedIDList)
 	if err != nil {
 		glog.Error(err)
 		return nil, err
 	}
 
-	listIDs := make([]string, 0)
-
-	for _, v := range azAssignedIDList.Items {
-		if v.Spec.Pod == podname {
-			id := v.Spec.AzureIdentityRef
-			listIDs = append(listIDs, id.Name)
-		}
-	}
-	if len(listIDs) > 0 {
-		return &listIDs, nil
-	}
-	// We have not yet returned, so pass up an error
-	return nil, fmt.Errorf("AzureIdentity not found for pod:%s in namespace:%s", podname, podns)
+	return &azAssignedIDList.Items, nil
 }
