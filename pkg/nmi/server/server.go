@@ -154,7 +154,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		return
 	}
 	rqClientID := parseRequestClientID(r)
-	token, err := getTokenForMatchingID(rqClientID, azIDs)
+	token, err := getTokenForMatchingID(logger, rqClientID, azIDs)
 	if err != nil {
 		logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
@@ -169,28 +169,31 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	w.Write(response)
 }
 
-func getTokenForMatchingID(rqClientID string, azIDs *[]aadpodid.AzureAssignedIdentity) (token *adal.Token, err error) {
+func getTokenForMatchingID(logger *log.Entry, rqClientID string, azIDs *[]aadpodid.AzureAssignedIdentity) (token *adal.Token, err error) {
 	rqHasClientID := len(rqClientID) != 0
 	for _, v := range *azIDs {
 		clientID := v.Spec.AzureIdentityRef.Spec.ClientID
 		if rqHasClientID && !strings.EqualFold(rqClientID, clientID) {
-			break
+			logger.Warningf("clientid mismatch, requested:%s available:%s", rqClientID, clientID)
+			continue
 		}
 		idType := v.Spec.AzureIdentityRef.Spec.Type
 		switch idType {
 		case aadpodid.UserAssignedMSI:
-			return auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(v.Spec.AzureIdentityRef.Spec.ClientID, azureResourceName)
+			logger.Infof("matched identityType:%v clientid:%s resource:%s", idType, clientID, azureResourceName)
+			return auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, azureResourceName)
 		case aadpodid.ServicePrincipal:
 			tenantid := ""
+			logger.Infof("matched identityType:%v tenantid:%s clientid:%s", idType, tenantid, clientID)
 			secret := v.Spec.AzureIdentityRef.Spec.Password.String()
 			return auth.GetServicePrincipalToken(tenantid, clientID, secret)
 		default:
-			return nil, fmt.Errorf("Unknown identity type")
+			return nil, fmt.Errorf("unsupported identity type %+v", idType)
 		}
 	}
 
 	// We have not yet returned, so pass up an error
-	return nil, fmt.Errorf("AzureIdentity not found")
+	return nil, fmt.Errorf("azureidentity is not configured for the pod")
 }
 
 func parseRemoteAddr(addr string) string {
