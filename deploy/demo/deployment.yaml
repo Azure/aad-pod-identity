@@ -17,6 +17,10 @@ spec:
       - name: demo
         image: "nikhilbh/demo:1.0"
         imagePullPolicy: Always
+        args:
+          - "--subscriptionid=c1089427-83d3-4286-9f35-5af546a6eb67"
+          - "--clientid=ac4789c3-6196-4f47-9832-d56d7d585148"
+          - "--resourcegroup=MC_nbhatia-eu-01_eu-1_eastus"
         env:
         - name: MY_POD_NAME
           valueFrom:

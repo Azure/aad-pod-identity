@@ -19,9 +19,9 @@ import (
 var (
 	retryWaitTime  = pflag.Int("retry-wait-time", 20, "retry wait time in seconds")
 	resource       = pflag.String("aad-resourcename", "https://management.azure.com/", "resourcename for aad id")
-	subscriptionID = pflag.String("subscriptionID", "", "subscriptionID for test")
-	clientID       = pflag.String("clientID", "", "clientID for the msi id")
-	resourceGroup  = pflag.String("resourceGroup", "", "any resource group with reader permission to the aad object")
+	subscriptionID = pflag.String("subscriptionid", "", "subscription id for test")
+	clientID       = pflag.String("clientid", "", "client id for the msi id")
+	resourceGroup  = pflag.String("resourcegroup", "", "any resource group name with reader permission to the aad object")
 )
 
 func main() {
