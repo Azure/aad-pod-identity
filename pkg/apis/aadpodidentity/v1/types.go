@@ -96,12 +96,23 @@ const (
 
 type AzureIdentitySpec struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	// EMSI or Service Principle
-	Type       IdentityType        `json:"type"`
-	ResourceID string              `json:"resourceid"`
-	ClientID   string              `json:"clientid"`
-	Password   api.SecretReference `json:"password"`
-	Replicas   *int32              `json:"replicas"`
+	// UserAssignedMSI or Service Principal
+	Type IdentityType `json:"type"`
+
+	// User assigned MSI resource id.
+	ResourceID string `json:"resourceid"`
+	//Both User Assigned MSI and SP can use this field.
+	ClientID string `json:"clientid"`
+
+	//Used for service principal
+	ClientPassword api.SecretReference `json:"clientpassword"`
+	// Service principal tenant id.
+	TenantID string `json:"tenantid"`
+	// For service principal. Option param for specifying the  AD details.
+	ADResourceID string `json:"adresourceid"`
+	ADEndpoint   string `json:"adendpoint"`
+
+	Replicas *int32 `json:"replicas"`
 }
 
 type AzureIdentityStatus struct {
