@@ -306,7 +306,7 @@ func (in *AzureIdentityList) DeepCopyObject() runtime.Object {
 func (in *AzureIdentitySpec) DeepCopyInto(out *AzureIdentitySpec) {
 	*out = *in
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
-	out.Password = in.Password
+	out.ClientPassword = in.ClientPassword
 	if in.Replicas != nil {
 		in, out := &in.Replicas, &out.Replicas
 		if *in == nil {
