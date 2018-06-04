@@ -184,14 +184,20 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 	return &ret.Items, nil
 }
 
-//GetUserAssignedIdentities - given a pod with pod name space
-func (c *Client) GetUserAssignedIdentities(podns, podname string) (*[]aadpodid.AzureAssignedIdentity, error) {
+//ListPodIds - given a pod with pod name space
+func (c *Client) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error) {
 	var azAssignedIDList aadpodid.AzureAssignedIdentityList
+	var matchedIds []aadpodid.AzureIdentity
 	err := c.rest.Get().Namespace("default").Resource("azureassignedidentities").Do().Into(&azAssignedIDList)
 	if err != nil {
 		glog.Error(err)
 		return nil, err
 	}
+	for _, v := range azAssignedIDList.Items {
+		if v.Spec.Pod == podname && v.Spec.PodNamespace == podns {
+			matchedIds = append(matchedIds, *v.Spec.AzureIdentityRef)
+		}
+	}
 
-	return &azAssignedIDList.Items, nil
+	return &matchedIds, nil
 }

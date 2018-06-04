@@ -146,15 +146,15 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	azIDs, err := s.KubeClient.GetUserAssignedIdentities(podns, podname)
-	if err != nil || len(*azIDs) == 0 {
+	podIDs, err := s.KubeClient.ListPodIds(podns, podname)
+	if err != nil || len(*podIDs) == 0 {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s", podns, podname)
 		logger.Errorf("%s, %+v", msg, err)
 		http.Error(w, msg, http.StatusForbidden)
 		return
 	}
 	rqClientID := parseRequestClientID(r)
-	token, err := getTokenForMatchingID(logger, rqClientID, azIDs)
+	token, err := getTokenForMatchingID(logger, rqClientID, podIDs)
 	if err != nil {
 		logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
@@ -169,15 +169,15 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	w.Write(response)
 }
 
-func getTokenForMatchingID(logger *log.Entry, rqClientID string, azIDs *[]aadpodid.AzureAssignedIdentity) (token *adal.Token, err error) {
+func getTokenForMatchingID(logger *log.Entry, rqClientID string, podIDs *[]aadpodid.AzureIdentity) (token *adal.Token, err error) {
 	rqHasClientID := len(rqClientID) != 0
-	for _, v := range *azIDs {
-		clientID := v.Spec.AzureIdentityRef.Spec.ClientID
+	for _, v := range *podIDs {
+		clientID := v.Spec.ClientID
 		if rqHasClientID && !strings.EqualFold(rqClientID, clientID) {
 			logger.Warningf("clientid mismatch, requested:%s available:%s", rqClientID, clientID)
 			continue
 		}
-		idType := v.Spec.AzureIdentityRef.Spec.Type
+		idType := v.Spec.Type
 		switch idType {
 		case aadpodid.UserAssignedMSI:
 			logger.Infof("matched identityType:%v clientid:%s resource:%s", idType, clientID, azureResourceName)
@@ -185,7 +185,7 @@ func getTokenForMatchingID(logger *log.Entry, rqClientID string, azIDs *[]aadpod
 		case aadpodid.ServicePrincipal:
 			tenantid := ""
 			logger.Infof("matched identityType:%v tenantid:%s clientid:%s", idType, tenantid, clientID)
-			secret := v.Spec.AzureIdentityRef.Spec.Password.String()
+			secret := v.Spec.Password.String()
 			return auth.GetServicePrincipalToken(tenantid, clientID, secret)
 		default:
 			return nil, fmt.Errorf("unsupported identity type %+v", idType)
@@ -219,16 +219,23 @@ func parseRequestClientID(r *http.Request) (clientID string) {
 // defaultPathHandler creates a new request and returns the response body and code
 func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
 	client := &http.Client{}
-	r.URL.Host = s.MetadataIP
 	req, err := http.NewRequest(r.Method, r.URL.String(), r.Body)
-	if err != nil {
+	if err != nil || req == nil {
+		logger.Errorf("failed creating a new request, %s %+v", r.URL.String(), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	req.Host = s.MetadataIP
-	copyHeader(req.Header, r.Header)
+	host := fmt.Sprintf("%s:%s", s.MetadataIP, s.MetadataPort)
+	req.Host = host
+	req.URL.Host = host
+	req.URL.Scheme = "http"
+	if r.Header != nil {
+		copyHeader(req.Header, r.Header)
+	}
 	resp, err := client.Do(req)
 	if err != nil {
-		http.Error(w, err.Error(), resp.StatusCode)
+		logger.Errorf("failed executing request, %s %+v", req.URL.String(), err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer func() {
@@ -238,6 +245,7 @@ func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r 
 	}()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		logger.Errorf("failed io operation of reading response body, %+v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	w.Write(body)

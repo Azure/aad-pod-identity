@@ -31,7 +31,7 @@ func (c *FakeClient) GetPodName(podip string) (podns, podname string, err error)
 	return "ns", "podname", nil
 }
 
-// GetAzureAssignedIdentity returns fake aad pod ids
-func (c *FakeClient) GetUserAssignedIdentities(podns string, podname string) (*[]aadpodid.AzureAssignedIdentity, error) {
+// ListPodIds for pod
+func (c *FakeClient) ListPodIds(podns string, podname string) (*[]aadpodid.AzureIdentity, error) {
 	return nil, nil
 }

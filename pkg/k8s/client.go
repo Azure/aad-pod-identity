@@ -20,8 +20,8 @@ type Client interface {
 	GetPodCidr(nodename string) (podcidr string, err error)
 	// GetPodName return the matching azure identity or nil
 	GetPodName(podip string) (podns, podname string, err error)
-	// GetAzureAssignedIdentity return the matching azure identity or nil
-	GetUserAssignedIdentities(podns, podname string) (*[]aadpodid.AzureAssignedIdentity, error)
+	// ListPodIds pod matching azure identity or nil
+	ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error)
 }
 
 // KubeClient k8s client
@@ -103,9 +103,9 @@ func (c *KubeClient) GetPodCidr(nodename string) (podcidr string, err error) {
 	return n.Spec.PodCIDR, nil
 }
 
-// GetUserAssignedIdentities return the matching azure identities or error
-func (c *KubeClient) GetUserAssignedIdentities(podns, podname string) (*[]aadpodid.AzureAssignedIdentity, error) {
-	return c.CrdClient.GetUserAssignedIdentities(podns, podname)
+// ListPodIds lists matching ids for pod or error
+func (c *KubeClient) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error) {
+	return c.CrdClient.ListPodIds(podns, podname)
 }
 
 func getkubeclient(config *rest.Config) (*kubernetes.Clientset, error) {
