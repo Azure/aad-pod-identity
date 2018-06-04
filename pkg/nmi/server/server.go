@@ -183,9 +183,9 @@ func getTokenForMatchingID(logger *log.Entry, rqClientID string, podIDs *[]aadpo
 			logger.Infof("matched identityType:%v clientid:%s resource:%s", idType, clientID, azureResourceName)
 			return auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, azureResourceName)
 		case aadpodid.ServicePrincipal:
-			tenantid := ""
+			tenantid := v.Spec.TenantID
 			logger.Infof("matched identityType:%v tenantid:%s clientid:%s", idType, tenantid, clientID)
-			secret := v.Spec.Password.String()
+			secret := v.Spec.ClientPassword.String()
 			return auth.GetServicePrincipalToken(tenantid, clientID, secret)
 		default:
 			return nil, fmt.Errorf("unsupported identity type %+v", idType)
