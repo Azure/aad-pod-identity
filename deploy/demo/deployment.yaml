@@ -19,7 +19,7 @@ spec:
         imagePullPolicy: Always
         args:
           - "--subscriptionid=c1089427-83d3-4286-9f35-5af546a6eb67"
-          - "--clientid=ac4789c3-6196-4f47-9832-d56d7d585148"
+          - "--clientid=89f69b3d-5b41-4b14-afbf-18fd96104e14"
           - "--resourcegroup=MC_nbhatia-eu-01_eu-1_eastus"
         env:
         - name: MY_POD_NAME
