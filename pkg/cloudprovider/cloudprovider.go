@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/Azure/aad-pod-identity/pkg/stats"
+
 	config "github.com/Azure/aad-pod-identity/pkg/config"
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
 	"github.com/Azure/go-autorest/autorest"
@@ -83,12 +85,11 @@ func withInspection() autorest.PrepareDecorator {
 
 //RemoveUserMSI - Use the underlying cloud api calls and remove the given user assigned MSI from the vm.
 func (c *Client) RemoveUserMSI(userAssignedMSIID string, nodeName string) error {
-	ctx := context.Background()
-	glog.Infof("Find %s in resource group: %s", nodeName, c.Config.ResourceGroupName)
-	vm, err := c.VMClient.Get(ctx, c.Config.ResourceGroupName, nodeName, "")
+	vm, err := c.Get(c.Config.ResourceGroupName, nodeName)
 	if err != nil {
 		return err
 	}
+
 	//c.VMClient.Client.RequestInspector = withInspection()
 	//glog.Infof("Got VM info: %+v. Assign %s\n", vm, userAssignedMSIID)
 	var newIds []string
@@ -159,16 +160,28 @@ func (c *Client) CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMa
 		glog.Error(err)
 		return err
 	}
-	glog.Infof("Underlying cloud provider operation took %s", time.Since(begin).String())
+	stats.Update(stats.CloudPut, time.Since(begin))
 	return nil
+}
+
+func (c *Client) Get(rgName string, nodeName string) (ret compute.VirtualMachine, err error) {
+	ctx := context.Background()
+	beginGetTime := time.Now()
+	vm, err := c.VMClient.Get(ctx, rgName, nodeName, "")
+	if err != nil {
+		glog.Error(err)
+		return vm, err
+	}
+	stats.Update(stats.CloudGet, time.Since(beginGetTime))
+	return vm, nil
 }
 
 func (c *Client) AssignUserMSI(userAssignedMSIID string, nodeName string) error {
 	// Get the vm using the VmClient
 	// Update the assigned identity into the VM using the CreateOrUpdate
-	ctx := context.Background()
+
 	glog.Infof("Find %s in resource group: %s", nodeName, c.Config.ResourceGroupName)
-	vm, err := c.VMClient.Get(ctx, c.Config.ResourceGroupName, nodeName, "")
+	vm, err := c.Get(c.Config.ResourceGroupName, nodeName)
 	if err != nil {
 		return err
 	}
