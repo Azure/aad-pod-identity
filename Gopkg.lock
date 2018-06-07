@@ -5,7 +5,6 @@
   name = "github.com/Azure/azure-sdk-for-go"
   packages = [
     "services/compute/mgmt/2018-04-01/compute",
-    "services/network/mgmt/2017-09-01/network",
     "version"
   ]
   revision = "4650843026a7fdec254a8d9cf893693a254edd0b"
@@ -69,6 +68,12 @@
   name = "github.com/golang/glog"
   packages = ["."]
   revision = "23def4e6c14b4da8ac2ed8007337bc5eb5007998"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/golang/groupcache"
+  packages = ["lru"]
+  revision = "24b0969c4cb722950103eed87108c8d291a8df00"
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -286,15 +291,18 @@
     "pkg/util/framer",
     "pkg/util/intstr",
     "pkg/util/json",
+    "pkg/util/mergepatch",
     "pkg/util/net",
     "pkg/util/runtime",
     "pkg/util/sets",
+    "pkg/util/strategicpatch",
     "pkg/util/validation",
     "pkg/util/validation/field",
     "pkg/util/wait",
     "pkg/util/yaml",
     "pkg/version",
     "pkg/watch",
+    "third_party/forked/golang/json",
     "third_party/forked/golang/reflect"
   ]
   revision = "01bc873149a1802eb74df583613872d126449ed5"
@@ -412,6 +420,7 @@
     "tools/clientcmd/api/v1",
     "tools/metrics",
     "tools/pager",
+    "tools/record",
     "tools/reference",
     "transport",
     "util/buffer",
@@ -423,9 +432,15 @@
   ]
   revision = "33f2870a2b83179c823ddc90e5513f9e5fe43b38"
 
+[[projects]]
+  branch = "master"
+  name = "k8s.io/kube-openapi"
+  packages = ["pkg/util/proto"]
+  revision = "8a9b82f00b3a86eac24681da3f9fe6c34c01cea2"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "54c80dc002d065a5ca8bc01fa02f26fabc2b3471b8877e8c22958c69db2cba3b"
+  inputs-digest = "697d4585fd9a3c24764f8f38341f3ba60bcadfc7d05f3df79b4d5f26b4e1f53a"
   solver-name = "gps-cdcl"
   solver-version = 1

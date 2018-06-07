@@ -9,6 +9,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	crd "github.com/Azure/aad-pod-identity/pkg/crd"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -19,8 +20,8 @@ type Client interface {
 	GetPodCidr(nodename string) (podcidr string, err error)
 	// GetPodName return the matching azure identity or nil
 	GetPodName(podip string) (podns, podname string, err error)
-	// GetAzureAssignedIdentity return the matching azure identity or nil
-	GetUserAssignedMSI(podns, podname string) (userMSIClientIDs *[]string, err error)
+	// ListPodIds pod matching azure identity or nil
+	ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error)
 }
 
 // KubeClient k8s client
@@ -102,9 +103,9 @@ func (c *KubeClient) GetPodCidr(nodename string) (podcidr string, err error) {
 	return n.Spec.PodCIDR, nil
 }
 
-// GetAzureAssignedIdentity return the matching azure identity or nil
-func (c *KubeClient) GetUserAssignedMSI(podns, podname string) (userMSIClientIDs *[]string, err error) {
-	return c.CrdClient.GetUserAssignedMSI(podns, podname)
+// ListPodIds lists matching ids for pod or error
+func (c *KubeClient) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error) {
+	return c.CrdClient.ListPodIds(podns, podname)
 }
 
 func getkubeclient(config *rest.Config) (*kubernetes.Clientset, error) {

@@ -2,7 +2,8 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    app: nmi
+    app: demo
+    aadpodidbinding: demo
   name: demo
   namespace: default
 spec:
@@ -10,15 +11,16 @@ spec:
     metadata:
       labels:
         app: demo
+        aadpodidbinding: demo
     spec:
       containers:
       - name: demo
         image: "nikhilbh/demo:1.0"
         imagePullPolicy: Always
         args:
-          - "--subscriptionID=<subscriptionID>"
-          - "--clientID=<clientid>"
-          - "--resourceGroup=<resourcegroupname>"
+          - "--subscriptionid=c1089427-83d3-4286-9f35-5af546a6eb67"
+          - "--clientid=89f69b3d-5b41-4b14-afbf-18fd96104e14"
+          - "--resourcegroup=MC_nbhatia-eu-01_eu-1_eastus"
         env:
         - name: MY_POD_NAME
           valueFrom:

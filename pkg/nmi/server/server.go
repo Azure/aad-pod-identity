@@ -12,6 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/go-autorest/autorest/adal"
+
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
@@ -143,40 +146,54 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	azID, err := s.KubeClient.GetUserAssignedMSI(podns, podname)
-	if err != nil {
-		msg := fmt.Sprintf("No AzureAssignedIdentity found for pod:%s/%s", podns, podname)
+	podIDs, err := s.KubeClient.ListPodIds(podns, podname)
+	if err != nil || len(*podIDs) == 0 {
+		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s", podns, podname)
 		logger.Errorf("%s, %+v", msg, err)
 		http.Error(w, msg, http.StatusForbidden)
 		return
 	}
-	logger.Infof("found matching azID %+v", *azID)
 	rqClientID := parseRequestClientID(r)
-	// TODO: Use the list instead of first element
-	if rqClientID != "" && !strings.EqualFold(rqClientID, (*azID)[0]) {
-		msg := fmt.Sprintf("request clientid (%s) azID %s", rqClientID, (*azID)[0])
-		logger.Error(msg)
-		http.Error(w, msg, http.StatusForbidden)
-		return
-	}
-	token, err := auth.GetServicePrincipalToken((*azID)[0], azureResourceName)
+	token, err := getTokenForMatchingID(logger, rqClientID, podIDs)
 	if err != nil {
-		logger.Errorf("failed to get service pricipal token, %+v", err)
-		http.Error(w, err.Error(), http.StatusFailedDependency)
-		return
-	}
-	if token == nil {
-		err := fmt.Errorf("received nil token")
-		http.Error(w, err.Error(), http.StatusFailedDependency)
+		logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
+		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 	response, err := json.Marshal(*token)
 	if err != nil {
-		logger.Errorf("failed to Marshal service pricipal token, %+v", err)
+		logger.Errorf("failed to marshal service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Write(response)
+}
+
+func getTokenForMatchingID(logger *log.Entry, rqClientID string, podIDs *[]aadpodid.AzureIdentity) (token *adal.Token, err error) {
+	rqHasClientID := len(rqClientID) != 0
+	for _, v := range *podIDs {
+		clientID := v.Spec.ClientID
+		if rqHasClientID && !strings.EqualFold(rqClientID, clientID) {
+			logger.Warningf("clientid mismatch, requested:%s available:%s", rqClientID, clientID)
+			continue
+		}
+		idType := v.Spec.Type
+		switch idType {
+		case aadpodid.UserAssignedMSI:
+			logger.Infof("matched identityType:%v clientid:%s resource:%s", idType, clientID, azureResourceName)
+			return auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, azureResourceName)
+		case aadpodid.ServicePrincipal:
+			tenantid := v.Spec.TenantID
+			logger.Infof("matched identityType:%v tenantid:%s clientid:%s", idType, tenantid, clientID)
+			secret := v.Spec.ClientPassword.String()
+			return auth.GetServicePrincipalToken(tenantid, clientID, secret)
+		default:
+			return nil, fmt.Errorf("unsupported identity type %+v", idType)
+		}
+	}
+
+	// We have not yet returned, so pass up an error
+	return nil, fmt.Errorf("azureidentity is not configured for the pod")
 }
 
 func parseRemoteAddr(addr string) string {
@@ -202,16 +219,23 @@ func parseRequestClientID(r *http.Request) (clientID string) {
 // defaultPathHandler creates a new request and returns the response body and code
 func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
 	client := &http.Client{}
-	r.URL.Host = s.MetadataIP
 	req, err := http.NewRequest(r.Method, r.URL.String(), r.Body)
-	if err != nil {
+	if err != nil || req == nil {
+		logger.Errorf("failed creating a new request, %s %+v", r.URL.String(), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
-	req.Host = s.MetadataIP
-	copyHeader(req.Header, r.Header)
+	host := fmt.Sprintf("%s:%s", s.MetadataIP, s.MetadataPort)
+	req.Host = host
+	req.URL.Host = host
+	req.URL.Scheme = "http"
+	if r.Header != nil {
+		copyHeader(req.Header, r.Header)
+	}
 	resp, err := client.Do(req)
 	if err != nil {
-		http.Error(w, err.Error(), resp.StatusCode)
+		logger.Errorf("failed executing request, %s %+v", req.URL.String(), err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer func() {
@@ -221,6 +245,7 @@ func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r 
 	}()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
+		logger.Errorf("failed io operation of reading response body, %+v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	w.Write(body)
