@@ -88,6 +88,9 @@ az identity create -g <resourcegroup> -n <idname>
 #### Install User Azure Identity on k8s cluster 
 
 Edit and save this as aadpodidentity.yaml
+
+Set `type: 0` for Managed Service Identity; `type: 1` for Service Principal
+
 ```
 apiVersion: "aadpodidentity.k8s.io/v1"
 kind: AzureIdentity
