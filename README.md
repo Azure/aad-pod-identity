@@ -60,6 +60,8 @@ kubectl create -f deploy/infra/deployment.yaml
 
 ### Demo app
 
+> There's also a detailed tutorial [here](docs/tutorial/README.md).
+
 To deploy the demo app, update the deploy/demo/deployment.yaml arguments with your subscription, clientID and resource group.
 Make your your identity with the client ID has reader permission to the resource group provided in the input. 
 
@@ -67,6 +69,8 @@ Make your your identity with the client ID has reader permission to the resource
 ```
 kubectl create -f deploy/demo/deployment.yaml
 ```
+
+You must complete the following steps for the demo pod to work!
 
 ### Configure Identity Binding 
 
