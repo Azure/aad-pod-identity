@@ -86,9 +86,11 @@ The following script installs three [custom resource definitions](https://kubern
 
 The three CRDs are:
 
-- azureAssignedIdentity: Do not create these, they will be auto-created by the azureIdentityController
+- azureAssignedIdentity: Do not create these objects, they will be auto-created by the azureIdentityController
 - azureIdentityBinding: Binds pods to an Azure Id.  You will create these.
 - azureIdentity: Provides the cluster with the ability to assign an identity to a pod. You will create these.
+
+> Note: this step may be eliminated in the future.
 
 ### 2.2. Deploy the required infrastructure on the cluster
 
