@@ -222,6 +222,12 @@ time="2018-06-07T01:32:30Z" level=info msg="succesfully made GET on instance met
 
 ```
 
+### Check the descriptions
+
+`kubectl describe azureidentity`
+
+`kubectl describe azureidentitybinding`
+
 ### Video
 
 [![Video of Running required commands](https://img.youtube.com/vi/BXhIMJYDO4w/0.jpg)](https://www.youtube.com/watch?v=BXhIMJYDO4w)
