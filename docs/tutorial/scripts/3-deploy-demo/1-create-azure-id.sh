@@ -11,4 +11,12 @@ set -x
 # or you can use the CLI with something like 
 # $az group list | grep 'k8s'
 
-az identity create --name demo-aad1 --resource-group MC_k8s-test_clusterFrank_eastus
+if [ -z "$MC_RG" ]
+then
+      echo "K8S Resource Group Name Not Set. Set the env variable with the following command:"
+      echo "export MC_RG = \"resource-group-name\" "
+      return 1
+fi
+
+
+az identity create --name demo-aad1 --resource-group $MC_RG

@@ -9,9 +9,17 @@ then
       return 1
 fi
 
+if [ -z "$K8S_NAME" ]
+then
+      echo "K8S Name Not Set. Set the env variable with the following command:"
+      echo "export K8S_NAME = \"k8s-name\" "
+      return 1
+fi
+
+
 set -x
 
-az aks get-credentials --resource-group $RG --name clusterFrank
+az aks get-credentials --resource-group $RG --name $K8S_NAME
 
 set +x
 

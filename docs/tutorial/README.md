@@ -50,9 +50,15 @@ This resource group is for your AKS cluster. Create it with this command.
 
 ### 1.3. Create Azure Kubernetes Service
 
-This will create an AKS instance called 'clusterFrank' in the resource group created above. It may take a couple of minutes to complete. You may rename the cluster, but be sure to change it in all the scripts.
+This will create an AKS instance in the resource group created above. It may take a couple of minutes to complete. Set the name of the this command in the shell.
 
-`./scripts/1-init-aks/3-create-aks.sh`
+```sh
+
+K8S_NAME="Cluster-Name"
+./scripts/1-init-aks/3-create-aks.sh
+
+```
+
 
 ### 1.4. Configure the kubernetes CLI - `kubectl`
 
@@ -106,6 +112,10 @@ We will be assigning the demo pod an [Azure Managed Service Identity](https://do
 You might find the Resource Group name with
 
 `az group list | grep $RG`
+
+Then set the environment variable
+
+`export MC_RG = "resource-group-name"`
 
 Edit the script with the correct Resource Group name then run it as below
 
