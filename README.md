@@ -60,6 +60,8 @@ kubectl create -f deploy/infra/deployment.yaml
 
 ### Demo app
 
+> There's also a detailed tutorial [here](docs/tutorial/README.md).
+
 To deploy the demo app, update the deploy/demo/deployment.yaml arguments with your subscription, clientID and resource group.
 Make your your identity with the client ID has reader permission to the resource group provided in the input. 
 
@@ -67,6 +69,8 @@ Make your your identity with the client ID has reader permission to the resource
 ```
 kubectl create -f deploy/demo/deployment.yaml
 ```
+
+You must complete the following steps for the demo pod to work!
 
 ### Configure Identity Binding 
 
@@ -88,6 +92,9 @@ az identity create -g <resourcegroup> -n <idname>
 #### Install User Azure Identity on k8s cluster 
 
 Edit and save this as aadpodidentity.yaml
+
+Set `type: 0` for Managed Service Identity; `type: 1` for Service Principal
+
 ```
 apiVersion: "aadpodidentity.k8s.io/v1"
 kind: AzureIdentity
