@@ -38,7 +38,6 @@ func NewPodClient(k8sClient *kubernetes.Clientset, eventCh chan aadpodid.EventTy
 	return &Client{
 		PodWatcher: podWatcher,
 	}, nil
-
 }
 
 func newPodWatcher(k8sClient *kubernetes.Clientset, eventCh chan aadpodid.EventType) (i informers.SharedInformerFactory, err error) {
@@ -71,6 +70,7 @@ func newPodWatcher(k8sClient *kubernetes.Clientset, eventCh chan aadpodid.EventT
 func (c *Client) syncCache(exit <-chan struct{}) {
 	cacheSyncStarted := time.Now()
 	cacheSynced := false
+	glog.V(6).Infof("Wait for cache to sync")
 	for !cacheSynced {
 		mapSync := c.PodWatcher.WaitForCacheSync(exit)
 		if len(mapSync) > 0 && mapSync[reflect.TypeOf(&corev1.Pod{})] == true {
@@ -81,8 +81,8 @@ func (c *Client) syncCache(exit <-chan struct{}) {
 }
 
 func (c *Client) Start(exit <-chan struct{}) {
-	c.syncCache(exit)
 	go c.PodWatcher.Start(exit)
+	c.syncCache(exit)
 	glog.Info("Pod watcher started !!")
 }
 

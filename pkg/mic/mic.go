@@ -56,36 +56,41 @@ func NewMICClient(cloudconfig string, config *rest.Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	glog.V(6).Infof("Cloud provider initialized")
 
 	eventCh := make(chan aadpodid.EventType, 100)
 	crdClient, err := crd.NewCRDClient(config, eventCh)
 	if err != nil {
 		return nil, err
 	}
+	glog.V(6).Infof("CRD client initialized")
 
 	podClient, err := pod.NewPodClient(clientSet, eventCh)
 	if err != nil {
 		return nil, err
 	}
+	glog.V(6).Infof("Pod Client initialized")
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: clientSet.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: aadpodid.CRDGroup})
 
-	micClient := &Client{
+	return &Client{
 		CRDClient:     crdClient,
 		CloudClient:   cloudClient,
 		PodClient:     podClient,
 		EventRecorder: recorder,
 		EventChannel:  eventCh,
-	}
-	return micClient, nil
+	}, nil
 }
 
 func (c *Client) Start(exit <-chan struct{}) {
+	glog.V(6).Infof("MIC client starting..")
 	c.PodClient.Start(exit)
+	glog.V(6).Infof("Pod client started")
 	c.CRDClient.Start(exit)
+	glog.V(6).Infof("CRD client started")
 	go c.Sync(exit)
 }
 
