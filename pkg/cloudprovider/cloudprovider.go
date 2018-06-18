@@ -26,6 +26,13 @@ type Client struct {
 	Config            config.AzureConfig
 }
 
+type ClientInt interface {
+	RemoveUserMSI(userAssignedMSIID string, nodeName string) error
+	CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachine) error
+	Get(rgName string, nodeName string) (ret compute.VirtualMachine, err error)
+	AssignUserMSI(userAssignedMSIID string, nodeName string) error
+}
+
 // NewCloudProvider returns a azure cloud provider client
 func NewCloudProvider(configFile string) (c *Client, e error) {
 	bytes, err := ioutil.ReadFile(configFile)

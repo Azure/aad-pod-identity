@@ -2,40 +2,50 @@ package mic
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
-
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
-	cloudprovider "github.com/Azure/aad-pod-identity/pkg/cloudprovider"
-	crd "github.com/Azure/aad-pod-identity/pkg/crd"
+
+	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
+	"github.com/Azure/aad-pod-identity/pkg/crd"
+	"github.com/Azure/aad-pod-identity/pkg/pod"
 	"github.com/golang/glog"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 )
 
 // Client has the required pointers to talk to the api server
 // and interact with the CRD related datastructure.
 type Client struct {
-	CRDClient     *crd.Client
-	CloudClient   *cloudprovider.Client
-	ClientSet     *kubernetes.Clientset
+	CRDClient     crd.ClientInt
+	CloudClient   cloudprovider.ClientInt
+	PodClient     pod.ClientInt
 	EventRecorder record.EventRecorder
-	PodWatcher    informers.SharedInformerFactory
+	EventChannel  chan aadpodid.EventType
+}
 
-	EventChannel chan aadpodid.EventType
+type ClientInt interface {
+	Start(exit <-chan struct{})
+
+	ConvertIDListToMap(arr *[]aadpodid.AzureIdentity) (m map[string]*aadpodid.AzureIdentity, err error)
+	CheckIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, arr []aadpodid.AzureAssignedIdentity) bool
+
+	Sync(exit <-chan struct{})
+	MatchAssignedID(x *aadpodid.AzureAssignedIdentity, y *aadpodid.AzureAssignedIdentity) (ret bool, err error)
+	SplitAzureAssignedIDs(old *[]aadpodid.AzureAssignedIdentity, new *[]aadpodid.AzureAssignedIdentity) (retCreate *[]aadpodid.AzureAssignedIdentity, retDelete *[]aadpodid.AzureAssignedIdentity, err error)
+	MakeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpodid.AzureIdentityBinding, podName string, podNameSpace string, nodeName string) (res *aadpodid.AzureAssignedIdentity, err error)
+	CreateAssignedIdentityDeps(b *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity,
+		podName string, podNameSpace string, nodeName string) error
+	RemoveAssignedIDsWithDeps(assignedID *aadpodid.AzureAssignedIdentity, inUse bool) error
+	GetAssignedIDName(podName string, podNameSpace string, idName string) string
 }
 
 func NewMICClient(cloudconfig string, config *rest.Config) (*Client, error) {
@@ -46,90 +56,42 @@ func NewMICClient(cloudconfig string, config *rest.Config) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	glog.V(6).Infof("Cloud provider initialized")
 
-	crdClient, err := crd.NewCRDClient(config)
+	eventCh := make(chan aadpodid.EventType, 100)
+	crdClient, err := crd.NewCRDClient(config, eventCh)
 	if err != nil {
 		return nil, err
 	}
+	glog.V(6).Infof("CRD client initialized")
+
+	podClient, err := pod.NewPodClient(clientSet, eventCh)
+	if err != nil {
+		return nil, err
+	}
+	glog.V(6).Infof("Pod Client initialized")
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: clientSet.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: aadpodid.CRDGroup})
 
-	eventCh := make(chan aadpodid.EventType, 100)
-
-	micClient := &Client{
+	return &Client{
 		CRDClient:     crdClient,
 		CloudClient:   cloudClient,
-		ClientSet:     clientSet,
+		PodClient:     podClient,
 		EventRecorder: recorder,
 		EventChannel:  eventCh,
-	}
-
-	err = micClient.CreatePodWatcher(clientSet)
-	if err != nil {
-		glog.Error(err)
-		return nil, err
-	}
-
-	err = micClient.CRDClient.CreateCrdWatchers(eventCh)
-	if err != nil {
-		glog.Error(err)
-		return nil, err
-	}
-
-	return micClient, nil
-
+	}, nil
 }
 
 func (c *Client) Start(exit <-chan struct{}) {
-
-	go c.PodWatcher.Start(exit)
-	glog.Info("Pod watcher started !!")
-
-	go c.CRDClient.Start(exit)
-	glog.Info("CRD watcher started")
-
-	cacheSyncStarted := time.Now()
-	cacheSynced := false
-	for !cacheSynced {
-		mapSync := c.PodWatcher.WaitForCacheSync(exit)
-		if len(mapSync) > 0 && mapSync[reflect.TypeOf(&corev1.Pod{})] == true {
-			cacheSynced = true
-		}
-	}
-	glog.Infof("Pod cache synchronized. Took %s", time.Since(cacheSyncStarted).String())
+	glog.V(6).Infof("MIC client starting..")
+	c.PodClient.Start(exit)
+	glog.V(6).Infof("Pod client started")
+	c.CRDClient.Start(exit)
+	glog.V(6).Infof("CRD client started")
 	go c.Sync(exit)
-}
-
-func (c *Client) CreatePodWatcher(k8sClient *kubernetes.Clientset) (err error) {
-	k8sInformers := informers.NewSharedInformerFactory(k8sClient, time.Second*30)
-	if k8sInformers == nil {
-		return fmt.Errorf("k8s informers could not be created")
-	}
-	k8sInformers.Core().V1().Pods().Informer().AddEventHandler(
-		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				glog.V(6).Infof("Pod Created")
-				c.EventChannel <- aadpodid.PodCreated
-
-			},
-			DeleteFunc: func(obj interface{}) {
-				glog.V(6).Infof("Pod Deleted")
-				c.EventChannel <- aadpodid.PodDeleted
-
-			},
-			UpdateFunc: func(OldObj, newObj interface{}) {
-				glog.V(6).Infof("Pod Updated")
-				c.EventChannel <- aadpodid.PodUpdated
-
-			},
-		},
-	)
-
-	c.PodWatcher = k8sInformers
-	return nil
 }
 
 func (c *Client) ConvertIDListToMap(arr *[]aadpodid.AzureIdentity) (m map[string]*aadpodid.AzureIdentity, err error) {
@@ -158,23 +120,6 @@ func (c *Client) CheckIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, ar
 	return false
 }
 
-func (c *Client) GetPods() (pods []*corev1.Pod, err error) {
-	begin := time.Now()
-	crdReq, err := labels.NewRequirement(aadpodid.CRDLabelKey, selection.Exists, nil)
-	if err != nil {
-		glog.Error(err)
-		return nil, err
-	}
-	crdSelector := labels.NewSelector().Add(*crdReq)
-	listPods, err := c.PodWatcher.Core().V1().Pods().Lister().List(crdSelector)
-	//ClientSet.CoreV1().Pods("").List(v1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-	stats.Put(stats.PodList, time.Since(begin))
-	return listPods, nil
-}
-
 func (c *Client) Sync(exit <-chan struct{}) {
 	glog.Info("Sync thread started\n")
 	for event := range c.EventChannel {
@@ -185,7 +130,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		glog.V(6).Infof("Received event: %v", event)
 		// List all pods in all namespaces
 		systemTime := time.Now()
-		listPods, err := c.GetPods()
+		listPods, err := c.PodClient.GetPods()
 		if err != nil {
 			glog.Error(err)
 			continue
@@ -427,7 +372,7 @@ func (c *Client) MakeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpod
 func (c *Client) CreateAssignedIdentityDeps(b *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity,
 	podName string, podNameSpace string, nodeName string) error {
 	name := c.GetAssignedIDName(podName, podNameSpace, id.Name)
-	err := c.CRDClient.CreateAssignIdentity(name, b, id, podName, podNameSpace, nodeName)
+	err := c.CRDClient.CreateAssignedIdentity(name, b, id, podName, podNameSpace, nodeName)
 	if err != nil {
 		glog.Error(err)
 		return err

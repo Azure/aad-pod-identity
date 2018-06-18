@@ -18,12 +18,60 @@ import (
 )
 
 type Client struct {
-	rest                        *rest.RESTClient
-	AzureIdentityBindingWatcher cache.SharedInformer
-	AzureIdentityWatcher        cache.SharedInformer
+	rest           *rest.RESTClient
+	BindingWatcher cache.SharedInformer
+	IdWatcher      cache.SharedInformer
 }
 
-func CreateRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
+type ClientInt interface {
+	Start(exit <-chan struct{})
+	SyncCache(exit <-chan struct{})
+	RemoveAssignedIdentity(name string) error
+	CreateAssignedIdentity(name string, binding *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity, podName string, podNameSpace string, nodeName string) error
+	ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error)
+	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
+	ListIds() (res *[]aadpodid.AzureIdentity, err error)
+	ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error)
+}
+
+func NewCRDClientLite(config *rest.Config) (crdClient *Client, err error) {
+	restClient, err := newRestClient(config)
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+	return &Client{
+		rest: restClient,
+	}, nil
+}
+
+func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClient *Client, err error) {
+	restClient, err := newRestClient(config)
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+
+	bindingWatcher, err := newBindingWatcher(restClient, eventCh)
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+
+	idWatcher, err := newIdWatcher(restClient, eventCh)
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+
+	return &Client{
+		rest:           restClient,
+		BindingWatcher: bindingWatcher,
+		IdWatcher:      idWatcher,
+	}, nil
+}
+
+func newRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
 	crdconfig := *config
 	crdconfig.GroupVersion = &schema.GroupVersion{Group: aadpodid.CRDGroup, Version: aadpodid.CRDVersion}
 	crdconfig.APIPath = "/apis"
@@ -48,36 +96,13 @@ func CreateRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
 	return restClient, nil
 }
 
-func NewCRDClient(config *rest.Config) (crdClient *Client, err error) {
-	restClient, err := CreateRestClient(config)
-	if err != nil {
-		glog.Error(err)
-		return nil, err
-	}
-	crdClient = &Client{
-		rest: restClient,
-	}
-	return crdClient, nil
-}
-
-func (c *Client) Start(exit <-chan struct{}) {
-	go c.AzureIdentityBindingWatcher.Run(exit)
-	go c.AzureIdentityWatcher.Run(exit)
-}
-
-func (c *Client) SyncCache(exit <-chan struct{}) {
-	if !cache.WaitForCacheSync(exit) {
-		panic("Cache could not be synchronized")
-	}
-}
-
-func (c *Client) CreateCrdWatchers(eventCh chan aadpodid.EventType) (err error) {
+func newBindingWatcher(r *rest.RESTClient, eventCh chan aadpodid.EventType) (cache.SharedInformer, error) {
 	azBindingWatcher := cache.NewSharedInformer(
-		cache.NewListWatchFromClient(c.rest, aadpodid.AzureIDBindingResource, "default", fields.Everything()),
+		cache.NewListWatchFromClient(r, aadpodid.AzureIDBindingResource, "default", fields.Everything()),
 		&aadpodid.AzureIdentityBinding{},
 		time.Minute*10)
 	if azBindingWatcher == nil {
-		return fmt.Errorf("Could not create watcher for %s", aadpodid.AzureIDBindingResource)
+		return nil, fmt.Errorf("Could not create watcher for %s", aadpodid.AzureIDBindingResource)
 	}
 	azBindingWatcher.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
@@ -95,13 +120,16 @@ func (c *Client) CreateCrdWatchers(eventCh chan aadpodid.EventType) (err error) 
 			},
 		},
 	)
+	return azBindingWatcher, nil
+}
 
+func newIdWatcher(r *rest.RESTClient, eventCh chan aadpodid.EventType) (cache.SharedInformer, error) {
 	azIdWatcher := cache.NewSharedInformer(
-		cache.NewListWatchFromClient(c.rest, aadpodid.AzureIDResource, "default", fields.Everything()),
+		cache.NewListWatchFromClient(r, aadpodid.AzureIDResource, "default", fields.Everything()),
 		&aadpodid.AzureIdentity{},
 		time.Minute*10)
 	if azIdWatcher == nil {
-		return fmt.Errorf("Could not create Identity watcher for %s", aadpodid.AzureIDResource)
+		return nil, fmt.Errorf("Could not create Identity watcher for %s", aadpodid.AzureIDResource)
 	}
 	azIdWatcher.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
@@ -119,10 +147,19 @@ func (c *Client) CreateCrdWatchers(eventCh chan aadpodid.EventType) (err error) 
 			},
 		},
 	)
+	return azIdWatcher, nil
+}
 
-	c.AzureIdentityWatcher = azIdWatcher
-	c.AzureIdentityBindingWatcher = azBindingWatcher
-	return nil
+func (c *Client) Start(exit <-chan struct{}) {
+	go c.BindingWatcher.Run(exit)
+	go c.IdWatcher.Run(exit)
+	glog.Info("CRD watchers started")
+}
+
+func (c *Client) SyncCache(exit <-chan struct{}) {
+	if !cache.WaitForCacheSync(exit) {
+		panic("Cache could not be synchronized")
+	}
 }
 
 func (c *Client) RemoveAssignedIdentity(name string) error {
@@ -133,7 +170,7 @@ func (c *Client) RemoveAssignedIdentity(name string) error {
 	return err
 }
 
-func (c *Client) CreateAssignIdentity(name string, binding *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity, podName string, podNameSpace string, nodeName string) error {
+func (c *Client) CreateAssignedIdentity(name string, binding *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity, podName string, podNameSpace string, nodeName string) error {
 	glog.Infof("Got id %s to assign", id.Name)
 	begin := time.Now()
 	// Create a new AzureAssignedIdentity which maps the relationship between
