@@ -35,7 +35,7 @@ type Client struct {
 type ClientInt interface {
 	Start(exit <-chan struct{})
 
-	ConvertIDListToMap(arr *[]aadpodid.AzureIdentity) (m map[string]*aadpodid.AzureIdentity, err error)
+	ConvertIDListToMap(arr *[]aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error)
 	CheckIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, arr []aadpodid.AzureAssignedIdentity) bool
 
 	Sync(exit <-chan struct{})
@@ -94,10 +94,10 @@ func (c *Client) Start(exit <-chan struct{}) {
 	go c.Sync(exit)
 }
 
-func (c *Client) ConvertIDListToMap(arr *[]aadpodid.AzureIdentity) (m map[string]*aadpodid.AzureIdentity, err error) {
-	m = make(map[string]*aadpodid.AzureIdentity)
+func (c *Client) ConvertIDListToMap(arr *[]aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
+	m = make(map[string]aadpodid.AzureIdentity)
 	for _, element := range *arr {
-		m[element.Name] = &element
+		m[element.Name] = element
 	}
 	return m, nil
 }
@@ -182,9 +182,9 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 			for _, binding := range matchedBindings {
 				glog.V(5).Infof("Looking up id map: %v", binding.Spec.AzureIdentity)
-				azureID := idMap[binding.Spec.AzureIdentity]
-				if azureID != nil {
-					assignedID, err := c.MakeAssignedIDs(azureID, &binding, pod.Name, pod.Namespace, pod.Spec.NodeName)
+				if azureID, idPresent := idMap[binding.Spec.AzureIdentity]; idPresent {
+					glog.V(5).Infof("Id %s got for assigning", azureID.Name)
+					assignedID, err := c.MakeAssignedIDs(&azureID, &binding, pod.Name, pod.Namespace, pod.Spec.NodeName)
 
 					if err != nil {
 						glog.Error(err)
