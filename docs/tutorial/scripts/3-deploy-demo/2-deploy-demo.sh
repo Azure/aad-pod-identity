@@ -13,4 +13,4 @@ read -p "Press enter to continue"
 # aad-pod-identity/deploy/demo/deployment.yaml is the original file 
 set -x
 
-kubectl apply -f ../../../deploy/demo/deployment.yaml
+kubectl apply -f ../../../../deploy/demo/deployment.yaml

@@ -11,4 +11,4 @@ read -p "Press enter to continue"
 
 set -x
 
-kubectl apply -f ../../../deploy/demo/aadpodidentity.yaml
+kubectl apply -f ../../../../deploy/demo/aadpodidentity.yaml
