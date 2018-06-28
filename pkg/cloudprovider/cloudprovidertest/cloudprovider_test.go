@@ -3,8 +3,6 @@ package cloudprovidertest
 import (
 	"flag"
 	"testing"
-
-	"github.com/golang/glog"
 )
 
 func TestSimple(t *testing.T) {
@@ -16,17 +14,17 @@ func TestSimple(t *testing.T) {
 	//	flag.Set("alsologtostderr", fmt.Sprintf("%t", true))
 	//	flag.Parse()
 	cloudClient := NewTestCloudClient()
-	glog.Infof("Test starting")
-	glog.Infof("Empty MSI")
-	cloudClient.PrintMSI()
+	//glog.Infof("Test starting")
+	//glog.Infof("Empty MSI")
+	//cloudClient.PrintMSI()
 
 	cloudClient.AssignUserMSI("ID0", "node0")
 	cloudClient.AssignUserMSI("ID0", "node0")
 	cloudClient.AssignUserMSI("ID0again", "node0")
 	cloudClient.AssignUserMSI("ID1", "node1")
 	cloudClient.AssignUserMSI("ID2", "node2")
-	glog.Infof("Add more MSI")
-	cloudClient.PrintMSI()
+	//glog.Infof("Add more MSI")
+	//cloudClient.PrintMSI()
 	testMSI := []string{"ID0", "ID0again"}
 	if !cloudClient.CompareMSI("node0", testMSI) {
 		panic("MSI mismatch")
@@ -34,6 +32,13 @@ func TestSimple(t *testing.T) {
 
 	cloudClient.RemoveUserMSI("ID0", "node0")
 	cloudClient.RemoveUserMSI("ID2", "node2")
-
-	cloudClient.PrintMSI()
+	testMSI = []string{"ID0again"}
+	if !cloudClient.CompareMSI("node0", testMSI) {
+		panic("MSI mismatch")
+	}
+	testMSI = []string{}
+	if !cloudClient.CompareMSI("node2", testMSI) {
+		panic("MSI mismatch")
+	}
+	//cloudClient.PrintMSI()
 }
