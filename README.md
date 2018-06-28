@@ -1,5 +1,7 @@
 # Project Status: Beta
 
+[![CircleCI](https://circleci.com/gh/Azure/aad-pod-identity/tree/master.svg?style=shield)](https://circleci.com/gh/Azure/aad-pod-identity/tree/master)
+
 ----
 
 Applications running on the POD on Azure Container Service (AKS/ACS Engine) require access to identities in Azure Active Directory (AAD)to access resources that use an identity provider. AAD provides a construct called a Service Principal that allows applications to assume identities with limited permissions, and Managed Service Identity (MSI) - automatically generated and rotated credentials that easily retrieved by an application at run-time to authenticate as a service principal. 
