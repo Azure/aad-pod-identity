@@ -26,6 +26,10 @@ func (c TestEventRecorder) PastEventf(object runtime.Object, timestamp v1.Time, 
 
 }
 
+func AnnotatedEventf(object runtime.Object, annotations map[string]string, eventtype, reason, messageFmt string, args ...interface{}) {
+
+}
+
 func NewMICClient(eventCh chan aadpodid.EventType, cpClient *cp.TestCloudClient, crdClient *crd.TestCrdClient, podClient *pod.TestPodClient) *TestMICClient {
 	var eventRecorder TestEventRecorder
 
