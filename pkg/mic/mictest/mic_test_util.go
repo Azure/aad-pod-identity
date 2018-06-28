@@ -26,7 +26,7 @@ func (c TestEventRecorder) PastEventf(object runtime.Object, timestamp v1.Time, 
 
 }
 
-func AnnotatedEventf(object runtime.Object, annotations map[string]string, eventtype, reason, messageFmt string, args ...interface{}) {
+func (c TestEventRecorder) AnnotatedEventf(object runtime.Object, annotations map[string]string, eventtype, reason, messageFmt string, args ...interface{}) {
 
 }
 
