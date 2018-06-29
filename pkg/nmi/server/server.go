@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Azure/go-autorest/autorest/adal"
+	"github.com/Azure/go-autorest/autorest/azure"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
@@ -22,7 +23,6 @@ import (
 )
 
 const (
-	azureResourceName                  = "https://management.azure.com/"
 	iptableUpdateTimeIntervalInSeconds = 10
 )
 
@@ -35,6 +35,7 @@ type Server struct {
 	MetadataPort                       string
 	HostIP                             string
 	NodeName                           string
+	CloudName                          string
 	IPTableUpdateTimeIntervalInSeconds int
 }
 
@@ -154,7 +155,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		return
 	}
 	rqClientID := parseRequestClientID(r)
-	token, err := getTokenForMatchingID(logger, rqClientID, podIDs)
+	token, err := getTokenForMatchingID(logger, rqClientID, podIDs, s.CloudName)
 	if err != nil {
 		logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
@@ -169,8 +170,14 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	w.Write(response)
 }
 
-func getTokenForMatchingID(logger *log.Entry, rqClientID string, podIDs *[]aadpodid.AzureIdentity) (token *adal.Token, err error) {
+func getTokenForMatchingID(logger *log.Entry, rqClientID string, podIDs *[]aadpodid.AzureIdentity, cloudName string) (token *adal.Token, err error) {
+	log.Infof("Azure cloudname: %s", cloudName)
+	env, err := ParseAzureEnvironment(cloudName)
+	if err != nil {
+		return nil, fmt.Errorf("unsupported Azure environment %s", cloudName)
+	}
 	rqHasClientID := len(rqClientID) != 0
+
 	for _, v := range *podIDs {
 		clientID := v.Spec.ClientID
 		if rqHasClientID && !strings.EqualFold(rqClientID, clientID) {
@@ -180,8 +187,8 @@ func getTokenForMatchingID(logger *log.Entry, rqClientID string, podIDs *[]aadpo
 		idType := v.Spec.Type
 		switch idType {
 		case aadpodid.UserAssignedMSI:
-			logger.Infof("matched identityType:%v clientid:%s resource:%s", idType, clientID, azureResourceName)
-			return auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, azureResourceName)
+			logger.Infof("matched identityType:%v clientid:%s resource:%s", idType, clientID, env.ResourceManagerEndpoint)
+			return auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, env.ResourceManagerEndpoint)
 		case aadpodid.ServicePrincipal:
 			tenantid := v.Spec.TenantID
 			logger.Infof("matched identityType:%v tenantid:%s clientid:%s", idType, tenantid, clientID)
@@ -194,6 +201,18 @@ func getTokenForMatchingID(logger *log.Entry, rqClientID string, podIDs *[]aadpo
 
 	// We have not yet returned, so pass up an error
 	return nil, fmt.Errorf("azureidentity is not configured for the pod")
+}
+
+// ParseAzureEnvironment returns azure environment by name
+func ParseAzureEnvironment(cloudName string) (*azure.Environment, error) {
+	var env azure.Environment
+	var err error
+	if cloudName == "" {
+		env = azure.PublicCloud
+	} else {
+		env, err = azure.EnvironmentFromName(cloudName)
+	}
+	return &env, err
 }
 
 func parseRemoteAddr(addr string) string {
