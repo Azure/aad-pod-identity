@@ -21,6 +21,7 @@ var (
 	metadataPort                       = pflag.String("metadata-port", defaultMetadataPort, "instance metadata host ip")
 	hostIP                             = pflag.String("host-ip", "", "NMI application port")
 	nodename                           = pflag.String("node", "", "node name")
+	cloudname                          = pflag.String("cloud-name", "", "cloud name")
 	ipTableUpdateTimeIntervalInSeconds = pflag.Int("ipt-update-interval-sec",
 		defaultIPTableUpdateTimeIntervalInSeconds, "update interval of iptables")
 )
@@ -42,8 +43,9 @@ func main() {
 	s.NMIPort = *nmiPort
 	s.HostIP = *hostIP
 	s.NodeName = *nodename
+	s.CloudName = *cloudname
 	s.IPTableUpdateTimeIntervalInSeconds = *ipTableUpdateTimeIntervalInSeconds
-
+	
 	if err := s.Run(); err != nil {
 		log.Fatalf("%s", err)
 	}
