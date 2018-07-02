@@ -17,7 +17,7 @@ spec:
       hostNetwork: true
       containers:
       - name: nmi
-        image: "nikhilbh/nmi:1.0"
+        image: "ritazh/nmi:1.0"
         imagePullPolicy: Always
         args:
           - "--host-ip=$(HOST_IP)"
