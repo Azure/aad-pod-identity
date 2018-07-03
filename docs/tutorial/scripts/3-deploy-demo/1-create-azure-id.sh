@@ -14,9 +14,16 @@ set -x
 if [ -z "$MC_RG" ]
 then
       echo "K8S Resource Group Name Not Set. Set the env variable with the following command:"
-      echo "export MC_RG = \"resource-group-name\" "
+      echo "export MC_RG=\"resource-group-name\" "
       return 1
 fi
 
+if [ -z "$SUB_ID" ]
+then
+      echo "K8S Subscription ID Not Set. Set the env variable with the following command:"
+      echo "export SUB_ID=\"subscription-id\" "
+      return 1
+fi
 
-az identity create --name demo-aad1 --resource-group $MC_RG
+export principalid=$(az identity create --name demo-aad1 --resource-group $MC_RG --query 'principalId' -o tsv)
+az role assignment create --role Reader --assignee $principalid --scope /subscriptions/$SUB_ID/resourcegroups/$MC_RG
