@@ -22,7 +22,6 @@ import (
 )
 
 const (
-	azureResourceName                  = "https://management.azure.com/"
 	iptableUpdateTimeIntervalInSeconds = 10
 )
 
@@ -153,8 +152,8 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		http.Error(w, msg, http.StatusForbidden)
 		return
 	}
-	rqClientID := parseRequestClientID(r)
-	token, err := getTokenForMatchingID(logger, rqClientID, podIDs)
+	rqClientID, rqResource := parseRequestClientIDAndResource(r)
+	token, err := getTokenForMatchingID(logger, rqClientID, rqResource, podIDs)
 	if err != nil {
 		logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
@@ -169,7 +168,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	w.Write(response)
 }
 
-func getTokenForMatchingID(logger *log.Entry, rqClientID string, podIDs *[]aadpodid.AzureIdentity) (token *adal.Token, err error) {
+func getTokenForMatchingID(logger *log.Entry, rqClientID string, rqResource string, podIDs *[]aadpodid.AzureIdentity) (token *adal.Token, err error) {
 	rqHasClientID := len(rqClientID) != 0
 	for _, v := range *podIDs {
 		clientID := v.Spec.ClientID
@@ -180,8 +179,8 @@ func getTokenForMatchingID(logger *log.Entry, rqClientID string, podIDs *[]aadpo
 		idType := v.Spec.Type
 		switch idType {
 		case aadpodid.UserAssignedMSI:
-			logger.Infof("matched identityType:%v clientid:%s resource:%s", idType, clientID, azureResourceName)
-			return auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, azureResourceName)
+			logger.Infof("matched identityType:%v clientid:%s resource:%s", idType, clientID, rqResource)
+			return auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, rqResource)
 		case aadpodid.ServicePrincipal:
 			tenantid := v.Spec.TenantID
 			logger.Infof("matched identityType:%v tenantid:%s clientid:%s", idType, tenantid, clientID)
@@ -208,12 +207,13 @@ func parseRemoteAddr(addr string) string {
 	return hostname
 }
 
-func parseRequestClientID(r *http.Request) (clientID string) {
+func parseRequestClientIDAndResource(r *http.Request) (clientID string, resource string) {
 	vals := r.URL.Query()
 	if vals != nil {
 		clientID = vals.Get("client_id")
+		resource = vals.Get("resource")
 	}
-	return clientID
+	return clientID, resource
 }
 
 // defaultPathHandler creates a new request and returns the response body and code
