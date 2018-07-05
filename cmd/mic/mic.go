@@ -5,6 +5,7 @@ import (
 
 	"github.com/Azure/aad-pod-identity/pkg/mic"
 	"github.com/golang/glog"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -26,8 +27,7 @@ func main() {
 	}
 
 	glog.Infof("kubeconfig (%s) cloudconfig (%s)", kubeconfig, cloudconfig)
-
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	config, err := buildConfig(kubeconfig)
 	if err != nil {
 		glog.Fatalf("Could not read config properly. Check the k8s config file, %+v", err)
 	}
@@ -42,4 +42,12 @@ func main() {
 	glog.Info("AAD Pod identity controller initialized!!")
 	//Infinite loop :-)
 	select {}
+}
+
+// Create the client config. Use kubeconfig if given, otherwise assume in-cluster.
+func buildConfig(kubeconfigPath string) (*rest.Config, error) {
+	if kubeconfigPath != "" {
+		return clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	}
+	return rest.InClusterConfig()
 }
