@@ -23,6 +23,7 @@ import (
 
 const (
 	iptableUpdateTimeIntervalInSeconds = 10
+	localhost                          = "127.0.0.1"
 )
 
 // Server encapsulates all of the parameters necessary for starting up
@@ -134,46 +135,45 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
 	hostIP := parseRemoteAddr(r.RemoteAddr)
-	 if hostIP != "127.0.0.1" {
+	if hostIP != localhost {
 		msg := "request remote address is not from a host"
 		logger.Error(msg)
 		http.Error(w, msg, http.StatusInternalServerError)
 		return
-	 }
-
-	 podns, podname := parseRequstHeader(r)
-	 if podns == "" || podname == "" {
-		 logger.Errorf("Error getting podname and podns from request")
-		 http.Error(w, "Error getting podname and podns from request", http.StatusInternalServerError)
-		 return
-	 }
-
-	 podIDs, err := s.KubeClient.ListPodIds(podns, podname)
-	 if err != nil || len(*podIDs) == 0 {
-		 msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s", podns, podname)
-		 logger.Errorf("%s, %+v", msg, err)
-		 http.Error(w, msg, http.StatusForbidden)
-		 return
-	 }
-	 rqClientID, rqResource := parseRequestClientIDAndResource(r)
-	 token, clientID, err := getTokenForMatchingID(logger, rqClientID, rqResource, podIDs)
-	 if err != nil {
-		 logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
-		 http.Error(w, err.Error(), http.StatusForbidden)
-		 return
-	 }
-	 //jsonToken, err := json.Marshal(*token)
-	 nmiResp := NMIResponse{
-		 Token: *token,
-		 ClientID: clientID,
 	}
-	 response, err := json.Marshal(nmiResp)
-	 if err != nil {
-		 logger.Errorf("failed to marshal service principal token and clientid for pod:%s/%s, %+v", podns, podname, err)
-		 http.Error(w, err.Error(), http.StatusInternalServerError)
-		 return
-	 }
-	 w.Write(response)
+
+	podns, podname := parseRequestHeader(r)
+	if podns == "" || podname == "" {
+		logger.Errorf("missing podname and podns from request")
+		http.Error(w, "missing 'podname' and 'podns' from request header", http.StatusUnprocessableEntity)
+		return
+	}
+
+	podIDs, err := s.KubeClient.ListPodIds(podns, podname)
+	if err != nil || len(*podIDs) == 0 {
+		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s", podns, podname)
+		logger.Errorf("%s, %+v", msg, err)
+		http.Error(w, msg, http.StatusForbidden)
+		return
+	}
+	rqClientID, rqResource := parseRequestClientIDAndResource(r)
+	token, clientID, err := getTokenForMatchingID(logger, rqClientID, rqResource, podIDs)
+	if err != nil {
+		logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+	nmiResp := NMIResponse{
+		Token: *token,
+		ClientID: clientID,
+	}
+	response, err := json.Marshal(nmiResp)
+	if err != nil {
+		logger.Errorf("failed to marshal service principal token and clientid for pod:%s/%s, %+v", podns, podname, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(response)
 }
 
 // msiHandler uses the remote address to identify the pod ip and uses it
@@ -191,7 +191,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	}
 	podns, podname, err := s.KubeClient.GetPodName(podIP)
 	if err != nil {
-		logger.Errorf("Error getting podname for podip:%s, %+v", podIP, err)
+		logger.Errorf("missing podname for podip:%s, %+v", podIP, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -247,7 +247,7 @@ func getTokenForMatchingID(logger *log.Entry, rqClientID string, rqResource stri
 	return nil, "", fmt.Errorf("azureidentity is not configured for the pod")
 }
 
-func parseRequstHeader(r *http.Request) (podns string, podname string) {
+func parseRequestHeader(r *http.Request) (podns string, podname string) {
 	podns = r.Header.Get("podns")
 	podname = r.Header.Get("podname")
 
