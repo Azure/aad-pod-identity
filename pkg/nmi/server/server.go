@@ -133,6 +133,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	latency := time.Since(start)
 	logger.Infof("Status (%d) took %d ns", rw.statusCode, latency.Nanoseconds())
 }
+
 func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
 	hostIP := parseRemoteAddr(r.RemoteAddr)
 	if hostIP != localhost {
@@ -145,7 +146,7 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 	podns, podname := parseRequestHeader(r)
 	if podns == "" || podname == "" {
 		logger.Errorf("missing podname and podns from request")
-		http.Error(w, "missing 'podname' and 'podns' from request header", http.StatusUnprocessableEntity)
+		http.Error(w, "missing 'podname' and 'podns' from request header", http.StatusBadRequest)
 		return
 	}
 
