@@ -12,6 +12,7 @@ import (
 var (
 	tablename       = "nat"
 	customchainname = "aad-metadata"
+	localhost       = "127.0.0.1"
 )
 
 // AddCustomChain adds the rule to the host's nat table custom chain
@@ -102,7 +103,7 @@ func ensureCustomChain(ipt *iptables.IPTables, sourcecidr, destIP, destPort,
 		}
 	}
 
-	if len(rules) == 2 {
+	if len(rules) == 5 {
 		return nil
 	}
 
@@ -121,6 +122,22 @@ func flushCreateCustomChainrules(ipt *iptables.IPTables, sourcecidr, destIP, des
 
 	if err := ipt.AppendUnique(
 		tablename, customchainname, "-p", "tcp", "!", "-s", sourcecidr, "-d", destIP, "--dport", destPort,
+		"-j", "DNAT", "--to-destination", targetip+":"+targetport); err != nil {
+		return err
+	}
+	if err := ipt.AppendUnique(
+		tablename, customchainname, "-p", "tcp", "!", "-s", localhost, "-d", destIP, "--dport", destPort,
+		"-j", "DNAT", "--to-destination", targetip+":"+targetport); err != nil {
+		return err
+	}
+
+	if err := ipt.AppendUnique(
+		tablename, customchainname, "-p", "tcp", "-s", sourcecidr, "-d", targetip, "--dport", targetport,
+		"-j", "DNAT", "--to-destination", targetip+":"+targetport); err != nil {
+		return err
+	}
+	if err := ipt.AppendUnique(
+		tablename, customchainname, "-p", "tcp", "-s", localhost, "-d", targetip, "--dport", targetport,
 		"-j", "DNAT", "--to-destination", targetip+":"+targetport); err != nil {
 		return err
 	}
