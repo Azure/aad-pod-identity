@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
@@ -16,8 +17,6 @@ import (
 
 // Client api client
 type Client interface {
-	// GetPodCidr return the pod cidr for the node
-	GetPodCidr(nodename string) (podcidr string, err error)
 	// GetPodName return the matching azure identity or nil
 	GetPodName(podip string) (podns, podname string, err error)
 	// ListPodIds pod matching azure identity or nil
@@ -81,26 +80,21 @@ func (c *KubeClient) GetPodName(podip string) (podns, poddname string, err error
 	return "", "", fmt.Errorf("not found")
 }
 
-// GetPodCidr get node pod cidr from apiserver
-func (c *KubeClient) GetPodCidr(nodename string) (podcidr string, err error) {
-	if c == nil {
-		return "", fmt.Errorf("kubeclinet is nil")
-	}
-
-	if nodename == "" {
-		return "", fmt.Errorf("nodename is nil")
-	}
-
-	n, err := c.ClientSet.CoreV1().Nodes().Get(nodename, metav1.GetOptions{})
+// GetLocalIP returns the non loopback local IP of the host
+func GetLocalIP() (string, error) {
+	addrs, err := net.InterfaceAddrs()
 	if err != nil {
 		return "", err
 	}
-
-	if n.Spec.PodCIDR == "" {
-		return "", fmt.Errorf("podcidr is nil or empty, nodename: %s", nodename)
+	for _, address := range addrs {
+		// check the address type and if it is not a loopback
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String(), nil
+			}
+		}
 	}
-
-	return n.Spec.PodCIDR, nil
+	return "", fmt.Errorf("non loopback ip address not found")
 }
 
 // ListPodIds lists matching ids for pod or error

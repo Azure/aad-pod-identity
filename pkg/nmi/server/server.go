@@ -23,7 +23,7 @@ import (
 
 const (
 	azureResourceName                  = "https://management.azure.com/"
-	iptableUpdateTimeIntervalInSeconds = 10
+	iptableUpdateTimeIntervalInSeconds = 60
 )
 
 // Server encapsulates all of the parameters necessary for starting up
@@ -61,15 +61,13 @@ func (s *Server) Run() error {
 
 // updateIPTableRules ensures the correct iptable rules are set
 // such that metadata requests are received by nmi assigned port
+// NOT originating from HostIP destined to metadata endpoint are
+// routed to NMI endpoint
 func (s *Server) updateIPTableRules() {
-	log.Infof("node: %s", s.NodeName)
-	podcidr, err := s.KubeClient.GetPodCidr(s.NodeName)
-	if err != nil {
-		log.Fatalf("%+v", err)
-	}
+	log.Infof("node: %s %s", s.NodeName, s.HostIP)
 	for range time.Tick(time.Second * time.Duration(s.IPTableUpdateTimeIntervalInSeconds)) {
-		log.Infof("node(%s) hostip(%s) podcidr(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, podcidr, s.MetadataIP, s.MetadataPort, s.NMIPort)
-		if err := iptables.AddCustomChain(podcidr, s.MetadataIP, s.MetadataPort, s.HostIP, s.NMIPort); err != nil {
+		log.Infof("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, s.MetadataIP, s.MetadataPort, s.NMIPort)
+		if err := iptables.AddCustomChain(s.HostIP, s.MetadataIP, s.MetadataPort, s.HostIP, s.NMIPort); err != nil {
 			log.Fatalf("%s", err)
 		}
 		if err := iptables.LogCustomChain(); err != nil {

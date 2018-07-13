@@ -11,13 +11,12 @@ metadata:
 rules:
 - apiGroups: ["*"]
   resources: ["*"]
-  verbs: ["create", "get", "list", "watch", "patch"]
+  verbs: [get", "list"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: RoleBinding
+kind: ClusterRoleBinding
 metadata:
   name: aad-pod-id-nmi-binding
-  namespace: default
   labels:
     k8s-app: aad-pod-id-nmi-binding
 subjects:
@@ -72,6 +71,36 @@ spec:
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aad-pod-id-mic-service-account
+  namespace: default
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: aad-pod-id-mic-role
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["create", "get", "list", "watch", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  name: aad-pod-id-mic-binding
+  labels:
+    k8s-app: aad-pod-id-mic-binding
+subjects:
+- kind: ServiceAccount
+  name: aad-pod-id-mic-service-account
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: aad-pod-id-mic-role
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -86,7 +115,7 @@ spec:
       labels:
         component: mic
     spec:
-      serviceAccountName: aad-pod-id-nmi-service-account
+      serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
         image: "nikhilbh/mic:1.1"
@@ -95,16 +124,10 @@ spec:
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
         volumeMounts:
-          - name: certificates
-            mountPath: /etc/kubernetes/certs
-            readOnly: true
           - name: k8s-azure-file
             mountPath: /etc/kubernetes/azure.json
             readOnly: true
       volumes:
-      - name: certificates
-        hostPath:
-          path: /etc/kubernetes/certs
       - name: k8s-azure-file
         hostPath: 
           path: /etc/kubernetes/azure.json

@@ -15,9 +15,11 @@ var (
 )
 
 // AddCustomChain adds the rule to the host's nat table custom chain
-func AddCustomChain(sourcecidr, destIP, destPort, targetip, targetport string) error {
-	if sourcecidr == "" {
-		return errors.New("sourcecidr must be set")
+// all tcp requests NOT originating from excludeSourceCIDR destined to
+// destIp:destPort are routed to targetIP:targetPort
+func AddCustomChain(excludeSourceCIDR, destIP, destPort, targetip, targetport string) error {
+	if excludeSourceCIDR == "" {
+		return errors.New("excludeSourceCIDR must be set")
 	}
 	if destIP == "" {
 		return errors.New("destIP must be set")
@@ -36,7 +38,7 @@ func AddCustomChain(sourcecidr, destIP, destPort, targetip, targetport string) e
 	if err != nil {
 		return err
 	}
-	if err := ensureCustomChain(ipt, sourcecidr, destIP, destPort, targetip, targetport); err != nil {
+	if err := ensureCustomChain(ipt, excludeSourceCIDR, destIP, destPort, targetip, targetport); err != nil {
 		return err
 	}
 	if err := placeCustomChainInChain(ipt, tablename, "OUTPUT"); err != nil {
@@ -118,7 +120,7 @@ func flushCreateCustomChainrules(ipt *iptables.IPTables, sourcecidr, destIP, des
 	}
 
 	if err := ipt.AppendUnique(
-		tablename, customchainname, "-p", "tcp", "-s", sourcecidr, "-d", destIP, "--dport", destPort,
+		tablename, customchainname, "-p", "tcp", "!", "-s", sourcecidr, "-d", destIP, "--dport", destPort,
 		"-j", "DNAT", "--to-destination", targetip+":"+targetport); err != nil {
 		return err
 	}
