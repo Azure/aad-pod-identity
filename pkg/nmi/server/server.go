@@ -23,6 +23,7 @@ import (
 
 const (
 	iptableUpdateTimeIntervalInSeconds = 10
+	localhost                          = "127.0.0.1"
 )
 
 // Server encapsulates all of the parameters necessary for starting up
@@ -37,6 +38,11 @@ type Server struct {
 	IPTableUpdateTimeIntervalInSeconds int
 }
 
+type NMIResponse struct {
+    Token adal.Token `json:"token"`
+    ClientID string `json:"clientid"`
+}
+
 // NewServer will create a new Server with default values.
 func NewServer() *Server {
 	return &Server{}
@@ -49,6 +55,8 @@ func (s *Server) Run() error {
 	mux := http.NewServeMux()
 	mux.Handle("/metadata/identity/oauth2/token", appHandler(s.msiHandler))
 	mux.Handle("/metadata/identity/oauth2/token/", appHandler(s.msiHandler))
+	mux.Handle("/host/token", appHandler(s.hostHandler))
+	mux.Handle("/host/token/", appHandler(s.hostHandler))
 	mux.Handle("/", appHandler(s.defaultPathHandler))
 
 	log.Infof("Listening on port %s", s.NMIPort)
@@ -126,6 +134,49 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logger.Infof("Status (%d) took %d ns", rw.statusCode, latency.Nanoseconds())
 }
 
+func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
+	hostIP := parseRemoteAddr(r.RemoteAddr)
+	if hostIP != localhost {
+		msg := "request remote address is not from a host"
+		logger.Error(msg)
+		http.Error(w, msg, http.StatusInternalServerError)
+		return
+	}
+
+	podns, podname := parseRequestHeader(r)
+	if podns == "" || podname == "" {
+		logger.Errorf("missing podname and podns from request")
+		http.Error(w, "missing 'podname' and 'podns' from request header", http.StatusBadRequest)
+		return
+	}
+
+	podIDs, err := s.KubeClient.ListPodIds(podns, podname)
+	if err != nil || len(*podIDs) == 0 {
+		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s", podns, podname)
+		logger.Errorf("%s, %+v", msg, err)
+		http.Error(w, msg, http.StatusForbidden)
+		return
+	}
+	rqClientID, rqResource := parseRequestClientIDAndResource(r)
+	token, clientID, err := getTokenForMatchingID(logger, rqClientID, rqResource, podIDs)
+	if err != nil {
+		logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+	nmiResp := NMIResponse{
+		Token: *token,
+		ClientID: clientID,
+	}
+	response, err := json.Marshal(nmiResp)
+	if err != nil {
+		logger.Errorf("failed to marshal service principal token and clientid for pod:%s/%s, %+v", podns, podname, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Write(response)
+}
+
 // msiHandler uses the remote address to identify the pod ip and uses it
 // to find maching client id, and then returns the token sourced through
 // AAD using adal
@@ -141,7 +192,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	}
 	podns, podname, err := s.KubeClient.GetPodName(podIP)
 	if err != nil {
-		logger.Errorf("Error getting podname for podip:%s, %+v", podIP, err)
+		logger.Errorf("missing podname for podip:%s, %+v", podIP, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -153,7 +204,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		return
 	}
 	rqClientID, rqResource := parseRequestClientIDAndResource(r)
-	token, err := getTokenForMatchingID(logger, rqClientID, rqResource, podIDs)
+	token, _, err := getTokenForMatchingID(logger, rqClientID, rqResource, podIDs)
 	if err != nil {
 		logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
@@ -168,7 +219,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	w.Write(response)
 }
 
-func getTokenForMatchingID(logger *log.Entry, rqClientID string, rqResource string, podIDs *[]aadpodid.AzureIdentity) (token *adal.Token, err error) {
+func getTokenForMatchingID(logger *log.Entry, rqClientID string, rqResource string, podIDs *[]aadpodid.AzureIdentity) (token *adal.Token, clientID string, err error) {
 	rqHasClientID := len(rqClientID) != 0
 	for _, v := range *podIDs {
 		clientID := v.Spec.ClientID
@@ -180,19 +231,28 @@ func getTokenForMatchingID(logger *log.Entry, rqClientID string, rqResource stri
 		switch idType {
 		case aadpodid.UserAssignedMSI:
 			logger.Infof("matched identityType:%v clientid:%s resource:%s", idType, clientID, rqResource)
-			return auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, rqResource)
+			token, err := auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, rqResource)
+			return token, clientID, err
 		case aadpodid.ServicePrincipal:
 			tenantid := v.Spec.TenantID
 			logger.Infof("matched identityType:%v tenantid:%s clientid:%s", idType, tenantid, clientID)
 			secret := v.Spec.ClientPassword.String()
-			return auth.GetServicePrincipalToken(tenantid, clientID, secret)
+			token, err := auth.GetServicePrincipalToken(tenantid, clientID, secret)
+			return token, clientID, err
 		default:
-			return nil, fmt.Errorf("unsupported identity type %+v", idType)
+			return nil, clientID, fmt.Errorf("unsupported identity type %+v", idType)
 		}
 	}
 
 	// We have not yet returned, so pass up an error
-	return nil, fmt.Errorf("azureidentity is not configured for the pod")
+	return nil, "", fmt.Errorf("azureidentity is not configured for the pod")
+}
+
+func parseRequestHeader(r *http.Request) (podns string, podname string) {
+	podns = r.Header.Get("podns")
+	podname = r.Header.Get("podname")
+
+	return podns, podname
 }
 
 func parseRemoteAddr(addr string) string {
