@@ -44,7 +44,7 @@ func NewKubeClient() (Client, error) {
 		return nil, err
 	}
 
-	crdclient, err := crd.NewCRDClient(config)
+	crdclient, err := crd.NewCRDClientLite(config)
 	if err != nil {
 		return nil, err
 	}
