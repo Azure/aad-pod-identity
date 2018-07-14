@@ -90,7 +90,7 @@ func placeCustomChainInChain(ipt *iptables.IPTables, table, chain string) error 
 	return nil
 }
 
-func ensureCustomChain(ipt *iptables.IPTables, sourcecidr, destIP, destPort,
+func ensureCustomChain(ipt *iptables.IPTables, excludeSourceCIDR, destIP, destPort,
 	targetip, targetport string) error {
 	rules, err := ipt.List(tablename, customchainname)
 	if err != nil {
@@ -102,7 +102,7 @@ func ensureCustomChain(ipt *iptables.IPTables, sourcecidr, destIP, destPort,
 	if len(rules) == 2 {
 		return nil
 	}
-	if err := flushCreateCustomChainrules(ipt, sourcecidr, destIP, destPort,
+	if err := flushCreateCustomChainrules(ipt, excludeSourceCIDR, destIP, destPort,
 		targetip, targetport); err != nil {
 		return err
 	}
@@ -110,12 +110,12 @@ func ensureCustomChain(ipt *iptables.IPTables, sourcecidr, destIP, destPort,
 	return nil
 }
 
-func flushCreateCustomChainrules(ipt *iptables.IPTables, sourcecidr, destIP, destPort, targetip, targetport string) error {
+func flushCreateCustomChainrules(ipt *iptables.IPTables, excludeSourceCIDR, destIP, destPort, targetip, targetport string) error {
 	if err := ipt.ClearChain(tablename, customchainname); err != nil {
 		return err
 	}
 	if err := ipt.AppendUnique(
-		tablename, customchainname, "-p", "tcp", "!", "-s", sourcecidr, "-d", destIP, "--dport", destPort,
+		tablename, customchainname, "-p", "tcp", "!", "-s", excludeSourceCIDR, "-d", destIP, "--dport", destPort,
 		"-j", "DNAT", "--to-destination", targetip+":"+targetport); err != nil {
 		return err
 	}
