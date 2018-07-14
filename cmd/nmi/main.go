@@ -11,7 +11,7 @@ const (
 	defaultMetadataIP                         = "169.254.169.254"
 	defaultMetadataPort                       = "80"
 	defaultNmiPort                            = "2579"
-	defaultIPTableUpdateTimeIntervalInSeconds = 10
+	defaultIPTableUpdateTimeIntervalInSeconds = 60
 )
 
 var (
