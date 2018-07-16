@@ -2,7 +2,6 @@ package iptables
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/coreos/go-iptables/iptables"
@@ -12,15 +11,13 @@ import (
 var (
 	tablename       = "nat"
 	customchainname = "aad-metadata"
+	localhost       = "127.0.0.1/32"
 )
 
 // AddCustomChain adds the rule to the host's nat table custom chain
-// all tcp requests NOT originating from excludeSourceCIDR destined to
+// all tcp requests NOT originating from localhost destined to
 // destIp:destPort are routed to targetIP:targetPort
-func AddCustomChain(excludeSourceCIDR, destIP, destPort, targetip, targetport string) error {
-	if excludeSourceCIDR == "" {
-		return errors.New("excludeSourceCIDR must be set")
-	}
+func AddCustomChain(destIP, destPort, targetip, targetport string) error {
 	if destIP == "" {
 		return errors.New("destIP must be set")
 	}
@@ -38,10 +35,7 @@ func AddCustomChain(excludeSourceCIDR, destIP, destPort, targetip, targetport st
 	if err != nil {
 		return err
 	}
-	if err := ensureCustomChain(ipt, excludeSourceCIDR, destIP, destPort, targetip, targetport); err != nil {
-		return err
-	}
-	if err := placeCustomChainInChain(ipt, tablename, "OUTPUT"); err != nil {
+	if err := ensureCustomChain(ipt, destIP, destPort, targetip, targetport); err != nil {
 		return err
 	}
 	if err := placeCustomChainInChain(ipt, tablename, "PREROUTING"); err != nil {
@@ -66,18 +60,6 @@ func LogCustomChain() error {
 	return nil
 }
 
-func generateRulesSpec(sourcecidr, destIP, destPort, targetip, targetport string) *[]string {
-	rules := []string{
-		// 1. metadata endpoint to nmi rule
-		fmt.Sprintf("-p tcp -s %s -d %s --dport %s -j DNAT --to-destination %s:%s",
-			sourcecidr, destIP, destPort, targetip, targetport),
-		// 2. jump rule
-		"-j RETURN",
-	}
-
-	return &rules
-}
-
 //	iptables -t nat -I "chain" 1 -j "customchainname"
 func placeCustomChainInChain(ipt *iptables.IPTables, table, chain string) error {
 	exists, err := ipt.Exists(table, chain, "-j", customchainname)
@@ -90,8 +72,7 @@ func placeCustomChainInChain(ipt *iptables.IPTables, table, chain string) error 
 	return nil
 }
 
-func ensureCustomChain(ipt *iptables.IPTables, excludeSourceCIDR, destIP, destPort,
-	targetip, targetport string) error {
+func ensureCustomChain(ipt *iptables.IPTables, destIP, destPort, targetip, targetport string) error {
 	rules, err := ipt.List(tablename, customchainname)
 	if err != nil {
 		err = ipt.NewChain(tablename, customchainname)
@@ -102,7 +83,7 @@ func ensureCustomChain(ipt *iptables.IPTables, excludeSourceCIDR, destIP, destPo
 	if len(rules) == 2 {
 		return nil
 	}
-	if err := flushCreateCustomChainrules(ipt, excludeSourceCIDR, destIP, destPort,
+	if err := flushCreateCustomChainrules(ipt, destIP, destPort,
 		targetip, targetport); err != nil {
 		return err
 	}
@@ -110,12 +91,12 @@ func ensureCustomChain(ipt *iptables.IPTables, excludeSourceCIDR, destIP, destPo
 	return nil
 }
 
-func flushCreateCustomChainrules(ipt *iptables.IPTables, excludeSourceCIDR, destIP, destPort, targetip, targetport string) error {
+func flushCreateCustomChainrules(ipt *iptables.IPTables, destIP, destPort, targetip, targetport string) error {
 	if err := ipt.ClearChain(tablename, customchainname); err != nil {
 		return err
 	}
 	if err := ipt.AppendUnique(
-		tablename, customchainname, "-p", "tcp", "!", "-s", excludeSourceCIDR, "-d", destIP, "--dport", destPort,
+		tablename, customchainname, "-p", "tcp", "!", "-s", localhost, "-d", destIP, "--dport", destPort,
 		"-j", "DNAT", "--to-destination", targetip+":"+targetport); err != nil {
 		return err
 	}
