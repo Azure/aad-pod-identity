@@ -24,6 +24,14 @@ This controller watches for pod changes through the api server and caches pod to
 
 The authorization request of fetching Service Principal Token from MSI endpoint is sent to a standard Instance Metadata endpoint which is redirected to the NMI pod by adding ruled to redirect POD CIDR traffic with metadata endpoint IP on port 80 to be sent to the NMI endpoint. The NMI server identifies the pod based on the remote address of the request and then queries the k8s (through MIC) for a matching azure identity. It then make a adal request to get the token for the client id and returns as a reponse to the request. If the request had client id as part of the query it validates it againsts the admin configured client id.
 
+Similarly a host can make an authorization request to fetch Service Principal Token for a resource directly from the NMI host endpoint (http://127.0.0.1:2579/host/token/). The request must include the pod namespace `podns` and the pod name `podname` in the request header and the resource endpoint of the resource requesting the token. The NMI server identifies the pod based on the `podns` and `podname` in the request header and then queries k8s (through MIC) for a matching azure identity.  Then nmi makes a adal request to get a token for the resource in the request, returns the `token` and the `clientid` as a reponse to the request.
+
+An example curl command:
+
+```bash
+curl http://127.0.0.1:2579/host/token/?resource=https://vault.azure.net -H "podname: nginx-flex-kv-int" -H "podns: default"
+```
+
 # Demo Pod 
 
 ## Pod fetching Service Principal Token from MSI endpoint 

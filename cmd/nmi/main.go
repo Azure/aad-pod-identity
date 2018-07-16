@@ -11,7 +11,7 @@ const (
 	defaultMetadataIP                         = "169.254.169.254"
 	defaultMetadataPort                       = "80"
 	defaultNmiPort                            = "2579"
-	defaultIPTableUpdateTimeIntervalInSeconds = 10
+	defaultIPTableUpdateTimeIntervalInSeconds = 60
 )
 
 var (
@@ -19,7 +19,7 @@ var (
 	nmiPort                            = pflag.String("nmi-port", defaultNmiPort, "NMI application port")
 	metadataIP                         = pflag.String("metadata-ip", defaultMetadataIP, "instance metadata host ip")
 	metadataPort                       = pflag.String("metadata-port", defaultMetadataPort, "instance metadata host ip")
-	hostIP                             = pflag.String("host-ip", "", "NMI application port")
+	hostIP                             = pflag.String("host-ip", "", "host IP address")
 	nodename                           = pflag.String("node", "", "node name")
 	ipTableUpdateTimeIntervalInSeconds = pflag.Int("ipt-update-interval-sec",
 		defaultIPTableUpdateTimeIntervalInSeconds, "update interval of iptables")
