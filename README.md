@@ -55,9 +55,9 @@ vmClient.Authorizer = authorizer
 vmlist, err := vmClient.List(context.Background(), resourceGroup)
 ```
 
-## Deploy Specs
+## Get Started
 
-### Requirement 
+### Prerequisites 
 
 A running k8s cluster on Azure using AKS or ACS Engine 
 
@@ -66,21 +66,6 @@ A running k8s cluster on Azure using AKS or ACS Engine
 ```
 kubectl create -f deploy/infra/deployment.yaml
 ```
-
-
-### Demo app
-
-> There's also a detailed tutorial [here](docs/tutorial/README.md).
-
-To deploy the demo app, update the deploy/demo/deployment.yaml arguments with your subscription, clientID and resource group.
-Make your your identity with the client ID has reader permission to the resource group provided in the input. 
-
-
-```
-kubectl create -f deploy/demo/deployment.yaml
-```
-
-You must complete the following steps for the demo pod to work!
 
 ### Configure Identity Binding 
 
@@ -98,6 +83,14 @@ Get the client id and resource id for the identity
 ```
 az identity create -g <resourcegroup> -n <idname>
 ```
+
+#### Assign Reader Role to new Identity
+
+Using the principalid from the last step, assign reader role to new identity for this resource group
+```
+az role assignment create --role Reader --assignee <principalid> --scope /subscriptions/<subscriptionid>/resourcegroups/<resourcegroup>
+```
+
 #### Providing required permissions for MIC
 
 This step is only required if you are using User assigned MSI.
@@ -169,6 +162,19 @@ spec:
   AzureIdentity: "test-azure-identity"
   Selector: "select_it"
 ```
+
+### Demo app
+
+To deploy the demo app, ensure you have completed the above prerequisite steps!
+
+Update the `deploy/demo/deployment.yaml` arguments with your subscription, clientID and resource group.
+Make sure your identity with the client ID has reader permission to the resource group provided in the input. 
+
+```
+kubectl create -f deploy/demo/deployment.yaml
+```
+
+> There's also a detailed tutorial [here](docs/tutorial/README.md).
 
 # Contributing
 
