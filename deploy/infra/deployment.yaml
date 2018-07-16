@@ -17,7 +17,7 @@ spec:
       hostNetwork: true
       containers:
       - name: nmi
-        image: "ritazh/nmi:1.1"
+        image: "nikhilbh/nmi:1.1"
         imagePullPolicy: Always
         args:
           - "--host-ip=$(HOST_IP)"
@@ -54,7 +54,7 @@ spec:
     spec:
       containers:
       - name: mic
-        image: "nikhilbh/mic:1.0"
+        image: "nikhilbh/mic:1.1"
         imagePullPolicy: Always
         args:
           - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"
