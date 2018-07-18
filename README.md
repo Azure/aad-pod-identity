@@ -63,20 +63,21 @@ A running k8s cluster on Azure using AKS or ACS Engine
 
 ### Deploy the azure-aad-identity infra 
 
+Deploy the infrastructure with the following command to deploy MIC, NMI, and the MIC CRDs.
 ```
 kubectl create -f deploy/infra/deployment.yaml
 ```
 
-### Configure Identity Binding 
+Pod Identity requires two components:
 
-#### Install MIC Custom Resource Definition (CRD) for Azure Identity 
+ 1. Managed Identity Controller (MIC). A pod that binds Azure Ids to other pods - creates azureAssignedIdentity CRD. 
+ 2. Node Managed Identity (NMI). Identifies the pod based on the remote address of the incoming request, and then queries k8s (through MIC) for a matching Azure Id. It then makes an adal request to get the token for the client id and returns as a reponse to the request. Implemented as a [DaemonSet](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/).
+
+If you have RBAC enabled, use the following deployment instead:
 
 ```
-kubectl create -f crd/azureAssignedIdentityCrd.yaml
-kubectl create -f crd/azureIdentityBindingCrd.yaml
-kubectl create -f crd/azureIdentityCrd.yaml
+kubectl create -f deploy/infra/deployment-rbac.yaml
 ```
-
 #### Create User Azure Identity 
 
 Get the client id and resource id for the identity 

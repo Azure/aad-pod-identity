@@ -76,32 +76,22 @@ aks-nodepool1-15831963-0   Ready     agent     01h       v1.9.6
 
 ```
 
-## 2. Configure AKS
+## 2. Configure AKS with required infrastructure on the cluster
 
-### 2.1. Install Custom Resource Definitions
-
-The following script installs three [custom resource definitions](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/) on our kubernetes cluster.
-
-`./scripts/2-config-aks/1-install-crd.sh`
-
-The three CRDs are:
-
-- azureAssignedIdentity: Do not create these objects, they will be auto-created by the azureIdentityController
-- azureIdentityBinding: Binds pods to an Azure Id.  You will create these.
-- azureIdentity: Provides the cluster with the ability to assign an identity to a pod. You will create these.
-
-> Note: this step may be eliminated in the future.
-
-### 2.2. Deploy the required infrastructure on the cluster
-
-Pod Identities require two pods as pieces of infrastruture.
+Pod Identity requires two components:
 
  1. Managed Identity Controller (MIC). A pod that binds Azure Ids to other pods - creates azureAssignedIdentity CRD. 
  2. Node Managed Identity (NMI). Identifies the pod based on the remote address of the incoming request, and then queries the k8s (through MIC) for a matching Azure Id. It then make a adal request to get the token for the client id and returns as a reponse to the request. Implemented as a [DaemonSet](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/).
 
-Deploy the infrastructure with the following command
+Deploy the infrastructure with the following command to deploy MIC, NMI, and MIC CRDs.
 
 `./scripts/2-config-aks/2-deploy-infra.sh`
+
+NOTE: If you have RBAC enabled, use the following deployment instead:
+
+```
+kubectl create -f ../../../../deploy/infra/deployment-rbac.yaml
+```
 
 ## 3. Deploy the demo
 
@@ -253,9 +243,6 @@ Add a Task of type 'Deploy to Kubernetes'. Create one of these tasks for each of
 > The command of each is `apply`, and the each below shows the reqired arguments.
 
 - `-f _aad-pods/deploy/infra/deployment.yaml`
-- `-f _aad-pods/crd/azureAssignedIdentityCrd.yaml`
-- `-f _aad-pods/crd/azureIdentityBindingCrd.yaml`
-- `-f _aad-pods/crd/azureIdentityCrd.yaml`
 - `-f _aad-pods/deploy/demo/deployment.yaml`
 - `-f _aad-pods/deploy/demo/aadpodidentity.yaml`
 - `-f _aad-pods/deploy/demo/aadpodidentitybinding.yaml`
