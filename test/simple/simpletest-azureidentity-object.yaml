@@ -1,7 +1,0 @@
-apiVersion: "aadpodidentity.k8s.io/v1"
-kind: AzureIdentity
-metadata:
-  name: test-azure-identity
-spec: 
-  type: 1
-  ID: "IdofTypeEMSI"

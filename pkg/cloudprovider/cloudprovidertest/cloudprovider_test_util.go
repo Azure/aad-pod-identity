@@ -3,30 +3,68 @@ package cloudprovidertest
 import (
 	"reflect"
 
+	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
 	"github.com/golang/glog"
 )
 
 type TestCloudClient struct {
-	nodeMap map[string]*[]string
+	*cloudprovider.Client
+	// testVMClient is test validation purpose.
+	testVMClient *TestVMClient
 }
 
-func (c *TestCloudClient) Get(rgName string, nodeName string) (ret compute.VirtualMachine, err error) {
-	vm := new(compute.VirtualMachine)
-	return *vm, nil
+type TestVMClient struct {
+	*cloudprovider.VMClient
+	nodeMap map[string]*compute.VirtualMachine
+}
+
+func (c *TestVMClient) Get(rgName string, nodeName string) (ret compute.VirtualMachine, err error) {
+	stored := c.nodeMap[nodeName]
+	if stored == nil {
+		vm := new(compute.VirtualMachine)
+		c.nodeMap[nodeName] = vm
+		return *vm, nil
+	}
+	return *stored, nil
+}
+
+func (c *TestVMClient) CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachine) error {
+	c.nodeMap[nodeName] = &vm
+	return nil
+}
+
+func (c *TestVMClient) ListMSI() (ret map[string]*[]string) {
+	ret = make(map[string]*[]string)
+
+	for key, val := range c.nodeMap {
+		ret[key] = val.Identity.IdentityIds
+	}
+	return ret
+}
+
+func (c *TestVMClient) CompareMSI(nodeName string, userIDs []string) bool {
+	stored := c.nodeMap[nodeName]
+	if stored == nil || stored.Identity == nil {
+		return false
+	}
+
+	ids := stored.Identity.IdentityIds
+	if ids == nil {
+		if len(userIDs) == 0 && stored.Identity.Type == compute.ResourceIdentityTypeNone { // Validate that we have reset the resource type as none.
+			return true
+		}
+		return false
+	}
+	return reflect.DeepEqual(*ids, userIDs)
 }
 
 func (c *TestCloudClient) ListMSI() (ret map[string]*[]string) {
-	return c.nodeMap
+	return c.testVMClient.ListMSI()
 }
 
 func (c *TestCloudClient) CompareMSI(nodeName string, userIDs []string) bool {
-	stored := c.nodeMap[nodeName]
-	if stored == nil && len(userIDs) > 0 {
-		return false
-	}
-	return reflect.DeepEqual(*stored, userIDs)
-
+	return c.testVMClient.CompareMSI(nodeName, userIDs)
 }
 
 func (c *TestCloudClient) PrintMSI() {
@@ -40,56 +78,24 @@ func (c *TestCloudClient) PrintMSI() {
 	}
 }
 
-func (c *TestCloudClient) RemoveUserMSI(userAssignedMSIID string, nodeName string) error {
-	listMSIs := c.nodeMap[nodeName]
+func NewTestVMClient() *TestVMClient {
+	nodeMap := make(map[string]*compute.VirtualMachine, 0)
+	vmClient := &cloudprovider.VMClient{}
 
-	if listMSIs == nil {
-		glog.Warningf("Could not find MSI %s on %s", userAssignedMSIID, nodeName)
-		return nil
+	return &TestVMClient{
+		vmClient,
+		nodeMap,
 	}
-
-	newList := make([]string, 0)
-	for _, msi := range *listMSIs {
-		if msi != userAssignedMSIID {
-			newList = append(newList, msi)
-		}
-	}
-	c.nodeMap[nodeName] = &newList
-	return nil
-}
-
-func (c *TestCloudClient) CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachine) error {
-	return nil
-}
-
-func (c *TestCloudClient) AssignUserMSI(userAssignedMSIID string, nodeName string) error {
-	listMSIs := c.nodeMap[nodeName]
-
-	if listMSIs == nil {
-		// List is not allocated yet.
-		array := []string{userAssignedMSIID}
-		c.nodeMap[nodeName] = &array
-		return nil
-	}
-
-	for _, msi := range *listMSIs {
-
-		if userAssignedMSIID == msi {
-			//We found that MSI is already present.
-			//return without doing any work.
-			return nil
-		}
-	}
-
-	// We need to append the given user assigned msi to
-	newList := append(*listMSIs, userAssignedMSIID)
-	c.nodeMap[nodeName] = &newList
-	return nil
 }
 
 func NewTestCloudClient() *TestCloudClient {
-	nodeMap := make(map[string]*[]string, 0)
+	vmClient := NewTestVMClient()
+	cloudClient := &cloudprovider.Client{
+		VMClient: vmClient,
+	}
+
 	return &TestCloudClient{
-		nodeMap: nodeMap,
+		cloudClient,
+		vmClient,
 	}
 }
