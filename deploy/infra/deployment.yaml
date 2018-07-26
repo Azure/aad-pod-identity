@@ -91,7 +91,7 @@ spec:
     spec:
       containers:
       - name: mic
-        image: "nikhilbh/mic:1.2"
+        image: "kkmsft/mic:1.2"
         imagePullPolicy: Always
         args:
           - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"

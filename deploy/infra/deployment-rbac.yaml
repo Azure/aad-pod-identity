@@ -167,7 +167,7 @@ spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
-        image: "nikhilbh/mic:1.2"
+        image: "kkmsft/mic:1.2"
         imagePullPolicy: Always
         args:
           - "--cloudconfig=/etc/kubernetes/azure.json"
