@@ -1,7 +1,6 @@
 package cloudprovider
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/golang/glog"
+	yaml "gopkg.in/yaml.v2"
 )
 
 // Client is a cloud provider client
@@ -32,14 +32,17 @@ type ClientInt interface {
 func NewCloudProvider(configFile string) (c *Client, e error) {
 	bytes, err := ioutil.ReadFile(configFile)
 	if err != nil {
+		glog.Errorf("Read file (%s) error: %+v", configFile, err)
 		return nil, err
 	}
 	azureConfig := config.AzureConfig{}
-	if err = json.Unmarshal(bytes, &azureConfig); err != nil {
+	if err = yaml.Unmarshal(bytes, &azureConfig); err != nil {
+		glog.Errorf("Unmarshall error: %v", err)
 		return nil, err
 	}
 	azureEnv, err := azure.EnvironmentFromName(azureConfig.Cloud)
 	if err != nil {
+		glog.Errorf("Get cloud env error: %+v", err)
 		return nil, err
 	}
 	oauthConfig, _ := adal.NewOAuthConfig(azureEnv.ActiveDirectoryEndpoint, azureConfig.TenantID)
@@ -54,6 +57,7 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 		azureEnv.ResourceManagerEndpoint,
 	)
 	if err != nil {
+		glog.Errorf("Get service principle token error: %+v", err)
 		return nil, err
 	}
 
@@ -64,6 +68,7 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 
 	vmClient, err := NewVirtualMachinesClient(azureConfig, spt)
 	if err != nil {
+		glog.Errorf("Create VM Client error: %+v", err)
 		return nil, err
 	}
 

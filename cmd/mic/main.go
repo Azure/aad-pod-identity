@@ -34,7 +34,7 @@ func main() {
 
 	micClient, err := mic.NewMICClient(cloudconfig, config)
 	if err != nil {
-		glog.Fatalf("Could not get the crd client: %+v", err)
+		glog.Fatalf("Could not get the MIC client: %+v", err)
 	}
 
 	exit := make(chan struct{})
