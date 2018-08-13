@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/stats"
+	"github.com/Azure/aad-pod-identity/version"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 
@@ -49,27 +50,28 @@ type ClientInt interface {
 }
 
 func NewMICClient(cloudconfig string, config *rest.Config) (*Client, error) {
-	glog.Infof("Starting to create the pod identity client")
+	glog.Infof("Starting to create the pod identity client. Version: %v. Build date: %v", version.Version, version.BuildDate)
+
 	clientSet := kubernetes.NewForConfigOrDie(config)
 
 	cloudClient, err := cloudprovider.NewCloudProvider(cloudconfig)
 	if err != nil {
 		return nil, err
 	}
-	glog.V(6).Infof("Cloud provider initialized")
+	glog.V(1).Infof("Cloud provider initialized")
 
 	eventCh := make(chan aadpodid.EventType, 100)
 	crdClient, err := crd.NewCRDClient(config, eventCh)
 	if err != nil {
 		return nil, err
 	}
-	glog.V(6).Infof("CRD client initialized")
+	glog.V(1).Infof("CRD client initialized")
 
 	podClient, err := pod.NewPodClient(clientSet, eventCh)
 	if err != nil {
 		return nil, err
 	}
-	glog.V(6).Infof("Pod Client initialized")
+	glog.V(1).Infof("Pod Client initialized")
 
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
