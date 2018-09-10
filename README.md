@@ -1,5 +1,3 @@
-# Project Status: Beta
-
 [![CircleCI](https://circleci.com/gh/Azure/aad-pod-identity/tree/master.svg?style=shield)](https://circleci.com/gh/Azure/aad-pod-identity/tree/master)
 
 ----
