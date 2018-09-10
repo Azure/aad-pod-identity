@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -33,22 +32,18 @@ type KubeClient struct {
 
 // NewKubeClient new kubernetes api client
 func NewKubeClient() (Client, error) {
-
 	config, err := buildConfig()
 	if err != nil {
 		return nil, err
 	}
-
 	clientset, err := getkubeclient(config)
 	if err != nil {
 		return nil, err
 	}
-
 	crdclient, err := crd.NewCRDClientLite(config)
 	if err != nil {
 		return nil, err
 	}
-
 	kubeClient := &KubeClient{ClientSet: clientset, CrdClient: crdclient}
 
 	return kubeClient, nil
@@ -56,28 +51,21 @@ func NewKubeClient() (Client, error) {
 
 // GetPodName get pod ns,name from apiserver
 func (c *KubeClient) GetPodName(podip string) (podns, poddname string, err error) {
-	if c == nil {
-		return "", "", fmt.Errorf("kubeclinet is nil")
-	}
-
 	if podip == "" {
 		return "", "", fmt.Errorf("podip is empty")
 	}
-
-	//podipFieldSel := fmt.Sprintf("status.podIp=%s", podip)
-	podList, err := c.ClientSet.CoreV1().Pods("").List(metav1.ListOptions{})
+	podList, err := c.ClientSet.CoreV1().Pods("").List(metav1.ListOptions{
+		FieldSelector: "status.podIP==" + podip + ",status.phase==Running",
+	})
 	if err != nil {
 		return "", "", err
 	}
-	for _, pod := range podList.Items {
-		if !strings.EqualFold(pod.Status.PodIP, podip) {
-			continue
-		}
-
-		return pod.Namespace, pod.Name, nil
+	numMatching := len(podList.Items)
+	if numMatching == 1 {
+		return podList.Items[0].Namespace, podList.Items[0].Name, nil
 	}
 
-	return "", "", fmt.Errorf("not found")
+	return "", "", fmt.Errorf("match failed, ip:%s matching pods:%v", podip, podList)
 }
 
 // GetLocalIP returns the non loopback local IP of the host
@@ -118,5 +106,6 @@ func buildConfig() (*rest.Config, error) {
 	if kubeconfigPath != "" {
 		return clientcmd.BuildConfigFromFlags("", kubeconfigPath)
 	}
+
 	return rest.InClusterConfig()
 }
