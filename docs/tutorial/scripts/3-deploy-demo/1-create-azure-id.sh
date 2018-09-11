@@ -20,9 +20,8 @@ fi
 
 if [ -z "$SUB_ID" ]
 then
-      echo "K8S Subscription ID Not Set. Set the env variable with the following command:"
-      echo "export SUB_ID=\"subscription-id\" "
-      return 1
+      SUB_ID=$(az account show | jq -r .id)
+      echo "Subscription ${SUB_ID} detected from environment"
 fi
 
 export principalid=$(az identity create --name demo-aad1 --resource-group $MC_RG --query 'principalId' -o tsv)
