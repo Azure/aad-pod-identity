@@ -109,43 +109,31 @@ Then set the environment variable
 
 `export MC_RG = "resource-group-name"`
 
-Edit the script with the correct Resource Group name then run it as below
-
-`./scripts/3-deploy-demo/1-create-azure-id.sh`
-
 ### 3.2. Deploy demo
 
-The `/deploy/demo/deployment.yaml` describes the pod that will be deployed. You need to set the following args for the demo pod:
+The `/deploy/demo/deployment.yaml` describes the pod that will be deployed. 
+
+It automatically adds the following values from your environment:
 
 - subscriptionid: Id of your Azure Subscription
 - clientid: From the Azure Id you created in the step above
 - resourcegroup: From the Azure Id you created above
 
-Now run the following to deploy the demo
+Run the following to deploy the demo
 
 `./scripts/3-deploy-demo/2-deploy-demo.sh`
 
 ### 3.3. Deploy Azure Id to Kubernetes
 
-We need to tell the cluster about the Id we created, so it can bind it to the pod (the next step). To do that, we will deploy the spec found in `/deploy/demo/aadpodidentity.yaml`. You need to set the following values in that file:
+We need to tell the cluster about the Id we created, so it can bind it to the pod (the next step). To do that, we will deploy the spec found in `/deploy/demo/aadpodidentity.yaml`. 
 
-- metadata->name: A unique name we will use in the next step to reference this Id.
-- type: 0=Azure Identity; 1=Service Principal. You should set it to 0.
-- ResourceID: subscriptionId, resource group, and id name. You can find this full string by running `az identity list` and looking at the `id` field.
-- ClientID: Client Id of the Azure ID. You can find this full string by running `az identity list` and looking at the `clientId` field.
-
-Once those values are set, you can deploy the identity with the following
+Run the following to deploy the Azure ID to Kubernetes:
 
 `./scripts/3-deploy-demo/3-deploy-id-to-k8s.sh`
 
 ### 3.4. Bind the Id to our demo pod
 
 Last thing we need to do is bind the Id we created in step 1, and deployed in step 3, to the pod we deployed in step 2.
-
-Edit the file `/deploy/demo/aadpodidentitybinding.yaml` with the following values:
-
-- azureIdentity: the name for the AzureIdentity you deployed in the previous step, which can remain `demo-aad1`
-- selector: in our case, keep the value as `demo`.
 
 Deploy the binding with the following
 
