@@ -47,18 +47,15 @@ clean:
 	rm -rf bin/$(PROJECT_NAME)
 
 build-nmi:clean-nmi
-	go build -o bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(NMI_BINARY_NAME)
+	GOOS=linux GOARCH=amd64 go build -o bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(NMI_BINARY_NAME)
 
 build-mic:clean-mic
-	go build -o bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(MIC_BINARY_NAME)
+	GOOS=linux GOARCH=amd64 go build -o bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(MIC_BINARY_NAME)
 
 build-demo:clean-demo
-	go build -o bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(DEMO_BINARY_NAME)
+	GOOS=linux GOARCH=amd64 go build -o bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(DEMO_BINARY_NAME)
 
-build:clean
-	go build -o bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(NMI_BINARY_NAME)
-	go build -o bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(MIC_BINARY_NAME)
-	go build -o bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME) $(GO_BUILD_OPTIONS) github.com/Azure/$(PROJECT_NAME)/cmd/$(DEMO_BINARY_NAME)
+build:clean build-nmi build-mic build-demo
 
 deepcopy-gen:
 	deepcopy-gen -i ./pkg/apis/aadpodidentity/v1/ -o ../../../ -O aadpodidentity_deepcopy_generated -p aadpodidentity 
