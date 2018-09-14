@@ -63,7 +63,7 @@ A running k8s cluster on Azure using AKS or ACS Engine
 
 Deploy the infrastructure with the following command to deploy MIC, NMI, and the MIC CRDs.
 ```
-kubectl create -f deploy/infra/deployment.yaml
+kubectl create -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment.yaml
 ```
 
 Pod Identity requires two components:
@@ -74,7 +74,7 @@ Pod Identity requires two components:
 If you have RBAC enabled, use the following deployment instead:
 
 ```
-kubectl create -f deploy/infra/deployment-rbac.yaml
+kubectl create -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
 ```
 #### Create User Azure Identity 
 
