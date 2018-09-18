@@ -221,13 +221,16 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			for _, delID := range *deleteList {
 				glog.V(5).Infof("Deletion of id: ", delID.Name)
 				inUse := c.CheckIfInUse(delID, newAssignedIDs)
+				removedBinding := delID.Spec.AzureBindingRef
 				// The inUse here checks if there are pods which are using the MSI in the newAssignedIDs.
 				err = c.RemoveAssignedIDsWithDeps(&delID, inUse)
 				if err != nil {
+					// Since k8s event has only Info and Warning, using Warning.
+					c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error",
+						fmt.Sprintf("Binding %s removal from node %s for pod %s resulted in error %v", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod, err))
 					glog.Error(err)
 					continue
 				}
-				removedBinding := delID.Spec.AzureBindingRef
 				eventRecordStart := time.Now()
 				glog.V(5).Infof("Binding removed: %+v", removedBinding)
 				c.EventRecorder.Event(removedBinding, corev1.EventTypeNormal, "binding removed",
@@ -247,6 +250,10 @@ func (c *Client) Sync(exit <-chan struct{}) {
 				glog.V(5).Infof("Initiating assigned id creation for pod - %s, binding - %s", createID.Spec.Pod, binding.Name)
 				err = c.CreateAssignedIdentityDeps(binding, id, createID.Spec.Pod, createID.Spec.PodNamespace, createID.Spec.NodeName)
 				if err != nil {
+					// Since k8s event has only Info and Warning, using Warning.
+					c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error",
+						fmt.Sprintf("Applying binding %s node %s for pod %s resulted in error %v", binding.Name, createID.Spec.NodeName, createID.Name, err))
+					glog.Error(err)
 					continue
 				}
 				appliedBinding := createID.Spec.AzureBindingRef
@@ -382,9 +389,11 @@ func (c *Client) CreateAssignedIdentityDeps(b *aadpodid.AzureIdentityBinding, id
 	if id.Spec.Type == aadpodid.UserAssignedMSI {
 		err = c.CloudClient.AssignUserMSI(id.Spec.ResourceID, nodeName)
 		if err != nil {
-			//TODO: If we have not applied the user id, but created the assigned identity, we need to either
-			// go back and remove it or have state in the assigned id which we need to retry.
 			glog.Error(err)
+			newErr := c.CRDClient.RemoveAssignedIdentity(name)
+			if newErr != nil {
+				glog.Errorf("Error when removing assigned identity in create error path err: %v", newErr)
+			}
 			return err
 		}
 	}

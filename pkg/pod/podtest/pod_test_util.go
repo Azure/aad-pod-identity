@@ -43,3 +43,19 @@ func (c *TestPodClient) AddPod(podName string, podNs string, nodeName string, bi
 	}
 	c.pods = append(c.pods, pod)
 }
+
+func (c *TestPodClient) DeletePod(podName string, podNs string) {
+	var newPods []*corev1.Pod
+	changed := false
+	for _, pod := range c.pods {
+		if pod.Name == podName && pod.Namespace == podNs {
+			changed = true
+			continue
+		} else {
+			newPods = append(newPods, pod)
+		}
+	}
+	if changed {
+		c.pods = newPods
+	}
+}
