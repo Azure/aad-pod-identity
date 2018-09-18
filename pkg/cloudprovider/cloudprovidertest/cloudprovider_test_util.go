@@ -17,6 +17,15 @@ type TestCloudClient struct {
 type TestVMClient struct {
 	*cloudprovider.VMClient
 	nodeMap map[string]*compute.VirtualMachine
+	err     *error
+}
+
+func (c *TestVMClient) SetError(err error) {
+	c.err = &err
+}
+
+func (c *TestVMClient) UnSetError() {
+	c.err = nil
 }
 
 func (c *TestVMClient) Get(rgName string, nodeName string) (ret compute.VirtualMachine, err error) {
@@ -30,6 +39,9 @@ func (c *TestVMClient) Get(rgName string, nodeName string) (ret compute.VirtualM
 }
 
 func (c *TestVMClient) CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachine) error {
+	if c.err != nil {
+		return *c.err
+	}
 	c.nodeMap[nodeName] = &vm
 	return nil
 }
@@ -78,6 +90,14 @@ func (c *TestCloudClient) PrintMSI() {
 	}
 }
 
+func (c *TestCloudClient) SetError(err error) {
+	c.testVMClient.SetError(err)
+}
+
+func (c *TestCloudClient) UnSetError() {
+	c.testVMClient.UnSetError()
+}
+
 func NewTestVMClient() *TestVMClient {
 	nodeMap := make(map[string]*compute.VirtualMachine, 0)
 	vmClient := &cloudprovider.VMClient{}
@@ -85,6 +105,7 @@ func NewTestVMClient() *TestVMClient {
 	return &TestVMClient{
 		vmClient,
 		nodeMap,
+		nil,
 	}
 }
 
