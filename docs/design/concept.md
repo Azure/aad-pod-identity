@@ -32,9 +32,9 @@ The relationship between kubernetes and AAD is covered in three main areas:
 
 ## Guiding Principals
 
-1. Favor little to no change to how users currently write applications against various editions of [ADAL](https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-authentication-libraries). Favor committing changes to SDKs and don's ask users to change applications are written for Kubernetes.
+1. Favor little to no change to how users currently write applications against various editions of [ADAL](https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-authentication-libraries). Favor committing changes to SDKs and don't ask users to change applications that are written for Kubernetes.
 
-2. Favor little to no change in they way users create kubernetes application specs (favor declarative approach). This enable users to focus their development and debugging experience in code they wrote, not code imposed on them.
+2. Favor little to no change in the way users create kubernetes application specs (favor declarative approach). This enables users to focus their development and debugging experience in code they wrote, not code imposed on them.
 
     > Example: favor annotation and labels over side-cars (even dynamically injected).
 
