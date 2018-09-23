@@ -26,7 +26,7 @@ The relationship between kubernetes and AAD is covered in three main areas:
 
     > Example: rotating a service principal password/cert without having to edit secrets assigned directly to applications.
 
-4. Provide a framework to enable enable time-boxed identity assignment. Manually triggered or automated. The same framework can be used for (jit sudo style access with automation tools).
+4. Provide a framework to enable time-boxed identity assignment. Manually triggered or automated. The same framework can be used for (jit sudo style access with automation tools).
 
     > Example: a front end application can have access to centralized data store between midnight and 1 AM during business days only.
 
