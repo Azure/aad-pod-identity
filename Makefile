@@ -32,7 +32,7 @@ GO_BUILD_OPTIONS := -buildmode=${GO_BUILD_MODE} -ldflags "-s -X $(VERSION_VAR)=$
 E2E_TEST_OPTIONS := -count=1 -v
 
 # useful for other docker repos
-REGISTRY ?= nikhilbh
+REGISTRY ?= mcr.microsoft.com/k8s/aad-pod-identity
 NMI_IMAGE_NAME := $(REGISTRY)/$(NMI_BINARY_NAME)
 MIC_IMAGE_NAME := $(REGISTRY)/$(MIC_BINARY_NAME)
 DEMO_IMAGE_NAME := $(REGISTRY)/$(DEMO_BINARY_NAME)
