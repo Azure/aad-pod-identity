@@ -1,8 +1,8 @@
 apiVersion: "aadpodidentity.k8s.io/v1"
 kind: AzureIdentity
 metadata:
- name: demo-aad1
+ name: AZURE_IDENTITY_NAME
 spec:
  type: 0
  ResourceID: RESOURCE_ID
- ClientID: CLIENT_ID 
+ ClientID: CLIENT_ID

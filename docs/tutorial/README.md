@@ -42,7 +42,7 @@ AKS requires the following resources: Microsoft.Network, Microsoft.Storage, Micr
 
 Set an environment variable in your shell, for the name of your resource group.
 
-`export RG ="k8s-test"`
+`export RG="k8s-test"`
 
 This resource group is for your AKS cluster. Create it with this command.
 
@@ -50,15 +50,13 @@ This resource group is for your AKS cluster. Create it with this command.
 
 ### 1.3. Create Azure Kubernetes Service
 
-This will create an AKS instance in the resource group created above. It may take a couple of minutes to complete. Set the name of the this command in the shell.
+Set an environment variable in your shell, for the name of your cluster.
 
-```sh
+`export K8S_NAME="Cluster-Name"`
 
-K8S_NAME="Cluster-Name"
-./scripts/1-init-aks/3-create-aks.sh
+This will create an AKS instance in the resource group created above. It may take a couple of minutes to complete.
 
-```
-
+`./scripts/1-init-aks/3-create-aks.sh`
 
 ### 1.4. Configure the kubernetes CLI - `kubectl`
 
@@ -80,7 +78,7 @@ aks-nodepool1-15831963-0   Ready     agent     01h       v1.9.6
 
 Pod Identity requires two components:
 
- 1. Managed Identity Controller (MIC). A pod that binds Azure Ids to other pods - creates azureAssignedIdentity CRD. 
+ 1. Managed Identity Controller (MIC). A pod that binds Azure Ids to other pods - creates azureAssignedIdentity CRD.
  2. Node Managed Identity (NMI). Identifies the pod based on the remote address of the incoming request, and then queries the k8s (through MIC) for a matching Azure Id. It then make a adal request to get the token for the client id and returns as a reponse to the request. Implemented as a [DaemonSet](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/).
 
 Deploy the infrastructure with the following command to deploy MIC, NMI, and MIC CRDs.
@@ -99,19 +97,28 @@ The demo is basic, but does prove the concept.
 
 ### 3.1. Create an Azure Id
 
-We will be assigning the demo pod an [Azure Managed Service Identity](https://docs.microsoft.com/en-us/azure/active-directory/managed-service-identity/overview). The Azure Id will need to be in the same Resource Group *as was created automatically by the provisioning of the AKS cluster* [see this issue for more information](https://github.com/Azure/aad-pod-identity/issues/38).
+We will be assigning the demo pod an [Azure Managed Service Identity](https://docs.microsoft.com/en-us/azure/active-directory/managed-service-identity/overview).
+
 
 You might find the Resource Group name with
 
 `az group list | grep $RG`
 
-Then set the environment variable
+Then set the environment variables
 
-`export MC_RG = "resource-group-name"`
+`export AZ_IDENTITY_NAME="az-identity-name"`
+
+`export MC_RG="resource-group-name"`
+
+Create the Azure identity
+
+`az identity create -g $MC_RG -n $AZ_IDENTITY_NAME`
+
+If the Azure ID is not in the same resource group as that of the AKS nodes, [follow this step before continuing](https://github.com/Azure/aad-pod-identity#providing-required-permissions-for-mic).
 
 ### 3.2. Deploy demo
 
-The `/deploy/demo/deployment.yaml` describes the pod that will be deployed. 
+The `/deploy/demo/deployment.yaml` describes the pod that will be deployed.
 
 It automatically adds the following values from your environment:
 
@@ -125,7 +132,7 @@ Run the following to deploy the demo
 
 ### 3.3. Deploy Azure Id to Kubernetes
 
-We need to tell the cluster about the Id we created, so it can bind it to the pod (the next step). To do that, we will deploy the spec found in `/deploy/demo/aadpodidentity.yaml`. 
+We need to tell the cluster about the Id we created, so it can bind it to the pod (the next step). To do that, we will deploy the spec found in `/deploy/demo/aadpodidentity.yaml`.
 
 Run the following to deploy the Azure ID to Kubernetes:
 
@@ -212,7 +219,7 @@ time="2018-06-07T01:32:30Z" level=info msg="succesfully made GET on instance met
 
 ## Continuous Deployment with VSTS
 
-This section is optional. 
+This section is optional.
 
 It shows how to deploy the same pods and infrastructure as above using [VSTS Continuous Integration](https://www.visualstudio.com/team-services/continuous-integration/).
 

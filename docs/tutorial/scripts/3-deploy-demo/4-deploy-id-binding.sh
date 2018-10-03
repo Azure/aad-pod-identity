@@ -2,12 +2,16 @@
 
 cd "${0%/*}"
 
+file="../../../../deploy/demo/aadpodidentitybinding.yaml"
+
 set -e
 
-echo "To give the Azure Id to the cluster, update the deploy/aadpodidentitybinding.yaml spec with \
-your binding name from step 3's AzureIdentity, and a pod selector to assign tge Id"
+binding_name="${AZ_IDENTITY_NAME}-binding"
+binding_selector="${binding_name}-selector"
 
-read -p "Press enter to continue"
+perl -pi -e "s/BINDING_NAME/${binding_name}/" ${file}
+perl -pi -e "s/AZURE_IDENTITY_NAME/${AZ_IDENTITY_NAME}/" ${file}
+perl -pi -e "s/SELECTOR_VALUE/${binding_selector}/" ${file}
 
 set -x
 

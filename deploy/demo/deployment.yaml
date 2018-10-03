@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   labels:
     app: demo
-    aadpodidbinding: demo
+    aadpodidbinding: SELECTOR_VALUE
   name: demo
   namespace: default
 spec:
@@ -11,7 +11,7 @@ spec:
     metadata:
       labels:
         app: demo
-        aadpodidbinding: demo
+        aadpodidbinding: SELECTOR_VALUE
     spec:
       containers:
       - name: demo
