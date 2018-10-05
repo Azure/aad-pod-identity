@@ -4,7 +4,7 @@ kind: ServiceAccount
 metadata:
   name: aad-pod-id-nmi-service-account
   namespace: default
-{{- end}}
+{{- end }}
 ---
 {{- if .Values.rbac.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1

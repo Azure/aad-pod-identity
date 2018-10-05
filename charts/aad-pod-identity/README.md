@@ -6,8 +6,8 @@ This helm chart will deploy the following resources:
 * AzureIdentity `CustomResourceDefinition`
 * AzureIdentityBinding `CustomResourceDefinition`
 * AzureAssignedIdentity `CustomResourceDefinition`
-* AzureIdentity instance
-* AzureIdentityBinding instance
+* AzureIdentity instance (optional)
+* AzureIdentityBinding instance (optional)
 * Managed Identity Controller (MIC) `Deployment`
 * Node Managed Identity (NMI) `DaemonSet`
 

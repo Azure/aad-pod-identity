@@ -6,6 +6,7 @@ rbac:
   enabled: true
 
 azureIdentity:
+  enabled: true # enabled/disable deployment of azure identity and binding
   name: "azure-identity"
   type: 0 # type 0: MSI, type 1: Service Principal
   resourceID: "" # /subscriptions/subscription-id/resourcegroups/resource-group/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name
