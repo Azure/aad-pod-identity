@@ -107,7 +107,7 @@ az role assignment create --role "Managed Identity Operator" --assignee <sp id> 
 
 Edit and save this as aadpodidentity.yaml
 
-Set `type: 0` for Managed Service Identity; `type: 1` for Service Principal
+Set `type: 0` for User Assigned MSI; `type: 1` for Service Principal
 
 ```
 apiVersion: "aadpodidentity.k8s.io/v1"
@@ -115,7 +115,7 @@ kind: AzureIdentity
 metadata:
  name: <any-idname>
 spec:
- type: 1
+ type: 0
  ResourceID: /subscriptions/<subid>/resourcegroups/<resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<idname>
  ClientID: <clientid>
 ```

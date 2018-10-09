@@ -26,15 +26,15 @@ The relationship between kubernetes and AAD is covered in three main areas:
 
     > Example: rotating a service principal password/cert without having to edit secrets assigned directly to applications.
 
-4. Provide a framework to enable enable time-boxed identity assignment. Manually triggered or automated. The same framework can be used for (jit sudo style access with automation tools).
+4. Provide a framework to enable time-boxed identity assignment. Manually triggered or automated. The same framework can be used for (jit sudo style access with automation tools).
 
     > Example: a front end application can have access to centralized data store between midnight and 1 AM during business days only.
 
 ## Guiding Principals
 
-1. Favor little to no change to how users currently write applications against various editions of [ADAL](https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-authentication-libraries). Favor committing changes to SDKs and don's ask users to change applications are written for Kubernetes.
+1. Favor little to no change to how users currently write applications against various editions of [ADAL](https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-authentication-libraries). Favor committing changes to SDKs and don't ask users to change applications that are written for Kubernetes.
 
-2. Favor little to no change in they way users create kubernetes application specs (favor declarative approach). This enable users to focus their development and debugging experience in code they wrote, not code imposed on them.
+2. Favor little to no change in the way users create kubernetes application specs (favor declarative approach). This enables users to focus their development and debugging experience in code they wrote, not code imposed on them.
 
     > Example: favor annotation and labels over side-cars (even dynamically injected).
 
