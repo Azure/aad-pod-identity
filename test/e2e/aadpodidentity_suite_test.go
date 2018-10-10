@@ -1,10 +1,9 @@
-package aadpodidentity_test
+package aadpodidentity
 
 import (
-	"fmt"
 	"os/exec"
-	"strings"
 
+	"github.com/Azure/aad-pod-identity/test/e2e/util"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -16,26 +15,18 @@ func TestAADPodIdentity(t *testing.T) {
 	RunSpecs(t, "AAD Pod Identity Suite")
 }
 
-func printCommand(cmd *exec.Cmd) {
-	fmt.Printf("\n$ %s\n", strings.Join(cmd.Args, " "))
-}
-
 var _ = BeforeSuite(func() {
 	// Install CRDs and deploy MIC and NMI
 	cmd := exec.Command("kubectl", "apply", "-f", "../../deploy/infra/deployment-rbac.yaml")
-	printCommand(cmd)
+	util.PrintCommand(cmd)
 	_, err := cmd.CombinedOutput()
-	if err != nil {
-		panic(err)
-	}
+	Expect(err).NotTo(HaveOccurred())
 })
 
 var _ = AfterSuite(func() {
-	// / uninstall CRDs and delete MIC and NMI
+	// Uninstall CRDs and delete MIC and NMI
 	cmd := exec.Command("kubectl", "delete", "-f", "../../deploy/infra/deployment-rbac.yaml")
-	printCommand(cmd)
+	util.PrintCommand(cmd)
 	_, err := cmd.CombinedOutput()
-	if err != nil {
-		panic(err)
-	}
+	Expect(err).NotTo(HaveOccurred())
 })

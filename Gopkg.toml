@@ -37,6 +37,14 @@
   name = "github.com/sirupsen/logrus"
   version = "1.0.5"
 
+[[constraint]]
+  name = "github.com/onsi/ginkgo"
+  version = "v1.6.0"
+
+[[constraint]]
+  name = "github.com/kelseyhightower/envconfig"
+  version = "1.3.0"
+
 [[override]]
   name = "k8s.io/apimachinery"
   branch = "release-1.10" # correct branch
@@ -44,10 +52,6 @@
 [[override]]
   name = "k8s.io/client-go"
   branch = "release-7.0" # correct branch
-
-[[constraint]]
-  name = "github.com/onsi/ginkgo"
-  version = "v1.6.0"
 
 [[override]]
   name = "k8s.io/api"
