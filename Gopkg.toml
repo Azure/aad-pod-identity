@@ -45,6 +45,10 @@
   name = "k8s.io/client-go"
   branch = "release-7.0" # correct branch
 
+[[constraint]]
+  name = "github.com/onsi/ginkgo"
+  version = "v1.6.0"
+
 [[override]]
   name = "k8s.io/api"
   branch = "release-1.10" # correct branch
