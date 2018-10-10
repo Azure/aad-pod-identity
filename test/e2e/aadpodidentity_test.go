@@ -1,4 +1,4 @@
-package aadpodidentity_test
+package aadpodidentity
 
 import (
 	. "github.com/onsi/ginkgo"
