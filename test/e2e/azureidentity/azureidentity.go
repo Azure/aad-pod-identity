@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path"
 
 	"github.com/Azure/aad-pod-identity/test/e2e/util"
 )
@@ -28,25 +29,34 @@ type List struct {
 
 // TODO: Add comments
 func CreateOnAzure(resourceGroup, name string) error {
-	cmd := exec.Command("az", "identity", "-g", resourceGroup, "-n", name)
+	cmd := exec.Command("az", "identity", "create", "-g", resourceGroup, "-n", name)
 	util.PrintCommand(cmd)
 	_, err := cmd.CombinedOutput()
 	return err
 }
 
 // TODO: Add comments
-func CreateOnCluster(subscriptionID, resourceGroup, name string) error {
+func DeleteOnAzure(resourceGroup, name string) error {
+	cmd := exec.Command("az", "identity", "delete", "-g", resourceGroup, "-n", name)
+	util.PrintCommand(cmd)
+	_, err := cmd.CombinedOutput()
+	return err
+}
+
+// TODO: Add comments
+func CreateOnCluster(subscriptionID, resourceGroup, name, templateOutputPath string) error {
 	clientID, err := GetClientID(resourceGroup, name)
 	if err != nil {
 		return err
 	}
 
-	t, err := template.New("aadpodidentity.yaml").ParseFiles("deploy/aadpodidentity.yaml")
+	t, err := template.New("aadpodidentity.yaml").ParseFiles(path.Join("template", "aadpodidentity.yaml"))
 	if err != nil {
 		return err
 	}
 
-	deployFile, err := os.Create("deploy/" + name + ".yaml")
+	deployFilePath := path.Join(templateOutputPath, name+".yaml")
+	deployFile, err := os.Create(deployFilePath)
 	if err != nil {
 		return err
 	}
@@ -67,14 +77,22 @@ func CreateOnCluster(subscriptionID, resourceGroup, name string) error {
 		return err
 	}
 
-	cmd := exec.Command("kubectl", "apply", "-f", "deploy/"+name+".yaml")
+	cmd := exec.Command("kubectl", "apply", "-f", deployFilePath)
 	util.PrintCommand(cmd)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("%s", err)
+		return err
 	}
 
 	return nil
+}
+
+// TODO: Add comments
+func DeleteOnCluster(name, templateOutputPath string) error {
+	cmd := exec.Command("kubectl", "delete", "-f", path.Join(templateOutputPath, name+".yaml"))
+	util.PrintCommand(cmd)
+	_, err := cmd.CombinedOutput()
+	return err
 }
 
 // TODO: Add comments
