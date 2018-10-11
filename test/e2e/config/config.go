@@ -1,4 +1,8 @@
-package aadpodidentity
+package config
+
+import (
+	"github.com/kelseyhightower/envconfig"
+)
 
 // TODO: Add comments
 type Config struct {
@@ -8,6 +12,11 @@ type Config struct {
 }
 
 // TODO: Add comments
-func ParseConfig() {
+func ParseConfig() (*Config, error) {
+	c := new(Config)
+	if err := envconfig.Process("config", c); err != nil {
+		return nil, err
+	}
 
+	return c, nil
 }

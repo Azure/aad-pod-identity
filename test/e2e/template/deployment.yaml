@@ -1,0 +1,36 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: demo
+    aadpodidbinding: {{.Name}}
+  name: demo
+  namespace: default
+spec:
+  template:
+    metadata:
+      labels:
+        app: demo
+        aadpodidbinding: {{.Name}}
+    spec:
+      containers:
+      - name: demo
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/demo:1.2"
+        imagePullPolicy: Always
+        args:
+          - "--subscriptionid={{.SubscriptionID}}"
+          - "--clientid={{.ClientID}}"
+          - "--resourcegroup={{.ResourceGroup}}"
+        env:
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: MY_POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: MY_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
