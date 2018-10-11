@@ -13,23 +13,24 @@ import (
 	"github.com/Azure/aad-pod-identity/test/e2e/util"
 )
 
-// TODO: Add comments
+// AzureIdentity is used to parse data from 'kubectl get AzureIdentity'
 type AzureIdentity struct {
 	Metadata Metadata `json:"metadata"`
 }
 
-// TODO: Add comments
+// Metadata holds information about AzureIdentity
 type Metadata struct {
 	Name        string            `json:"name"`
 	Annotations map[string]string `json:"annotations"`
 }
 
-// TODO: Add comments
+// List is a container that holds all AzureIdentities returned from 'kubectl get AzureIdentity'
 type List struct {
 	AzureIdentities []AzureIdentity `json:"items"`
 }
 
-// TODO: Add comments
+// CreateOnAzure will create an user-assigned identity on Azure, assign 'Reader' role
+// to the identity and assign 'Managed Identity Operator' role to service principal
 func CreateOnAzure(subscriptionID, resourceGroup, azureClientID, name string) error {
 	cmd := exec.Command("az", "identity", "create", "-g", resourceGroup, "-n", name)
 	util.PrintCommand(cmd)
@@ -39,12 +40,12 @@ func CreateOnAzure(subscriptionID, resourceGroup, azureClientID, name string) er
 		return err
 	}
 
-	// Assign 'Reader' role to the identity
 	principalID, err := GetPrincipalID(resourceGroup, name)
 	if err != nil {
 		return err
 	}
 
+	// Assigning 'Reader' role to the identity
 	// Need to tight poll the following command because principalID is not
 	// immediately available for role assignment after identity creation
 	timeout, tick := time.After(100*time.Second), time.Tick(10*time.Second)
@@ -76,7 +77,7 @@ tightPoll:
 	return nil
 }
 
-// TODO: Add comments
+// DeleteOnAzure will delete a given user-assigned identity on Azure
 func DeleteOnAzure(resourceGroup, name string) error {
 	cmd := exec.Command("az", "identity", "delete", "-g", resourceGroup, "-n", name)
 	util.PrintCommand(cmd)
@@ -88,7 +89,7 @@ func DeleteOnAzure(resourceGroup, name string) error {
 	return nil
 }
 
-// TODO: Add comments
+// CreateOnCluster will create an Azure Identity on a Kubernetes cluster
 func CreateOnCluster(subscriptionID, resourceGroup, name, templateOutputPath string) error {
 	clientID, err := GetClientID(resourceGroup, name)
 	if err != nil {
@@ -134,7 +135,7 @@ func CreateOnCluster(subscriptionID, resourceGroup, name, templateOutputPath str
 	return nil
 }
 
-// TODO: Add comments
+// DeleteOnCluster will delete an Azure Identity on a Kubernetes cluster
 func DeleteOnCluster(name, templateOutputPath string) error {
 	cmd := exec.Command("kubectl", "delete", "-f", path.Join(templateOutputPath, name+".yaml"), "--ignore-not-found")
 	util.PrintCommand(cmd)
@@ -147,7 +148,7 @@ func DeleteOnCluster(name, templateOutputPath string) error {
 	return nil
 }
 
-// TODO: Add comments
+// GetClientID will return the client id of a user-assigned identity on Azure
 func GetClientID(resourceGroup, name string) (string, error) {
 	cmd := exec.Command("az", "identity", "show", "-g", resourceGroup, "-n", name, "--query", "clientId", "-otsv")
 	util.PrintCommand(cmd)
@@ -160,7 +161,7 @@ func GetClientID(resourceGroup, name string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-// TODO: Add comments
+// GetPrincipalID will return the principal id (objecet id) of a user-assigned identity on Azure
 func GetPrincipalID(resourceGroup, name string) (string, error) {
 	cmd := exec.Command("az", "identity", "show", "-g", resourceGroup, "-n", name, "--query", "principalId", "-otsv")
 	util.PrintCommand(cmd)
@@ -173,7 +174,7 @@ func GetPrincipalID(resourceGroup, name string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-// TODO: Add comments
+// GetAll will return a list of AzureIdentity deployed on a Kubernetes cluster
 func GetAll() (*List, error) {
 	cmd := exec.Command("kubectl", "get", "AzureIdentity", "-ojson")
 	util.PrintCommand(cmd)

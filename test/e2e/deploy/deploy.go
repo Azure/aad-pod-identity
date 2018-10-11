@@ -10,6 +10,7 @@ import (
 	"github.com/Azure/aad-pod-identity/test/e2e/util"
 )
 
+// Create will create a demo deployment on a Kubernetes cluster
 func Create(subscriptionID, resourceGroup, name, identityBinding, templateOutputPath string) error {
 	clientID, err := azureidentity.GetClientID(resourceGroup, identityBinding)
 	if err != nil {
@@ -55,6 +56,7 @@ func Create(subscriptionID, resourceGroup, name, identityBinding, templateOutput
 	return nil
 }
 
+// Delete will delete a demo deployment on a Kubernetes cluster
 func Delete(name, templateOutputPath string) error {
 	cmd := exec.Command("kubectl", "delete", "-f", path.Join(templateOutputPath, name+"-deployment.yaml"), "--ignore-not-found")
 	util.PrintCommand(cmd)
