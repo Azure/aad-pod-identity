@@ -2,19 +2,19 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    app: demo
-    aadpodidbinding: {{.Name}}
-  name: demo
+    app: {{.Name}}
+    aadpodidbinding: {{.IdentityBinding}}
+  name: {{.Name}}
   namespace: default
 spec:
   template:
     metadata:
       labels:
-        app: demo
-        aadpodidbinding: {{.Name}}
+        app: {{.Name}}
+        aadpodidbinding: {{.IdentityBinding}}
     spec:
       containers:
-      - name: demo
+      - name: {{.Name}}
         image: "mcr.microsoft.com/k8s/aad-pod-identity/demo:1.2"
         imagePullPolicy: Always
         args:
