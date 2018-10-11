@@ -11,23 +11,23 @@ import (
 	"github.com/Azure/aad-pod-identity/test/e2e/util"
 )
 
-// TODO: Add comments
+// AzureIdentityBinding is used to parse data from 'kubectl get AzureIdentityBinding'
 type AzureIdentityBinding struct {
 	Metadata Metadata `json:"metadata"`
 }
 
-// TODO: Add comments
+// Metadata holds information about AzureIdentityBinding
 type Metadata struct {
 	Name        string            `json:"name"`
 	Annotations map[string]string `json:"annotations"`
 }
 
-// TODO: Add comments
+// List is a container that holds all AzureIdentityBindings returned from 'kubectl get AzureIdentityBinding'
 type List struct {
 	AzureIdentityBindings []AzureIdentityBinding `json:"items"`
 }
 
-// TODO: Add comments
+// Create will create an Azure Identity Binding on a Kubernetes cluster
 func Create(name, templateOutputPath string) error {
 	t, err := template.New("aadpodidentitybinding.yaml").ParseFiles(path.Join("template", "aadpodidentitybinding.yaml"))
 	if err != nil {
@@ -60,7 +60,7 @@ func Create(name, templateOutputPath string) error {
 	return nil
 }
 
-// TODO: Add comments
+// Delete will delete an Azure Identity Binding on a Kubernetes cluster
 func Delete(name, templateOutputPath string) error {
 	cmd := exec.Command("kubectl", "delete", "-f", path.Join(templateOutputPath, name+"-binding.yaml"), "--ignore-not-found")
 	util.PrintCommand(cmd)
@@ -68,7 +68,7 @@ func Delete(name, templateOutputPath string) error {
 	return err
 }
 
-// TODO: Add comments
+// GetAll will return a list of AzureIdentityBinding deployed on a Kubernetes cluster
 func GetAll() (*List, error) {
 	cmd := exec.Command("kubectl", "get", "AzureIdentityBinding", "-ojson")
 	util.PrintCommand(cmd)

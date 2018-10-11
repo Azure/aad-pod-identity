@@ -8,30 +8,22 @@ import (
 	"github.com/Azure/aad-pod-identity/test/e2e/util"
 )
 
-// TODO: Add comments
+// AzureAssignedIdentity is used to parse data from 'kubectl get AzureAssignedIdentity'
 type AzureAssignedIdentity struct {
 	Metadata Metadata `json:"metadata"`
 }
 
-// TODO: Add comments
+// Metadata holds information about AzureAssignedIdentity
 type Metadata struct {
 	Name string `json:"name"`
 }
 
-// TODO: Add comments
+// List is a container that holds all AzureAssignedIdentity returned from 'kubectl get AzureAssignedIdentity'
 type List struct {
 	AzureAssignedIdentities []AzureAssignedIdentity `json:"items"`
 }
 
-// TODO: Add comments
-func Delete(name string) error {
-	cmd := exec.Command("kubectl", "delete", "AzureAssignedIdentity", name)
-	util.PrintCommand(cmd)
-	_, err := cmd.CombinedOutput()
-	return err
-}
-
-// TODO: Add comments
+// GetAll will return a list of AzureAssignedIdentity deployed on a Kubernetes cluster
 func GetAll() (*List, error) {
 	cmd := exec.Command("kubectl", "get", "AzureAssignedIdentity", "-ojson")
 	util.PrintCommand(cmd)
