@@ -1,6 +1,7 @@
 package azureidentity
 
 import (
+	"context"
 	"encoding/json"
 	"html/template"
 	"log"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Azure/aad-pod-identity/test/e2e/util"
+	"github.com/pkg/errors"
 )
 
 // AzureIdentity is used to parse data from 'kubectl get AzureIdentity'
@@ -33,41 +35,21 @@ type List struct {
 // to the identity and assign 'Managed Identity Operator' role to service principal
 func CreateOnAzure(subscriptionID, resourceGroup, azureClientID, name string) error {
 	cmd := exec.Command("az", "identity", "create", "-g", resourceGroup, "-n", name)
-	util.PrintCommand(cmd)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Error while creating an identity on Azure:%s\n", err)
 		return err
 	}
 
-	principalID, err := GetPrincipalID(resourceGroup, name)
-	if err != nil {
-		return err
-	}
-
 	// Assigning 'Reader' role to the identity
-	// Need to tight poll the following command because principalID is not
-	// immediately available for role assignment after identity creation
-	timeout, tick := time.After(100*time.Second), time.Tick(10*time.Second)
-tightPoll:
-	for {
-		select {
-		case <-timeout:
-			log.Printf("Error while assigning 'Reader' role to the identity on Azure:%s\n", err)
-			return err
-		case <-tick:
-			cmd := exec.Command("az", "role", "assignment", "create", "--role", "Reader", "--assignee-object-id", principalID, "-g", resourceGroup)
-			_, err := cmd.CombinedOutput()
-			log.Printf("Tight poll command result:%s\n", err)
-			if err == nil {
-				break tightPoll
-			}
-		}
+	ok, err := WaitOnReaderRoleAssignment(resourceGroup, name)
+	if !ok && err != nil {
+		log.Printf("Error while assigning 'Reader' role to identity on Azure:%s\n", err)
+		return err
 	}
 
 	// Assign 'Managed Identity Operator' to Service Principal
 	cmd = exec.Command("az", "role", "assignment", "create", "--role", "Managed Identity Operator", "--assignee", azureClientID, "--scope", "/subscriptions/"+subscriptionID+"/resourcegroups/"+resourceGroup+"/providers/Microsoft.ManagedIdentity/userAssignedIdentities/"+name)
-	util.PrintCommand(cmd)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Error while assigning 'Managed Identity Operator' role to service principal on Azure:%s\n", err)
@@ -80,7 +62,6 @@ tightPoll:
 // DeleteOnAzure will delete a given user-assigned identity on Azure
 func DeleteOnAzure(resourceGroup, name string) error {
 	cmd := exec.Command("az", "identity", "delete", "-g", resourceGroup, "-n", name)
-	util.PrintCommand(cmd)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Error while deleting AzureIdentity from Azure:%s", err)
@@ -151,7 +132,6 @@ func DeleteOnCluster(name, templateOutputPath string) error {
 // GetClientID will return the client id of a user-assigned identity on Azure
 func GetClientID(resourceGroup, name string) (string, error) {
 	cmd := exec.Command("az", "identity", "show", "-g", resourceGroup, "-n", name, "--query", "clientId", "-otsv")
-	util.PrintCommand(cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Error while getting the clientID from identity:%s", err)
@@ -164,7 +144,6 @@ func GetClientID(resourceGroup, name string) (string, error) {
 // GetPrincipalID will return the principal id (objecet id) of a user-assigned identity on Azure
 func GetPrincipalID(resourceGroup, name string) (string, error) {
 	cmd := exec.Command("az", "identity", "show", "-g", resourceGroup, "-n", name, "--query", "principalId", "-otsv")
-	util.PrintCommand(cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("Error while getting the principalID from identity:%s", err)
@@ -192,4 +171,45 @@ func GetAll() (*List, error) {
 	}
 
 	return &nl, nil
+}
+
+// WaitOnReaderRoleAssignment will block until the assignement of 'Reader' role to an identity is executed successfully
+func WaitOnReaderRoleAssignment(resourceGroup, name string) (bool, error) {
+	principalID, err := GetPrincipalID(resourceGroup, name)
+	if err != nil {
+		return false, err
+	}
+
+	// Need to tight poll the following command because principalID is not
+	// immediately available for role assignment after identity creation
+	readyChannel, errorChannel := make(chan bool, 1), make(chan error)
+	duration := 100 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), duration)
+	defer cancel()
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				errorChannel <- errors.Errorf("Timeout exceeded (%s) while assigning 'Reader' role to identity on Azure", duration.String())
+			default:
+				cmd := exec.Command("az", "role", "assignment", "create", "--role", "Reader", "--assignee-object-id", principalID, "-g", resourceGroup)
+				_, err := cmd.CombinedOutput()
+				log.Printf("Tight poll command result: %s\n", err)
+				if err == nil {
+					readyChannel <- true
+				}
+				time.Sleep(10 * time.Second)
+			}
+		}
+	}()
+
+	for {
+		select {
+		case err := <-errorChannel:
+			return false, err
+		case ready := <-readyChannel:
+			return ready, nil
+		}
+	}
 }
