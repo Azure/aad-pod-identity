@@ -6,7 +6,6 @@ import (
 	"path"
 
 	"github.com/Azure/aad-pod-identity/test/e2e/azureidentity"
-	"github.com/Azure/aad-pod-identity/test/e2e/azureidentitybinding"
 	"github.com/Azure/aad-pod-identity/test/e2e/config"
 	"github.com/Azure/aad-pod-identity/test/e2e/deploy"
 	"github.com/Azure/aad-pod-identity/test/e2e/util"
@@ -39,18 +38,6 @@ var _ = BeforeSuite(func() {
 	cmd := exec.Command("kubectl", "apply", "-f", "../../deploy/infra/deployment-rbac.yaml")
 	util.PrintCommand(cmd)
 	_, err = cmd.CombinedOutput()
-	Expect(err).NotTo(HaveOccurred())
-
-	err = azureidentity.CreateOnAzure(cfg.SubscriptionID, cfg.ResourceGroup, cfg.AzureClientID, "test-identity")
-	Expect(err).NotTo(HaveOccurred())
-
-	err = azureidentity.CreateOnCluster(cfg.SubscriptionID, cfg.ResourceGroup, "test-identity", templateOutputPath)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = azureidentitybinding.Create("test-identity", templateOutputPath)
-	Expect(err).NotTo(HaveOccurred())
-
-	err = deploy.Create(cfg.SubscriptionID, cfg.ResourceGroup, "demo", "test-identity", templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 })
 
