@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
+	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -12,6 +14,11 @@ import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	crd "github.com/Azure/aad-pod-identity/pkg/crd"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	getPodListTries                 = 5
+	getPodListSleepTimeMilliseconds = 300
 )
 
 // Client api client
@@ -54,9 +61,9 @@ func (c *KubeClient) GetPodName(podip string) (podns, poddname string, err error
 	if podip == "" {
 		return "", "", fmt.Errorf("podip is empty")
 	}
-	podList, err := c.ClientSet.CoreV1().Pods("").List(metav1.ListOptions{
-		FieldSelector: "status.podIP==" + podip + ",status.phase==Running",
-	})
+
+	podList, err := c.getPodListWithTries(podip, getPodListTries)
+
 	if err != nil {
 		return "", "", err
 	}
@@ -66,6 +73,21 @@ func (c *KubeClient) GetPodName(podip string) (podns, poddname string, err error
 	}
 
 	return "", "", fmt.Errorf("match failed, ip:%s matching pods:%v", podip, podList)
+}
+
+func (c *KubeClient) getPodListWithTries(podip string, tries int) (*v1.PodList, error) {
+	podList, err := c.ClientSet.CoreV1().Pods("").List(metav1.ListOptions{
+		FieldSelector: "status.podIP==" + podip + ",status.phase==Running",
+	})
+
+	if err != nil || len(podList.Items) == 0 {
+		if tries > 1 {
+			time.Sleep(getPodListSleepTimeMilliseconds * time.Millisecond)
+			return c.getPodListWithTries(podip, tries-1)
+		}
+	}
+
+	return podList, err
 }
 
 // GetLocalIP returns the non loopback local IP of the host
