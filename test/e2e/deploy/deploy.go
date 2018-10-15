@@ -10,7 +10,6 @@ import (
 	"path"
 	"time"
 
-	"github.com/Azure/aad-pod-identity/test/e2e/azureidentity"
 	"github.com/Azure/aad-pod-identity/test/e2e/util"
 	"github.com/pkg/errors"
 )
@@ -44,11 +43,6 @@ type Status struct {
 
 // Create will create a demo deployment on a Kubernetes cluster
 func Create(subscriptionID, resourceGroup, name, identityBinding, templateOutputPath string) error {
-	clientID, err := azureidentity.GetClientID(resourceGroup, identityBinding)
-	if err != nil {
-		return err
-	}
-
 	t, err := template.New("deployment.yaml").ParseFiles(path.Join("template", "deployment.yaml"))
 	if err != nil {
 		return err
@@ -62,15 +56,9 @@ func Create(subscriptionID, resourceGroup, name, identityBinding, templateOutput
 	defer deployFile.Close()
 
 	deployData := struct {
-		SubscriptionID  string
-		ResourceGroup   string
-		ClientID        string
 		Name            string
 		IdentityBinding string
 	}{
-		subscriptionID,
-		resourceGroup,
-		clientID,
 		name,
 		identityBinding,
 	}
@@ -114,7 +102,7 @@ func GetAll() (*List, error) {
 
 // IsAvailableReplicasMatchDesired will return a boolean that indicate whether the number
 // of available replicas of a deployment matches the desired number of replicas
-func IsAvailableReplicasMatchDesired(name string) (bool, error) {
+func isAvailableReplicasMatchDesired(name string) (bool, error) {
 	dl, err := GetAll()
 	if err != nil {
 		return false, err
@@ -143,10 +131,9 @@ func WaitOnReady(name string) (bool, error) {
 				errorChannel <- errors.Errorf("Timeout exceeded (%s) while waiting for deployment (%s) to be availabe", duration.String(), name)
 				return
 			default:
-				match, err := IsAvailableReplicasMatchDesired(name)
+				match, err := isAvailableReplicasMatchDesired(name)
 				if err != nil {
 					errorChannel <- err
-					return
 				}
 				if match {
 					successChannel <- true

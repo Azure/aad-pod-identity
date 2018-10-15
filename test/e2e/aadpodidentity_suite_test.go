@@ -5,9 +5,7 @@ import (
 	"os/exec"
 	"path"
 
-	"github.com/Azure/aad-pod-identity/test/e2e/azureidentity"
 	"github.com/Azure/aad-pod-identity/test/e2e/config"
-	"github.com/Azure/aad-pod-identity/test/e2e/deploy"
 	"github.com/Azure/aad-pod-identity/test/e2e/util"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -46,12 +44,6 @@ var _ = AfterSuite(func() {
 	cmd := exec.Command("kubectl", "delete", "-f", "../../deploy/infra/deployment-rbac.yaml", "--ignore-not-found")
 	util.PrintCommand(cmd)
 	_, err := cmd.CombinedOutput()
-	Expect(err).NotTo(HaveOccurred())
-
-	err = azureidentity.DeleteOnAzure(cfg.ResourceGroup, "test-identity")
-	Expect(err).NotTo(HaveOccurred())
-
-	err = deploy.Delete("demo", templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
 	err = os.RemoveAll(templateOutputPath)

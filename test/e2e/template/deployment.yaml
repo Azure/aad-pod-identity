@@ -15,12 +15,11 @@ spec:
     spec:
       containers:
       - name: {{.Name}}
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/demo:1.2"
+        image: chewong/identityvalidator:1.0
+        command:
+          - sleep
+          - "3600"
         imagePullPolicy: Always
-        args:
-          - "--subscriptionid={{.SubscriptionID}}"
-          - "--clientid={{.ClientID}}"
-          - "--resourcegroup={{.ResourceGroup}}"
         env:
         - name: MY_POD_NAME
           valueFrom:
