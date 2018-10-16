@@ -24,6 +24,10 @@
 #   go-tests = true
 #   unused-packages = true
 
+required = [
+  # Apply workaround from https://github.com/golang/dep/issues/1799
+  "gopkg.in/fsnotify.v1"
+]
 
 [[constraint]]
   name = "github.com/coreos/go-iptables"
@@ -41,14 +45,6 @@
   name = "github.com/onsi/ginkgo"
   version = "v1.6.0"
 
-[[constraint]]
-  name = "github.com/onsi/gomega"
-  version = "v1.4.2"
-
-[[constraint]]
-  name = "github.com/kelseyhightower/envconfig"
-  version = "1.3.0"
-
 [[override]]
   name = "k8s.io/apimachinery"
   branch = "release-1.10" # correct branch
@@ -64,3 +60,8 @@
 [prune]
   go-tests = true
   unused-packages = true
+
+ # Apply workaround from https://github.com/golang/dep/issues/1799
+[[constraint]]
+  name = "gopkg.in/fsnotify.v1"
+  source = "https://github.com/fsnotify/fsnotify.git"

@@ -2,11 +2,11 @@ package pod
 
 import (
 	"encoding/json"
-	"log"
 	"os/exec"
 	"strings"
 
 	"github.com/Azure/aad-pod-identity/test/e2e/util"
+	"github.com/pkg/errors"
 )
 
 // List is a container that holds all deployment returned from 'kubectl get pods'
@@ -29,12 +29,14 @@ func GetNameByPrefix(prefix string) (string, error) {
 	cmd := exec.Command("kubectl", "get", "pods", "-ojson")
 	util.PrintCommand(cmd)
 	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get pods from the Kubernetes cluster")
+	}
 
 	nl := List{}
 	err = json.Unmarshal(out, &nl)
 	if err != nil {
-		log.Printf("Error unmarshalling nodes json:%s", err)
-		return "", err
+		return "", errors.Wrap(err, "Failed to unmarshall node json")
 	}
 
 	for _, pod := range nl.Pods {
