@@ -47,7 +47,7 @@ func GetAll() (*List, error) {
 	return &nl, nil
 }
 
-// WaitOnDeletion
+// WaitOnDeletion will block until the Azure Assigned Identity is deleted
 func WaitOnDeletion() (bool, error) {
 	successChannel, errorChannel := make(chan bool, 1), make(chan error)
 	duration := 60 * time.Second
