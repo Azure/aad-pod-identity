@@ -3,6 +3,7 @@ package deploy
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"log"
 	"os"
@@ -78,7 +79,7 @@ func Create(subscriptionID, resourceGroup, name, identityBinding, templateOutput
 
 // Delete will delete a deployment on a Kubernetes cluster
 func Delete(name, templateOutputPath string) error {
-	cmd := exec.Command("kubectl", "delete", "-f", path.Join(templateOutputPath, name+"-deployment.yaml"), "--ignore-not-found")
+	cmd := exec.Command("kubectl", "delete", "-f", path.Join(templateOutputPath, name+"-deployment.yaml"), "--now", "--ignore-not-found")
 	util.PrintCommand(cmd)
 	_, err := cmd.CombinedOutput()
 	return err
@@ -124,12 +125,12 @@ func WaitOnReady(name string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 
+	fmt.Println("# Tight-poll to check if the deployment is ready...")
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
-				errorChannel <- errors.Errorf("Timeout exceeded (%s) while waiting for deployment (%s) to be availabe", duration.String(), name)
-				return
+				errorChannel <- errors.Errorf("Timeout exceeded (%s) while waiting for deployment (%s) to be available", duration.String(), name)
 			default:
 				match, err := isAvailableReplicasMatchDesired(name)
 				if err != nil {

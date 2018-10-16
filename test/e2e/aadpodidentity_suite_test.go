@@ -1,6 +1,7 @@
 package aadpodidentity
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path"
@@ -24,6 +25,8 @@ func TestAADPodIdentity(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
+	fmt.Println("Setting up the test suite environment...")
+
 	// Create a folder '_output' in template/ for storing temporary deployment files
 	err := os.Mkdir(templateOutputPath, os.ModePerm)
 	Expect(err).NotTo(HaveOccurred())
@@ -40,6 +43,8 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	fmt.Println("Tearing down the test suite environment...")
+
 	// Uninstall CRDs and delete MIC and NMI
 	cmd := exec.Command("kubectl", "delete", "-f", "../../deploy/infra/deployment-rbac.yaml", "--ignore-not-found")
 	util.PrintCommand(cmd)

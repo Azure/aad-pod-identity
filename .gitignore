@@ -33,6 +33,7 @@ bld/
 /.corext
 /.gen*
 /vendor
+/test/e2e/template/_output
 junit.xml
 junit_*.xml
 
