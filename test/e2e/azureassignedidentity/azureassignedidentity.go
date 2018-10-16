@@ -1,11 +1,15 @@
 package azureassignedidentity
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os/exec"
+	"time"
 
 	"github.com/Azure/aad-pod-identity/test/e2e/util"
+	"github.com/pkg/errors"
 )
 
 // AzureAssignedIdentity is used to parse data from 'kubectl get AzureAssignedIdentity'
@@ -41,4 +45,40 @@ func GetAll() (*List, error) {
 	}
 
 	return &nl, nil
+}
+
+// WaitOnDeletion
+func WaitOnDeletion() (bool, error) {
+	successChannel, errorChannel := make(chan bool, 1), make(chan error)
+	duration := 60 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), duration)
+	defer cancel()
+
+	fmt.Println("# Tight-poll to check if the Azure Assigned Identity is deleted...")
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				errorChannel <- errors.Errorf("Timeout exceeded (%s) while waiting for AzureAssignedIdentity deletion to complete", duration.String())
+			default:
+				list, err := GetAll()
+				if err != nil {
+					errorChannel <- err
+				}
+				if len(list.AzureAssignedIdentities) == 0 {
+					successChannel <- true
+				}
+				time.Sleep(10 * time.Second)
+			}
+		}
+	}()
+
+	for {
+		select {
+		case err := <-errorChannel:
+			return false, err
+		case success := <-successChannel:
+			return success, nil
+		}
+	}
 }

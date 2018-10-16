@@ -8,5 +8,5 @@ import (
 
 // PrintCommand prints a command string
 func PrintCommand(cmd *exec.Cmd) {
-	fmt.Printf("\n$ %s\n", strings.Join(cmd.Args, " "))
+	fmt.Printf("$ %s\n", strings.Join(cmd.Args, " "))
 }

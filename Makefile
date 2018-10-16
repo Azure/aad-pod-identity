@@ -29,6 +29,7 @@ else
 endif
 
 GO_BUILD_OPTIONS := -buildmode=${GO_BUILD_MODE} -ldflags "-s -X $(VERSION_VAR)=$(NMI_VERSION) -X $(GIT_VAR)=$(GIT_HASH) -X $(BUILD_DATE_VAR)=$(BUILD_DATE)"
+E2E_TEST_OPTIONS := -count=1 -v
 
 # useful for other docker repos
 REGISTRY ?= nikhilbh
@@ -100,5 +101,11 @@ push-identity-validator:
 	docker push $(IDENTITY_VALIDATOR_BINARY_NAME):$(IDENTITY_VALIDATOR_VERSION)
 
 push:push-nmi push-mic push-demo push-identity-validator
+
+e2e:
+	go test github.com/Azure/$(PROJECT_NAME)/test/e2e $(E2E_TEST_OPTIONS)
+
+unit-test:
+	go test $(shell go list ./... | grep -v /test/e2e) -v
 
 .PHONY: build

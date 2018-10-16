@@ -57,7 +57,7 @@ func main() {
 
 	// Test 3
 	t2, err := testMSIEndpointFromUserAssignedID(logger, msiEndpoint, *clientID, *resource)
-	if t2 == nil {
+	if err != nil || t2 == nil {
 		logger.Fatalf("testMSIEndpointFromUserAssignedID failed, %+v", err)
 	}
 
@@ -128,7 +128,7 @@ func testMSIEndpointFromUserAssignedID(logger *log.Entry, msiEndpoint, userAssig
 	return &token, err
 }
 
-// simulates health probe of non MSI instance metadata requests
+// Simulates health probe of non MSI instance metadata requests
 // e.g. curl -H Metadata:true "http://169.254.169.254/metadata/instance?api-version=2017-08-01" --header "X-Forwarded-For: 192.168.0.2"
 func testInstanceMetadataRequests(logger *log.Entry) error {
 	client := &http.Client{
