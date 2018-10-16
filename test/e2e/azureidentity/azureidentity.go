@@ -31,20 +31,18 @@ type List struct {
 	AzureIdentities []AzureIdentity `json:"items"`
 }
 
-// CreateOnAzure will create an user-assigned identity on Azure, assign 'Reader' role
+// CreateOnAzure will create a user-assigned identity on Azure, assign 'Reader' role
 // to the identity and assign 'Managed Identity Operator' role to service principal
 func CreateOnAzure(subscriptionID, resourceGroup, azureClientID, name string) error {
 	cmd := exec.Command("az", "identity", "create", "-g", resourceGroup, "-n", name)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("Error while creating an identity on Azure:%s\n", err)
-		return err
+		return errors.Wrap(err, "Failed to create a user-assigned identity on Azure")
 	}
 
 	// Assigning 'Reader' role to the identity
-	ok, err := WaitOnReaderRoleAssignment(resourceGroup, name)
-	if !ok && err != nil {
-		log.Printf("Error while assigning 'Reader' role to identity on Azure:%s\n", err)
+	_, err = WaitOnReaderRoleAssignment(resourceGroup, name)
+	if err != nil {
 		return err
 	}
 
@@ -52,8 +50,7 @@ func CreateOnAzure(subscriptionID, resourceGroup, azureClientID, name string) er
 	cmd = exec.Command("az", "role", "assignment", "create", "--role", "Managed Identity Operator", "--assignee", azureClientID, "--scope", "/subscriptions/"+subscriptionID+"/resourcegroups/"+resourceGroup+"/providers/Microsoft.ManagedIdentity/userAssignedIdentities/"+name)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("Error while assigning 'Managed Identity Operator' role to service principal on Azure:%s\n", err)
-		return err
+		return errors.Wrap(err, "Failed to assign 'Managed Identity Operator' role to service principal on Azure")
 	}
 
 	return nil
@@ -64,7 +61,7 @@ func DeleteOnAzure(resourceGroup, name string) error {
 	cmd := exec.Command("az", "identity", "delete", "-g", resourceGroup, "-n", name)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("Error while deleting AzureIdentity from Azure:%s", err)
+		return errors.Wrap(err, "Failed to delete the Azure identity from Azure")
 	}
 
 	return nil
@@ -74,19 +71,18 @@ func DeleteOnAzure(resourceGroup, name string) error {
 func CreateOnCluster(subscriptionID, resourceGroup, name, templateOutputPath string) error {
 	clientID, err := GetClientID(resourceGroup, name)
 	if err != nil {
-		log.Printf("Error while getting clientID from on Azure:%s\n", err)
 		return err
 	}
 
 	t, err := template.New("aadpodidentity.yaml").ParseFiles(path.Join("template", "aadpodidentity.yaml"))
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to parse aadpodidentity.yaml")
 	}
 
 	deployFilePath := path.Join(templateOutputPath, name+".yaml")
 	deployFile, err := os.Create(deployFilePath)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to create a deployment file from aadpodidentity.yaml")
 	}
 	defer deployFile.Close()
 
@@ -102,15 +98,14 @@ func CreateOnCluster(subscriptionID, resourceGroup, name, templateOutputPath str
 		name,
 	}
 	if err := t.Execute(deployFile, deployData); err != nil {
-		return err
+		return errors.Wrap(err, "Failed to create a deployment file from aadpodidentity.yaml")
 	}
 
 	cmd := exec.Command("kubectl", "apply", "-f", deployFilePath)
 	util.PrintCommand(cmd)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("Error while deploying AzureIdentity to k8s cluster:%s", err)
-		return err
+		return errors.Wrap(err, "Failed to deploy AzureIdentity to the Kubernetes cluster")
 	}
 
 	return nil
@@ -122,8 +117,7 @@ func DeleteOnCluster(name, templateOutputPath string) error {
 	util.PrintCommand(cmd)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("Error while deleting AzureIdentity from k8s cluster:%s", err)
-		return err
+		return errors.Wrap(err, "Failed to delete AzureIdentity from the Kubernetes cluster")
 	}
 
 	return nil
@@ -134,8 +128,7 @@ func GetClientID(resourceGroup, name string) (string, error) {
 	cmd := exec.Command("az", "identity", "show", "-g", resourceGroup, "-n", name, "--query", "clientId", "-otsv")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("Error while getting the clientID from identity:%s", err)
-		return "", err
+		return "", errors.Wrap(err, "Failed to get the clientID from the identity in Azure")
 	}
 
 	return strings.TrimSpace(string(out)), nil
@@ -146,8 +139,7 @@ func GetPrincipalID(resourceGroup, name string) (string, error) {
 	cmd := exec.Command("az", "identity", "show", "-g", resourceGroup, "-n", name, "--query", "principalId", "-otsv")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("Error while getting the principalID from identity:%s", err)
-		return "", err
+		return "", errors.Wrap(err, "Failed to get the principalID from the identity in Azure")
 	}
 
 	return strings.TrimSpace(string(out)), nil
@@ -159,15 +151,13 @@ func GetAll() (*List, error) {
 	util.PrintCommand(cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("Error while trying to run 'kubectl get AzureIdentity':%s", err)
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to get AzureIdentity from the Kubernetes cluster")
 	}
 
 	nl := List{}
 	err = json.Unmarshal(out, &nl)
 	if err != nil {
-		log.Printf("Error unmarshalling nodes json:%s", err)
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to unmarshall node json")
 	}
 
 	return &nl, nil

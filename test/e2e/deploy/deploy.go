@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -46,13 +45,13 @@ type Status struct {
 func Create(subscriptionID, resourceGroup, name, identityBinding, templateOutputPath string) error {
 	t, err := template.New("deployment.yaml").ParseFiles(path.Join("template", "deployment.yaml"))
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to parse deployment.yaml")
 	}
 
 	deployFilePath := path.Join(templateOutputPath, name+"-deployment.yaml")
 	deployFile, err := os.Create(deployFilePath)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to create a deployment file from deployment.yaml")
 	}
 	defer deployFile.Close()
 
@@ -64,14 +63,14 @@ func Create(subscriptionID, resourceGroup, name, identityBinding, templateOutput
 		identityBinding,
 	}
 	if err := t.Execute(deployFile, deployData); err != nil {
-		return err
+		return errors.Wrap(err, "Failed to create a deployment file from deployment.yaml")
 	}
 
 	cmd := exec.Command("kubectl", "apply", "-f", deployFilePath)
 	util.PrintCommand(cmd)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Failed to deploy AzureIdentityBinding to the Kubernetes cluster")
 	}
 
 	return nil
@@ -82,7 +81,11 @@ func Delete(name, templateOutputPath string) error {
 	cmd := exec.Command("kubectl", "delete", "-f", path.Join(templateOutputPath, name+"-deployment.yaml"), "--now", "--ignore-not-found")
 	util.PrintCommand(cmd)
 	_, err := cmd.CombinedOutput()
-	return err
+	if err != nil {
+		return errors.Wrap(err, "Failed to delete AzureIdentityBinding from the Kubernetes cluster")
+	}
+
+	return nil
 }
 
 // GetAll will return a list of deployment on a Kubernetes cluster
@@ -90,12 +93,14 @@ func GetAll() (*List, error) {
 	cmd := exec.Command("kubectl", "get", "deploy", "-ojson")
 	util.PrintCommand(cmd)
 	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get deployment from the Kubernetes cluster")
+	}
 
 	nl := List{}
 	err = json.Unmarshal(out, &nl)
 	if err != nil {
-		log.Printf("Error unmarshalling nodes json:%s", err)
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to unmarshall node json")
 	}
 
 	return &nl, nil
