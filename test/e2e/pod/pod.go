@@ -33,13 +33,13 @@ func GetNameByPrefix(prefix string) (string, error) {
 		return "", errors.Wrap(err, "Failed to get pods from the Kubernetes cluster")
 	}
 
-	nl := List{}
-	err = json.Unmarshal(out, &nl)
+	list := List{}
+	err = json.Unmarshal(out, &list)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to unmarshall node json")
+		return "", errors.Wrap(err, "Failed to unmarshall json")
 	}
 
-	for _, pod := range nl.Pods {
+	for _, pod := range list.Pods {
 		if strings.HasPrefix(pod.Metadata.Name, prefix) {
 			return pod.Metadata.Name, nil
 		}

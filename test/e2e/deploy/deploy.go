@@ -97,13 +97,13 @@ func GetAll() (*List, error) {
 		return nil, errors.Wrap(err, "Failed to get deployment from the Kubernetes cluster")
 	}
 
-	nl := List{}
-	err = json.Unmarshal(out, &nl)
+	list := List{}
+	err = json.Unmarshal(out, &list)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to unmarshall node json")
+		return nil, errors.Wrap(err, "Failed to unmarshall json")
 	}
 
-	return &nl, nil
+	return &list, nil
 }
 
 // IsAvailableReplicasMatchDesired will return a boolean that indicate whether the number

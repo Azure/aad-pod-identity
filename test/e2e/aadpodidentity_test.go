@@ -90,11 +90,12 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(clientID).NotTo(Equal(""))
 
-		podName, err := pod.GetNameByPrefix("identity-validator")
+		list, err := azureassignedidentity.GetAll()
 		Expect(err).NotTo(HaveOccurred())
-		Expect(podName).NotTo(Equal(""))
+		Expect(list.Items).To(HaveLen(1))
+		Expect(list.Items[0].Spec.Pod).NotTo(Equal(""))
 
-		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", clientID, "--resourcegroup", cfg.ResourceGroup)
+		cmd := exec.Command("kubectl", "exec", list.Items[0].Spec.Pod, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", clientID, "--resourcegroup", cfg.ResourceGroup)
 		_, err = cmd.CombinedOutput()
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -105,7 +106,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		list, err := azureidentity.GetAll()
 		Expect(err).NotTo(HaveOccurred())
-		Expect(list.AzureIdentities).To(HaveLen(0))
+		Expect(list.Items).To(HaveLen(0))
 
 		ok, err := azureassignedidentity.WaitOnDeletion()
 		Expect(err).NotTo(HaveOccurred())
@@ -130,7 +131,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		list, err := azureidentitybinding.GetAll()
 		Expect(err).NotTo(HaveOccurred())
-		Expect(list.AzureIdentityBindings).To(HaveLen(0))
+		Expect(list.Items).To(HaveLen(0))
 
 		ok, err := azureassignedidentity.WaitOnDeletion()
 		Expect(err).NotTo(HaveOccurred())

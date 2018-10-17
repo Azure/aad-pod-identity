@@ -11,25 +11,10 @@ import (
 	"strings"
 	"time"
 
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/test/e2e/util"
 	"github.com/pkg/errors"
 )
-
-// AzureIdentity is used to parse data from 'kubectl get AzureIdentity'
-type AzureIdentity struct {
-	Metadata Metadata `json:"metadata"`
-}
-
-// Metadata holds information about AzureIdentity
-type Metadata struct {
-	Name        string            `json:"name"`
-	Annotations map[string]string `json:"annotations"`
-}
-
-// List is a container that holds all AzureIdentities returned from 'kubectl get AzureIdentity'
-type List struct {
-	AzureIdentities []AzureIdentity `json:"items"`
-}
 
 // CreateOnAzure will create a user-assigned identity on Azure, assign 'Reader' role
 // to the identity and assign 'Managed Identity Operator' role to service principal
@@ -146,7 +131,7 @@ func GetPrincipalID(resourceGroup, name string) (string, error) {
 }
 
 // GetAll will return a list of AzureIdentity deployed on a Kubernetes cluster
-func GetAll() (*List, error) {
+func GetAll() (*aadpodid.AzureIdentityList, error) {
 	cmd := exec.Command("kubectl", "get", "AzureIdentity", "-ojson")
 	util.PrintCommand(cmd)
 	out, err := cmd.CombinedOutput()
@@ -154,13 +139,13 @@ func GetAll() (*List, error) {
 		return nil, errors.Wrap(err, "Failed to get AzureIdentity from the Kubernetes cluster")
 	}
 
-	nl := List{}
-	err = json.Unmarshal(out, &nl)
+	list := aadpodid.AzureIdentityList{}
+	err = json.Unmarshal(out, &list)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to unmarshall node json")
+		return nil, errors.Wrap(err, "Failed to unmarshall json")
 	}
 
-	return &nl, nil
+	return &list, nil
 }
 
 // WaitOnReaderRoleAssignment will block until the assignement of 'Reader' role to an identity is executed successfully
