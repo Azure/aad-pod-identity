@@ -7,25 +7,10 @@ import (
 	"os/exec"
 	"path"
 
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/test/e2e/util"
 	"github.com/pkg/errors"
 )
-
-// AzureIdentityBinding is used to parse data from 'kubectl get AzureIdentityBinding'
-type AzureIdentityBinding struct {
-	Metadata Metadata `json:"metadata"`
-}
-
-// Metadata holds information about AzureIdentityBinding
-type Metadata struct {
-	Name        string            `json:"name"`
-	Annotations map[string]string `json:"annotations"`
-}
-
-// List is a container that holds all AzureIdentityBindings returned from 'kubectl get AzureIdentityBinding'
-type List struct {
-	AzureIdentityBindings []AzureIdentityBinding `json:"items"`
-}
 
 // Create will create an Azure Identity Binding on a Kubernetes cluster
 func Create(name, templateOutputPath string) error {
@@ -73,7 +58,7 @@ func Delete(name, templateOutputPath string) error {
 }
 
 // GetAll will return a list of AzureIdentityBinding deployed on a Kubernetes cluster
-func GetAll() (*List, error) {
+func GetAll() (*aadpodid.AzureIdentityBindingList, error) {
 	cmd := exec.Command("kubectl", "get", "AzureIdentityBinding", "-ojson")
 	util.PrintCommand(cmd)
 	out, err := cmd.CombinedOutput()
@@ -81,11 +66,11 @@ func GetAll() (*List, error) {
 		return nil, errors.Wrap(err, "Failed to get AzureIdentityBinding from the Kubernetes cluster")
 	}
 
-	nl := List{}
-	err = json.Unmarshal(out, &nl)
+	list := aadpodid.AzureIdentityBindingList{}
+	err = json.Unmarshal(out, &list)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to unmarshall node json")
+		return nil, errors.Wrap(err, "Failed to unmarshall json")
 	}
 
-	return &nl, nil
+	return &list, nil
 }

@@ -4,47 +4,30 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os/exec"
 	"time"
 
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/test/e2e/util"
 	"github.com/pkg/errors"
 )
 
-// AzureAssignedIdentity is used to parse data from 'kubectl get AzureAssignedIdentity'
-type AzureAssignedIdentity struct {
-	Metadata Metadata `json:"metadata"`
-}
-
-// Metadata holds information about AzureAssignedIdentity
-type Metadata struct {
-	Name string `json:"name"`
-}
-
-// List is a container that holds all AzureAssignedIdentity returned from 'kubectl get AzureAssignedIdentity'
-type List struct {
-	AzureAssignedIdentities []AzureAssignedIdentity `json:"items"`
-}
-
 // GetAll will return a list of AzureAssignedIdentity deployed on a Kubernetes cluster
-func GetAll() (*List, error) {
+func GetAll() (*aadpodid.AzureAssignedIdentityList, error) {
 	cmd := exec.Command("kubectl", "get", "AzureAssignedIdentity", "-ojson")
 	util.PrintCommand(cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("Error trying to run 'kubectl get AzureAssignedIdentity':%s", string(out))
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to get AzureAssignedIdentity from the Kubernetes cluster")
 	}
 
-	nl := List{}
-	err = json.Unmarshal(out, &nl)
+	list := aadpodid.AzureAssignedIdentityList{}
+	err = json.Unmarshal(out, &list)
 	if err != nil {
-		log.Printf("Error unmarshalling nodes json:%s", err)
-		return nil, err
+		return nil, errors.Wrap(err, "Failed to unmarshall json")
 	}
 
-	return &nl, nil
+	return &list, nil
 }
 
 // WaitOnDeletion will block until the Azure Assigned Identity is deleted
@@ -65,7 +48,7 @@ func WaitOnDeletion() (bool, error) {
 				if err != nil {
 					errorChannel <- err
 				}
-				if len(list.AzureAssignedIdentities) == 0 {
+				if len(list.Items) == 0 {
 					successChannel <- true
 				}
 				time.Sleep(10 * time.Second)
