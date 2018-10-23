@@ -95,8 +95,23 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(list.Items).To(HaveLen(1))
 		Expect(list.Items[0].Spec.Pod).NotTo(Equal(""))
+		podName := list.Items[0].Spec.Pod
 
-		cmd := exec.Command("kubectl", "exec", list.Items[0].Spec.Pod, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", clientID, "--resourcegroup", cfg.ResourceGroup)
+		// The Azure Assigned Identity name should be "<pod name>-<namespace>-<identity name>"
+		Expect(list.Items[0].ObjectMeta.Name).To(Equal(fmt.Sprintf("%s-%s-%s", podName, "default", "test-identity")))
+
+		// Assert Azure Identity Binding properties
+		Expect(list.Items[0].Spec.AzureBindingRef.ObjectMeta.Name).To(Equal("test-identity-binding"))
+		Expect(list.Items[0].Spec.AzureBindingRef.ObjectMeta.Namespace).To(Equal("default"))
+		Expect(list.Items[0].Spec.AzureBindingRef.Spec.AzureIdentity).To(Equal("test-identity"))
+		Expect(list.Items[0].Spec.AzureBindingRef.Spec.Selector).To(Equal("test-identity"))
+
+		// Assert Azure Identity properties
+		Expect(list.Items[0].Spec.AzureIdentityRef.ObjectMeta.Name).To(Equal("test-identity"))
+		Expect(list.Items[0].Spec.AzureIdentityRef.ObjectMeta.Namespace).To(Equal("default"))
+		Expect(list.Items[0].Spec.AzureIdentityRef.Spec.ClientID).To(Equal(clientID))
+
+		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", clientID, "--resourcegroup", cfg.ResourceGroup)
 		_, err = cmd.CombinedOutput()
 		Expect(err).NotTo(HaveOccurred())
 	})
