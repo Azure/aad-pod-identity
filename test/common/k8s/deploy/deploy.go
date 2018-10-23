@@ -10,7 +10,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/Azure/aad-pod-identity/test/e2e/util"
+	"github.com/Azure/aad-pod-identity/test/common/util"
 	"github.com/pkg/errors"
 )
 
@@ -41,8 +41,8 @@ type Status struct {
 	AvailableReplicas int `json:"availableReplicas"`
 }
 
-// Create will create a demo deployment on a Kubernetes cluster
-func Create(subscriptionID, resourceGroup, name, identityBinding, templateOutputPath string) error {
+// CreateIdentityValidator will create an identity validator deployment on a Kubernetes cluster
+func CreateIdentityValidator(subscriptionID, resourceGroup, name, identityBinding, templateOutputPath string) error {
 	t, err := template.New("deployment.yaml").ParseFiles(path.Join("template", "deployment.yaml"))
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse deployment.yaml")
@@ -126,7 +126,7 @@ func isAvailableReplicasMatchDesired(name string) (bool, error) {
 // WaitOnReady will block until the number of replicas of a deployment is equal to the specified amount
 func WaitOnReady(name string) (bool, error) {
 	successChannel, errorChannel := make(chan bool, 1), make(chan error)
-	duration := 30 * time.Second
+	duration, sleep := 30*time.Second, 3*time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 
@@ -143,8 +143,10 @@ func WaitOnReady(name string) (bool, error) {
 				}
 				if match {
 					successChannel <- true
+					return
 				}
-				time.Sleep(3 * time.Second)
+				fmt.Printf("# The deployment is not ready yet. Retrying in %s...\n", sleep.String())
+				time.Sleep(sleep)
 			}
 		}
 	}()

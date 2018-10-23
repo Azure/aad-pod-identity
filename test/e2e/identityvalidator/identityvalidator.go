@@ -2,11 +2,8 @@ package main
 
 import (
 	"context"
-	"io/ioutil"
-	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	compute "github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
 
@@ -30,7 +27,7 @@ func main() {
 	podnamespace := os.Getenv("MY_POD_NAME")
 	podip := os.Getenv("MY_POD_IP")
 
-	log.Infof("starting demo pod %s/%s %s", podnamespace, podname, podip)
+	log.Infof("starting identity validator pod %s/%s %s", podnamespace, podname, podip)
 
 	logger := log.WithFields(log.Fields{
 		"podnamespace": podnamespace,
@@ -44,18 +41,18 @@ func main() {
 	}
 	logger.Infof("Successfully obtain msiEndpoint: %s", msiEndpoint)
 
-	// Test 1
+	// Test if an ARM operation can be executed successfully through Managed Service Identity
 	if err := doARMOperations(logger, *subscriptionID, *resourceGroup); err != nil {
 		logger.Fatalf("doARMOperations failed, %+v", err)
 	}
 
-	// Test 2
+	// Test if a service principal token can be obtained when using a system assigned identity
 	t1, err := testMSIEndpoint(logger, msiEndpoint, *resource)
 	if err != nil || t1 == nil {
 		logger.Fatalf("testMSIEndpoint failed, %+v", err)
 	}
 
-	// Test 3
+	// Test if a service principal token can be obtained when using a user assigned identity
 	t2, err := testMSIEndpointFromUserAssignedID(logger, msiEndpoint, *clientID, *resource)
 	if err != nil || t2 == nil {
 		logger.Fatalf("testMSIEndpointFromUserAssignedID failed, %+v", err)
@@ -65,13 +62,9 @@ func main() {
 	if !strings.EqualFold(t1.AccessToken, t2.AccessToken) {
 		logger.Fatalf("msi, emsi test failed %+v %+v", t1, t2)
 	}
-
-	// Test 4
-	if err := testInstanceMetadataRequests(logger); err != nil {
-		logger.Fatalf("testInstanceMetadataRequests failed, %+v", err)
-	}
 }
 
+// doARMOperations will count how many Azure virtual machines are deployed in the resource group
 func doARMOperations(logger *log.Entry, subscriptionID, resourceGroup string) error {
 	authorizer, err := auth.NewAuthorizerFromEnvironment()
 	if err != nil {
@@ -90,63 +83,48 @@ func doARMOperations(logger *log.Entry, subscriptionID, resourceGroup string) er
 	return nil
 }
 
+// testMSIEndpoint will return a service principal token obtained through a system assigned identity
 func testMSIEndpoint(logger *log.Entry, msiEndpoint, resource string) (*adal.Token, error) {
 	spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, resource)
 	if err != nil {
 		logger.Errorf("failed to acquire a token using the MSI VM extension, Error: %+v", err)
 		return nil, err
 	}
+
 	if err := spt.Refresh(); err != nil {
 		logger.Errorf("failed to refresh ServicePrincipalTokenFromMSI using the MSI VM extension, msiEndpoint(%s)", msiEndpoint)
 		return nil, err
 	}
+
 	token := spt.Token()
 	if token.IsZero() {
 		logger.Errorf("zero token found, MSI VM extension, msiEndpoint(%s)", msiEndpoint)
 		return nil, err
 	}
+
 	logger.Infof("succesfully acquired a token using the MSI, msiEndpoint(%s)", msiEndpoint)
 	return &token, nil
 }
 
+// testMSIEndpointFromUserAssignedID will return a service principal token obtained through a user assigned identity
 func testMSIEndpointFromUserAssignedID(logger *log.Entry, msiEndpoint, userAssignedID, resource string) (*adal.Token, error) {
 	spt, err := adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(msiEndpoint, resource, userAssignedID)
 	if err != nil {
 		logger.Errorf("failed NewServicePrincipalTokenFromMSIWithUserAssignedID, clientID: %s Error: %+v", userAssignedID, err)
 		return nil, err
 	}
+
 	if err := spt.Refresh(); err != nil {
 		logger.Errorf("failed to refresh ServicePrincipalToken userAssignedID MSI, msiEndpoint(%s)", msiEndpoint)
 		return nil, err
 	}
+
 	token := spt.Token()
 	if token.IsZero() {
 		logger.Errorf("zero token found, userAssignedID MSI, msiEndpoint(%s) clientID(%s)", msiEndpoint, userAssignedID)
 		return nil, err
 	}
+
 	logger.Infof("succesfully acquired a token, userAssignedID MSI, msiEndpoint(%s) clientID(%s)", msiEndpoint, userAssignedID)
 	return &token, err
-}
-
-// Simulates health probe of non MSI instance metadata requests
-// e.g. curl -H Metadata:true "http://169.254.169.254/metadata/instance?api-version=2017-08-01" --header "X-Forwarded-For: 192.168.0.2"
-func testInstanceMetadataRequests(logger *log.Entry) error {
-	client := &http.Client{
-		Timeout: time.Duration(2) * time.Second,
-	}
-	req, err := http.NewRequest("GET", "http://169.254.169.254/metadata/instance?api-version=2017-08-01", nil)
-	req.Header.Add("Metadata", "true")
-	resp, err := client.Do(req)
-	if err != nil {
-		logger.Errorf("failed, GET on instance metadata")
-		return err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return err
-	}
-	logger.Infof("succesfully made GET on instance metadata, %s", body)
-	return nil
 }

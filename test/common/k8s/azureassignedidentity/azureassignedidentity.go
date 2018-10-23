@@ -8,7 +8,7 @@ import (
 	"time"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
-	"github.com/Azure/aad-pod-identity/test/e2e/util"
+	"github.com/Azure/aad-pod-identity/test/common/util"
 	"github.com/pkg/errors"
 )
 
@@ -33,7 +33,7 @@ func GetAll() (*aadpodid.AzureAssignedIdentityList, error) {
 // WaitOnDeletion will block until the Azure Assigned Identity is deleted
 func WaitOnDeletion() (bool, error) {
 	successChannel, errorChannel := make(chan bool, 1), make(chan error)
-	duration := 60 * time.Second
+	duration, sleep := 60*time.Second, 10*time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 
@@ -50,8 +50,10 @@ func WaitOnDeletion() (bool, error) {
 				}
 				if len(list.Items) == 0 {
 					successChannel <- true
+					return
 				}
-				time.Sleep(10 * time.Second)
+				fmt.Printf("# Azure Assigned Identity is not completely deleted yet. Retrying in %s...\n", sleep.String())
+				time.Sleep(sleep)
 			}
 		}
 	}()
