@@ -6,13 +6,14 @@ import (
 	"os/exec"
 	"path"
 
-	"github.com/Azure/aad-pod-identity/test/e2e/azureassignedidentity"
-	"github.com/Azure/aad-pod-identity/test/e2e/azureidentity"
-	"github.com/Azure/aad-pod-identity/test/e2e/azureidentitybinding"
+	"github.com/Azure/aad-pod-identity/test/common/azure"
+	"github.com/Azure/aad-pod-identity/test/common/k8s/azureassignedidentity"
+	"github.com/Azure/aad-pod-identity/test/common/k8s/azureidentity"
+	"github.com/Azure/aad-pod-identity/test/common/k8s/azureidentitybinding"
+	"github.com/Azure/aad-pod-identity/test/common/k8s/deploy"
+	"github.com/Azure/aad-pod-identity/test/common/k8s/pod"
+	"github.com/Azure/aad-pod-identity/test/common/util"
 	"github.com/Azure/aad-pod-identity/test/e2e/config"
-	"github.com/Azure/aad-pod-identity/test/e2e/deploy"
-	"github.com/Azure/aad-pod-identity/test/e2e/pod"
-	"github.com/Azure/aad-pod-identity/test/e2e/util"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -64,7 +65,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		err = azureidentitybinding.Create("test-identity", templateOutputPath)
 		Expect(err).NotTo(HaveOccurred())
 
-		err = deploy.Create(cfg.SubscriptionID, cfg.ResourceGroup, "identity-validator", "test-identity", templateOutputPath)
+		err = deploy.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, "identity-validator", "test-identity", templateOutputPath)
 		Expect(err).NotTo(HaveOccurred())
 
 		ok, err := deploy.WaitOnReady("identity-validator")
@@ -86,7 +87,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should pass the identity validating test", func() {
-		clientID, err := azureidentity.GetClientID(cfg.ResourceGroup, "test-identity")
+		clientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, "test-identity")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(clientID).NotTo(Equal(""))
 

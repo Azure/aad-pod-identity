@@ -1,8 +1,6 @@
 package config
 
-import (
-	"github.com/kelseyhightower/envconfig"
-)
+import "github.com/kelseyhightower/envconfig"
 
 // Config holds global test configuration translated from environment variables
 type Config struct {

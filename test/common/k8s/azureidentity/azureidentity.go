@@ -3,8 +3,8 @@ package azureidentity
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"html/template"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -12,7 +12,7 @@ import (
 	"time"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
-	"github.com/Azure/aad-pod-identity/test/e2e/util"
+	"github.com/Azure/aad-pod-identity/test/common/util"
 	"github.com/pkg/errors"
 )
 
@@ -158,7 +158,7 @@ func WaitOnReaderRoleAssignment(resourceGroup, name string) (bool, error) {
 	// Need to tight poll the following command because principalID is not
 	// immediately available for role assignment after identity creation
 	readyChannel, errorChannel := make(chan bool, 1), make(chan error)
-	duration := 100 * time.Second
+	duration, sleep := 100*time.Second, 10*time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 
@@ -170,11 +170,12 @@ func WaitOnReaderRoleAssignment(resourceGroup, name string) (bool, error) {
 			default:
 				cmd := exec.Command("az", "role", "assignment", "create", "--role", "Reader", "--assignee-object-id", principalID, "-g", resourceGroup)
 				_, err := cmd.CombinedOutput()
-				log.Printf("Tight poll command result: %s\n", err)
 				if err == nil {
 					readyChannel <- true
+					return
 				}
-				time.Sleep(10 * time.Second)
+				fmt.Printf("# Reader role has not been assigned to the Azure identity. Retrying in %s...\n", sleep.String())
+				time.Sleep(sleep)
 			}
 		}
 	}()

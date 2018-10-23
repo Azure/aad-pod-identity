@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/Azure/aad-pod-identity/test/e2e/util"
+	"github.com/Azure/aad-pod-identity/test/common/util"
 	"github.com/pkg/errors"
 )
 

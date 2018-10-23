@@ -8,7 +8,7 @@ import (
 	"path"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
-	"github.com/Azure/aad-pod-identity/test/e2e/util"
+	"github.com/Azure/aad-pod-identity/test/common/util"
 	"github.com/pkg/errors"
 )
 
