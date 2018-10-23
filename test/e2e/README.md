@@ -1,6 +1,6 @@
 # E2E Testing
 
-End-to-end (e2e) testing is used to automate the flow of
+End-to-end (e2e) testing is used to test whether the flow of the AAD pod identity is behaving as designed from start to finish.
 
 ## Get Started
 
@@ -9,6 +9,8 @@ To run the e2e tests locally, a running k8s created through acs-engine or Azure 
 Execute the following commands to run the e2e tests:
 
 ```bash
+cd $GOPATH/src/github.com/Azure/aad-pod-identity
+
 # Ensure that the local project and the dependencies are in sync
 $ dep ensure
 
