@@ -55,6 +55,7 @@ func CreateIdentityValidator(subscriptionID, resourceGroup, name, identityBindin
 	}
 	defer deployFile.Close()
 
+	// Go template parameters to be translated in test/e2e/template/deployment.yaml
 	deployData := struct {
 		Name            string
 		IdentityBinding string

@@ -71,6 +71,7 @@ func CreateOnCluster(subscriptionID, resourceGroup, name, templateOutputPath str
 	}
 	defer deployFile.Close()
 
+	// Go template parameters to be translated in test/e2e/template/aadpodidentity.yaml
 	deployData := struct {
 		SubscriptionID string
 		ResourceGroup  string
