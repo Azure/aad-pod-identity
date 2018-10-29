@@ -26,6 +26,7 @@ func Create(name, templateOutputPath string) error {
 	}
 	defer deployFile.Close()
 
+	// Go template parameters to be translated in test/e2e/template/aadpodidentitybinding.yaml
 	deployData := struct {
 		Name string
 	}{

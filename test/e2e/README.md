@@ -1,10 +1,10 @@
 # E2E Testing
 
-End-to-end (e2e) testing is used to test whether the flow of the AAD pod identity is behaving as designed from start to finish.
+End-to-end (e2e) testing is used to test whether the modules of AAD pod identity is behaving as designed as a group.
 
 ## Get Started
 
-To run the e2e tests locally, a running k8s created through acs-engine or Azure Kubernetes Service (AKS) is required. If the client ID of the service principal is unknown, for AKS, you can refer to [here](https://github.com/Azure/aad-pod-identity#providing-required-permissions-for-mic). For acs-engine, search for the `servicePrincipalProfile` field in `apimodel.json` under the deployment folder.
+To run the e2e tests in a given Azure subscription, a running Kubernetes cluster created through acs-engine or Azure Kubernetes Service (AKS) is required. To collect the cluster's service principal credential, for AKS, you can refer to [here](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal). For acs-engine, if you have an existing cluster, search for the `servicePrincipalProfile` field in `apimodel.json` under the deployment folder. Otherwise, refer to [here](https://github.com/Azure/acs-engine/blob/master/docs/serviceprincipal.md).
 
 Execute the following commands to run the e2e tests:
 
@@ -16,12 +16,12 @@ $ dep ensure
 
 # Set environment variables before testing
 # The Azure subscription ID
-$ export SUBSCRIPTION_ID='...'
+$ export SUBSCRIPTION_ID=$(az account list --query "[?name=='<Azure subscription name>'].id" -otsv)
 
-# The resource group name
+# The Azure resource group name of the Kubernetes cluster
 $ export RESOURCE_GROUP='...'
 
-# The client ID of the service principal that the Azure k8s cluster is using
+# The client ID of the service principal that the Azure Kubernetes cluster is using
 $ export AZURE_CLIENT_ID='...'
 
 $ make e2e
@@ -29,7 +29,7 @@ $ make e2e
 
 ## Identity Validator
 
-To validate the pod identity functionality, you can deploy the image [`identityvalidator`](../../images/identityvalidator/Dockerfile) as a Kubernetes deployment to the cluster. The binary `identityvalidator` within the pod is essentially the compiled version of [`identityvalidator.go`](identityvalidator/identityvalidator.go). If the binary execution returns an exit status of 0, it means that the pod identity and its binding are working properly. Otherwise, it means that the pod identity is not established. To execute the binary within the pod, execute the following command:
+During the e2e test run , the image [`identityvalidator`](../../images/identityvalidator/Dockerfile) is deployed as a Kubernetes deployment to the cluster to validate the pod identity. The binary `identityvalidator` within the pod is essentially the compiled version of [`identityvalidator.go`](identityvalidator/identityvalidator.go). If the binary execution returns an exit status of 0, it means that the pod identity and its binding are working properly. Otherwise, it means that the pod identity is not established. To execute the binary within the pod, execute the following command:
 ```bash
 # Create an identityvalidator (make sure the go template parameters is replaced by the desired values)
 $ kubectl apply -f test/e2e/template/deployment.yaml
@@ -55,6 +55,14 @@ To ensure consistency across all tests, they generally follow the format below:
 5. Assertions
 6. Clean up the testing environment
 
+## Supported Tests
+
+| Test Description | Expected Result | Category |
+| - | - | - |
+| Add an AzureIdentity and AzureBinding, deploy identity validator with the label marked in binding | New AzureAssignedIdentity is created and the underlying node assigned identity, and identity validator should be able to access Azure resources | Basic |
+| With AzureIdentity, AzureBinding and identity validator deployed, remove the AzureIdentity | AzureAssignedIdentity should get removed and identity validator should not be able to access Azure resources | Basic |
+| With AzureIdentity, AzureBinding and identity validator deployed, remove the AzureIdentityBinding | AzureAssignedIdentity should get removed and identity validator should not be able to access Azure resources | Basic |
+| With AzureIdentity, AzureBinding and identity validator deployed, remove the identity validator deployment | AzureAssignedIdentity should get removed | Basic |
 
 ## Development
 

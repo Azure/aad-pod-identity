@@ -23,9 +23,9 @@ var (
 func main() {
 	pflag.Parse()
 
-	podname := os.Getenv("MY_POD_NAME")
-	podnamespace := os.Getenv("MY_POD_NAME")
-	podip := os.Getenv("MY_POD_IP")
+	podname := os.Getenv("E2E_TEST_POD_NAME")
+	podnamespace := os.Getenv("E2E_TEST_POD_NAMESPACE")
+	podip := os.Getenv("E2E_TEST_POD_IP")
 
 	log.Infof("starting identity validator pod %s/%s %s", podnamespace, podname, podip)
 
