@@ -6,11 +6,13 @@ import (
 	"os/exec"
 	"path"
 
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/test/common/azure"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/azureassignedidentity"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/azureidentity"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/azureidentitybinding"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/deploy"
+	"github.com/Azure/aad-pod-identity/test/common/k8s/node"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/pod"
 	"github.com/Azure/aad-pod-identity/test/common/util"
 	"github.com/Azure/aad-pod-identity/test/e2e/config"
@@ -43,13 +45,15 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	fmt.Println("Tearing down the test suite environment...")
+	fmt.Println("\nTearing down the test suite environment...")
 
 	// Uninstall CRDs and delete MIC and NMI
 	cmd := exec.Command("kubectl", "delete", "-f", "../../deploy/infra/deployment-rbac.yaml", "--ignore-not-found")
 	util.PrintCommand(cmd)
 	_, err := cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred())
+
+	waitForDeployDeletion("identity-validator")
 
 	err = os.RemoveAll(templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
@@ -58,6 +62,9 @@ var _ = AfterSuite(func() {
 var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	BeforeEach(func() {
 		fmt.Println("Setting up the test environment...")
+
+		// Uncordon every node in case of failed test #5
+		node.UncordonAll()
 
 		err := azureidentity.CreateOnCluster(cfg.SubscriptionID, cfg.ResourceGroup, "test-identity", templateOutputPath)
 		Expect(err).NotTo(HaveOccurred())
@@ -74,7 +81,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	AfterEach(func() {
-		fmt.Println("Tearing down the test environment...")
+		fmt.Println("\nTearing down the test environment...")
 
 		cmd := exec.Command("kubectl", "delete", "AzureIdentity,AzureIdentityBinding,AzureAssignedIdentity", "--all")
 		util.PrintCommand(cmd)
@@ -87,31 +94,20 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should pass the identity validating test", func() {
-		clientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, "test-identity")
+		identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, "test-identity")
 		Expect(err).NotTo(HaveOccurred())
-		Expect(clientID).NotTo(Equal(""))
+		Expect(identityClientID).NotTo(Equal(""))
 
 		list, err := azureassignedidentity.GetAll()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(list.Items).To(HaveLen(1))
-		Expect(list.Items[0].Spec.Pod).NotTo(Equal(""))
-		podName := list.Items[0].Spec.Pod
 
-		// The Azure Assigned Identity name should be "<pod name>-<namespace>-<identity name>"
-		Expect(list.Items[0].ObjectMeta.Name).To(Equal(fmt.Sprintf("%s-%s-%s", podName, "default", "test-identity")))
+		podName, err := pod.GetNameByPrefix("identity-validator")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(podName).NotTo(Equal(""))
+		validateAzureAssignedIdentityProperties(list.Items[0], podName, "test-identity", identityClientID)
 
-		// Assert Azure Identity Binding properties
-		Expect(list.Items[0].Spec.AzureBindingRef.ObjectMeta.Name).To(Equal("test-identity-binding"))
-		Expect(list.Items[0].Spec.AzureBindingRef.ObjectMeta.Namespace).To(Equal("default"))
-		Expect(list.Items[0].Spec.AzureBindingRef.Spec.AzureIdentity).To(Equal("test-identity"))
-		Expect(list.Items[0].Spec.AzureBindingRef.Spec.Selector).To(Equal("test-identity"))
-
-		// Assert Azure Identity properties
-		Expect(list.Items[0].Spec.AzureIdentityRef.ObjectMeta.Name).To(Equal("test-identity"))
-		Expect(list.Items[0].Spec.AzureIdentityRef.ObjectMeta.Namespace).To(Equal("default"))
-		Expect(list.Items[0].Spec.AzureIdentityRef.Spec.ClientID).To(Equal(clientID))
-
-		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", clientID, "--resourcegroup", cfg.ResourceGroup)
+		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", identityClientID, "--resourcegroup", cfg.ResourceGroup)
 		_, err = cmd.CombinedOutput()
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -128,15 +124,15 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
-		clientID, err := azureidentity.GetClientID(cfg.ResourceGroup, "test-identity")
+		identityClientID, err := azureidentity.GetClientID(cfg.ResourceGroup, "test-identity")
 		Expect(err).NotTo(HaveOccurred())
-		Expect(clientID).NotTo(Equal(""))
+		Expect(identityClientID).NotTo(Equal(""))
 
 		podName, err := pod.GetNameByPrefix("identity-validator")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(podName).NotTo(Equal(""))
 
-		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", clientID, "--resourcegroup", cfg.ResourceGroup)
+		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", identityClientID, "--resourcegroup", cfg.ResourceGroup)
 		_, err = cmd.CombinedOutput()
 		Expect(err).To(HaveOccurred())
 	})
@@ -153,25 +149,93 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
-		clientID, err := azureidentity.GetClientID(cfg.ResourceGroup, "test-identity")
+		identityClientID, err := azureidentity.GetClientID(cfg.ResourceGroup, "test-identity")
 		Expect(err).NotTo(HaveOccurred())
-		Expect(clientID).NotTo(Equal(""))
+		Expect(identityClientID).NotTo(Equal(""))
 
 		podName, err := pod.GetNameByPrefix("identity-validator")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(podName).NotTo(Equal(""))
 
-		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", clientID, "--resourcegroup", cfg.ResourceGroup)
+		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", identityClientID, "--resourcegroup", cfg.ResourceGroup)
 		_, err = cmd.CombinedOutput()
 		Expect(err).To(HaveOccurred())
 	})
 
 	It("should delete the AzureAssignedIdentity if the deployment is deleted", func() {
-		err := deploy.Delete("identity-validator", templateOutputPath)
-		Expect(err).NotTo(HaveOccurred())
+		waitForDeployDeletion("identity-validator")
 
 		ok, err := azureassignedidentity.WaitOnDeletion()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 	})
+
+	It("should establish a new AzureAssignedIdentity and remove the old one when draining the node containing identity validator", func() {
+		identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, "test-identity")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(identityClientID).NotTo(Equal(""))
+
+		podName, err := pod.GetNameByPrefix("identity-validator")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(podName).NotTo(Equal(""))
+
+		// Get the name of the node to drain
+		nodeName, err := pod.GetNodeName(podName)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(nodeName).NotTo(Equal(""))
+
+		// Drain the node that contains identity validator
+		node.Drain(nodeName)
+
+		list, err := azureassignedidentity.GetAll()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(list.Items).To(HaveLen(1))
+
+		// Get the new pod name
+		podName, err = pod.GetNameByPrefix("identity-validator")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(podName).NotTo(Equal(""))
+
+		// Make sure the AzureAssignedIdentity is updated along with the new pod
+		validateAzureAssignedIdentityProperties(list.Items[0], podName, "test-identity", identityClientID)
+
+		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", identityClientID, "--resourcegroup", cfg.ResourceGroup)
+		_, err = cmd.CombinedOutput()
+		Expect(err).NotTo(HaveOccurred())
+
+		node.Uncordon(nodeName)
+
+		waitForDeployDeletion("identity-validator")
+	})
+
+	It("should remove the correct identity when adding AzureIdentity and AzureIdentityBinding in order and removing them in random order", func() {
+		Expect(1).To(Equal(1))
+	})
 })
+
+// validateAzureAssignedIdentityProperties will make sure a given AzureAssignedIdentity has the correct properties
+func validateAzureAssignedIdentityProperties(azureAssignedIdentity aadpodid.AzureAssignedIdentity, podName, identityName, identityClientID string) {
+	// The Azure Assigned Identity name should be "<pod name>-<namespace>-<identity name>"
+	Expect(azureAssignedIdentity.ObjectMeta.Name).To(Equal(fmt.Sprintf("%s-%s-%s", podName, "default", identityName)))
+
+	// Assert Azure Identity Binding properties
+	Expect(azureAssignedIdentity.Spec.AzureBindingRef.ObjectMeta.Name).To(Equal(fmt.Sprintf("%s-binding", identityName)))
+	Expect(azureAssignedIdentity.Spec.AzureBindingRef.ObjectMeta.Namespace).To(Equal("default"))
+	Expect(azureAssignedIdentity.Spec.AzureBindingRef.Spec.AzureIdentity).To(Equal(identityName))
+	Expect(azureAssignedIdentity.Spec.AzureBindingRef.Spec.Selector).To(Equal(identityName))
+
+	// Assert Azure Identity properties
+	Expect(azureAssignedIdentity.Spec.AzureIdentityRef.ObjectMeta.Name).To(Equal(identityName))
+	Expect(azureAssignedIdentity.Spec.AzureIdentityRef.ObjectMeta.Namespace).To(Equal("default"))
+	Expect(azureAssignedIdentity.Spec.AzureIdentityRef.Spec.ClientID).To(Equal(identityClientID))
+}
+
+// waitForDeployDeletion will block until a give deploy and its pods are completed deleted
+func waitForDeployDeletion(deployName string) {
+	err := deploy.Delete(deployName, templateOutputPath)
+	Expect(err).NotTo(HaveOccurred())
+
+	ok, err := pod.WaitOnDeletion(deployName)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(ok).To(Equal(true))
+}

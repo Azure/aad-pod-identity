@@ -21,9 +21,9 @@ type List struct {
 
 // Deploy is used to parse data from 'kubectl get deploy'
 type Deploy struct {
-	Metadata Metadata `json:"metadata"`
-	Spec     Spec     `json:"spec"`
-	Status   Status   `json:"status"`
+	Metadata `json:"metadata"`
+	Spec     `json:"spec"`
+	Status   `json:"status"`
 }
 
 // Metadata holds information about a deployment
@@ -99,8 +99,7 @@ func GetAll() (*List, error) {
 	}
 
 	list := List{}
-	err = json.Unmarshal(out, &list)
-	if err != nil {
+	if err := json.Unmarshal(out, &list); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshall json")
 	}
 
