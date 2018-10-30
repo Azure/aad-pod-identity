@@ -1,0 +1,42 @@
+# Go
+# Build your Go project.
+# Add steps that test, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/go
+
+pool:
+  vmImage: 'Ubuntu 16.04'
+
+variables:
+  GOBIN:  '$(GOPATH)/bin'
+  GOROOT: '/usr/local/go1.11'
+  GOPATH: '$(system.defaultWorkingDirectory)/gopath'
+  modulePath: '$(GOPATH)/src/github.com/Azure/aad-pod-identity'
+
+steps:
+- script: |
+    mkdir -p '$(GOBIN)'
+    mkdir -p '$(GOPATH)/pkg'
+    mkdir -p '$(modulePath)'
+    shopt -s extglob
+    mv !(gopath) '$(modulePath)'
+    echo '##vso[task.prependpath]$(GOBIN)'
+    echo '##vso[task.prependpath]$(GOROOT)/bin'
+  displayName: 'Set up the Go workspace'
+
+- script: |
+    go version
+    go get -v -t -d ./...
+    if [[ -f Gopkg.toml ]]; then
+        curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+        dep ensure
+    fi
+  workingDirectory: '$(modulePath)'
+  displayName: 'Get dependencies'
+
+- script: make unit-test
+  workingDirectory: '$(modulePath)'
+  displayName: 'Unit Tests'
+
+- script: make e2e
+  workingDirectory: '$(modulePath)'
+  displayName: 'End-to-end Tests'
