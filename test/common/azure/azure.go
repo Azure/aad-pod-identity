@@ -109,3 +109,27 @@ func WaitOnReaderRoleAssignment(resourceGroup, name string) (bool, error) {
 		}
 	}
 }
+
+// StartVM will start a stopped VM
+func StartVM(resourceGroup, vmName string) error {
+	fmt.Printf("# Starting a VM...")
+	cmd := exec.Command("az", "vm", "start", "-g", resourceGroup, "-n", vmName)
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrap(err, "Failed to start the VM")
+	}
+
+	return nil
+}
+
+// StopVM will stop a running VM
+func StopVM(resourceGroup, vmName string) error {
+	fmt.Printf("# Stopping a VM...")
+	cmd := exec.Command("az", "vm", "stop", "-g", resourceGroup, "-n", vmName)
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrap(err, "Failed to stop the VM")
+	}
+
+	return nil
+}
