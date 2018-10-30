@@ -29,8 +29,8 @@ func GetAll() (*aadpodid.AzureAssignedIdentityList, error) {
 	return &list, nil
 }
 
-// WaitOnDeletion will block until the Azure Assigned Identity is deleted
-func WaitOnDeletion() (bool, error) {
+// WaitOnLengthMatched will block until the number of Azure Assigned Identity matches the target
+func WaitOnLengthMatched(target int) (bool, error) {
 	successChannel, errorChannel := make(chan bool, 1), make(chan error)
 	duration, sleep := 60*time.Second, 10*time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
@@ -41,17 +41,17 @@ func WaitOnDeletion() (bool, error) {
 		for {
 			select {
 			case <-ctx.Done():
-				errorChannel <- errors.Errorf("Timeout exceeded (%s) while waiting for AzureAssignedIdentity deletion to complete", duration.String())
+				errorChannel <- errors.Errorf("Timeout exceeded (%s) while waiting for the number of AzureAssignedIdentity to be equal to %d", duration.String(), target)
 			default:
 				list, err := GetAll()
 				if err != nil {
 					errorChannel <- err
 				}
-				if len(list.Items) == 0 {
+				if len(list.Items) == target {
 					successChannel <- true
 					return
 				}
-				fmt.Printf("# Azure Assigned Identity is not completely deleted yet. Retrying in %s...\n", sleep.String())
+				fmt.Printf("# The number of Azure Assigned Identity is not equal to %d yet. Retrying in %s...\n", target, sleep.String())
 				time.Sleep(sleep)
 			}
 		}

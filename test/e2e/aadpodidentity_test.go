@@ -65,19 +65,6 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		// Uncordon every node in case of failed test #5
 		node.UncordonAll()
-
-		err := azureidentity.CreateOnCluster(cfg.SubscriptionID, cfg.ResourceGroup, "test-identity", templateOutputPath)
-		Expect(err).NotTo(HaveOccurred())
-
-		err = azureidentitybinding.Create("test-identity", templateOutputPath)
-		Expect(err).NotTo(HaveOccurred())
-
-		err = deploy.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, "identity-validator", "test-identity", templateOutputPath)
-		Expect(err).NotTo(HaveOccurred())
-
-		ok, err := deploy.WaitOnReady("identity-validator")
-		Expect(err).NotTo(HaveOccurred())
-		Expect(ok).To(Equal(true))
 	})
 
 	AfterEach(func() {
@@ -88,12 +75,14 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		_, err := cmd.CombinedOutput()
 		Expect(err).NotTo(HaveOccurred())
 
-		ok, err := azureassignedidentity.WaitOnDeletion()
+		ok, err := azureassignedidentity.WaitOnLengthMatched(0)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 	})
 
 	It("should pass the identity validating test", func() {
+		setUpIdentityAndDeployment("")
+
 		identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, "test-identity")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(identityClientID).NotTo(Equal(""))
@@ -113,6 +102,8 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should not pass the identity validating test if the AzureIdentity is deleted", func() {
+		setUpIdentityAndDeployment("")
+
 		err := azureidentity.DeleteOnCluster("test-identity", templateOutputPath)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -120,7 +111,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(list.Items).To(HaveLen(0))
 
-		ok, err := azureassignedidentity.WaitOnDeletion()
+		ok, err := azureassignedidentity.WaitOnLengthMatched(0)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -138,6 +129,8 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should not pass the identity validating test if the AzureIdentityBinding is deleted", func() {
+		setUpIdentityAndDeployment("")
+
 		err := azureidentitybinding.Delete("test-identity", templateOutputPath)
 		Expect(err).NotTo(HaveOccurred())
 
@@ -145,7 +138,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(list.Items).To(HaveLen(0))
 
-		ok, err := azureassignedidentity.WaitOnDeletion()
+		ok, err := azureassignedidentity.WaitOnLengthMatched(0)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -163,14 +156,18 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should delete the AzureAssignedIdentity if the deployment is deleted", func() {
+		setUpIdentityAndDeployment("")
+
 		waitForDeployDeletion("identity-validator")
 
-		ok, err := azureassignedidentity.WaitOnDeletion()
+		ok, err := azureassignedidentity.WaitOnLengthMatched(0)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 	})
 
 	It("should establish a new AzureAssignedIdentity and remove the old one when draining the node containing identity validator", func() {
+		setUpIdentityAndDeployment("")
+
 		identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, "test-identity")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(identityClientID).NotTo(Equal(""))
@@ -187,9 +184,12 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		// Drain the node that contains identity validator
 		node.Drain(nodeName)
 
+		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
+		Expect(ok).To(Equal(true))
+		Expect(err).NotTo(HaveOccurred())
+
 		list, err := azureassignedidentity.GetAll()
 		Expect(err).NotTo(HaveOccurred())
-		Expect(list.Items).To(HaveLen(1))
 
 		// Get the new pod name
 		podName, err = pod.GetNameByPrefix("identity-validator")
@@ -208,10 +208,25 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		waitForDeployDeletion("identity-validator")
 	})
 
-	It("should remove the correct identity when adding AzureIdentity and AzureIdentityBinding in order and removing them in random order", func() {
+	It("should remove the correct identities when adding AzureIdentity and AzureIdentityBinding in order and removing them in random order", func() {
 		Expect(1).To(Equal(1))
 	})
 })
+
+func setUpIdentityAndDeployment(suffix string) {
+	err := azureidentity.CreateOnCluster(cfg.SubscriptionID, cfg.ResourceGroup, "test-identity", templateOutputPath)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = azureidentitybinding.Create("test-identity", templateOutputPath)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = deploy.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, "identity-validator", "test-identity", templateOutputPath)
+	Expect(err).NotTo(HaveOccurred())
+
+	ok, err := deploy.WaitOnReady("identity-validator")
+	Expect(err).NotTo(HaveOccurred())
+	Expect(ok).To(Equal(true))
+}
 
 // validateAzureAssignedIdentityProperties will make sure a given AzureAssignedIdentity has the correct properties
 func validateAzureAssignedIdentityProperties(azureAssignedIdentity aadpodid.AzureAssignedIdentity, podName, identityName, identityClientID string) {
