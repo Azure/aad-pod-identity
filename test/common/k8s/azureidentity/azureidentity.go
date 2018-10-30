@@ -141,8 +141,7 @@ func GetAll() (*aadpodid.AzureIdentityList, error) {
 	}
 
 	list := aadpodid.AzureIdentityList{}
-	err = json.Unmarshal(out, &list)
-	if err != nil {
+	if err := json.Unmarshal(out, &list); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshall json")
 	}
 

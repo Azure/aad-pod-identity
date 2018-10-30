@@ -63,6 +63,8 @@ To ensure consistency across all tests, they generally follow the format below:
 | With AzureIdentity, AzureBinding and identity validator deployed, remove the AzureIdentity | AzureAssignedIdentity should get removed and identity validator should not be able to access Azure resources | Basic |
 | With AzureIdentity, AzureBinding and identity validator deployed, remove the AzureIdentityBinding | AzureAssignedIdentity should get removed and identity validator should not be able to access Azure resources | Basic |
 | With AzureIdentity, AzureBinding and identity validator deployed, remove the identity validator deployment | AzureAssignedIdentity should get removed | Basic |
+| Add an AzureIdentity and AzureBinding, deploy identity validator with the label marked in binding, then drain the node containing the identity validator deployment | A new AzureAssignedIdentity should be established with the new pod and the old one should be removed | Advanced |
+| Add a number of AzureIdentities and AzureIdentityBindings in order and remove them in random order | The correct identities and identity binding should be removed and the rest should remain untouched | Random |
 
 ## Development
 
