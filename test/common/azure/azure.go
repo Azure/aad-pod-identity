@@ -36,8 +36,8 @@ func CreateIdentity(subscriptionID, resourceGroup, azureClientID, name string) e
 }
 
 // DeleteIdentity will delete a given user-assigned identity on Azure
-func DeleteIdentity(resourceGroup, name string) error {
-	cmd := exec.Command("az", "identity", "delete", "-g", resourceGroup, "-n", name)
+func DeleteIdentity(resourceGroup, identityName string) error {
+	cmd := exec.Command("az", "identity", "delete", "-g", resourceGroup, "-n", identityName)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete the Azure identity from Azure")
@@ -47,8 +47,8 @@ func DeleteIdentity(resourceGroup, name string) error {
 }
 
 // GetIdentityClientID will return the client id of a user-assigned identity on Azure
-func GetIdentityClientID(resourceGroup, name string) (string, error) {
-	cmd := exec.Command("az", "identity", "show", "-g", resourceGroup, "-n", name, "--query", "clientId", "-otsv")
+func GetIdentityClientID(resourceGroup, identityName string) (string, error) {
+	cmd := exec.Command("az", "identity", "show", "-g", resourceGroup, "-n", identityName, "--query", "clientId", "-otsv")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get the clientID from the identity in Azure")
@@ -58,8 +58,8 @@ func GetIdentityClientID(resourceGroup, name string) (string, error) {
 }
 
 // GetIdentityPrincipalID will return the principal id (objecet id) of a user-assigned identity on Azure
-func GetIdentityPrincipalID(resourceGroup, name string) (string, error) {
-	cmd := exec.Command("az", "identity", "show", "-g", resourceGroup, "-n", name, "--query", "principalId", "-otsv")
+func GetIdentityPrincipalID(resourceGroup, identityName string) (string, error) {
+	cmd := exec.Command("az", "identity", "show", "-g", resourceGroup, "-n", identityName, "--query", "principalId", "-otsv")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get the principalID from the identity in Azure")
@@ -69,8 +69,8 @@ func GetIdentityPrincipalID(resourceGroup, name string) (string, error) {
 }
 
 // WaitOnReaderRoleAssignment will block until the assignement of 'Reader' role to an identity is executed successfully
-func WaitOnReaderRoleAssignment(resourceGroup, name string) (bool, error) {
-	principalID, err := GetIdentityPrincipalID(resourceGroup, name)
+func WaitOnReaderRoleAssignment(resourceGroup, identityName string) (bool, error) {
+	principalID, err := GetIdentityPrincipalID(resourceGroup, identityName)
 	if err != nil {
 		return false, err
 	}
@@ -125,7 +125,8 @@ func StartVM(resourceGroup, vmName string) error {
 // StopVM will stop a running VM
 func StopVM(resourceGroup, vmName string) error {
 	fmt.Printf("# Stopping a VM...")
-	cmd := exec.Command("az", "vm", "stop", "-g", resourceGroup, "-n", vmName)
+	// "az vm stop" does not actually cause the pod to re-schedule in another vm
+	cmd := exec.Command("az", "vm", "deallocate", "-g", resourceGroup, "-n", vmName)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		return errors.Wrap(err, "Failed to stop the VM")

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strings"
 	"time"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
@@ -27,6 +28,22 @@ func GetAll() (*aadpodid.AzureAssignedIdentityList, error) {
 	}
 
 	return &list, nil
+}
+
+// GetByPrefix will return an AzureAssignedIdentity with matched prefix
+func GetByPrefix(prefix string) (aadpodid.AzureAssignedIdentity, error) {
+	list, err := GetAll()
+	if err != nil {
+		return aadpodid.AzureAssignedIdentity{}, err
+	}
+
+	for _, azureAssignedIdentity := range list.Items {
+		if strings.HasPrefix(azureAssignedIdentity.ObjectMeta.Name, prefix) {
+			return azureAssignedIdentity, nil
+		}
+	}
+
+	return aadpodid.AzureAssignedIdentity{}, errors.Errorf("No AzureAssignedIdentity has a name prefix with '%s'", prefix)
 }
 
 // WaitOnLengthMatched will block until the number of Azure Assigned Identity matches the target
