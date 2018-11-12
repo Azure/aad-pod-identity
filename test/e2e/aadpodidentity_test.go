@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"time"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/test/common/azure"
@@ -117,8 +118,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(podName).NotTo(Equal(""))
 
-		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", identityClientID, "--resourcegroup", cfg.ResourceGroup)
-		_, err = cmd.CombinedOutput()
+		_, err = validateUserAssignedIdentityOnPod(podName, identityClientID)
 		Expect(err).To(HaveOccurred())
 	})
 
@@ -140,8 +140,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(podName).NotTo(Equal(""))
 
-		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", identityClientID, "--resourcegroup", cfg.ResourceGroup)
-		_, err = cmd.CombinedOutput()
+		_, err = validateUserAssignedIdentityOnPod(podName, identityClientID)
 		Expect(err).To(HaveOccurred())
 	})
 
@@ -198,6 +197,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 			identityValidatorName := fmt.Sprintf("identity-validator-%d", i)
 
 			setUpIdentityAndDeployment(fmt.Sprintf("%d", i))
+			time.Sleep(5 * time.Second)
 
 			identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, identityName)
 			Expect(err).NotTo(HaveOccurred())
@@ -223,7 +223,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		// Shuffle the test data
 		for i := range testData {
-			j := rand.Intn(i + 1)
+			j := rand.Intn(len(testData))
 			testData[i], testData[j] = testData[j], testData[i]
 		}
 
@@ -233,8 +233,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 			azureassignedidentity.WaitOnLengthMatched(5 - 1 - i)
 
 			// Make sure that the identity validator cannot access to the resource group anymore
-			cmd := exec.Command("kubectl", "exec", data.azureAssignedIdentity.Spec.Pod, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", data.identityClientID, "--resourcegroup", cfg.ResourceGroup)
-			_, err := cmd.CombinedOutput()
+			_, err := validateUserAssignedIdentityOnPod(data.azureAssignedIdentity.Spec.Pod, data.identityClientID)
 			Expect(err).To(HaveOccurred())
 			waitForDeployDeletion(data.identityValidatorName)
 
@@ -323,10 +322,7 @@ func setUpIdentityAndDeployment(suffix string) {
 
 // validateAzureAssignedIdentity will make sure a given AzureAssignedIdentity has the correct properties
 func validateAzureAssignedIdentity(azureAssignedIdentity aadpodid.AzureAssignedIdentity, identityName string) {
-	identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, identityName)
-	Expect(err).NotTo(HaveOccurred())
-	Expect(identityClientID).NotTo(Equal(""))
-
+	identityClientID := azureAssignedIdentity.Spec.AzureIdentityRef.Spec.ClientID
 	podName := azureAssignedIdentity.Spec.Pod
 	Expect(podName).NotTo(Equal(""))
 
@@ -342,10 +338,8 @@ func validateAzureAssignedIdentity(azureAssignedIdentity aadpodid.AzureAssignedI
 	// Assert Azure Identity properties
 	Expect(azureAssignedIdentity.Spec.AzureIdentityRef.ObjectMeta.Name).To(Equal(identityName))
 	Expect(azureAssignedIdentity.Spec.AzureIdentityRef.ObjectMeta.Namespace).To(Equal("default"))
-	Expect(azureAssignedIdentity.Spec.AzureIdentityRef.Spec.ClientID).To(Equal(identityClientID))
 
-	cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", identityClientID, "--resourcegroup", cfg.ResourceGroup)
-	_, err = cmd.CombinedOutput()
+	_, err := validateUserAssignedIdentityOnPod(podName, identityClientID)
 	Expect(err).NotTo(HaveOccurred())
 }
 
@@ -357,4 +351,29 @@ func waitForDeployDeletion(deployName string) {
 	ok, err := pod.WaitOnDeletion(deployName)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ok).To(Equal(true))
+}
+
+// validateUserAssignedIdentityOnPod TODO
+func validateUserAssignedIdentityOnPod(podName, identityClientID string) ([]byte, error) {
+	cmd := exec.Command("kubectl",
+		"exec", podName, "--",
+		"identityvalidator",
+		"--subscription-id", cfg.SubscriptionID,
+		"--resource-group", cfg.ResourceGroup,
+		"--identity-client-id", identityClientID,
+		"--keyvault-name", cfg.KeyvaultName,
+		"--keyvault-secret-name", cfg.KeyvaultSecretName,
+		"--keyvault-secret-version", cfg.KeyvaultSecretVersion)
+	return cmd.CombinedOutput()
+}
+
+// validateClusterWideUserAssignedIdentity TODO
+func validateClusterWideUserAssignedIdentity(podName, identityClientID string) ([]byte, error) {
+	cmd := exec.Command("kubectl",
+		"exec", podName, "--",
+		"identityvalidator",
+		"--subscription-id", cfg.SubscriptionID,
+		"--resource-group", cfg.ResourceGroup,
+		"--identity-client-id", identityClientID)
+	return cmd.CombinedOutput()
 }

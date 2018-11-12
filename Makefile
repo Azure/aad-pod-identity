@@ -102,7 +102,7 @@ push-demo:
 	docker push $(DEMO_IMAGE_NAME):$(DEMO_VERSION)
 
 push-identity-validator:
-	docker push $(IDENTITY_VALIDATOR_BINARY_NAME):$(IDENTITY_VALIDATOR_VERSION)
+	docker push $(IDENTITY_VALIDATOR_IMAGE_NAME):$(IDENTITY_VALIDATOR_VERSION)
 
 push:push-nmi push-mic push-demo push-identity-validator
 

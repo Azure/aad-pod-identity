@@ -2,10 +2,12 @@
 
 
 [[projects]]
-  digest = "1:357dd774b5f3ad3adbef3f3f4082118caed032ab7f683f1e06309125a376e09a"
+  digest = "1:fc3fc6cdcb0461399bfc709c357f0736704cfe85469c0833e928c13bced530bd"
   name = "github.com/Azure/azure-sdk-for-go"
   packages = [
     "services/compute/mgmt/2018-04-01/compute",
+    "services/keyvault/2016-10-01/keyvault",
+    "services/keyvault/auth",
     "version",
   ]
   pruneopts = "UT"
@@ -617,6 +619,8 @@
   analyzer-version = 1
   input-imports = [
     "github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute",
+    "github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault",
+    "github.com/Azure/azure-sdk-for-go/services/keyvault/auth",
     "github.com/Azure/go-autorest/autorest",
     "github.com/Azure/go-autorest/autorest/adal",
     "github.com/Azure/go-autorest/autorest/azure",
