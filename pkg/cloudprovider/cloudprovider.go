@@ -20,11 +20,12 @@ import (
 
 // Client is a cloud provider client
 type Client struct {
-	ResourceGroupName string
-	VMClient          VMClientInt
-	VMSSClient        VMSSClientInt
-	ExtClient         compute.VirtualMachineExtensionsClient
-	Config            config.AzureConfig
+	ResourceGroupName          string
+	VMClient                   VMClientInt
+	VMSSClient                 VMSSClientInt
+	ExtClient                  compute.VirtualMachineExtensionsClient
+	Config                     config.AzureConfig
+	UserAssignedIdentitiesOnVM map[string]map[string]bool
 }
 
 type ClientInt interface {
@@ -86,6 +87,22 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 		glog.Errorf("Create VM Client error: %+v", err)
 		return nil, err
 	}
+
+	// Cache all VM-level user assigned identities
+	userAssignedIdentitiesOnVM := make(map[string]map[string]bool)
+	vmList, err := client.VMClient.List(azureConfig.ResourceGroupName)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, vm := range *vmList.Response().Value {
+		userAssignedIdentitiesOnVM[*vm.Name] = make(map[string]bool)
+		for _, userAssignedMSIID := range *vm.Identity.IdentityIds {
+			userAssignedIdentitiesOnVM[*vm.Name][userAssignedMSIID] = true
+		}
+	}
+	client.UserAssignedIdentitiesOnVM = userAssignedIdentitiesOnVM
+	glog.Infof("Identities assigned on VM level: %+v", userAssignedIdentitiesOnVM)
 
 	return client, nil
 }

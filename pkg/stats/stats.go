@@ -19,6 +19,7 @@ const (
 	IDList               StatsType = "ID listing"
 	AssignedIDList       StatsType = "Assigned ID listing"
 	CloudGet             StatsType = "Cloud provider get"
+	CloudList            StatsType = "Cloud provider list"
 	CloudPut             StatsType = "Cloud provider put"
 	K8sGet               StatsType = "K8s get"
 	K8sPut               StatsType = "K8s put"
@@ -71,6 +72,7 @@ func PrintSync() {
 
 		Print(CloudGet)
 		Print(CloudPut)
+		Print(CloudList)
 		Print(AssignedIDAdd)
 		Print(AssignedIDDel)
 

@@ -20,6 +20,7 @@ type VMClient struct {
 type VMClientInt interface {
 	CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachine) error
 	Get(rgName string, nodeName string) (compute.VirtualMachine, error)
+	List(rgName string) (compute.VirtualMachineListResultPage, error)
 }
 
 func NewVirtualMachinesClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (c *VMClient, e error) {
@@ -68,6 +69,18 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 	}
 	stats.Update(stats.CloudGet, time.Since(beginGetTime))
 	return vm, nil
+}
+
+func (c *VMClient) List(rgName string) (compute.VirtualMachineListResultPage, error) {
+	ctx := context.Background()
+	beginGetTime := time.Now()
+	vmList, err := c.client.List(ctx, rgName)
+	if err != nil {
+		glog.Error(err)
+		return vmList, err
+	}
+	stats.Update(stats.CloudList, time.Since(beginGetTime))
+	return vmList, nil
 }
 
 type vmIdentityHolder struct {

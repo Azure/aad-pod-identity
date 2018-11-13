@@ -44,6 +44,7 @@ func (c *TestVMClient) CreateOrUpdate(rg string, nodeName string, vm compute.Vir
 	if c.err != nil {
 		return *c.err
 	}
+	vm.Name = &nodeName
 	c.nodeMap[nodeName] = &vm
 	return nil
 }
@@ -189,9 +190,10 @@ func NewTestCloudClient(cfg config.AzureConfig) *TestCloudClient {
 	vmClient := NewTestVMClient()
 	vmssClient := NewTestVMSSClient()
 	cloudClient := &cloudprovider.Client{
-		Config:     cfg,
-		VMClient:   vmClient,
-		VMSSClient: vmssClient,
+		Config:                     cfg,
+		VMClient:                   vmClient,
+		VMSSClient:                 vmssClient,
+		UserAssignedIdentitiesOnVM: make(map[string]map[string]bool),
 	}
 
 	return &TestCloudClient{

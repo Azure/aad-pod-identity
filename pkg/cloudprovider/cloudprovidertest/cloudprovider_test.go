@@ -53,3 +53,26 @@ func TestSimple(t *testing.T) {
 		})
 	}
 }
+
+func TestVMLevelIdentity(t *testing.T) {
+	cloudClient := NewTestCloudClient()
+	cloudClient.UserAssignedIdentitiesOnVM["node0"] = make(map[string]bool)
+	cloudClient.UserAssignedIdentitiesOnVM["node0"]["ID0"] = true
+
+	cloudClient.AssignUserMSI("ID0", "node0")
+	if !cloudClient.CompareMSI("node0", []string{"ID0"}) {
+		panic("MSI mismatch")
+	}
+
+	cloudClient.AssignUserMSI("ID1", "node0")
+	if !cloudClient.CompareMSI("node0", []string{"ID0", "ID1"}) {
+		panic("MSI mismatch")
+	}
+
+	cloudClient.RemoveUserMSI("ID0", "node0")
+	cloudClient.RemoveUserMSI("ID1", "node0")
+	// ID0 should not be deleted after deleting pod identity
+	if !cloudClient.CompareMSI("node0", []string{"ID0"}) {
+		panic("MSI mismatch")
+	}
+}
