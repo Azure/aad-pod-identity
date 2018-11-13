@@ -9,10 +9,10 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
-	kvauth "github.com/Azure/azure-sdk-for-go/services/keyvault/auth"
+	"github.com/Azure/azure-sdk-for-go/services/keyvault/auth"
+	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
-	"github.com/Azure/go-autorest/autorest/azure/auth"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
@@ -67,12 +67,13 @@ func main() {
 
 // testClusterWideUserAssignedIdentity will verify whether cluster-wide user assigned identity is working properly
 func testClusterWideUserAssignedIdentity(logger *log.Entry, msiEndpoint, subscriptionID, resourceGroup, identityClientID string) error {
-	vmClient := compute.NewVirtualMachinesClient(subscriptionID)
-	authorizer, err := auth.NewAuthorizerFromEnvironment()
-	if err == nil {
-		vmClient.Authorizer = authorizer
+	token, err := adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(msiEndpoint, azure.PublicCloud.ResourceManagerEndpoint, identityClientID)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to get service principal token from user assigned identity")
 	}
 
+	vmClient := compute.NewVirtualMachinesClient(subscriptionID)
+	vmClient.Authorizer = autorest.NewBearerAuthorizer(token)
 	vmlist, err := vmClient.List(context.Background(), resourceGroup)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to verify cluster-wide user assigned identity")
@@ -85,7 +86,7 @@ func testClusterWideUserAssignedIdentity(logger *log.Entry, msiEndpoint, subscri
 // testUserAssignedIdentityOnPod will verify whether a pod identity is working properly
 func testUserAssignedIdentityOnPod(logger *log.Entry, msiEndpoint, identityClientID, keyvaultName, keyvaultSecretName, keyvaultSecretVersion string) error {
 	keyClient := keyvault.New()
-	authorizer, err := kvauth.NewAuthorizerFromEnvironment()
+	authorizer, err := auth.NewAuthorizerFromEnvironment()
 	if err == nil {
 		keyClient.Authorizer = authorizer
 	}
