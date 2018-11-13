@@ -2,11 +2,9 @@ package aadpodidentity
 
 import (
 	"fmt"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path"
-	"time"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/test/common/azure"
@@ -87,167 +85,167 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(ok).To(Equal(true))
 	})
 
-	It("should pass the identity validating test", func() {
-		setUpIdentityAndDeployment("")
+	// It("should pass the identity validating test", func() {
+	// 	setUpIdentityAndDeployment("")
 
-		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(ok).To(Equal(true))
+	// 	ok, err := azureassignedidentity.WaitOnLengthMatched(1)
+	// 	Expect(err).NotTo(HaveOccurred())
+	// 	Expect(ok).To(Equal(true))
 
-		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix("identity-validator")
-		Expect(err).NotTo(HaveOccurred())
+	// 	azureAssignedIdentity, err := azureassignedidentity.GetByPrefix("identity-validator")
+	// 	Expect(err).NotTo(HaveOccurred())
 
-		validateAzureAssignedIdentity(azureAssignedIdentity, "test-identity")
-	})
+	// 	validateAzureAssignedIdentity(azureAssignedIdentity, "keyvault-identity")
+	// })
 
-	It("should not pass the identity validating test if the AzureIdentity is deleted", func() {
-		setUpIdentityAndDeployment("")
+	// It("should not pass the identity validating test if the AzureIdentity is deleted", func() {
+	// 	setUpIdentityAndDeployment("")
 
-		err := azureidentity.DeleteOnCluster("test-identity", templateOutputPath)
-		Expect(err).NotTo(HaveOccurred())
+	// 	err := azureidentity.DeleteOnCluster("keyvault-identity", templateOutputPath)
+	// 	Expect(err).NotTo(HaveOccurred())
 
-		ok, err := azureassignedidentity.WaitOnLengthMatched(0)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(ok).To(Equal(true))
+	// 	ok, err := azureassignedidentity.WaitOnLengthMatched(0)
+	// 	Expect(err).NotTo(HaveOccurred())
+	// 	Expect(ok).To(Equal(true))
 
-		identityClientID, err := azureidentity.GetClientID(cfg.ResourceGroup, "test-identity")
-		Expect(err).NotTo(HaveOccurred())
-		Expect(identityClientID).NotTo(Equal(""))
+	// 	identityClientID, err := azureidentity.GetClientID(cfg.ResourceGroup, "keyvault-identity")
+	// 	Expect(err).NotTo(HaveOccurred())
+	// 	Expect(identityClientID).NotTo(Equal(""))
 
-		podName, err := pod.GetNameByPrefix("identity-validator")
-		Expect(err).NotTo(HaveOccurred())
-		Expect(podName).NotTo(Equal(""))
+	// 	podName, err := pod.GetNameByPrefix("identity-validator")
+	// 	Expect(err).NotTo(HaveOccurred())
+	// 	Expect(podName).NotTo(Equal(""))
 
-		_, err = validateUserAssignedIdentityOnPod(podName, identityClientID)
-		Expect(err).To(HaveOccurred())
-	})
+	// 	_, err = validateUserAssignedIdentityOnPod(podName, identityClientID)
+	// 	Expect(err).To(HaveOccurred())
+	// })
 
-	It("should not pass the identity validating test if the AzureIdentityBinding is deleted", func() {
-		setUpIdentityAndDeployment("")
+	// It("should not pass the identity validating test if the AzureIdentityBinding is deleted", func() {
+	// 	setUpIdentityAndDeployment("")
 
-		err := azureidentitybinding.Delete("test-identity", templateOutputPath)
-		Expect(err).NotTo(HaveOccurred())
+	// 	err := azureidentitybinding.Delete("keyvault-identity", templateOutputPath)
+	// 	Expect(err).NotTo(HaveOccurred())
 
-		ok, err := azureassignedidentity.WaitOnLengthMatched(0)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(ok).To(Equal(true))
+	// 	ok, err := azureassignedidentity.WaitOnLengthMatched(0)
+	// 	Expect(err).NotTo(HaveOccurred())
+	// 	Expect(ok).To(Equal(true))
 
-		identityClientID, err := azureidentity.GetClientID(cfg.ResourceGroup, "test-identity")
-		Expect(err).NotTo(HaveOccurred())
-		Expect(identityClientID).NotTo(Equal(""))
+	// 	identityClientID, err := azureidentity.GetClientID(cfg.ResourceGroup, "keyvault-identity")
+	// 	Expect(err).NotTo(HaveOccurred())
+	// 	Expect(identityClientID).NotTo(Equal(""))
 
-		podName, err := pod.GetNameByPrefix("identity-validator")
-		Expect(err).NotTo(HaveOccurred())
-		Expect(podName).NotTo(Equal(""))
+	// 	podName, err := pod.GetNameByPrefix("identity-validator")
+	// 	Expect(err).NotTo(HaveOccurred())
+	// 	Expect(podName).NotTo(Equal(""))
 
-		_, err = validateUserAssignedIdentityOnPod(podName, identityClientID)
-		Expect(err).To(HaveOccurred())
-	})
+	// 	_, err = validateUserAssignedIdentityOnPod(podName, identityClientID)
+	// 	Expect(err).To(HaveOccurred())
+	// })
 
-	It("should delete the AzureAssignedIdentity if the deployment is deleted", func() {
-		setUpIdentityAndDeployment("")
+	// It("should delete the AzureAssignedIdentity if the deployment is deleted", func() {
+	// 	setUpIdentityAndDeployment("")
 
-		waitForDeployDeletion("identity-validator")
+	// 	waitForDeployDeletion("identity-validator")
 
-		ok, err := azureassignedidentity.WaitOnLengthMatched(0)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(ok).To(Equal(true))
-	})
+	// 	ok, err := azureassignedidentity.WaitOnLengthMatched(0)
+	// 	Expect(err).NotTo(HaveOccurred())
+	// 	Expect(ok).To(Equal(true))
+	// })
 
-	It("should establish a new AzureAssignedIdentity and remove the old one when draining the node containing identity validator", func() {
-		setUpIdentityAndDeployment("")
+	// It("should establish a new AzureAssignedIdentity and remove the old one when draining the node containing identity validator", func() {
+	// 	setUpIdentityAndDeployment("")
 
-		podName, err := pod.GetNameByPrefix("identity-validator")
-		Expect(err).NotTo(HaveOccurred())
-		Expect(podName).NotTo(Equal(""))
+	// 	podName, err := pod.GetNameByPrefix("identity-validator")
+	// 	Expect(err).NotTo(HaveOccurred())
+	// 	Expect(podName).NotTo(Equal(""))
 
-		// Get the name of the node to drain
-		nodeName, err := pod.GetNodeName(podName)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(nodeName).NotTo(Equal(""))
+	// 	// Get the name of the node to drain
+	// 	nodeName, err := pod.GetNodeName(podName)
+	// 	Expect(err).NotTo(HaveOccurred())
+	// 	Expect(nodeName).NotTo(Equal(""))
 
-		// Drain the node that contains identity validator
-		node.Drain(nodeName)
+	// 	// Drain the node that contains identity validator
+	// 	node.Drain(nodeName)
 
-		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
-		Expect(ok).To(Equal(true))
-		Expect(err).NotTo(HaveOccurred())
+	// 	ok, err := azureassignedidentity.WaitOnLengthMatched(1)
+	// 	Expect(ok).To(Equal(true))
+	// 	Expect(err).NotTo(HaveOccurred())
 
-		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix("identity-validator")
-		Expect(err).NotTo(HaveOccurred())
+	// 	azureAssignedIdentity, err := azureassignedidentity.GetByPrefix("identity-validator")
+	// 	Expect(err).NotTo(HaveOccurred())
 
-		// Make sure the AzureAssignedIdentity is updated along with the new pod
-		validateAzureAssignedIdentity(azureAssignedIdentity, "test-identity")
+	// 	// Make sure the AzureAssignedIdentity is updated along with the new pod
+	// 	validateAzureAssignedIdentity(azureAssignedIdentity, "keyvault-identity")
 
-		node.Uncordon(nodeName)
+	// 	node.Uncordon(nodeName)
 
-		waitForDeployDeletion("identity-validator")
-	})
+	// 	waitForDeployDeletion("identity-validator")
+	// })
 
-	It("should remove the correct identities when adding AzureIdentity and AzureIdentityBinding in order and removing them in random order", func() {
-		testData := make([]struct {
-			identityName          string
-			identityClientID      string
-			identityValidatorName string
-			azureAssignedIdentity aadpodid.AzureAssignedIdentity
-		}, 5)
+	// It("should remove the correct identities when adding AzureIdentity and AzureIdentityBinding in order and removing them in random order", func() {
+	// 	testData := make([]struct {
+	// 		identityName          string
+	// 		identityClientID      string
+	// 		identityValidatorName string
+	// 		azureAssignedIdentity aadpodid.AzureAssignedIdentity
+	// 	}, 5)
 
-		for i := 0; i < 5; i++ {
-			identityName := fmt.Sprintf("test-identity-%d", i)
-			identityValidatorName := fmt.Sprintf("identity-validator-%d", i)
+	// 	for i := 0; i < 5; i++ {
+	// 		identityName := fmt.Sprintf("test-identity-%d", i)
+	// 		identityValidatorName := fmt.Sprintf("identity-validator-%d", i)
 
-			setUpIdentityAndDeployment(fmt.Sprintf("%d", i))
-			time.Sleep(5 * time.Second)
+	// 		setUpIdentityAndDeployment(fmt.Sprintf("%d", i))
+	// 		time.Sleep(5 * time.Second)
 
-			identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, identityName)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(identityClientID).NotTo(Equal(""))
+	// 		identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, identityName)
+	// 		Expect(err).NotTo(HaveOccurred())
+	// 		Expect(identityClientID).NotTo(Equal(""))
 
-			azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidatorName)
-			Expect(err).NotTo(HaveOccurred())
+	// 		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidatorName)
+	// 		Expect(err).NotTo(HaveOccurred())
 
-			validateAzureAssignedIdentity(azureAssignedIdentity, identityName)
+	// 		validateAzureAssignedIdentity(azureAssignedIdentity, identityName)
 
-			testData[i] = struct {
-				identityName          string
-				identityClientID      string
-				identityValidatorName string
-				azureAssignedIdentity aadpodid.AzureAssignedIdentity
-			}{
-				identityName,
-				identityClientID,
-				identityValidatorName,
-				azureAssignedIdentity,
-			}
-		}
+	// 		testData[i] = struct {
+	// 			identityName          string
+	// 			identityClientID      string
+	// 			identityValidatorName string
+	// 			azureAssignedIdentity aadpodid.AzureAssignedIdentity
+	// 		}{
+	// 			identityName,
+	// 			identityClientID,
+	// 			identityValidatorName,
+	// 			azureAssignedIdentity,
+	// 		}
+	// 	}
 
-		// Shuffle the test data
-		for i := range testData {
-			j := rand.Intn(len(testData))
-			testData[i], testData[j] = testData[j], testData[i]
-		}
+	// 	// Shuffle the test data
+	// 	for i := range testData {
+	// 		j := rand.Intn(len(testData))
+	// 		testData[i], testData[j] = testData[j], testData[i]
+	// 	}
 
-		// Delete i-th elements in test data and check if the identities beyond index i are still functioning
-		for i, data := range testData {
-			azureidentity.DeleteOnCluster(data.identityName, templateOutputPath)
-			azureassignedidentity.WaitOnLengthMatched(5 - 1 - i)
+	// 	// Delete i-th elements in test data and check if the identities beyond index i are still functioning
+	// 	for i, data := range testData {
+	// 		azureidentity.DeleteOnCluster(data.identityName, templateOutputPath)
+	// 		azureassignedidentity.WaitOnLengthMatched(5 - 1 - i)
 
-			// Make sure that the identity validator cannot access to the resource group anymore
-			_, err := validateUserAssignedIdentityOnPod(data.azureAssignedIdentity.Spec.Pod, data.identityClientID)
-			Expect(err).To(HaveOccurred())
-			waitForDeployDeletion(data.identityValidatorName)
+	// 		// Make sure that the identity validator cannot access to the resource group anymore
+	// 		_, err := validateUserAssignedIdentityOnPod(data.azureAssignedIdentity.Spec.Pod, data.identityClientID)
+	// 		Expect(err).To(HaveOccurred())
+	// 		waitForDeployDeletion(data.identityValidatorName)
 
-			// Make sure that the existing identities are still functioning
-			for j := i + 1; j < 5; j++ {
-				validateAzureAssignedIdentity(testData[j].azureAssignedIdentity, testData[j].identityName)
-			}
-		}
-	})
+	// 		// Make sure that the existing identities are still functioning
+	// 		for j := i + 1; j < 5; j++ {
+	// 			validateAzureAssignedIdentity(testData[j].azureAssignedIdentity, testData[j].identityName)
+	// 		}
+	// 	}
+	// })
 
 	// It("should re-schedule the identity validator and its identity to a new node after powering down and restarting the node containing them", func() {
 	// 	setUpIdentityAndDeployment("")
 
-	// 	identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, "test-identity")
+	// 	identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, "keyvault-identity")
 	// 	Expect(err).NotTo(HaveOccurred())
 	// 	Expect(identityClientID).NotTo(Equal(""))
 
@@ -278,7 +276,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	// 	// TODO: Get the new azure assigned identity
 	// 	// azureassignedidentity.GetByPrefix(podName)
 	// 	// Make sure the AzureAssignedIdentity is updated along with the new pod after powering down its old node
-	// 	validateAzureAssignedIdentity(list.Items[0], podName, "test-identity", identityClientID)
+	// 	validateAzureAssignedIdentity(list.Items[0], podName, "keyvault-identity", identityClientID)
 
 	// 	// Start the VM again to ensure that the old AzureAssignedIdentity is deleted
 	// 	azure.StartVM(cfg.ResourceGroup, nodeName)
@@ -291,14 +289,78 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	// 	Expect(err).NotTo(HaveOccurred())
 
 	// 	// Final validation to ensure that everything is functioning after restarting the node
-	// 	validateAzureAssignedIdentity(list.Items[0], podName, "test-identity", identityClientID)
+	// 	validateAzureAssignedIdentity(list.Items[0], podName, "keyvault-identity", identityClientID)
 	// })
+
+	It("should not remove the VM identity after AAD pod identity is created and deleted", func() {
+		azureIdentityResource := "/subscriptions/%s/resourceGroups/aad-pod-identity-e2e/providers/Microsoft.ManagedIdentity/userAssignedIdentities/%s"
+		clustIdentityResource := fmt.Sprintf(azureIdentityResource, cfg.SubscriptionID, "cluster-identity")
+		keyvaultIdentityResource := fmt.Sprintf(azureIdentityResource, cfg.SubscriptionID, "keyvault-identity")
+
+		setUpIdentityAndDeployment("")
+
+		podName, err := pod.GetNameByPrefix("identity-validator")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(podName).NotTo(Equal(""))
+
+		// Get the name of the node to assign the identity to
+		nodeName, err := pod.GetNodeName(podName)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(nodeName).NotTo(Equal(""))
+
+		azure.AssignIdentityToVM(cfg.ResourceGroup, nodeName, "cluster-identity")
+
+		userAssignedIdentities, err := azure.GetUserAssignedIdentities(cfg.ResourceGroup, nodeName)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(len(*userAssignedIdentities)).To(Equal(2))
+
+		// Check if both VM identity and pod identity exist in the node
+		_, ok := (*userAssignedIdentities)[clustIdentityResource]
+		Expect(ok).To(Equal(true))
+		_, ok = (*userAssignedIdentities)[keyvaultIdentityResource]
+		Expect(ok).To(Equal(true))
+
+		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix("identity-validator")
+		validateAzureAssignedIdentity(azureAssignedIdentity, "keyvault-identity")
+
+		// Delete pod identity to verify that the VM identity did not get deleted
+		waitForDeployDeletion("identity-validator")
+		cmd := exec.Command("kubectl", "delete", "AzureIdentity,AzureIdentityBinding,AzureAssignedIdentity", "--all")
+		util.PrintCommand(cmd)
+		_, err = cmd.CombinedOutput()
+		Expect(err).NotTo(HaveOccurred())
+
+		ok, err = azureassignedidentity.WaitOnLengthMatched(0)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		userAssignedIdentities, err = azure.GetUserAssignedIdentities(cfg.ResourceGroup, nodeName)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(len(*userAssignedIdentities)).To(Equal(1))
+
+		_, ok = (*userAssignedIdentities)[clustIdentityResource]
+		Expect(ok).To(Equal(true))
+
+		azure.RemoveIdentityFromVM(cfg.ResourceGroup, nodeName, "cluster-identity")
+	})
+
+	It("should ", func() {
+
+	})
+
+	It("should ", func() {
+
+	})
+
+	It("should ", func() {
+
+	})
 })
 
 // setUpIdentityAndDeployment will deploy AzureIdentity, AzureIdentityBinding, and an identity validator
 // Suffix will give the tests the option to add a suffix to the end of the identity name, useful for scale tests
 func setUpIdentityAndDeployment(suffix string) {
-	azureIdentityName := "test-identity"
+	azureIdentityName := "keyvault-identity"
 	identityValidatorName := "identity-validator"
 
 	if suffix != "" {

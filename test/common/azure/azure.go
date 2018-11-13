@@ -2,6 +2,7 @@ package azure
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -9,6 +10,12 @@ import (
 
 	"github.com/pkg/errors"
 )
+
+// Identity TODO
+type Identity struct {
+	ClientID    string `json:"clientId"`
+	PrincipalID string `json:"principalId"`
+}
 
 // CreateIdentity will create a user-assigned identity on Azure, assign 'Reader' role
 // to the identity and assign 'Managed Identity Operator' role to service principal
@@ -112,7 +119,7 @@ func WaitOnReaderRoleAssignment(resourceGroup, identityName string) (bool, error
 
 // StartVM will start a stopped VM
 func StartVM(resourceGroup, vmName string) error {
-	fmt.Printf("# Starting a VM...")
+	fmt.Printf("# Starting a VM...\n")
 	cmd := exec.Command("az", "vm", "start", "-g", resourceGroup, "-n", vmName)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
@@ -124,12 +131,59 @@ func StartVM(resourceGroup, vmName string) error {
 
 // StopVM will stop a running VM
 func StopVM(resourceGroup, vmName string) error {
-	fmt.Printf("# Stopping a VM...")
+	fmt.Printf("# Stopping a VM...\n")
 	// "az vm stop" does not actually cause the pod to re-schedule in another vm
 	cmd := exec.Command("az", "vm", "deallocate", "-g", resourceGroup, "-n", vmName)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		return errors.Wrap(err, "Failed to stop the VM")
+	}
+
+	return nil
+}
+
+// AssignIdentityToVM will assign a user assigned identity to a VM
+func AssignIdentityToVM(resourceGroup, vmName, identityName string) error {
+	fmt.Printf("# Assigning %s to %s...\n", identityName, vmName)
+	// "az vm stop" does not actually cause the pod to re-schedule in another vm
+	cmd := exec.Command("az", "vm", "identity", "assign", "-g", resourceGroup, "-n", vmName, "--identities", identityName)
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrap(err, "Failed to assign identity to VM")
+	}
+
+	return nil
+}
+
+// GetUserAssignedIdentities will return the list of user assigned identity in a given VM
+func GetUserAssignedIdentities(resourceGroup, vmName string) (*map[string]Identity, error) {
+	cmd := exec.Command("az", "vm", "identity", "show", "-g", resourceGroup, "-n", vmName)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to stop the VM")
+	}
+
+	var vmIdentities map[string]*json.RawMessage
+	if err := json.Unmarshal(out, &vmIdentities); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshall json")
+	}
+
+	var userAssignedIdentities map[string]Identity
+	if err := json.Unmarshal(*vmIdentities["userAssignedIdentities"], &userAssignedIdentities); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshall json")
+	}
+
+	return &userAssignedIdentities, nil
+}
+
+// RemoveIdentityFromVM will remove a user assigned identity to a VM
+func RemoveIdentityFromVM(resourceGroup, vmName, identityName string) error {
+	fmt.Printf("# Removing identity '%s' to VM...\n", identityName)
+	// "az vm stop" does not actually cause the pod to re-schedule in another vm
+	cmd := exec.Command("az", "vm", "identity", "remove", "-g", resourceGroup, "-n", vmName, "--identities", identityName)
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrap(err, "Failed to assign identity to VM")
 	}
 
 	return nil

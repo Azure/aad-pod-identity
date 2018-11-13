@@ -4,7 +4,7 @@ End-to-end (e2e) testing is used to test whether the modules of AAD pod identity
 
 ## Get Started
 
-To run the e2e tests in a given Azure subscription, a running Kubernetes cluster created through acs-engine or Azure Kubernetes Service (AKS) is required. To collect the cluster's service principal credential, for AKS, you can refer to [here](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal). For acs-engine, if you have an existing cluster, search for the `servicePrincipalProfile` field in `apimodel.json` under the deployment folder. Otherwise, refer to [here](https://github.com/Azure/acs-engine/blob/master/docs/serviceprincipal.md).
+To run the e2e tests in a given Azure subscription, a running Kubernetes cluster created through acs-engine or Azure Kubernetes Service (AKS) is required. To collect the cluster's service principal credential, for AKS, you can refer to [here](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal). For acs-engine, if you have an existing cluster, search for the `servicePrincipalProfile` field in `apimodel.json` under the deployment folder. Otherwise, refer to [here](https://github.com/Azure/acs-engine/blob/master/docs/serviceprincipal.md). Also, an Azure keyvault is created to simulate the action of accessing Azure resources.
 
 Execute the following commands to run the e2e tests:
 
@@ -24,6 +24,15 @@ $ export RESOURCE_GROUP='...'
 # The client ID of the service principal that the Azure Kubernetes cluster is using
 $ export AZURE_CLIENT_ID='...'
 
+# The name of the keyvault
+$ export KEYVAULT_NAME='...'
+
+# Tee name of the secret inserted into the keyvault
+$ export KEYVAULT_SECRET_NAME='...'
+
+# Tee version of the secret inserted into the keyvault
+$ export KEYVAULT_SECRET_VERSION='...'
+
 $ make e2e
 ```
 
@@ -38,7 +47,12 @@ $ kubectl apply -f test/e2e/template/deployment.yaml
 $ kubectl get pods
 
 # Execute the binary within the pod
-kubectl exec <pod name> -- identityvalidator --subscriptionid $SUBSCRIPTION_ID --resourcegroup $RESOURCE_GROUP --clientid $AZURE_CLIENT_ID
+kubectl exec <pod name> -- identityvalidator --subscription-id $SUBSCRIPTION_ID \
+                                             --resource-group $RESOURCE_GROUP \
+                                             --client-id $AZURE_CLIENT_ID \
+                                             --keyvault-name $KEYVAULT_NAME \
+                                             --keyvault-secret-name $KEYVAULT_SECRET_NAME \
+                                             --keyvault-secret-version $KEYVAULT_SECRET_VERSION
 
 # Check the exit status
 echo "$?"
