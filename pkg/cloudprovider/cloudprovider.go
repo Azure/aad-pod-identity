@@ -148,8 +148,6 @@ func (c *Client) AssignUserMSI(userAssignedMSIID string, nodeName string) error 
 
 	info.AppendUserIdentity(userAssignedMSIID)
 
-	glog.Infof("ID: %s already found in vm identities", userAssignedMSIID)
-
 	timeStarted = time.Now()
 	if err := updateFunc(); err != nil {
 		return err

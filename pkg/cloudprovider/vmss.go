@@ -79,18 +79,18 @@ func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMac
 
 // vmssIdentityHolder implements `IdentityHolder` for vmss resources.
 type vmssIdentityHolder struct {
-	vm *compute.VirtualMachineScaleSet
+	vmss *compute.VirtualMachineScaleSet
 }
 
 func (h *vmssIdentityHolder) IdentityInfo() IdentityInfo {
-	if h.vm.Identity == nil {
+	if h.vmss.Identity == nil {
 		return nil
 	}
-	return &vmssIdentityInfo{h.vm.Identity}
+	return &vmssIdentityInfo{h.vmss.Identity}
 }
 
 func (h *vmssIdentityHolder) ResetIdentity() IdentityInfo {
-	h.vm.Identity = &compute.VirtualMachineScaleSetIdentity{}
+	h.vmss.Identity = &compute.VirtualMachineScaleSetIdentity{}
 	return h.IdentityInfo()
 }
 
