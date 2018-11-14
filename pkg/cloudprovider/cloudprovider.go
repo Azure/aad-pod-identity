@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
+	"unicode"
 
 	config "github.com/Azure/aad-pod-identity/pkg/config"
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
@@ -19,6 +21,7 @@ import (
 type Client struct {
 	ResourceGroupName string
 	VMClient          VMClientInt
+	VMSSClient        VMSSClientInt
 	ExtClient         compute.VirtualMachineExtensionsClient
 	Config            config.AzureConfig
 }
@@ -66,18 +69,28 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 	extClient.Authorizer = autorest.NewBearerAuthorizer(spt)
 	extClient.PollingDelay = 5 * time.Second
 
-	vmClient, err := NewVirtualMachinesClient(azureConfig, spt)
-	if err != nil {
-		glog.Errorf("Create VM Client error: %+v", err)
-		return nil, err
+	client := &Client{
+		ResourceGroupName: azureConfig.ResourceGroupName,
+		Config:            azureConfig,
+		ExtClient:         extClient,
 	}
 
-	return &Client{
-		ResourceGroupName: azureConfig.ResourceGroupName,
-		VMClient:          vmClient,
-		ExtClient:         extClient,
-		Config:            azureConfig,
-	}, nil
+	switch azureConfig.VMType {
+	case "vmss":
+		client.VMSSClient, err = NewVMSSClient(azureConfig, spt)
+		if err != nil {
+			glog.Errorf("Create VM Client error: %+v", err)
+			return nil, err
+		}
+	default:
+		client.VMClient, err = NewVirtualMachinesClient(azureConfig, spt)
+		if err != nil {
+			glog.Errorf("Create VM Client error: %+v", err)
+			return nil, err
+		}
+	}
+
+	return client, nil
 }
 
 func withInspection() autorest.PrepareDecorator {
@@ -92,57 +105,27 @@ func withInspection() autorest.PrepareDecorator {
 
 //RemoveUserMSI - Use the underlying cloud api calls and remove the given user assigned MSI from the vm.
 func (c *Client) RemoveUserMSI(userAssignedMSIID string, nodeName string) error {
-	vm, err := c.VMClient.Get(c.Config.ResourceGroupName, nodeName)
+	idH, updateFunc, err := c.getIdentityResource(nodeName)
 	if err != nil {
 		return err
 	}
 
-	//c.VMClient.Client.RequestInspector = withInspection()
-	//glog.Infof("Got VM info: %+v. Assign %s\n", vm, userAssignedMSIID)
-	var newIds []string
-	if vm.Identity != nil { // In case of null identity, we don't have anything to remove. Error condition.
-		if vm.Identity.Type == compute.ResourceIdentityTypeUserAssigned ||
-			vm.Identity.Type == compute.ResourceIdentityTypeSystemAssignedUserAssigned {
-			index := 0
-			for _, v := range *vm.Identity.IdentityIds {
-				if v == userAssignedMSIID {
-					glog.Infof("Remove user id %s from volatile list", v)
-				} else {
-					newIds = append(newIds, v)
-					index++
-				}
-			}
-			// TODO: Handle more conditions.
-			// If the number went down, then we will update the vm.
-			if index < len(*vm.Identity.IdentityIds) {
-				if index == 0 { // Empty EMSI requires us to reset the type.
-					if vm.Identity.Type == compute.ResourceIdentityTypeSystemAssignedUserAssigned {
-						vm.Identity.Type = compute.ResourceIdentityTypeSystemAssigned
-					} else {
-						vm.Identity.Type = compute.ResourceIdentityTypeNone
-					}
-					vm.Identity.IdentityIds = nil
-				} else {
-					// Regular update on removal. No change required for type since there is atleast one
-					// user assigned MSI in the array.
-					vm.Identity.IdentityIds = &newIds
-				}
-				err := c.VMClient.CreateOrUpdate(c.Config.ResourceGroupName, nodeName, vm)
-				if err != nil {
-					glog.Error(err)
-					return err
-				}
-				return nil
-			}
-		} else {
-			glog.Errorf("User assigned identity not found for node: %s ", nodeName)
-			return fmt.Errorf("User assigned Identity not found for node: %s ", nodeName)
-		}
-	} else {
+	info := idH.IdentityInfo()
+	if info == nil {
 		glog.Errorf("Identity null for vm: %s ", nodeName)
-		return fmt.Errorf("Identity null for vm: %s ", nodeName)
+		return fmt.Errorf("identity null for vm: %s ", nodeName)
 	}
-	return fmt.Errorf("Identity %s not removed from node %s", userAssignedMSIID, nodeName)
+
+	if err := info.RemoveUserIdentity(userAssignedMSIID); err != nil {
+		return fmt.Errorf("could not remove identity from node %s: %v", nodeName, err)
+	}
+
+	if err := updateFunc(); err != nil {
+		glog.Error(err)
+		return err
+	}
+
+	return nil
 }
 
 func (c *Client) AssignUserMSI(userAssignedMSIID string, nodeName string) error {
@@ -151,49 +134,58 @@ func (c *Client) AssignUserMSI(userAssignedMSIID string, nodeName string) error 
 
 	glog.Infof("Find %s in resource group: %s", nodeName, c.Config.ResourceGroupName)
 	timeStarted := time.Now()
-	vm, err := c.VMClient.Get(c.Config.ResourceGroupName, nodeName)
+
+	idH, updateFunc, err := c.getIdentityResource(nodeName)
 	if err != nil {
 		return err
 	}
 	glog.V(6).Infof("Get of %s completed in %s", nodeName, time.Since(timeStarted))
-	found := false
-	if vm.Identity != nil &&
-		(vm.Identity.Type == compute.ResourceIdentityTypeUserAssigned ||
-			vm.Identity.Type == compute.ResourceIdentityTypeSystemAssignedUserAssigned) &&
-		vm.Identity.IdentityIds != nil {
-		// Update the User Assigned Identity
-		for _, id := range *vm.Identity.IdentityIds {
-			if id == userAssignedMSIID {
-				glog.Infof("ID: %s already found in vm identities", userAssignedMSIID)
-				found = true
-				break
-			}
-		}
-		if !found {
-			vmIDs := *vm.Identity.IdentityIds
-			vmIDs = append(vmIDs, userAssignedMSIID)
-			vm.Identity.IdentityIds = &vmIDs
-		}
-	} else { // No ids found yet.
-		//c.VMClient.Client.RequestInspector = withInspection()
-		var idType compute.ResourceIdentityType
-		//glog.Infof("Got VM info: %+v. Assign %s\n", vm, userAssignedMSIID)
-		if vm.Identity != nil && vm.Identity.Type == compute.ResourceIdentityTypeSystemAssigned {
-			idType = compute.ResourceIdentityTypeSystemAssignedUserAssigned
-		} else {
-			idType = compute.ResourceIdentityTypeUserAssigned
-		}
-		vm.Identity = &compute.VirtualMachineIdentity{
-			Type:        idType,
-			IdentityIds: &[]string{userAssignedMSIID},
-		}
+
+	info := idH.IdentityInfo()
+	if info == nil {
+		info = idH.ResetIdentity()
 	}
 
+	info.AppendUserIdentity(userAssignedMSIID)
+
+	glog.Infof("ID: %s already found in vm identities", userAssignedMSIID)
+
 	timeStarted = time.Now()
-	err = c.VMClient.CreateOrUpdate(c.Config.ResourceGroupName, nodeName, vm)
-	if err != nil {
+	if err := updateFunc(); err != nil {
 		return err
 	}
+
 	glog.V(6).Infof("CreateOrUpdate of %s completed in %s", nodeName, time.Since(timeStarted))
 	return nil
+}
+
+func (c *Client) getIdentityResource(name string) (idH IdentityHolder, update func() error, retErr error) {
+	switch c.Config.VMType {
+	case "vmss":
+		// TODO(@cpuguy83): We are getting a *node* name as an argument to this function, but need the vmss name.
+		// For now, assume the name of the node follows <vmssname><nodenumber>, so trimming the node number should give us the vmss name.
+		name = strings.TrimRightFunc(name, func(r rune) bool {
+			return unicode.IsNumber(r)
+		})
+		vmss, err := c.VMSSClient.Get(c.Config.ResourceGroupName, name)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		update = func() error {
+			return c.VMSSClient.CreateOrUpdate(c.Config.ResourceGroupName, name, vmss)
+		}
+		idH = &vmssIdentityHolder{&vmss}
+	default:
+		vm, err := c.VMClient.Get(c.Config.ResourceGroupName, name)
+		if err != nil {
+			return nil, nil, err
+		}
+		update = func() error {
+			return c.VMClient.CreateOrUpdate(c.Config.ResourceGroupName, name, vm)
+		}
+		idH = &vmIdentityHolder{&vm}
+	}
+
+	return idH, update, nil
 }

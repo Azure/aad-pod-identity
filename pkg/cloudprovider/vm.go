@@ -19,7 +19,7 @@ type VMClient struct {
 
 type VMClientInt interface {
 	CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachine) error
-	Get(rgName string, nodeName string) (ret compute.VirtualMachine, err error)
+	Get(rgName string, nodeName string) (compute.VirtualMachine, error)
 }
 
 func NewVirtualMachinesClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (c *VMClient, e error) {
@@ -58,7 +58,7 @@ func (c *VMClient) CreateOrUpdate(rg string, nodeName string, vm compute.Virtual
 	return nil
 }
 
-func (c *VMClient) Get(rgName string, nodeName string) (ret compute.VirtualMachine, err error) {
+func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, error) {
 	ctx := context.Background()
 	beginGetTime := time.Now()
 	vm, err := c.client.Get(ctx, rgName, nodeName, "")
@@ -68,4 +68,42 @@ func (c *VMClient) Get(rgName string, nodeName string) (ret compute.VirtualMachi
 	}
 	stats.Update(stats.CloudGet, time.Since(beginGetTime))
 	return vm, nil
+}
+
+type vmIdentityHolder struct {
+	vm *compute.VirtualMachine
+}
+
+func (h *vmIdentityHolder) IdentityInfo() IdentityInfo {
+	if h.vm.Identity == nil {
+		return nil
+	}
+	return &vmIdentityInfo{h.vm.Identity}
+}
+
+func (h *vmIdentityHolder) ResetIdentity() IdentityInfo {
+	h.vm.Identity = &compute.VirtualMachineIdentity{}
+	return h.IdentityInfo()
+}
+
+type vmIdentityInfo struct {
+	info *compute.VirtualMachineIdentity
+}
+
+func (i *vmIdentityInfo) RemoveUserIdentity(id string) error {
+	if err := filterUserIdentity(&i.info.Type, i.info.IdentityIds, id); err != nil {
+		return err
+	}
+	if i.info.Type == compute.ResourceIdentityTypeNone {
+		i.info.IdentityIds = nil
+	}
+	return nil
+}
+
+func (i *vmIdentityInfo) AppendUserIdentity(id string) {
+	if i.info.IdentityIds == nil {
+		var ids []string
+		i.info.IdentityIds = &ids
+	}
+	appendUserIdentity(&i.info.Type, i.info.IdentityIds, id)
 }
