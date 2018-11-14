@@ -63,18 +63,25 @@ func NewMICClient(cloudconfig string, config *rest.Config) (*Client, error) {
 	clientSet := kubernetes.NewForConfigOrDie(config)
 	informer := informers.NewSharedInformerFactory(clientSet, 30*time.Second)
 
-	cloudClient, err := cloudprovider.NewCloudProvider(cloudconfig)
-	if err != nil {
-		return nil, err
-	}
-	glog.V(1).Infof("Cloud provider initialized")
-
 	eventCh := make(chan aadpodid.EventType, 100)
 	crdClient, err := crd.NewCRDClient(config, eventCh)
 	if err != nil {
 		return nil, err
 	}
 	glog.V(1).Infof("CRD client initialized")
+
+	// In case of an MIC crash, cloud provider needs the list of existing
+	// azure assigned identities to populate the userAssignedIdentitiesOnVM map
+	assignedIDList, err := crdClient.ListAssignedIDs()
+	if err != nil {
+		return nil, err
+	}
+
+	cloudClient, err := cloudprovider.NewCloudProvider(cloudconfig, assignedIDList)
+	if err != nil {
+		return nil, err
+	}
+	glog.V(1).Infof("Cloud provider initialized")
 
 	podClient := pod.NewPodClient(informer, eventCh)
 	glog.V(1).Infof("Pod Client initialized")
@@ -417,7 +424,7 @@ func (c *Client) MakeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpod
 func (c *Client) CreateAssignedIdentityDeps(b *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity,
 	podName string, podNameSpace string, node *corev1.Node) error {
 	name := c.GetAssignedIDName(podName, podNameSpace, id.Name)
-	err := c.CRDClient.CreateAssignedIdentity(name, b, id, podName, podNameSpace, node.Name)
+	err := c.CRDClient.CreateAssignedIdentity(name, b, id, podName, podNameSpace, nodeName, c.CloudClient.IsIDAssignedOnVM(id.Spec.ResourceID, nodeName))
 	if err != nil {
 		glog.Error(err)
 		return err

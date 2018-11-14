@@ -27,7 +27,7 @@ type ClientInt interface {
 	Start(exit <-chan struct{})
 	SyncCache(exit <-chan struct{})
 	RemoveAssignedIdentity(name string) error
-	CreateAssignedIdentity(name string, binding *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity, podName string, podNameSpace string, nodeName string) error
+	CreateAssignedIdentity(name string, binding *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity, podName string, podNameSpace string, nodeName string, assignedOnVM bool) error
 	ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error)
 	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
 	ListIds() (res *[]aadpodid.AzureIdentity, err error)
@@ -170,7 +170,7 @@ func (c *Client) RemoveAssignedIdentity(name string) error {
 	return err
 }
 
-func (c *Client) CreateAssignedIdentity(name string, binding *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity, podName string, podNameSpace string, nodeName string) error {
+func (c *Client) CreateAssignedIdentity(name string, binding *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity, podName string, podNameSpace string, nodeName string, assignedOnVM bool) error {
 	glog.Infof("Got id %s to assign", id.Name)
 	begin := time.Now()
 	// Create a new AzureAssignedIdentity which maps the relationship between
@@ -185,6 +185,7 @@ func (c *Client) CreateAssignedIdentity(name string, binding *aadpodid.AzureIden
 			Pod:              podName,
 			PodNamespace:     podNameSpace,
 			NodeName:         nodeName,
+			AssignedOnVM:     assignedOnVM,
 		},
 		Status: aadpodid.AzureAssignedIdentityStatus{
 			AvailableReplicas: 1,

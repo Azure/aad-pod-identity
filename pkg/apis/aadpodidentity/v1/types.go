@@ -172,6 +172,9 @@ type AzureAssignedIdentitySpec struct {
 	PodNamespace      string                `json:"podnamespace"`
 	NodeName          string                `json:"nodename"`
 
+	// True if the Azure Identity is already assigned on the VM level
+	AssignedOnVM bool `json:"assignedonvm"`
+
 	Replicas *int32 `json:"replicas"`
 }
 

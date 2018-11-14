@@ -54,7 +54,7 @@ func TestSimple(t *testing.T) {
 	}
 }
 
-func TestVMLevelIdentity(t *testing.T) {
+func TestRemoveUserMSIWithVMLevelIdentity(t *testing.T) {
 	cloudClient := NewTestCloudClient()
 	cloudClient.UserAssignedIdentitiesOnVM["node0"] = make(map[string]bool)
 	cloudClient.UserAssignedIdentitiesOnVM["node0"]["ID0"] = true

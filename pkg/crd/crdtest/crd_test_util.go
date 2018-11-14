@@ -40,7 +40,7 @@ func (c *TestCrdClient) RemoveAssignedIdentity(name string) error {
 	return nil
 }
 
-func (c *TestCrdClient) CreateAssignedIdentity(name string, binding *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity, podName string, podNameSpace string, nodeName string) error {
+func (c *TestCrdClient) CreateAssignedIdentity(name string, binding *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity, podName string, podNameSpace string, nodeName string, assignedOnVM bool) error {
 	assignedID := &aadpodid.AzureAssignedIdentity{
 		ObjectMeta: v1.ObjectMeta{
 			Name: name,
@@ -51,6 +51,7 @@ func (c *TestCrdClient) CreateAssignedIdentity(name string, binding *aadpodid.Az
 			NodeName:         nodeName,
 			AzureBindingRef:  binding,
 			AzureIdentityRef: id,
+			AssignedOnVM:     assignedOnVM,
 		},
 	}
 	c.assignedIDMap[name] = assignedID

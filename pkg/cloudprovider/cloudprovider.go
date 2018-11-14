@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"time"
 
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	config "github.com/Azure/aad-pod-identity/pkg/config"
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
 	"github.com/Azure/go-autorest/autorest"
@@ -29,12 +30,13 @@ type Client struct {
 }
 
 type ClientInt interface {
-	RemoveUserMSI(userAssignedMSIID string, node *corev1.Node) error
-	AssignUserMSI(userAssignedMSIID string, node *corev1.Node) error
+	RemoveUserMSI(userAssignedMSIID, nodeName string) error
+	AssignUserMSI(userAssignedMSIID, nodeName string) error
+	IsIDAssignedOnVM(userAssignedMSIID, nodeName string) bool
 }
 
 // NewCloudProvider returns a azure cloud provider client
-func NewCloudProvider(configFile string) (c *Client, e error) {
+func NewCloudProvider(configFile string, assignedIDList *[]aadpodid.AzureAssignedIdentity) (c *Client, e error) {
 	bytes, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		glog.Errorf("Read file (%s) error: %+v", configFile, err)
@@ -96,9 +98,24 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 	}
 
 	for _, vm := range *vmList.Response().Value {
+		if vm.Identity == nil || vm.Identity.IdentityIds == nil {
+			continue
+		}
 		userAssignedIdentitiesOnVM[*vm.Name] = make(map[string]bool)
 		for _, userAssignedMSIID := range *vm.Identity.IdentityIds {
 			userAssignedIdentitiesOnVM[*vm.Name][userAssignedMSIID] = true
+		}
+	}
+
+	// For each existing azure assigned identity, check if it is assigned on the VM level
+	// If not, remove it from the userAssignedIdentitiesOnVM map
+	for _, assignedID := range *assignedIDList {
+		nodeName := assignedID.Spec.NodeName
+		if _, isNodeExist := userAssignedIdentitiesOnVM[nodeName]; isNodeExist {
+			userAssignedMSIID := assignedID.Spec.AzureIdentityRef.Spec.ResourceID
+			if _, isIDAssignedOnNode := userAssignedIdentitiesOnVM[nodeName][userAssignedMSIID]; isIDAssignedOnNode && !assignedID.Spec.AssignedOnVM {
+				delete(userAssignedIdentitiesOnVM[nodeName], userAssignedMSIID)
+			}
 		}
 	}
 	client.UserAssignedIdentitiesOnVM = userAssignedIdentitiesOnVM
@@ -237,4 +254,12 @@ func ParseResourceID(resourceID string) (azure.Resource, error) {
 	}
 
 	return result, nil
+}
+
+func (c *Client) IsIDAssignedOnVM(userAssignedMSIID, nodeName string) bool {
+	isIDAssignedOnVM := false
+	if _, isNodeExist := c.UserAssignedIdentitiesOnVM[nodeName]; isNodeExist {
+		_, isIDAssignedOnVM = c.UserAssignedIdentitiesOnVM[nodeName][userAssignedMSIID]
+	}
+	return isIDAssignedOnVM
 }
