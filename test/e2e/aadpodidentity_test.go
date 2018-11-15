@@ -111,7 +111,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(list.Items[0].Spec.AzureIdentityRef.ObjectMeta.Namespace).To(Equal("default"))
 		Expect(list.Items[0].Spec.AzureIdentityRef.Spec.ClientID).To(Equal(clientID))
 
-		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", clientID, "--resourcegroup", cfg.ResourceGroup)
+		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscription-id", cfg.SubscriptionID, "--identity-client-id", clientID, "--resource-group", cfg.ResourceGroup)
 		_, err = cmd.CombinedOutput()
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -136,7 +136,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(podName).NotTo(Equal(""))
 
-		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", clientID, "--resourcegroup", cfg.ResourceGroup)
+		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscription-id", cfg.SubscriptionID, "--identity-client-id", clientID, "--resource-group", cfg.ResourceGroup)
 		_, err = cmd.CombinedOutput()
 		Expect(err).To(HaveOccurred())
 	})
@@ -161,7 +161,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(podName).NotTo(Equal(""))
 
-		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", clientID, "--resourcegroup", cfg.ResourceGroup)
+		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscription-id", cfg.SubscriptionID, "--identity-client-id", clientID, "--resource-group", cfg.ResourceGroup)
 		_, err = cmd.CombinedOutput()
 		Expect(err).To(HaveOccurred())
 	})
