@@ -20,27 +20,41 @@ type UserAssignedIdentity struct {
 // SystemAssignedIdentity TODO
 type SystemAssignedIdentity struct {
 	PrincipalID string `json:"principalId"`
-	TenantId    string `json:"tenantId"`
+	TenantID    string `json:"tenantId"`
 	Type        string `json:"type"`
 }
 
 // CreateIdentity will create a user-assigned identity on Azure, assign 'Reader' role
 // to the identity and assign 'Managed Identity Operator' role to service principal
-func CreateIdentity(subscriptionID, resourceGroup, azureClientID, name string) error {
-	cmd := exec.Command("az", "identity", "create", "-g", resourceGroup, "-n", name)
+func CreateIdentity(subscriptionID, resourceGroup, azureClientID, identityName, keyvaultName string) error {
+	fmt.Printf("# Creating user assigned identity on Azure: %s\n", identityName)
+	cmd := exec.Command("az", "identity", "create", "-g", resourceGroup, "-n", identityName)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create a user-assigned identity on Azure")
 	}
 
-	// Assigning 'Reader' role to the identity
-	_, err = WaitOnReaderRoleAssignment(resourceGroup, name)
+	// Assigning 'Reader' role on keyvault to the identity
+	_, err = WaitOnReaderRoleAssignment(subscriptionID, resourceGroup, identityName, keyvaultName)
 	if err != nil {
 		return err
 	}
 
+	// Grant identity access to keyvault secret
+	identityClientID, err := GetIdentityClientID(resourceGroup, identityName)
+	if err != nil {
+		return err
+	}
+
+	cmd = exec.Command("az", "keyvault", "set-policy", "-n", keyvaultName, "--secret-permissions", "get", "list", "--spn", identityClientID)
+	_, err = cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrapf(err, "Failed to grant identity %s access to keyvault secret", identityName)
+	}
+
 	// Assign 'Managed Identity Operator' to Service Principal
-	cmd = exec.Command("az", "role", "assignment", "create", "--role", "Managed Identity Operator", "--assignee", azureClientID, "--scope", "/subscriptions/"+subscriptionID+"/resourcegroups/"+resourceGroup+"/providers/Microsoft.ManagedIdentity/userAssignedIdentities/"+name)
+	identityResourceID := fmt.Sprintf("/subscriptions/%s/resourcegroups/%s/providers/Microsoft.ManagedIdentity/userAssignedIdentities/%s", subscriptionID, resourceGroup, identityName)
+	cmd = exec.Command("az", "role", "assignment", "create", "--role", "Managed Identity Operator", "--assignee", azureClientID, "--scope", identityResourceID)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
 		return errors.Wrap(err, "Failed to assign 'Managed Identity Operator' role to service principal on Azure")
@@ -83,11 +97,12 @@ func GetIdentityPrincipalID(resourceGroup, identityName string) (string, error) 
 }
 
 // WaitOnReaderRoleAssignment will block until the assignement of 'Reader' role to an identity is executed successfully
-func WaitOnReaderRoleAssignment(resourceGroup, identityName string) (bool, error) {
+func WaitOnReaderRoleAssignment(subscriptionID, resourceGroup, identityName, keyvaultName string) (bool, error) {
 	principalID, err := GetIdentityPrincipalID(resourceGroup, identityName)
 	if err != nil {
 		return false, err
 	}
+	keyvaultResource := fmt.Sprintf("/subscriptions/%s/resourceGroups/aad-pod-identity-e2e/providers/Microsoft.KeyVault/vaults/%s", subscriptionID, keyvaultName)
 
 	// Need to tight poll the following command because principalID is not
 	// immediately available for role assignment after identity creation
@@ -102,7 +117,7 @@ func WaitOnReaderRoleAssignment(resourceGroup, identityName string) (bool, error
 			case <-ctx.Done():
 				errorChannel <- errors.Errorf("Timeout exceeded (%s) while assigning 'Reader' role to identity on Azure", duration.String())
 			default:
-				cmd := exec.Command("az", "role", "assignment", "create", "--role", "Reader", "--assignee-object-id", principalID, "-g", resourceGroup)
+				cmd := exec.Command("az", "role", "assignment", "create", "--role", "Reader", "--assignee", principalID, "--scope", keyvaultResource)
 				_, err := cmd.CombinedOutput()
 				if err == nil {
 					readyChannel <- true
@@ -247,8 +262,9 @@ func GetSystemAssignedIdentity(resourceGroup, vmName string) (string, string, er
 		return "", "", errors.Wrap(err, "Failed to unmarshall json")
 	}
 
-	if systemAssignedIdentity.Type == "SystemAssigned" {
-		return systemAssignedIdentity.PrincipalID, systemAssignedIdentity.TenantId, nil
+	fmt.Println(string(out))
+	if strings.Contains(systemAssignedIdentity.Type, "SystemAssigned") {
+		return systemAssignedIdentity.PrincipalID, systemAssignedIdentity.TenantID, nil
 	}
 
 	return "", "", nil

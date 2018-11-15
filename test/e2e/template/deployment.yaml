@@ -2,7 +2,7 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    app: {{.Name}}
+    app: identity-validator
     aadpodidbinding: {{.IdentityBinding}}
   name: {{.Name}}
   namespace: default
@@ -10,7 +10,7 @@ spec:
   template:
     metadata:
       labels:
-        app: {{.Name}}
+        app: identity-validator
         aadpodidbinding: {{.IdentityBinding}}
     spec:
       containers:

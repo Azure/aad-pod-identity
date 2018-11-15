@@ -16,42 +16,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// CreateOnAzure will create a user-assigned identity on Azure, assign 'Reader' role
-// to the identity and assign 'Managed Identity Operator' role to service principal
-func CreateOnAzure(subscriptionID, resourceGroup, azureClientID, name string) error {
-	cmd := exec.Command("az", "identity", "create", "-g", resourceGroup, "-n", name)
-	_, err := cmd.CombinedOutput()
-	if err != nil {
-		return errors.Wrap(err, "Failed to create a user-assigned identity on Azure")
-	}
-
-	// Assigning 'Reader' role to the identity
-	_, err = WaitOnReaderRoleAssignment(resourceGroup, name)
-	if err != nil {
-		return err
-	}
-
-	// Assign 'Managed Identity Operator' to Service Principal
-	cmd = exec.Command("az", "role", "assignment", "create", "--role", "Managed Identity Operator", "--assignee", azureClientID, "--scope", "/subscriptions/"+subscriptionID+"/resourcegroups/"+resourceGroup+"/providers/Microsoft.ManagedIdentity/userAssignedIdentities/"+name)
-	_, err = cmd.CombinedOutput()
-	if err != nil {
-		return errors.Wrap(err, "Failed to assign 'Managed Identity Operator' role to service principal on Azure")
-	}
-
-	return nil
-}
-
-// DeleteOnAzure will delete a given user-assigned identity on Azure
-func DeleteOnAzure(resourceGroup, name string) error {
-	cmd := exec.Command("az", "identity", "delete", "-g", resourceGroup, "-n", name)
-	_, err := cmd.CombinedOutput()
-	if err != nil {
-		return errors.Wrap(err, "Failed to delete the Azure identity from Azure")
-	}
-
-	return nil
-}
-
 // CreateOnCluster will create an Azure Identity on a Kubernetes cluster
 func CreateOnCluster(subscriptionID, resourceGroup, name, templateOutputPath string) error {
 	clientID, err := GetClientID(resourceGroup, name)

@@ -40,23 +40,6 @@ func GetAll() (*List, error) {
 	return &list, nil
 }
 
-// UncordonAll will uncordon all nodes in a Kubernetes cluster
-func UncordonAll() error {
-	list, err := GetAll()
-	if err != nil {
-		return err
-	}
-
-	for _, node := range list.Nodes {
-		err := Uncordon(node.Metadata.Name)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 // Uncordon will uncordon a given node
 func Uncordon(nodeName string) error {
 	cmd := exec.Command("kubectl", "uncordon", nodeName)
