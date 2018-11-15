@@ -49,7 +49,7 @@ func GetByPrefix(prefix string) (aadpodid.AzureAssignedIdentity, error) {
 // WaitOnLengthMatched will block until the number of Azure Assigned Identity matches the target
 func WaitOnLengthMatched(target int) (bool, error) {
 	successChannel, errorChannel := make(chan bool, 1), make(chan error)
-	duration, sleep := 60*time.Second, 10*time.Second
+	duration, sleep := 70*time.Second, 10*time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 
