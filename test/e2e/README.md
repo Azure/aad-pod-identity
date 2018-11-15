@@ -6,7 +6,11 @@ End-to-end (e2e) testing is used to test whether the modules of AAD pod identity
 
 To run the e2e tests in a given Azure subscription, a running Kubernetes cluster created through acs-engine or Azure Kubernetes Service (AKS) is required. To collect the cluster's service principal credential, for AKS, you can refer to [here](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal). For acs-engine, if you have an existing cluster, search for the `servicePrincipalProfile` field in `apimodel.json` under the deployment folder. Otherwise, refer to [here](https://github.com/Azure/acs-engine/blob/master/docs/serviceprincipal.md). Also, an Azure keyvault is created to simulate the action of accessing Azure resources.
 
-Execute the following commands to run the e2e tests:
+Currently, e2e tests does not automate the creation of Azure resources such as identities and keyvault (but plan to support it in the future). In order to run the tests without errors, you have to create a keyvault within the same resource group and insert a test secret into the keyvault.
+
+Note that the tests only utilized two identities, `keyvault-identity` (have read access to the keyvault that you create) and `cluster-identity` (have read access to the resource group level). To programmatically create a `keyvault-identity` on Azure, you can use `CreateIdentity` from `test/common/azure/azure.go` before running the tests.
+
+The e2e tests utilizes environment variables to extract sensitive information. Execute the following commands to run the e2e tests:
 
 ```bash
 cd $GOPATH/src/github.com/Azure/aad-pod-identity
@@ -79,6 +83,9 @@ To ensure consistency across all tests, they generally follow the format below:
 | With AzureIdentity, AzureBinding and identity validator deployed, remove the identity validator deployment | AzureAssignedIdentity should get removed | Basic |
 | Add an AzureIdentity and AzureBinding, deploy identity validator with the label marked in binding, then drain the node containing the identity validator deployment | A new AzureAssignedIdentity should be established with the new pod and the old one should be removed | Advanced |
 | Add a number of AzureIdentities and AzureIdentityBindings in order and remove them in random order | The correct identities and identity binding should be removed and the rest should remain untouched | Random |
+| Enable a user assigned identity on VMs, then assign a diferent user assigned identity to pod | Pod identity should work as expected and the user assigned identity on VMs should not be altered after deleting the pod identity | Advanced |
+| Enable a user assigned identity on VMs, then assign the same user assigned identity to pod | Pod identity should work as expected and the user assigned identity on VMs should not be altered after deleting the pod identity | Advanced |
+| Enable system assigned identity on VMs, then assign a user assigned identity to pod | Pod identity should work as expected and the system assigned identity on VMs should not be altered after deleting the pod identity | Advanced |
 
 ## Development
 
