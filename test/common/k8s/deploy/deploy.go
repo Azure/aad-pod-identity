@@ -130,7 +130,7 @@ func WaitOnReady(name string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 
-	fmt.Println("# Tight-poll to check if the deployment is ready...")
+	fmt.Printf("# Tight-poll to check if %s deployment is ready...\n", name)
 	go func() {
 		for {
 			select {
@@ -145,7 +145,7 @@ func WaitOnReady(name string) (bool, error) {
 					successChannel <- true
 					return
 				}
-				fmt.Printf("# The deployment is not ready yet. Retrying in %s...\n", sleep.String())
+				fmt.Printf("# %s deployment is not ready yet. Retrying in %s...\n", name, sleep.String())
 				time.Sleep(sleep)
 			}
 		}

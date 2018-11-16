@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: {{.Name}}
-        image: chewong/identityvalidator:1.0
+        image: chewong/identityvalidator:1.1
         command:
           - sleep
           - "3600"
