@@ -17,11 +17,12 @@ type UserAssignedIdentity struct {
 	PrincipalID string `json:"principalId"`
 }
 
-// SystemAssignedIdentity TODO
-type SystemAssignedIdentity struct {
-	PrincipalID string `json:"principalId"`
-	TenantID    string `json:"tenantId"`
-	Type        string `json:"type"`
+// VMIdentity is used to parse system assigned identity data from 'az vm identity show'
+type VMIdentity struct {
+	PrincipalID            string           `json:"principalId"`
+	TenantID               string           `json:"tenantId"`
+	Type                   string           `json:"type"`
+	UserAssignedIdentities *json.RawMessage `json:"userAssignedIdentities"`
 }
 
 // CreateIdentity will create a user-assigned identity on Azure, assign 'Reader' role
@@ -154,7 +155,6 @@ func StartVM(resourceGroup, vmName string) error {
 // StopVM will stop a running VM
 func StopVM(resourceGroup, vmName string) error {
 	fmt.Printf("# Stopping a VM...\n")
-	// "az vm stop" does not actually cause the pod to re-schedule in another vm
 	cmd := exec.Command("az", "vm", "stop", "-g", resourceGroup, "-n", vmName)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
@@ -179,7 +179,6 @@ func StartKubelet(resourceGroup, vmName string) error {
 // StopKubelet will stop the kubelet on a given VM
 func StopKubelet(resourceGroup, vmName string) error {
 	fmt.Printf("# Stopping kubelet on %s...\n", vmName)
-	// "az vm stop" does not actually cause the pod to re-schedule in another vm
 	cmd := exec.Command("az", "vm", "run-command", "invoke", "-g", resourceGroup, "-n", vmName, "--command-id", "RunShellScript", "--scripts", "sudo systemctl stop kubelet")
 	_, err := cmd.CombinedOutput()
 	if err != nil {
@@ -192,7 +191,6 @@ func StopKubelet(resourceGroup, vmName string) error {
 // EnableUserAssignedIdentityOnVM will enable a user assigned identity to a VM
 func EnableUserAssignedIdentityOnVM(resourceGroup, vmName, identityName string) error {
 	fmt.Printf("# Assigning user assigned identity '%s' to %s...\n", identityName, vmName)
-	// "az vm stop" does not actually cause the pod to re-schedule in another vm
 	cmd := exec.Command("az", "vm", "identity", "assign", "-g", resourceGroup, "-n", vmName, "--identities", identityName)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
@@ -205,7 +203,6 @@ func EnableUserAssignedIdentityOnVM(resourceGroup, vmName, identityName string) 
 // EnableSystemAssignedIdentityOnVM will enable a system assigned identity to a VM
 func EnableSystemAssignedIdentityOnVM(resourceGroup, vmName string) error {
 	fmt.Printf("# Assigning system assigned identity to %s...\n", vmName)
-	// "az vm stop" does not actually cause the pod to re-schedule in another vm
 	cmd := exec.Command("az", "vm", "identity", "assign", "-g", resourceGroup, "-n", vmName)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
@@ -223,13 +220,19 @@ func GetUserAssignedIdentities(resourceGroup, vmName string) (*map[string]UserAs
 		return nil, errors.Wrap(err, "Failed to get user assigned identity from VM")
 	}
 
-	var vmIdentities map[string]*json.RawMessage
-	if err := json.Unmarshal(out, &vmIdentities); err != nil {
+	var vmIdentity VMIdentity
+	var userAssignedIdentities map[string]UserAssignedIdentity
+
+	// Return an empty userAssignedIdentities if out slice is empty
+	if len(out) == 0 {
+		return &userAssignedIdentities, nil
+	} else if err := json.Unmarshal(out, &vmIdentity); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshall json")
 	}
 
-	var userAssignedIdentities map[string]UserAssignedIdentity
-	if err := json.Unmarshal(*vmIdentities["userAssignedIdentities"], &userAssignedIdentities); err != nil {
+	if vmIdentity.Type == "SystemAssigned" {
+		return &userAssignedIdentities, nil
+	} else if err := json.Unmarshal(*vmIdentity.UserAssignedIdentities, &userAssignedIdentities); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshall json")
 	}
 
@@ -239,7 +242,6 @@ func GetUserAssignedIdentities(resourceGroup, vmName string) (*map[string]UserAs
 // RemoveUserAssignedIdentityFromVM will remove a user assigned identity to a VM
 func RemoveUserAssignedIdentityFromVM(resourceGroup, vmName, identityName string) error {
 	fmt.Printf("# Removing identity '%s' from %s...\n", identityName, vmName)
-	// "az vm stop" does not actually cause the pod to re-schedule in another vm
 	cmd := exec.Command("az", "vm", "identity", "remove", "-g", resourceGroup, "-n", vmName, "--identities", identityName)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
@@ -257,12 +259,11 @@ func GetSystemAssignedIdentity(resourceGroup, vmName string) (string, string, er
 		return "", "", errors.Wrap(err, "Failed to get system assigned identity from VM")
 	}
 
-	var systemAssignedIdentity SystemAssignedIdentity
+	var systemAssignedIdentity VMIdentity
 	if err := json.Unmarshal(out, &systemAssignedIdentity); err != nil {
 		return "", "", errors.Wrap(err, "Failed to unmarshall json")
 	}
 
-	fmt.Println(string(out))
 	if strings.Contains(systemAssignedIdentity.Type, "SystemAssigned") {
 		return systemAssignedIdentity.PrincipalID, systemAssignedIdentity.TenantID, nil
 	}
@@ -273,7 +274,6 @@ func GetSystemAssignedIdentity(resourceGroup, vmName string) (string, string, er
 // RemoveSystemAssignedIdentityFromVM will remove the system assigned identity to a VM
 func RemoveSystemAssignedIdentityFromVM(resourceGroup, vmName string) error {
 	fmt.Printf("# Removing system assigned identity from %s...\n", vmName)
-	// "az vm stop" does not actually cause the pod to re-schedule in another vm
 	cmd := exec.Command("az", "vm", "identity", "remove", "-g", resourceGroup, "-n", vmName)
 	_, err := cmd.CombinedOutput()
 	if err != nil {

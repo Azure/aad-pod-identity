@@ -84,9 +84,18 @@ var _ = AfterSuite(func() {
 		err := node.Uncordon(n.Name)
 		Expect(err).NotTo(HaveOccurred())
 
-		// Remove user assigned identity from all VM
-		azure.RemoveUserAssignedIdentityFromVM(cfg.ResourceGroup, n.Name, clusterIdentity)
-		azure.RemoveUserAssignedIdentityFromVM(cfg.ResourceGroup, n.Name, keyvaultIdentity)
+		if strings.Contains(n.Name, "master") {
+			continue
+		}
+
+		// Delete all user assigned identities
+		userAssignedIdentities, err := azure.GetUserAssignedIdentities(cfg.ResourceGroup, n.Name)
+		Expect(err).NotTo(HaveOccurred())
+		for resourceID := range *userAssignedIdentities {
+			s := strings.Split(resourceID, "/")
+			identityName := s[len(s)-1]
+			azure.RemoveUserAssignedIdentityFromVM(cfg.ResourceGroup, n.Name, identityName)
+		}
 
 		// Remove system assigned identity from all VM
 		azure.RemoveSystemAssignedIdentityFromVM(cfg.ResourceGroup, n.Name)
@@ -94,11 +103,6 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
-	BeforeEach(func() {
-		fmt.Println("Setting up the test environment...")
-
-	})
-
 	AfterEach(func() {
 		fmt.Println("\nTearing down the test environment...")
 
@@ -255,11 +259,15 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		// Delete i-th elements in test data and check if the identities beyond index i are still functioning
 		for i, data := range testData {
-			azureidentity.DeleteOnCluster(data.identityName, templateOutputPath)
-			azureassignedidentity.WaitOnLengthMatched(5 - 1 - i)
+			err := azureidentity.DeleteOnCluster(data.identityName, templateOutputPath)
+			Expect(err).NotTo(HaveOccurred())
+
+			ok, err := azureassignedidentity.WaitOnLengthMatched(5 - 1 - i)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(ok).To(Equal(true))
 
 			// Make sure that the identity validator cannot access to the resource group anymore
-			_, err := validateUserAssignedIdentityOnPod(data.azureAssignedIdentity.Spec.Pod, data.identityClientID)
+			_, err = validateUserAssignedIdentityOnPod(data.azureAssignedIdentity.Spec.Pod, data.identityClientID)
 			Expect(err).To(HaveOccurred())
 			waitForDeployDeletion(data.identityValidatorName)
 
@@ -380,7 +388,16 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		nodeList, err := node.GetAll()
 		Expect(err).NotTo(HaveOccurred())
 
+		// Re-deploy aad pod identity infra to allow MIC to register the correct VM level identity
+		cmd := exec.Command("kubectl", "delete", "-f", "../../deploy/infra/deployment-rbac.yaml", "--ignore-not-found")
+		_, err = cmd.CombinedOutput()
+		Expect(err).NotTo(HaveOccurred())
+
 		enableUserAssignedIdentityOnCluster(nodeList, clusterIdentity)
+
+		cmd = exec.Command("kubectl", "apply", "-f", "../../deploy/infra/deployment-rbac.yaml")
+		_, err = cmd.CombinedOutput()
+		Expect(err).NotTo(HaveOccurred())
 
 		// Assign the same identity to identity validator pod
 		setUpIdentityAndDeployment(clusterIdentity, "")
@@ -408,7 +425,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		// Delete pod identity to verify that the VM identity did not get deleted
 		waitForDeployDeletion(identityValidator)
-		cmd := exec.Command("kubectl", "delete", "AzureIdentity,AzureIdentityBinding,AzureAssignedIdentity", "--all")
+		cmd = exec.Command("kubectl", "delete", "AzureIdentity,AzureIdentityBinding,AzureAssignedIdentity", "--all")
 		util.PrintCommand(cmd)
 		_, err = cmd.CombinedOutput()
 		Expect(err).NotTo(HaveOccurred())
@@ -446,7 +463,6 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		// Get the principalID and tenantID of the system assigned identity for verification later
 		principalIDBefore, tenantIDBefore, err := azure.GetSystemAssignedIdentity(cfg.ResourceGroup, nodeName)
-		fmt.Println(principalIDBefore, tenantIDBefore)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(principalIDBefore).NotTo(Equal(""))
 		Expect(tenantIDBefore).NotTo(Equal(""))
@@ -465,7 +481,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(principalIDBefore).To(Equal(principalIDAfter))
 		Expect(tenantIDAfter).To(Equal(tenantIDAfter))
 
-		azure.RemoveSystemAssignedIdentityFromVM(cfg.ResourceGroup, nodeName)
+		removeSystemAssignedIdentityOnCluster(nodeList)
 	})
 })
 
@@ -522,6 +538,7 @@ func validateAzureAssignedIdentity(azureAssignedIdentity aadpodid.AzureAssignedI
 		err = errors.Errorf("Invalid identity name: %s", identityName)
 	}
 	Expect(err).NotTo(HaveOccurred())
+	fmt.Printf("# %s validated!\n", identityName)
 }
 
 // waitForDeployDeletion will block until a give deploy and its pods are completed deleted
@@ -592,7 +609,7 @@ func removeUserAssignedIdentityFromCluster(nodeList *node.List, azureIdentityNam
 	}
 }
 
-// enableSystemAssignedIdentityOnCluster TODO
+// enableSystemAssignedIdentityOnCluster will enable system assigned identity on the resource group
 func enableSystemAssignedIdentityOnCluster(nodeList *node.List) {
 	for _, n := range nodeList.Nodes {
 		if strings.Contains(n.Name, "master") {
@@ -603,7 +620,7 @@ func enableSystemAssignedIdentityOnCluster(nodeList *node.List) {
 	}
 }
 
-// removeSystemAssignedIdentityOnCluster TODO
+// removeSystemAssignedIdentityOnCluster will remove system assigned identity from the resource group
 func removeSystemAssignedIdentityOnCluster(nodeList *node.List) {
 	for _, n := range nodeList.Nodes {
 		if strings.Contains(n.Name, "master") {

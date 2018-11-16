@@ -96,7 +96,7 @@ func WaitOnDeletion(prefix string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 
-	fmt.Println("# Tight-poll to check if the deployment is ready...")
+	fmt.Println("# Tight-poll to check if pods are deleted...")
 	go func() {
 		for {
 			select {
