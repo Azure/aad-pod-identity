@@ -7,7 +7,7 @@ import (
 )
 
 // IdentityHolder represents a resource that contains an Identity object
-// This is used to be able to generically intract with multiple resource types (e.g. VirtualMachine and VittualMachineScaleSet)
+// This is used to be able to generically intract with multiple resource types (e.g. VirtualMachine and VirtualMachineScaleSet)
 // which each contain an identity.
 type IdentityHolder interface {
 	IdentityInfo() IdentityInfo
