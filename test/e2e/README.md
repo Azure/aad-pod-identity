@@ -28,24 +28,7 @@ export KEYVAULT_SECRET_NAME='...'
 export KEYVAULT_SECRET_VERSION='...'
 ```
 
-At the same time, the tests utilizes two user assigned identities, `keyvault-identity` (have read access to the keyvault that you create) and `cluster-identity` (have read access to the resource group level). You can create necessary Azure resources and roles using Azure CLI, as shown below:
-
-```bash
-# Create keyvault-identity and assign appropriate roles
-az identity create -g "$RESOURCE_GROUP" -n keyvault-identity
-IDENTITY_CLIENT_ID=$(az identity show -g "$RESOURCE_GROUP" -n keyvault-identity  --query 'clientId' -otsv)
-IDENTITY_PRINCIPAL_ID=$(az identity show -g "$RESOURCE_GROUP" -n keyvault-identity --query 'principalId' -otsv)
-az role assignment create --role Reader --assignee "$IDENTITY_PRINCIPAL_ID" --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$KEYVAULT_NAME"
-az keyvault set-policy -n "$KEYVAULT_NAME" --secret-permissions get list --spn "$IDENTITY_CLIENT_ID"
-az role assignment create --role 'Managed Identity Operator' --assignee "$AZURE_CLIENT_ID" --scope "/subscriptions/$SUBSCRIPTION_ID/resourcegroups/$RESOURCE_GROUP/providers/Microsoft.ManagedIdentity/userAssignedIdentities/keyvault-identity"
-
-# Create cluster-identity and assign appropriate roles
-az identity create -g "$RESOURCE_GROUP" -n cluster-identity
-IDENTITY_CLIENT_ID=$(az identity show -g "$RESOURCE_GROUP" -n cluster-identity  --query 'clientId' -otsv)
-IDENTITY_PRINCIPAL_ID=$(az identity show -g "$RESOURCE_GROUP" -n cluster-identity --query 'principalId' -otsv)
-az role assignment create --role Reader --assignee "$IDENTITY_PRINCIPAL_ID" -g "$RESOURCE_GROUP"
-az role assignment create --role 'Managed Identity Operator' --assignee "$AZURE_CLIENT_ID" --scope "/subscriptions/$SUBSCRIPTION_ID/resourcegroups/$RESOURCE_GROUP/providers/Microsoft.ManagedIdentity/userAssignedIdentities/cluster-identity"
-```
+At the same time, the tests utilizes two user assigned identities, `keyvault-identity` (have read access to the keyvault that you create) and `cluster-identity` (have read access to the resource group level). You can create necessary Azure resources and roles with the bash script [`setup.sh`](./setup.sh) (Note that reader assignment in the script might need a few attempts to succeed).
 
 Finally, to start the e2e tests, execute the following commands:
 ```bash
