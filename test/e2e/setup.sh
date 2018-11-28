@@ -33,7 +33,7 @@ az role assignment create --role 'Managed Identity Operator' --assignee "$AZURE_
 # The following command might need a couple of retries to succeed
 az role assignment create --role Reader --assignee "$IDENTITY_PRINCIPAL_ID" -g "$RESOURCE_GROUP" || true
 
-# Create 5 keyvault identity for test #6
+# Create 5 keyvault identities for test #6
 for i in {0..4}; do
     IDENTITY_NAME="keyvault-identity-$i"
     echo "Creating $IDENTITY_NAME and assign appropriate roles..."

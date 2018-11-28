@@ -214,6 +214,9 @@ func EnableSystemAssignedIdentityOnVM(resourceGroup, vmName string) error {
 
 // GetUserAssignedIdentities will return the list of user assigned identity in a given VM
 func GetUserAssignedIdentities(resourceGroup, vmName string) (*map[string]UserAssignedIdentity, error) {
+	// Sleep for 10 seconds to allow changes to propagate to Azure
+	time.Sleep(time.Second * 10)
+
 	cmd := exec.Command("az", "vm", "identity", "show", "-g", resourceGroup, "-n", vmName)
 	out, err := cmd.CombinedOutput()
 	if err != nil {

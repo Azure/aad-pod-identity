@@ -29,6 +29,7 @@ else
 endif
 
 GO_BUILD_OPTIONS := -buildmode=${GO_BUILD_MODE} -ldflags "-s -X $(VERSION_VAR)=$(NMI_VERSION) -X $(GIT_VAR)=$(GIT_HASH) -X $(BUILD_DATE_VAR)=$(BUILD_DATE)"
+# -count=1 will disable test caching
 E2E_TEST_OPTIONS := -count=1 -v -timeout 24h -ginkgo.failFast
 
 # useful for other docker repos
