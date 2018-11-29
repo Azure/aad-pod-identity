@@ -92,7 +92,7 @@ func GetNodeName(podName string) (string, error) {
 // WaitOnDeletion will block until there is no pod name that starts with the give prefix
 func WaitOnDeletion(prefix string) (bool, error) {
 	successChannel, errorChannel := make(chan bool, 1), make(chan error)
-	duration, sleep := 60*time.Second, 10*time.Second
+	duration, sleep := 120*time.Second, 10*time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 
