@@ -1,8 +1,6 @@
 package pod
 
 import (
-	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/stats"
@@ -15,12 +13,12 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
+	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
 type Client struct {
-	PodWatcher informers.SharedInformerFactory
+	PodWatcher informersv1.PodInformer
 }
 
 type ClientInt interface {
@@ -28,24 +26,17 @@ type ClientInt interface {
 	Start(exit <-chan struct{})
 }
 
-func NewPodClient(k8sClient *kubernetes.Clientset, eventCh chan aadpodid.EventType) (c ClientInt, e error) {
-	podWatcher, err := newPodWatcher(k8sClient, eventCh)
-	if err != nil {
-		glog.Error(err)
-		return nil, err
-	}
+func NewPodClient(i informers.SharedInformerFactory, eventCh chan aadpodid.EventType) (c ClientInt) {
+	podInformer := i.Core().V1().Pods()
+	addPodHandler(podInformer, eventCh)
 
 	return &Client{
-		PodWatcher: podWatcher,
-	}, nil
+		PodWatcher: podInformer,
+	}
 }
 
-func newPodWatcher(k8sClient *kubernetes.Clientset, eventCh chan aadpodid.EventType) (i informers.SharedInformerFactory, err error) {
-	k8sInformers := informers.NewSharedInformerFactory(k8sClient, time.Second*30)
-	if k8sInformers == nil {
-		return nil, fmt.Errorf("k8s informers could not be created")
-	}
-	k8sInformers.Core().V1().Pods().Informer().AddEventHandler(
+func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType) {
+	i.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				glog.V(6).Infof("Pod Created")
@@ -60,28 +51,23 @@ func newPodWatcher(k8sClient *kubernetes.Clientset, eventCh chan aadpodid.EventT
 			UpdateFunc: func(OldObj, newObj interface{}) {
 				glog.V(6).Infof("Pod Updated")
 				eventCh <- aadpodid.PodUpdated
-
 			},
 		},
 	)
-	return k8sInformers, nil
 }
 
 func (c *Client) syncCache(exit <-chan struct{}) {
 	cacheSyncStarted := time.Now()
-	cacheSynced := false
 	glog.V(6).Infof("Wait for cache to sync")
-	for !cacheSynced {
-		mapSync := c.PodWatcher.WaitForCacheSync(exit)
-		if len(mapSync) > 0 && mapSync[reflect.TypeOf(&corev1.Pod{})] == true {
-			cacheSynced = true
-		}
+	if !cache.WaitForCacheSync(exit, c.PodWatcher.Informer().HasSynced) {
+		glog.Error("Wait for pod cache sync failed")
+		return
 	}
 	glog.Infof("Pod cache synchronized. Took %s", time.Since(cacheSyncStarted).String())
 }
 
 func (c *Client) Start(exit <-chan struct{}) {
-	go c.PodWatcher.Start(exit)
+	go c.PodWatcher.Informer().Run(exit)
 	c.syncCache(exit)
 	glog.Info("Pod watcher started !!")
 }
@@ -94,7 +80,7 @@ func (c *Client) GetPods() (pods []*corev1.Pod, err error) {
 		return nil, err
 	}
 	crdSelector := labels.NewSelector().Add(*crdReq)
-	listPods, err := c.PodWatcher.Core().V1().Pods().Lister().List(crdSelector)
+	listPods, err := c.PodWatcher.Lister().List(crdSelector)
 	//ClientSet.CoreV1().Pods("").List(v1.ListOptions{})
 	if err != nil {
 		return nil, err

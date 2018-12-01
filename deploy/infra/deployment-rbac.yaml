@@ -132,7 +132,7 @@ rules:
   resources: ["customresourcedefinitions"]
   verbs: ["*"]
 - apiGroups: [""]
-  resources: ["pods"]
+  resources: ["pods", "nodes"]
   verbs: [ "list", "watch" ]
 - apiGroups: [""]
   resources: ["events"]

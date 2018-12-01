@@ -1,10 +1,10 @@
-FROM k8s-gcrio.azureedge.net/hyperkube-amd64:v1.7.7
+FROM alpine:3.8
 
-# install, remove cached list
-RUN apt-get update && \
-    apt-get install -y ca-certificates iptables bash && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# install without cache
+RUN apk update && apk add --no-cache \
+    ca-certificates \
+    iptables \
+    && update-ca-certificates
 
 ADD ./nmi /bin/nmi
 
