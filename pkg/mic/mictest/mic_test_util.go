@@ -1,6 +1,8 @@
 package mictest
 
 import (
+	"errors"
+
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	cp "github.com/Azure/aad-pod-identity/pkg/cloudprovider/cloudprovidertest"
 	crd "github.com/Azure/aad-pod-identity/pkg/crd/crdtest"
@@ -8,6 +10,7 @@ import (
 	"github.com/golang/glog"
 
 	"github.com/Azure/aad-pod-identity/pkg/mic"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -52,7 +55,7 @@ func (c TestEventRecorder) AnnotatedEventf(object runtime.Object, annotations ma
 
 }
 
-func NewMICClient(eventCh chan aadpodid.EventType, cpClient *cp.TestCloudClient, crdClient *crd.TestCrdClient, podClient *pod.TestPodClient, eventRecorder *TestEventRecorder) *TestMICClient {
+func NewMICClient(eventCh chan aadpodid.EventType, cpClient *cp.TestCloudClient, crdClient *crd.TestCrdClient, podClient *pod.TestPodClient, nodeClient *TestNodeClient, eventRecorder *TestEventRecorder) *TestMICClient {
 
 	realMICClient := &mic.Client{
 		CloudClient:   cpClient,
@@ -60,6 +63,7 @@ func NewMICClient(eventCh chan aadpodid.EventType, cpClient *cp.TestCloudClient,
 		EventRecorder: eventRecorder,
 		PodClient:     podClient,
 		EventChannel:  eventCh,
+		NodeClient:    nodeClient,
 	}
 
 	return &TestMICClient{
@@ -69,4 +73,26 @@ func NewMICClient(eventCh chan aadpodid.EventType, cpClient *cp.TestCloudClient,
 
 type TestMICClient struct {
 	*mic.Client
+}
+
+type TestNodeClient struct {
+	nodes map[string]*corev1.Node
+}
+
+func NewTestNodeClient() *TestNodeClient {
+	return &TestNodeClient{nodes: make(map[string]*corev1.Node)}
+}
+
+func (c *TestNodeClient) Get(name string) (*corev1.Node, error) {
+	node, exists := c.nodes[name]
+	if !exists {
+		return nil, errors.New("node not found")
+	}
+	return node, nil
+}
+
+func (c *TestNodeClient) Start(<-chan struct{}) {}
+
+func (c *TestNodeClient) AddNode(name string) {
+	c.nodes[name] = &corev1.Node{ObjectMeta: v1.ObjectMeta{Name: name}}
 }

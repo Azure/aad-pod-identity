@@ -7,6 +7,7 @@ import (
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	cp "github.com/Azure/aad-pod-identity/pkg/cloudprovider/cloudprovidertest"
+	"github.com/Azure/aad-pod-identity/pkg/config"
 	crd "github.com/Azure/aad-pod-identity/pkg/crd/crdtest"
 	pod "github.com/Azure/aad-pod-identity/pkg/pod/podtest"
 	"github.com/golang/glog"
@@ -60,17 +61,19 @@ func TestSimpleMICClient(t *testing.T) {
 
 	exit := make(<-chan struct{}, 0)
 	eventCh := make(chan aadpodid.EventType, 100)
-	cloudClient := cp.NewTestCloudClient()
+	cloudClient := cp.NewTestCloudClient(config.AzureConfig{})
 	crdClient := crd.NewTestCrdClient(nil)
 	podClient := pod.NewTestPodClient()
+	nodeClient := NewTestNodeClient()
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
 
-	micClient := NewMICClient(eventCh, cloudClient, crdClient, podClient, &evtRecorder)
+	micClient := NewMICClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
 
 	crdClient.CreateId("test-id", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
 	crdClient.CreateBinding("testbinding", "test-id", "test-select")
 
+	nodeClient.AddNode("test-node")
 	podClient.AddPod("test-pod", "default", "test-node", "test-select")
 	podClient.GetPods()
 

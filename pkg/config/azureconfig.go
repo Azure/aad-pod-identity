@@ -9,4 +9,5 @@ type AzureConfig struct {
 	SubscriptionID    string `json:"subscriptionId" yaml:"subscriptionId"`
 	ResourceGroupName string `json:"resourceGroup" yaml:"resourceGroup"`
 	SecurityGroupName string `json:"securityGroupName" yaml:"securityGroupName"`
+	VMType            string `json:"vmType" yaml:"vmType"`
 }

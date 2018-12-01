@@ -2,6 +2,7 @@ package mic
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/stats"
@@ -16,12 +17,18 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/record"
 )
+
+type NodeGetter interface {
+	Get(name string) (*corev1.Node, error)
+	Start(<-chan struct{})
+}
 
 // Client has the required pointers to talk to the api server
 // and interact with the CRD related datastructure.
@@ -31,6 +38,7 @@ type Client struct {
 	PodClient     pod.ClientInt
 	EventRecorder record.EventRecorder
 	EventChannel  chan aadpodid.EventType
+	NodeClient    NodeGetter
 }
 
 type ClientInt interface {
@@ -53,6 +61,7 @@ func NewMICClient(cloudconfig string, config *rest.Config) (*Client, error) {
 	glog.Infof("Starting to create the pod identity client. Version: %v. Build date: %v", version.Version, version.BuildDate)
 
 	clientSet := kubernetes.NewForConfigOrDie(config)
+	informer := informers.NewSharedInformerFactory(clientSet, 30*time.Second)
 
 	cloudClient, err := cloudprovider.NewCloudProvider(cloudconfig)
 	if err != nil {
@@ -67,10 +76,7 @@ func NewMICClient(cloudconfig string, config *rest.Config) (*Client, error) {
 	}
 	glog.V(1).Infof("CRD client initialized")
 
-	podClient, err := pod.NewPodClient(clientSet, eventCh)
-	if err != nil {
-		return nil, err
-	}
+	podClient := pod.NewPodClient(informer, eventCh)
 	glog.V(1).Infof("Pod Client initialized")
 
 	eventBroadcaster := record.NewBroadcaster()
@@ -84,15 +90,37 @@ func NewMICClient(cloudconfig string, config *rest.Config) (*Client, error) {
 		PodClient:     podClient,
 		EventRecorder: recorder,
 		EventChannel:  eventCh,
+		NodeClient:    &NodeClient{informer.Core().V1().Nodes()},
 	}, nil
 }
 
 func (c *Client) Start(exit <-chan struct{}) {
 	glog.V(6).Infof("MIC client starting..")
-	c.PodClient.Start(exit)
-	glog.V(6).Infof("Pod client started")
-	c.CRDClient.Start(exit)
-	glog.V(6).Infof("CRD client started")
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		c.PodClient.Start(exit)
+		glog.V(6).Infof("Pod client started")
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		c.CRDClient.Start(exit)
+		glog.V(6).Infof("CRD client started")
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		c.NodeClient.Start(exit)
+		glog.V(6).Infof("Node client started")
+		wg.Done()
+	}()
+
+	wg.Wait()
 	go c.Sync(exit)
 }
 
@@ -198,7 +226,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 					// In such a case, we will skip it from matching binding.
 					// This will ensure that the new assigned ids created will not have the
 					// one associated with this azure identity.
-					glog.V(5).Info("%s identity not found when using %s binding", binding.Spec.AzureIdentity, binding.Name)
+					glog.V(5).Infof("%s identity not found when using %s binding", binding.Spec.AzureIdentity, binding.Name)
 				}
 			}
 		}
@@ -219,7 +247,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			beginDeletion := time.Now()
 			workDone = true
 			for _, delID := range *deleteList {
-				glog.V(5).Infof("Deletion of id: ", delID.Name)
+				glog.V(5).Infof("Deletion of id: %s", delID.Name)
 				inUse := c.CheckIfInUse(delID, newAssignedIDs)
 				removedBinding := delID.Spec.AzureBindingRef
 				// The inUse here checks if there are pods which are using the MSI in the newAssignedIDs.
@@ -247,8 +275,16 @@ func (c *Client) Sync(exit <-chan struct{}) {
 				id := createID.Spec.AzureIdentityRef
 				binding := createID.Spec.AzureBindingRef
 
+				node, err := c.NodeClient.Get(createID.Spec.NodeName)
+				if err != nil {
+					c.EventRecorder.Event(binding, corev1.EventTypeWarning, "get node error",
+						fmt.Sprintf("Lookup of node %s for pod %s resulted in error %v", createID.Spec.NodeName, createID.Name, err))
+					continue
+				}
+
 				glog.V(5).Infof("Initiating assigned id creation for pod - %s, binding - %s", createID.Spec.Pod, binding.Name)
-				err = c.CreateAssignedIdentityDeps(binding, id, createID.Spec.Pod, createID.Spec.PodNamespace, createID.Spec.NodeName)
+
+				err = c.CreateAssignedIdentityDeps(binding, id, createID.Spec.Pod, createID.Spec.PodNamespace, node)
 				if err != nil {
 					// Since k8s event has only Info and Warning, using Warning.
 					c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error",
@@ -379,15 +415,16 @@ func (c *Client) MakeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpod
 }
 
 func (c *Client) CreateAssignedIdentityDeps(b *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity,
-	podName string, podNameSpace string, nodeName string) error {
+	podName string, podNameSpace string, node *corev1.Node) error {
 	name := c.GetAssignedIDName(podName, podNameSpace, id.Name)
-	err := c.CRDClient.CreateAssignedIdentity(name, b, id, podName, podNameSpace, nodeName)
+	err := c.CRDClient.CreateAssignedIdentity(name, b, id, podName, podNameSpace, node.Name)
 	if err != nil {
 		glog.Error(err)
 		return err
 	}
+
 	if id.Spec.Type == aadpodid.UserAssignedMSI {
-		err = c.CloudClient.AssignUserMSI(id.Spec.ResourceID, nodeName)
+		err = c.CloudClient.AssignUserMSI(id.Spec.ResourceID, node)
 		if err != nil {
 			glog.Error(err)
 			newErr := c.CRDClient.RemoveAssignedIdentity(name)
@@ -409,7 +446,13 @@ func (c *Client) RemoveAssignedIDsWithDeps(assignedID *aadpodid.AzureAssignedIde
 	if !inUse {
 		id := assignedID.Spec.AzureIdentityRef
 		if id.Spec.Type == aadpodid.UserAssignedMSI {
-			err = c.CloudClient.RemoveUserMSI(id.Spec.ResourceID, assignedID.Spec.NodeName)
+
+			node, err := c.NodeClient.Get(assignedID.Spec.NodeName)
+			if err != nil {
+				return err
+			}
+
+			err = c.CloudClient.RemoveUserMSI(id.Spec.ResourceID, node)
 			if err != nil {
 				glog.Error(err)
 				return err
