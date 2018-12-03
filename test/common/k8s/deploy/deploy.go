@@ -42,7 +42,7 @@ type Status struct {
 }
 
 // CreateIdentityValidator will create an identity validator deployment on a Kubernetes cluster
-func CreateIdentityValidator(subscriptionID, resourceGroup, name, identityBinding, templateOutputPath string) error {
+func CreateIdentityValidator(subscriptionID, resourceGroup, registryName, name, identityBinding, templateOutputPath string) error {
 	t, err := template.New("deployment.yaml").ParseFiles(path.Join("template", "deployment.yaml"))
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse deployment.yaml")
@@ -58,9 +58,11 @@ func CreateIdentityValidator(subscriptionID, resourceGroup, name, identityBindin
 	deployData := struct {
 		Name            string
 		IdentityBinding string
+		Registry		string
 	}{
 		name,
 		identityBinding,
+		registryName,
 	}
 	if err := t.Execute(deployFile, deployData); err != nil {
 		return errors.Wrap(err, "Failed to create a deployment file from deployment.yaml")
