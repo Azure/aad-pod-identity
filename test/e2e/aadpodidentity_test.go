@@ -2,11 +2,9 @@ package aadpodidentity
 
 import (
 	"fmt"
-	"bytes"
 	"os"
 	"os/exec"
 	"path"
-	"io/ioutil"
 
 	"github.com/Azure/aad-pod-identity/test/common/azure"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/azureassignedidentity"
@@ -33,24 +31,11 @@ var _ = BeforeSuite(func() {
 	err := os.Mkdir(templateOutputPath, os.ModePerm)
 	Expect(err).NotTo(HaveOccurred())
 
-	c, err := config.ParseConfig()
-	Expect(err).NotTo(HaveOccurred())
-	cfg = *c // To avoid 'Declared and not used' linting error
-
-	from, err := ioutil.ReadFile("../../deploy/infra/deployment-rbac.yaml")
-	Expect(err).NotTo(HaveOccurred())
-  
-	deployFilePath := path.Join(templateOutputPath, "deployment-rbac.yaml")
-	output := bytes.Replace(from, []byte("mcr.microsoft.com/k8s/aad-pod-identity"), []byte(cfg.Registry), -1)
-
-	err = ioutil.WriteFile(deployFilePath, output, 0666)
+	cfg, err := config.ParseConfig()
 	Expect(err).NotTo(HaveOccurred())
 
 	// Install CRDs and deploy MIC and NMI
-	cmd := exec.Command("kubectl", "apply", "-f", deployFilePath)
-	util.PrintCommand(cmd)
-
-	_, err = cmd.CombinedOutput()
+	err = deploy.CreateInfra("default", cfg.Registry, cfg.NMIVersion, cfg.MICVersion, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 })
 
@@ -58,10 +43,7 @@ var _ = AfterSuite(func() {
 	fmt.Println("Tearing down the test suite environment...")
 
 	// Uninstall CRDs and delete MIC and NMI
-	deployFilePath := path.Join(templateOutputPath, "deployment-rbac.yaml")
-	cmd := exec.Command("kubectl", "delete", "-f", deployFilePath, "--ignore-not-found")
-	util.PrintCommand(cmd)
-	_, err := cmd.CombinedOutput()
+	err := deploy.Delete("default-deployment-rbac.yaml", templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
 	err = os.RemoveAll(templateOutputPath)
@@ -78,7 +60,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		err = azureidentitybinding.Create("test-identity", templateOutputPath)
 		Expect(err).NotTo(HaveOccurred())
 
-		err = deploy.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, cfg.Registry, "identity-validator", "test-identity", templateOutputPath)
+		err = deploy.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, cfg.Registry, "identity-validator", "test-identity", cfg.IdentityValidatorVersion, templateOutputPath)
 		Expect(err).NotTo(HaveOccurred())
 
 		ok, err := deploy.WaitOnReady("identity-validator")
@@ -123,7 +105,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(list.Items[0].Spec.AzureIdentityRef.ObjectMeta.Name).To(Equal("test-identity"))
 		Expect(list.Items[0].Spec.AzureIdentityRef.ObjectMeta.Namespace).To(Equal("default"))
 		Expect(list.Items[0].Spec.AzureIdentityRef.Spec.ClientID).To(Equal(clientID))
-		
+
 		cmd := exec.Command("kubectl", "exec", podName, "--", "identityvalidator", "--subscriptionid", cfg.SubscriptionID, "--clientid", clientID, "--resourcegroup", cfg.ResourceGroup)
 		_, err = cmd.CombinedOutput()
 		Expect(err).NotTo(HaveOccurred())
@@ -180,7 +162,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should delete the AzureAssignedIdentity if the deployment is deleted", func() {
-		err := deploy.Delete("identity-validator", templateOutputPath)
+		err := deploy.Delete("identity-validator-deployment.yaml", templateOutputPath)
 		Expect(err).NotTo(HaveOccurred())
 
 		ok, err := azureassignedidentity.WaitOnDeletion()

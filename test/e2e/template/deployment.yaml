@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: {{.Name}}
-        image: {{.Registry}}/identityvalidator:1.0
+        image: {{.Registry}}/identityvalidator:{{.IdentityValidatorVersion}}
         command:
           - sleep
           - "3600"
