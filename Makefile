@@ -33,10 +33,10 @@ E2E_TEST_OPTIONS := -count=1 -v
 
 # useful for other docker repos
 REGISTRY ?= mcr.microsoft.com/k8s/aad-pod-identity
-NMI_IMAGE_NAME := $(REGISTRY)/$(NMI_BINARY_NAME)
-MIC_IMAGE_NAME := $(REGISTRY)/$(MIC_BINARY_NAME)
-DEMO_IMAGE_NAME := $(REGISTRY)/$(DEMO_BINARY_NAME)
-IDENTITY_VALIDATOR_IMAGE_NAME := $(REGISTRY)/$(IDENTITY_VALIDATOR_BINARY_NAME)
+NMI_IMAGE_NAME := $(REGISTRY)/$(NMI_BINARY_NAME):$(NMI_VERSION)
+MIC_IMAGE_NAME := $(REGISTRY)/$(MIC_BINARY_NAME):$(MIC_VERSION)
+DEMO_IMAGE_NAME := $(REGISTRY)/$(DEMO_BINARY_NAME):$(DEMO_VERSION)
+IDENTITY_VALIDATOR_IMAGE_NAME := $(REGISTRY)/$(IDENTITY_VALIDATOR_BINARY_NAME):$(IDENTITY_VALIDATOR_VERSION)
 
 clean-nmi:
 	rm -rf bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME)
@@ -76,33 +76,33 @@ deepcopy-gen:
 
 image-nmi:
 	cp bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) images/nmi
-	docker build -t $(NMI_IMAGE_NAME):$(NMI_VERSION) images/nmi
+	docker build -t $(NMI_IMAGE_NAME) images/nmi
 
 image-mic:
 	cp bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME) images/mic
-	docker build -t $(MIC_IMAGE_NAME):$(MIC_VERSION) images/mic
+	docker build -t $(MIC_IMAGE_NAME) images/mic
 
 image-demo:
 	cp bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME) images/demo
-	docker build -t $(DEMO_IMAGE_NAME):$(DEMO_VERSION) images/demo
+	docker build -t $(DEMO_IMAGE_NAME) images/demo
 
 image-identity-validator:
 	cp bin/$(PROJECT_NAME)/$(IDENTITY_VALIDATOR_BINARY_NAME) images/identityvalidator
-	docker build -t $(IDENTITY_VALIDATOR_IMAGE_NAME):$(IDENTITY_VALIDATOR_VERSION) images/identityvalidator
+	docker build -t $(IDENTITY_VALIDATOR_IMAGE_NAME) images/identityvalidator
 
 image:image-nmi image-mic image-demo image-identity-validator
 
 push-nmi:
-	docker push $(NMI_IMAGE_NAME):$(NMI_VERSION)
+	docker push $(NMI_IMAGE_NAME)
 
 push-mic:
-	docker push $(MIC_IMAGE_NAME):$(MIC_VERSION)
+	docker push $(MIC_IMAGE_NAME)
 
 push-demo:
-	docker push $(DEMO_IMAGE_NAME):$(DEMO_VERSION)
+	docker push $(DEMO_IMAGE_NAME)
 
 push-identity-validator:
-	docker push $(IDENTITY_VALIDATOR_BINARY_NAME):$(IDENTITY_VALIDATOR_VERSION)
+	docker push $(IDENTITY_VALIDATOR_IMAGE_NAME)
 
 push:push-nmi push-mic push-demo push-identity-validator
 
