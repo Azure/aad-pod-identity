@@ -18,10 +18,9 @@ pipeline {
 
         stage('Build images and push to registry') {
             steps {
-                sh """
-                go get github.com/Azure/aad-pod-identity || true
-                cd /root/go/src/github.com/Azure/aad-pod-identity && /root/go/bin/dep ensure && make build && make image && make push
-                """
+                sh 'go get -u github.com/golang/dep/cmd/dep'
+                sh 'go get github.com/Azure/aad-pod-identity || true'
+                sh 'cd /root/go/src/github.com/Azure/aad-pod-identity && /root/go/bin/dep ensure && make build && make image && make push'
             }
         }
     }
