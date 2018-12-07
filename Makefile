@@ -93,15 +93,19 @@ image-identity-validator:
 image:image-nmi image-mic image-demo image-identity-validator
 
 push-nmi:
+	docker pull $(NMI_IMAGE_NAME); if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE_NAME) already exists" && exit 1; fi
 	docker push $(NMI_IMAGE_NAME)
 
 push-mic:
+	docker pull $(MIC_IMAGE_NAME); if [[ $$? -eq 0 ]]; then echo "$(MIC_IMAGE_NAME) already exists" && exit 1; fi
 	docker push $(MIC_IMAGE_NAME)
 
 push-demo:
+	docker pull $(DEMO_IMAGE_NAME); if [[ $$? -eq 0 ]]; then echo "$(DEMO_IMAGE_NAME) already exists" && exit 1; fi
 	docker push $(DEMO_IMAGE_NAME)
 
 push-identity-validator:
+	docker pull $(IDENTITY_VALIDATOR_IMAGE_NAME); if [[ $$? -eq 0 ]]; then echo "$(IDENTITY_VALIDATOR_IMAGE_NAME) already exists" && exit 1; fi
 	docker push $(IDENTITY_VALIDATOR_IMAGE_NAME)
 
 push:push-nmi push-mic push-demo push-identity-validator
