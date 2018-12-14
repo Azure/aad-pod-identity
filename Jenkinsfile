@@ -8,6 +8,7 @@ pipeline {
     stages {
         stage('Setup building environment') {
             steps {
+                // musl-dev is a dependency of go
                 sh 'apk upgrade && apk update && apk add --no-cache go make musl-dev docker'
                 withCredentials([azureServicePrincipal("${SP_CREDENTIAL}")]) {
                     sh 'az login --service-principal -u "$AZURE_CLIENT_ID" -p "$AZURE_CLIENT_SECRET" -t "$AZURE_TENANT_ID"'
