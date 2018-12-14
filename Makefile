@@ -5,10 +5,10 @@ NMI_BINARY_NAME := nmi
 MIC_BINARY_NAME := mic
 DEMO_BINARY_NAME := demo
 IDENTITY_VALIDATOR_BINARY_NAME := identityvalidator
-NMI_VERSION=1.3
-MIC_VERSION=1.2
-DEMO_VERSION=1.2
-IDENTITY_VALIDATOR_VERSION=1.0
+NMI_VERSION ?= 1.3
+MIC_VERSION ?= 1.2
+DEMO_VERSION ?= 1.2
+IDENTITY_VALIDATOR_VERSION ?= 1.0
 
 VERSION_VAR := $(REPO_PATH)/version.Version
 GIT_VAR := $(REPO_PATH)/version.GitCommit
@@ -32,11 +32,13 @@ GO_BUILD_OPTIONS := -buildmode=${GO_BUILD_MODE} --tags "netgo osusergo" -ldflags
 E2E_TEST_OPTIONS := -count=1 -v
 
 # useful for other docker repos
-REGISTRY ?= mcr.microsoft.com/k8s/aad-pod-identity
-NMI_IMAGE_NAME := $(REGISTRY)/$(NMI_BINARY_NAME)
-MIC_IMAGE_NAME := $(REGISTRY)/$(MIC_BINARY_NAME)
-DEMO_IMAGE_NAME := $(REGISTRY)/$(DEMO_BINARY_NAME)
-IDENTITY_VALIDATOR_IMAGE_NAME := $(REGISTRY)/$(IDENTITY_VALIDATOR_BINARY_NAME)
+REGISTRY_NAME ?= upstreamk8sci
+REGISTRY ?= upstreamk8sci.azurecr.io
+REPO_PREFIX ?= k8s/aad-pod-identity
+NMI_IMAGE ?= $(REPO_PREFIX)/$(NMI_BINARY_NAME):$(NMI_VERSION)
+MIC_IMAGE ?= $(REPO_PREFIX)/$(MIC_BINARY_NAME):$(MIC_VERSION)
+DEMO_IMAGE ?= $(REPO_PREFIX)/$(DEMO_BINARY_NAME):$(DEMO_VERSION)
+IDENTITY_VALIDATOR_IMAGE ?= $(REPO_PREFIX)/$(IDENTITY_VALIDATOR_BINARY_NAME):$(IDENTITY_VALIDATOR_VERSION)
 
 clean-nmi:
 	rm -rf bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME)
@@ -76,33 +78,37 @@ deepcopy-gen:
 
 image-nmi:
 	cp bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) images/nmi
-	docker build -t $(NMI_IMAGE_NAME):$(NMI_VERSION) images/nmi
+	docker build -t $(REGISTRY)/$(NMI_IMAGE) images/nmi
 
 image-mic:
 	cp bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME) images/mic
-	docker build -t $(MIC_IMAGE_NAME):$(MIC_VERSION) images/mic
+	docker build -t $(REGISTRY)/$(MIC_IMAGE) images/mic
 
 image-demo:
 	cp bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME) images/demo
-	docker build -t $(DEMO_IMAGE_NAME):$(DEMO_VERSION) images/demo
+	docker build -t $(REGISTRY)/$(DEMO_IMAGE) images/demo
 
 image-identity-validator:
 	cp bin/$(PROJECT_NAME)/$(IDENTITY_VALIDATOR_BINARY_NAME) images/identityvalidator
-	docker build -t $(IDENTITY_VALIDATOR_IMAGE_NAME):$(IDENTITY_VALIDATOR_VERSION) images/identityvalidator
+	docker build -t $(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE) images/identityvalidator
 
 image:image-nmi image-mic image-demo image-identity-validator
 
 push-nmi:
-	docker push $(NMI_IMAGE_NAME):$(NMI_VERSION)
+	az acr repository show --name $(REGISTRY_NAME) --image $(NMI_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
+	docker push $(REGISTRY)/$(NMI_IMAGE)
 
 push-mic:
-	docker push $(MIC_IMAGE_NAME):$(MIC_VERSION)
+	az acr repository show --name $(REGISTRY_NAME) --image $(MIC_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
+	docker push $(REGISTRY)/$(MIC_IMAGE)
 
 push-demo:
-	docker push $(DEMO_IMAGE_NAME):$(DEMO_VERSION)
+	az acr repository show --name $(REGISTRY_NAME) --image $(DEMO_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
+	docker push $(REGISTRY)/$(DEMO_IMAGE)
 
 push-identity-validator:
-	docker push $(IDENTITY_VALIDATOR_BINARY_NAME):$(IDENTITY_VALIDATOR_VERSION)
+	az acr repository show --name $(REGISTRY_NAME) --image $(IDENTITY_VALIDATOR_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
+	docker push $(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE)
 
 push:push-nmi push-mic push-demo push-identity-validator
 
