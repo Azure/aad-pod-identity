@@ -35,10 +35,10 @@ E2E_TEST_OPTIONS := -count=1 -v
 REGISTRY_NAME ?= upstreamk8sci
 REGISTRY ?= upstreamk8sci.azurecr.io
 REPO_PREFIX ?= k8s/aad-pod-identity
-NMI_IMAGE_NAME ?= $(REPO_PREFIX)/$(NMI_BINARY_NAME):$(NMI_VERSION)
-MIC_IMAGE_NAME ?= $(REPO_PREFIX)/$(MIC_BINARY_NAME):$(MIC_VERSION)
-DEMO_IMAGE_NAME ?= $(REPO_PREFIX)/$(DEMO_BINARY_NAME):$(DEMO_VERSION)
-IDENTITY_VALIDATOR_IMAGE_NAME ?= $(REPO_PREFIX)/$(IDENTITY_VALIDATOR_BINARY_NAME):$(IDENTITY_VALIDATOR_VERSION)
+NMI_IMAGE ?= $(REPO_PREFIX)/$(NMI_BINARY_NAME):$(NMI_VERSION)
+MIC_IMAGE ?= $(REPO_PREFIX)/$(MIC_BINARY_NAME):$(MIC_VERSION)
+DEMO_IMAGE ?= $(REPO_PREFIX)/$(DEMO_BINARY_NAME):$(DEMO_VERSION)
+IDENTITY_VALIDATOR_IMAGE ?= $(REPO_PREFIX)/$(IDENTITY_VALIDATOR_BINARY_NAME):$(IDENTITY_VALIDATOR_VERSION)
 
 clean-nmi:
 	rm -rf bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME)
@@ -78,37 +78,37 @@ deepcopy-gen:
 
 image-nmi:
 	cp bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) images/nmi
-	docker build -t $(REGISTRY)/$(NMI_IMAGE_NAME) images/nmi
+	docker build -t $(REGISTRY)/$(NMI_IMAGE) images/nmi
 
 image-mic:
 	cp bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME) images/mic
-	docker build -t $(REGISTRY)/$(MIC_IMAGE_NAME) images/mic
+	docker build -t $(REGISTRY)/$(MIC_IMAGE) images/mic
 
 image-demo:
 	cp bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME) images/demo
-	docker build -t $(REGISTRY)/$(DEMO_IMAGE_NAME) images/demo
+	docker build -t $(REGISTRY)/$(DEMO_IMAGE) images/demo
 
 image-identity-validator:
 	cp bin/$(PROJECT_NAME)/$(IDENTITY_VALIDATOR_BINARY_NAME) images/identityvalidator
-	docker build -t $(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE_NAME) images/identityvalidator
+	docker build -t $(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE) images/identityvalidator
 
 image:image-nmi image-mic image-demo image-identity-validator
 
 push-nmi:
-	az acr repository show --name $(REGISTRY_NAME) --image $(NMI_IMAGE_NAME) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE_NAME) already exists" && exit 1; fi
-	docker push $(REGISTRY)/$(NMI_IMAGE_NAME)
+	az acr repository show --name $(REGISTRY_NAME) --image $(NMI_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
+	docker push $(REGISTRY)/$(NMI_IMAGE)
 
 push-mic:
-	az acr repository show --name $(REGISTRY_NAME) --image $(MIC_IMAGE_NAME) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE_NAME) already exists" && exit 1; fi
-	docker push $(REGISTRY)/$(MIC_IMAGE_NAME)
+	az acr repository show --name $(REGISTRY_NAME) --image $(MIC_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
+	docker push $(REGISTRY)/$(MIC_IMAGE)
 
 push-demo:
-	az acr repository show --name $(REGISTRY_NAME) --image $(DEMO_IMAGE_NAME) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE_NAME) already exists" && exit 1; fi
-	docker push $(REGISTRY)/$(DEMO_IMAGE_NAME)
+	az acr repository show --name $(REGISTRY_NAME) --image $(DEMO_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
+	docker push $(REGISTRY)/$(DEMO_IMAGE)
 
 push-identity-validator:
-	az acr repository show --name $(REGISTRY_NAME) --image $(IDENTITY_VALIDATOR_IMAGE_NAME) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE_NAME) already exists" && exit 1; fi
-	docker push $(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE_NAME)
+	az acr repository show --name $(REGISTRY_NAME) --image $(IDENTITY_VALIDATOR_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
+	docker push $(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE)
 
 push:push-nmi push-mic push-demo push-identity-validator
 
