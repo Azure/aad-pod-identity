@@ -80,7 +80,7 @@ kubectl create -f https://raw.githubusercontent.com/Azure/aad-pod-identity/maste
 
 Get the client id and resource id for the identity 
 ```
-az identity create -g <resourcegroup> -n <idname>
+az identity create -g <resourcegroup> -n <managedidentity-resourcename>
 ```
 
 #### Assign Reader Role to new Identity
@@ -100,7 +100,7 @@ MIC uses the service principal credentials [stored within the the AKS](https://d
 
 2. Assign the required permissions - the following command can be used to assign the required permission:
 ```
-az role assignment create --role "Managed Identity Operator" --assignee <sp id> --scope <full id of the identity>
+az role assignment create --role "Managed Identity Operator" --assignee <sp id> --scope <full id of the managed identity>
 ```
 
 #### Install User Azure Identity on k8s cluster 
@@ -113,10 +113,10 @@ Set `type: 0` for User Assigned MSI; `type: 1` for Service Principal
 apiVersion: "aadpodidentity.k8s.io/v1"
 kind: AzureIdentity
 metadata:
- name: <any-idname>
+ name: <a-idname>
 spec:
  type: 0
- ResourceID: /subscriptions/<subid>/resourcegroups/<resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<idname>
+ ResourceID: /subscriptions/<subid>/resourcegroups/<resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<managedidentity-resourcename>
  ClientID: <clientid>
 ```
 
@@ -126,14 +126,14 @@ kubectl create -f aadpodidentity.yaml
 
 #### Install Pod to Identity Binding on k8s cluster
 
-Edit and save this as aadpodidentitybinding.yaml
+Edit and save this as aadpodidentitybinding.yaml.  Note the AzureIdentity name must match the one chosen in aadpodidentity.yaml.
 ```
 apiVersion: "aadpodidentity.k8s.io/v1"
 kind: AzureIdentityBinding
 metadata:
  name: demo1-azure-identity-binding
 spec:
- AzureIdentity: <idname>
+ AzureIdentity: <a-idname>
  Selector: <label value to match>
 ``` 
 
