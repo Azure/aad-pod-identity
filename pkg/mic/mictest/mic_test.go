@@ -32,7 +32,7 @@ func TestMapMICClient(t *testing.T) {
 		count := 3
 		if azureID, idPresent := idMap[name]; idPresent {
 			if azureID.Name != name {
-				panic("id map id value mismatch")
+				t.Errorf("id map id value mismatch")
 			}
 			count = count - 1
 		}
@@ -40,19 +40,19 @@ func TestMapMICClient(t *testing.T) {
 		name = "test-akssvcrg-id"
 		if azureID, idPresent := idMap[name]; idPresent {
 			if azureID.Name != name {
-				panic("id map id value mismatch")
+				t.Errorf("id map id value mismatch")
 			}
 			count = count - 1
 		}
 
 		name = "test not there"
 		if _, idPresent := idMap[name]; idPresent {
-			panic("not present found")
+			t.Errorf("not present found")
 		} else {
 			count = count - 1
 		}
 		if count != 0 {
-			panic("Test count mismatch")
+			t.Errorf("Test count mismatch")
 		}
 	*/
 }
@@ -84,7 +84,7 @@ func TestSimpleMICClient(t *testing.T) {
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
 		glog.Error(err)
-		panic("list assigned failed")
+		t.Errorf("list assigned failed")
 	}
 	if listAssignedIDs != nil {
 		for _, assignedID := range *listAssignedIDs {
@@ -94,7 +94,7 @@ func TestSimpleMICClient(t *testing.T) {
 					testPass = evtRecorder.Validate(&LastEvent{Type: "Normal", Reason: "binding applied",
 						Message: "Binding testbinding applied on node test-node for pod test-pod-default-test-id"})
 					if !testPass {
-						panic("event mismatch")
+						t.Errorf("event mismatch")
 					}
 				*/
 				break
@@ -103,7 +103,7 @@ func TestSimpleMICClient(t *testing.T) {
 	}
 
 	if !testPass {
-		panic("assigned id mismatch")
+		t.Errorf("assigned id mismatch")
 	}
 
 	//Test2: Remove assigned id event test
@@ -115,14 +115,14 @@ func TestSimpleMICClient(t *testing.T) {
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
 		glog.Error(err)
-		panic("list assigned failed")
+		t.Errorf("list assigned failed")
 	}
 	/*
 		testPass = evtRecorder.Validate(&LastEvent{Type: "Normal", Reason: "binding removed",
 			Message: "Binding testbinding removed from node test-node for pod test-pod"})
 
 		if !testPass {
-			panic("event mismatch")
+			t.Errorf("event mismatch")
 		}
 	*/
 	// Test3: Error from cloud provider event test
@@ -137,7 +137,7 @@ func TestSimpleMICClient(t *testing.T) {
 		Message: "Applying binding testbinding node test-node for pod test-pod-default-test-id resulted in error error returned from cloud provider"})
 
 	if !testPass {
-		panic("event mismatch")
+		t.Errorf("event mismatch")
 	}
 
 	// Test4: Removal error event test
@@ -159,7 +159,7 @@ func TestSimpleMICClient(t *testing.T) {
 			Message: "Binding testbinding removal from node test-node for pod test-pod resulted in error remove error returned from cloud provider"})
 
 		if !testPass {
-			panic("event mismatch")
+			t.Errorf("event mismatch")
 		}
 	*/
 }
