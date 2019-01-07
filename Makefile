@@ -28,7 +28,7 @@ else
 	endif
 endif
 
-GO_BUILD_OPTIONS := -buildmode=${GO_BUILD_MODE} --tags "netgo osusergo" -ldflags "-s -X $(VERSION_VAR)=$(NMI_VERSION) -X $(GIT_VAR)=$(GIT_HASH) -X $(BUILD_DATE_VAR)=$(BUILD_DATE) -extldflags '-static'"
+GO_BUILD_OPTIONS := -buildmode=${GO_BUILD_MODE} --tags "netgo osusergo"  -ldflags "-s -X $(VERSION_VAR)=$(NMI_VERSION) -X $(GIT_VAR)=$(GIT_HASH) -X $(BUILD_DATE_VAR)=$(BUILD_DATE) -extldflags '-static'"
 E2E_TEST_OPTIONS := -count=1 -v
 
 # useful for other docker repos

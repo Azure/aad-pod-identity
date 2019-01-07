@@ -24,6 +24,10 @@ const (
 	CRDGroup    = "aadpodidentity.k8s.io"
 	CRDVersion  = "v1"
 	CRDLabelKey = "aadpodidbinding"
+
+	BehaviorKey = "aadpodidentity.k8s.io/Behavior"
+	// Namespaced Behavior
+	BehaviorNamespaced = "namespaced"
 )
 
 /*** Global data structures ***/

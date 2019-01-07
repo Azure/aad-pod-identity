@@ -124,6 +124,13 @@ spec:
 kubectl create -f aadpodidentity.yaml
 ```
 
+#### Understanding Namespaced identities
+The system will match `pod` to `identity` across namespaces by default. This behavior can be modified to match to pods within the namespace that holds `AzureIdentity` by
+
+1. On Azure Identity bases, by addinging `aadpodidentity.k8s.io/Behavior: namespaced` annotation (You have to add the annotation on each `AzureIdentity` you want to apply this behavior on).
+2. Default namespaced behavior on all identities by adding `--forceNamespaced=true` argument on the command line  or declare `FORCENAMESPACED=true` environment variable (for both `nmi` and `mic`).
+
+
 #### Install Pod to Identity Binding on k8s cluster
 
 Edit and save this as aadpodidentitybinding.yaml.  Note the AzureIdentity name must match the one chosen in aadpodidentity.yaml.
