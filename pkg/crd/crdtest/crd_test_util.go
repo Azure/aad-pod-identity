@@ -35,25 +35,36 @@ func (c *TestCrdClient) CreateCrdWatchers(eventCh chan aadpodid.EventType) (err 
 	return nil
 }
 
-func (c *TestCrdClient) RemoveAssignedIdentity(name string) error {
-	delete(c.assignedIDMap, name)
+func (c *TestCrdClient) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
+	delete(c.assignedIDMap, assignedIdentity.Name)
 	return nil
 }
 
-func (c *TestCrdClient) CreateAssignedIdentity(name string, binding *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity, podName string, podNameSpace string, nodeName string) error {
+// This function is not used currently
+// TODO: consider remove
+func (c *TestCrdClient) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
 	assignedID := &aadpodid.AzureAssignedIdentity{
 		ObjectMeta: v1.ObjectMeta{
-			Name: name,
+			Name:      "some-name",
+			Namespace: "default",
 		},
 		Spec: aadpodid.AzureAssignedIdentitySpec{
-			Pod:              podName,
-			PodNamespace:     podNameSpace,
-			NodeName:         nodeName,
-			AzureBindingRef:  binding,
-			AzureIdentityRef: id,
+			Pod:          "test-pod",
+			PodNamespace: "defaut",
+			NodeName:     "test-node",
+			AzureBindingRef: &aadpodid.AzureIdentityBinding{
+				ObjectMeta: v1.ObjectMeta{
+					Name: "testbinding",
+				},
+			},
+			AzureIdentityRef: &aadpodid.AzureIdentity{
+				ObjectMeta: v1.ObjectMeta{
+					Name: "test-id",
+				},
+			},
 		},
 	}
-	c.assignedIDMap[name] = assignedID
+	c.assignedIDMap["some-name"] = assignedID
 	return nil
 }
 
