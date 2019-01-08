@@ -139,7 +139,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		if err != nil {
 			continue
 		}
-		idMap, err := c.convertIDListToMap(listIDs)
+		idMap, err := c.convertIDListToMap(*listIDs)
 		if err != nil {
 			glog.Error(err)
 			continue
@@ -181,9 +181,11 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			for _, binding := range matchedBindings {
 				glog.V(5).Infof("Looking up id map: %v", binding.Spec.AzureIdentity)
 				if azureID, idPresent := idMap[binding.Spec.AzureIdentity]; idPresent {
-					if c.IsNamespaced || aadpodid.IsNamespacedIdenity(&azureID) { // working in Namespaced mode or this specific identity is namespaced
-						if !(azureID.Namespace == binding.Namespace && binding.Namespace == pod.Namespace) { // They have to match all
-							glog.V(2).Infof("identity %s/%s was matched via binding %s/%s to %s/%s but namespaced identity is enforced, so it will be ignored",
+					// working in Namespaced mode or this specific identity is namespaced
+					if c.IsNamespaced || aadpodid.IsNamespacedIdentity(&azureID) {
+						// They have to match all
+						if !(azureID.Namespace == binding.Namespace && binding.Namespace == pod.Namespace) {
+							glog.Warningf("identity %s/%s was matched via binding %s/%s to %s/%s but namespaced identity is enforced, so it will be ignored",
 								azureID.Namespace, azureID.Name, binding.Namespace, binding.Name, pod.Namespace, pod.Name)
 							continue
 						}
@@ -386,7 +388,7 @@ func (c *Client) makeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpod
 		},
 	}
 	// if we are in namespaced mode (or az identity is namespaced)
-	if c.IsNamespaced || aadpodid.IsNamespacedIdenity(azID) {
+	if c.IsNamespaced || aadpodid.IsNamespacedIdentity(azID) {
 		assignedID.Namespace = azID.Namespace
 	}
 
@@ -445,9 +447,9 @@ func (c *Client) getAssignedIDName(podName string, podNameSpace string, idName s
 	return podName + "-" + podNameSpace + "-" + idName
 }
 
-func (c *Client) convertIDListToMap(arr *[]aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
-	m = make(map[string]aadpodid.AzureIdentity)
-	for _, element := range *arr {
+func (c *Client) convertIDListToMap(arr []aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
+	m = make(map[string]aadpodid.AzureIdentity, len(arr))
+	for _, element := range arr {
 		m[element.Name] = element
 	}
 	return m, nil
@@ -459,7 +461,7 @@ func (c *Client) checkIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, ar
 		id := assignedID.Spec.AzureIdentityRef
 		// If they have the same client id, reside on the same node but the pod name is different, then the
 		// assigned id is in use.
-		//This is applicable only for user assigned MSI since that is node specific. Ignore other cases.
+		// This is applicable only for user assigned MSI since that is node specific. Ignore other cases.
 		if checkID.Spec.Type != aadpodid.UserAssignedMSI {
 			continue
 		}

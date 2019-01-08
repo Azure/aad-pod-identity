@@ -20,7 +20,7 @@ func main() {
 	defer glog.Flush()
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "Path to the kube config")
 	flag.StringVar(&cloudconfig, "cloudconfig", "", "Path to cloud config e.g. Azure.json file")
-	flag.BoolVar(&forceNamespaced, "forceNamespaced", false, "Forces mic to namespace identities, binding, and assignment")
+	flag.BoolVar(&forceNamespaced, "forceNamespaced", false, "Forces namespaced identities, binding, and assignment")
 	flag.Parse()
 	if cloudconfig == "" {
 		glog.Fatalf("Could not get the cloud config")
@@ -35,7 +35,8 @@ func main() {
 		glog.Fatalf("Could not read config properly. Check the k8s config file, %+v", err)
 	}
 
-	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced || "true" == os.Getenv("FORCENAMESPACED"))
+	forceNamespaced = forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
+	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced)
 	if err != nil {
 		glog.Fatalf("Could not get the MIC client: %+v", err)
 	}

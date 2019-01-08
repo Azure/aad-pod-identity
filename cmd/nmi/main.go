@@ -36,7 +36,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}
-	s := server.NewServer(*forceNamespaced || "true" == os.Getenv("FORCENAMESPACED"))
+	*forceNamespaced = *forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
+	s := server.NewServer(*forceNamespaced)
 	s.KubeClient = client
 	s.MetadataIP = *metadataIP
 	s.MetadataPort = *metadataPort

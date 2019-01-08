@@ -162,13 +162,17 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 	// filter out if we are in namesoaced mode
 	filterPodIdentities := []aadpodid.AzureIdentity{}
 	for _, val := range *(podIDs) {
-		if s.IsNamespaced || aadpodid.IsNamespacedIdenity(&val) { // namespaced mode
-			if val.Namespace == podns { // matched namespace
+		if s.IsNamespaced || aadpodid.IsNamespacedIdentity(&val) {
+			// namespaced mode
+			if val.Namespace == podns {
+				// matched namespace
 				filterPodIdentities = append(filterPodIdentities, val)
-			} else { // unmatcjed namespaced
+			} else {
+				// unmatched namespaced
 				logger.Errorf("pod:%s/%s has identity %s/%s but identity is namespaced will be ignored", podns, podname, val.Name, val.Namespace)
 			}
-		} else { // not in namespaced mode
+		} else {
+			// not in namespaced mode
 			filterPodIdentities = append(filterPodIdentities, val)
 		}
 	}
