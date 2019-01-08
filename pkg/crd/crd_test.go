@@ -1,16 +1,15 @@
-package crdtest
+package crd
 
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
-	"github.com/Azure/aad-pod-identity/pkg/crd"
 	api "k8s.io/api/core/v1"
 )
 
 type TestCrdClient struct {
-	*crd.Client
+	*Client
 	assignedIDMap map[string]*aadpodid.AzureAssignedIdentity
 	bindingMap    map[string]*aadpodid.AzureIdentityBinding
 	idMap         map[string]*aadpodid.AzureIdentity

@@ -1,4 +1,4 @@
-package podtest
+package pod
 
 import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"

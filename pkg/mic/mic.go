@@ -192,7 +192,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 					assignedID, err := c.makeAssignedIDs(&azureID, &binding, pod.Name, pod.Namespace, pod.Spec.NodeName)
 
 					if err != nil {
-						glog.Error("failed to create assignment for pod %s/%s with identity %s/%s with error %v", pod.Name, pod.Namespace, azureID.Namespace, azureID.Name, err.Error())
+						glog.Errorf("failed to create assignment for pod %s/%s with identity %s/%s with error %v", pod.Name, pod.Namespace, azureID.Namespace, azureID.Name, err.Error())
 						continue
 					}
 					newAssignedIDs = append(newAssignedIDs, *assignedID)
