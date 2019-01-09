@@ -390,6 +390,11 @@ func (c *Client) makeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpod
 	// if we are in namespaced mode (or az identity is namespaced)
 	if c.IsNamespaced || aadpodid.IsNamespacedIdentity(azID) {
 		assignedID.Namespace = azID.Namespace
+	} else {
+		// evantually this should be identity namespace
+		// but to maintain back compat we will use existing
+		// behavior
+		assignedID.Namespace = "default"
 	}
 
 	glog.V(5).Infof("Making assigned ID: %v", assignedID)

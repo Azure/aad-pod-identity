@@ -487,7 +487,7 @@ func TestMapMICClient(t *testing.T) {
 	id.Name = "test-akssvcrg-id"
 	idList = append(idList, *id)
 
-	idMap, _ := micClient.convertIDListToMap(&idList)
+	idMap, _ := micClient.convertIDListToMap(idList)
 
 	name := "test-azure-identity"
 	count := 3
