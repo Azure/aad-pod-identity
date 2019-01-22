@@ -185,7 +185,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 					if c.IsNamespaced || aadpodid.IsNamespacedIdentity(&azureID) {
 						// They have to match all
 						if !(azureID.Namespace == binding.Namespace && binding.Namespace == pod.Namespace) {
-							glog.Warningf("identity %s/%s was matched via binding %s/%s to %s/%s but namespaced identity is enforced, so it will be ignored",
+							glog.V(5).Infof("identity %s/%s was matched via binding %s/%s to %s/%s but namespaced identity is enforced, so it will be ignored",
 								azureID.Namespace, azureID.Name, binding.Namespace, binding.Name, pod.Namespace, pod.Name)
 							continue
 						}
