@@ -37,3 +37,5 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
+      nodeSelector:
+        beta.kubernetes.io/os: linux
