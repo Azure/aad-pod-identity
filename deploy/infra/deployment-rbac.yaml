@@ -189,3 +189,5 @@ spec:
       - name: k8s-azure-file
         hostPath:
           path: /etc/kubernetes/azure.json
+      nodeSelector:
+        beta.kubernetes.io/os: linux
