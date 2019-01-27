@@ -55,6 +55,7 @@ spec:
       volumes:
       - hostPath:
           path: /run/xtables.lock
+          type: FileOrCreate
         name: iptableslock
       containers:
       - name: nmi
