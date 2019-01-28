@@ -93,6 +93,11 @@ spec:
     spec:
       serviceAccountName: aad-pod-id-nmi-service-account
       hostNetwork: true
+      volumes:
+      - hostPath:
+          path: /run/xtables.lock
+          type: FileOrCreate
+        name: iptableslock
       containers:
       - name: nmi
         image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.2"
@@ -114,6 +119,9 @@ spec:
           capabilities:
             add:
             - NET_ADMIN
+        volumeMounts:
+        - mountPath: /run/xtables.lock
+          name: iptableslock
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -182,9 +190,9 @@ spec:
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
         volumeMounts:
-          - name: k8s-azure-file
-            mountPath: /etc/kubernetes/azure.json
-            readOnly: true
+        - name: k8s-azure-file
+          mountPath: /etc/kubernetes/azure.json
+          readOnly: true
       volumes:
       - name: k8s-azure-file
         hostPath:
