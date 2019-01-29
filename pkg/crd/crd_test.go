@@ -1,7 +1,7 @@
 package crd
 
 import (
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
@@ -42,28 +42,7 @@ func (c *TestCrdClient) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureA
 // This function is not used currently
 // TODO: consider remove
 func (c *TestCrdClient) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
-	assignedID := &aadpodid.AzureAssignedIdentity{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      "some-name",
-			Namespace: "default",
-		},
-		Spec: aadpodid.AzureAssignedIdentitySpec{
-			Pod:          "test-pod",
-			PodNamespace: "defaut",
-			NodeName:     "test-node",
-			AzureBindingRef: &aadpodid.AzureIdentityBinding{
-				ObjectMeta: v1.ObjectMeta{
-					Name: "testbinding",
-				},
-			},
-			AzureIdentityRef: &aadpodid.AzureIdentity{
-				ObjectMeta: v1.ObjectMeta{
-					Name: "test-id",
-				},
-			},
-		},
-	}
-	c.assignedIDMap["some-name"] = assignedID
+	c.assignedIDMap[assignedIdentity.Name] = assignedIdentity
 	return nil
 }
 
