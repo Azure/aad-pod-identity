@@ -624,3 +624,83 @@ func TestSimpleMICClient(t *testing.T) {
 		}
 	*/
 }
+
+func TestAddDelMICClient(t *testing.T) {
+
+	exit := make(<-chan struct{}, 0)
+	eventCh := make(chan aadpodid.EventType, 100)
+	cloudClient := cp.NewTestCloudClient(config.AzureConfig{})
+	crdClient := crd.NewTestCrdClient(nil)
+	podClient := pod.NewTestPodClient()
+	nodeClient := NewTestNodeClient()
+	var evtRecorder TestEventRecorder
+	evtRecorder.lastEvent = new(LastEvent)
+
+	micClient := NewMICClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
+
+	// Test to add and delete at the same time.
+	// Add a pod, identity and binding.
+	crdClient.CreateId("test-id2", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
+	crdClient.CreateBinding("testbinding2", "test-id2", "test-select2")
+
+	nodeClient.AddNode("test-node2")
+	podClient.AddPod("test-pod2", "default", "test-node2", "test-select2")
+	podClient.GetPods()
+
+	crdClient.CreateId("test-id4", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
+	crdClient.CreateBinding("testbinding4", "test-id4", "test-select4")
+	podClient.AddPod("test-pod4", "default", "test-node2", "test-select4")
+	podClient.GetPods()
+
+	eventCh <- aadpodid.PodCreated
+	go micClient.Sync(exit)
+	time.Sleep(5 * time.Second)
+
+	listAssignedIDs, err := crdClient.ListAssignedIDs()
+	if err != nil {
+		panic("error from list assigned ids")
+	}
+	expectedLen := 2
+	gotLen := len(*listAssignedIDs)
+
+	//One id should be left around. Rest should be removed
+	if gotLen != expectedLen {
+		glog.Errorf("Expected len: %d. Got: %d", expectedLen, gotLen)
+		panic("Add and delete id at same time mismatch")
+	}
+
+	//Delete the pod
+	podClient.DeletePod("test-pod2", "default")
+	podClient.DeletePod("test-pod4", "default")
+
+	//Add a new pod, with different id and binding on the same node.
+	crdClient.CreateId("test-id3", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
+	crdClient.CreateBinding("testbinding3", "test-id3", "test-select3")
+	podClient.AddPod("test-pod3", "default", "test-node2", "test-select3")
+	podClient.GetPods()
+
+	eventCh <- aadpodid.PodCreated
+	go micClient.Sync(exit)
+	time.Sleep(5 * time.Second)
+
+	listAssignedIDs, err = crdClient.ListAssignedIDs()
+	if err != nil {
+		glog.Error(err)
+		panic("list assigned failed")
+	}
+
+	expectedLen = 1
+	gotLen = len(*listAssignedIDs)
+	//One id should be left around. Rest should be removed
+	if gotLen != expectedLen {
+		glog.Errorf("Expected len: %d. Got: %d", expectedLen, gotLen)
+		panic("Add and delete id at same time mismatch")
+	} else {
+		gotID := (*listAssignedIDs)[0].Name
+		expectedID := "test-pod3-default-test-id3"
+		if gotID != expectedID {
+			glog.Errorf("Expected %s. Got: %s", expectedID, gotID)
+			panic("Add and delete id at same time. Found wrong id")
+		}
+	}
+}
