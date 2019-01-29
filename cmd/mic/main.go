@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"os"
 
 	"github.com/Azure/aad-pod-identity/pkg/mic"
 	"github.com/golang/glog"
@@ -10,14 +11,16 @@ import (
 )
 
 var (
-	kubeconfig  string
-	cloudconfig string
+	kubeconfig      string
+	cloudconfig     string
+	forceNamespaced bool
 )
 
 func main() {
 	defer glog.Flush()
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "Path to the kube config")
 	flag.StringVar(&cloudconfig, "cloudconfig", "", "Path to cloud config e.g. Azure.json file")
+	flag.BoolVar(&forceNamespaced, "forceNamespaced", false, "Forces namespaced identities, binding, and assignment")
 	flag.Parse()
 	if cloudconfig == "" {
 		glog.Fatalf("Could not get the cloud config")
@@ -32,7 +35,8 @@ func main() {
 		glog.Fatalf("Could not read config properly. Check the k8s config file, %+v", err)
 	}
 
-	micClient, err := mic.NewMICClient(cloudconfig, config)
+	forceNamespaced = forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
+	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced)
 	if err != nil {
 		glog.Fatalf("Could not get the MIC client: %+v", err)
 	}

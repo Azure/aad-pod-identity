@@ -5,6 +5,7 @@ import (
 	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"os"
 )
 
 const (
@@ -21,8 +22,8 @@ var (
 	metadataPort                       = pflag.String("metadata-port", defaultMetadataPort, "instance metadata host ip")
 	hostIP                             = pflag.String("host-ip", "", "host IP address")
 	nodename                           = pflag.String("node", "", "node name")
-	ipTableUpdateTimeIntervalInSeconds = pflag.Int("ipt-update-interval-sec",
-		defaultIPTableUpdateTimeIntervalInSeconds, "update interval of iptables")
+	ipTableUpdateTimeIntervalInSeconds = pflag.Int("ipt-update-interval-sec", defaultIPTableUpdateTimeIntervalInSeconds, "update interval of iptables")
+	forceNamespaced                    = pflag.Bool("forceNamespaced", false, "Forces mic to namespace identities, binding, and assignment")
 )
 
 func main() {
@@ -35,7 +36,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}
-	s := server.NewServer()
+	*forceNamespaced = *forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
+	s := server.NewServer(*forceNamespaced)
 	s.KubeClient = client
 	s.MetadataIP = *metadataIP
 	s.MetadataPort = *metadataPort

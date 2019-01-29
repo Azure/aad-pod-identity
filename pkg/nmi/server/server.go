@@ -36,6 +36,7 @@ type Server struct {
 	HostIP                             string
 	NodeName                           string
 	IPTableUpdateTimeIntervalInSeconds int
+	IsNamespaced                       bool
 }
 
 type NMIResponse struct {
@@ -44,8 +45,10 @@ type NMIResponse struct {
 }
 
 // NewServer will create a new Server with default values.
-func NewServer() *Server {
-	return &Server{}
+func NewServer(isNamespaced bool) *Server {
+	return &Server{
+		IsNamespaced: isNamespaced,
+	}
 }
 
 // Run runs the specified Server.
@@ -155,6 +158,25 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 		http.Error(w, msg, http.StatusForbidden)
 		return
 	}
+
+	// filter out if we are in namesoaced mode
+	filterPodIdentities := []aadpodid.AzureIdentity{}
+	for _, val := range *(podIDs) {
+		if s.IsNamespaced || aadpodid.IsNamespacedIdentity(&val) {
+			// namespaced mode
+			if val.Namespace == podns {
+				// matched namespace
+				filterPodIdentities = append(filterPodIdentities, val)
+			} else {
+				// unmatched namespaced
+				logger.Errorf("pod:%s/%s has identity %s/%s but identity is namespaced will be ignored", podns, podname, val.Name, val.Namespace)
+			}
+		} else {
+			// not in namespaced mode
+			filterPodIdentities = append(filterPodIdentities, val)
+		}
+	}
+	podIDs = &filterPodIdentities
 	rqClientID, rqResource := parseRequestClientIDAndResource(r)
 	token, clientID, err := getTokenForMatchingID(logger, rqClientID, rqResource, podIDs)
 	if err != nil {

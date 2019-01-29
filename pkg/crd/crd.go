@@ -26,8 +26,8 @@ type Client struct {
 type ClientInt interface {
 	Start(exit <-chan struct{})
 	SyncCache(exit <-chan struct{})
-	RemoveAssignedIdentity(name string) error
-	CreateAssignedIdentity(name string, binding *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity, podName string, podNameSpace string, nodeName string) error
+	RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
+	CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error)
 	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
 	ListIds() (res *[]aadpodid.AzureIdentity, err error)
@@ -98,7 +98,7 @@ func newRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
 
 func newBindingWatcher(r *rest.RESTClient, eventCh chan aadpodid.EventType) (cache.SharedInformer, error) {
 	azBindingWatcher := cache.NewSharedInformer(
-		cache.NewListWatchFromClient(r, aadpodid.AzureIDBindingResource, "default", fields.Everything()),
+		cache.NewListWatchFromClient(r, aadpodid.AzureIDBindingResource, v1.NamespaceAll, fields.Everything()),
 		&aadpodid.AzureIdentityBinding{},
 		time.Minute*10)
 	if azBindingWatcher == nil {
@@ -125,7 +125,7 @@ func newBindingWatcher(r *rest.RESTClient, eventCh chan aadpodid.EventType) (cac
 
 func newIdWatcher(r *rest.RESTClient, eventCh chan aadpodid.EventType) (cache.SharedInformer, error) {
 	azIdWatcher := cache.NewSharedInformer(
-		cache.NewListWatchFromClient(r, aadpodid.AzureIDResource, "default", fields.Everything()),
+		cache.NewListWatchFromClient(r, aadpodid.AzureIDResource, v1.NamespaceAll, fields.Everything()),
 		&aadpodid.AzureIdentity{},
 		time.Minute*10)
 	if azIdWatcher == nil {
@@ -162,39 +162,23 @@ func (c *Client) SyncCache(exit <-chan struct{}) {
 	}
 }
 
-func (c *Client) RemoveAssignedIdentity(name string) error {
-	glog.V(6).Infof("Deletion of id named: %s", name)
+func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
+	glog.V(6).Infof("Deletion of id named: %s", assignedIdentity.Name)
 	begin := time.Now()
-	err := c.rest.Delete().Namespace("default").Resource("azureassignedidentities").Name(name).Do().Error()
+	err := c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Name(assignedIdentity.Name).Do().Error()
 	stats.Update(stats.AssignedIDDel, time.Since(begin))
 	return err
 }
 
-func (c *Client) CreateAssignedIdentity(name string, binding *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity, podName string, podNameSpace string, nodeName string) error {
-	glog.Infof("Got id %s to assign", id.Name)
+func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
+	glog.Infof("Got id %s to assign", assignedIdentity.Name)
 	begin := time.Now()
 	// Create a new AzureAssignedIdentity which maps the relationship between
 	// id and pod
-	assignedID := &aadpodid.AzureAssignedIdentity{
-		ObjectMeta: v1.ObjectMeta{
-			Name: name,
-		},
-		Spec: aadpodid.AzureAssignedIdentitySpec{
-			AzureIdentityRef: id,
-			AzureBindingRef:  binding,
-			Pod:              podName,
-			PodNamespace:     podNameSpace,
-			NodeName:         nodeName,
-		},
-		Status: aadpodid.AzureAssignedIdentityStatus{
-			AvailableReplicas: 1,
-		},
-	}
-
-	glog.Infof("Creating assigned Id: %s", assignedID.Name)
+	glog.Infof("Creating assigned Id: %s", assignedIdentity.Name)
 	var res aadpodid.AzureAssignedIdentity
 	// TODO: Ensure that the status reflects the corresponding
-	err := c.rest.Post().Namespace("default").Resource("azureassignedidentities").Body(assignedID).Do().Into(&res)
+	err := c.rest.Post().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Body(assignedIdentity).Do().Into(&res)
 	if err != nil {
 		glog.Error(err)
 		return err
@@ -208,7 +192,7 @@ func (c *Client) CreateAssignedIdentity(name string, binding *aadpodid.AzureIden
 func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
 	begin := time.Now()
 	var ret aadpodid.AzureIdentityBindingList
-	err = c.rest.Get().Namespace("default").Resource("azureidentitybindings").Do().Into(&ret)
+	err = c.rest.Get().Namespace(v1.NamespaceAll).Resource("azureidentitybindings").Do().Into(&ret)
 	if err != nil {
 		glog.Error(err)
 		return nil, err
@@ -220,7 +204,7 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
 	begin := time.Now()
 	var ret aadpodid.AzureAssignedIdentityList
-	err = c.rest.Get().Namespace("default").Resource("azureassignedidentities").Do().Into(&ret)
+	err = c.rest.Get().Namespace(v1.NamespaceAll).Resource("azureassignedidentities").Do().Into(&ret)
 	if err != nil {
 		glog.Error(err)
 		return nil, err
@@ -232,7 +216,7 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 	begin := time.Now()
 	var ret aadpodid.AzureIdentityList
-	err = c.rest.Get().Namespace("default").Resource("azureidentities").Do().Into(&ret)
+	err = c.rest.Get().Namespace(v1.NamespaceAll).Resource("azureidentities").Do().Into(&ret)
 	if err != nil {
 		glog.Error(err)
 		return nil, err
@@ -245,7 +229,7 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 func (c *Client) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error) {
 	var azAssignedIDList aadpodid.AzureAssignedIdentityList
 	var matchedIds []aadpodid.AzureIdentity
-	err := c.rest.Get().Namespace("default").Resource("azureassignedidentities").Do().Into(&azAssignedIDList)
+	err := c.rest.Get().Namespace(v1.NamespaceAll).Resource("azureassignedidentities").Do().Into(&azAssignedIDList)
 	if err != nil {
 		glog.Error(err)
 		return nil, err

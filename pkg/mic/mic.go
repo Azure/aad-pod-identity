@@ -39,25 +39,16 @@ type Client struct {
 	EventRecorder record.EventRecorder
 	EventChannel  chan aadpodid.EventType
 	NodeClient    NodeGetter
+	IsNamespaced  bool
 }
 
 type ClientInt interface {
 	Start(exit <-chan struct{})
 
-	ConvertIDListToMap(arr *[]aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error)
-	CheckIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, arr []aadpodid.AzureAssignedIdentity) bool
-
 	Sync(exit <-chan struct{})
-	MatchAssignedID(x *aadpodid.AzureAssignedIdentity, y *aadpodid.AzureAssignedIdentity) (ret bool, err error)
-	SplitAzureAssignedIDs(old *[]aadpodid.AzureAssignedIdentity, new *[]aadpodid.AzureAssignedIdentity) (retCreate *[]aadpodid.AzureAssignedIdentity, retDelete *[]aadpodid.AzureAssignedIdentity, err error)
-	MakeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpodid.AzureIdentityBinding, podName string, podNameSpace string, nodeName string) (res *aadpodid.AzureAssignedIdentity, err error)
-	CreateAssignedIdentityDeps(b *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity,
-		podName string, podNameSpace string, nodeName string) error
-	RemoveAssignedIDsWithDeps(assignedID *aadpodid.AzureAssignedIdentity, inUse bool) error
-	GetAssignedIDName(podName string, podNameSpace string, idName string) string
 }
 
-func NewMICClient(cloudconfig string, config *rest.Config) (*Client, error) {
+func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool) (*Client, error) {
 	glog.Infof("Starting to create the pod identity client. Version: %v. Build date: %v", version.Version, version.BuildDate)
 
 	clientSet := kubernetes.NewForConfigOrDie(config)
@@ -91,6 +82,7 @@ func NewMICClient(cloudconfig string, config *rest.Config) (*Client, error) {
 		EventRecorder: recorder,
 		EventChannel:  eventCh,
 		NodeClient:    &NodeClient{informer.Core().V1().Nodes()},
+		IsNamespaced:  isNamespaced,
 	}, nil
 }
 
@@ -124,34 +116,8 @@ func (c *Client) Start(exit <-chan struct{}) {
 	go c.Sync(exit)
 }
 
-func (c *Client) ConvertIDListToMap(arr *[]aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
-	m = make(map[string]aadpodid.AzureIdentity)
-	for _, element := range *arr {
-		m[element.Name] = element
-	}
-	return m, nil
-}
-
-func (c *Client) CheckIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, arr []aadpodid.AzureAssignedIdentity) bool {
-	for _, assignedID := range arr {
-		checkID := checkAssignedID.Spec.AzureIdentityRef
-		id := assignedID.Spec.AzureIdentityRef
-		// If they have the same client id, reside on the same node but the pod name is different, then the
-		// assigned id is in use.
-		//This is applicable only for user assigned MSI since that is node specific. Ignore other cases.
-		if checkID.Spec.Type != aadpodid.UserAssignedMSI {
-			continue
-		}
-		if checkID.Spec.ClientID == id.Spec.ClientID && checkAssignedID.Spec.NodeName == assignedID.Spec.NodeName &&
-			checkAssignedID.Spec.Pod != assignedID.Spec.Pod {
-			return true
-		}
-	}
-	return false
-}
-
 func (c *Client) Sync(exit <-chan struct{}) {
-	glog.Info("Sync thread started\n")
+	glog.Info("Sync thread started.")
 	for event := range c.EventChannel {
 		stats.Init()
 		// This is the only place where the AzureAssignedIdentity creation is initiated.
@@ -173,7 +139,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		if err != nil {
 			continue
 		}
-		idMap, err := c.ConvertIDListToMap(listIDs)
+		idMap, err := c.convertIDListToMap(*listIDs)
 		if err != nil {
 			glog.Error(err)
 			continue
@@ -194,18 +160,20 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		for _, pod := range listPods {
 			//Node is not yet allocated. In that case skip the pod
 			if pod.Spec.NodeName == "" {
+				glog.V(2).Infof("Pod %s/%s has no assigned node yet. it will be ignored", pod.Name, pod.Namespace)
 				continue
 			}
 			crdPodLabelVal := pod.Labels[aadpodid.CRDLabelKey]
 			if crdPodLabelVal == "" {
 				//No binding mentioned in the label. Just continue to the next pod
+				glog.V(2).Infof("Pod %s/%s has correct %s label but with no value. it will be ignored", pod.Name, pod.Namespace, aadpodid.CRDLabelKey)
 				continue
 			}
 			//glog.Infof("Found label with our CRDKey %s for pod: %s", crdPodLabelVal, pod.Name)
 			var matchedBindings []aadpodid.AzureIdentityBinding
 			for _, allBinding := range *listBindings {
 				if allBinding.Spec.Selector == crdPodLabelVal {
-					glog.V(5).Infof("Found binding match for pod %s with binding %s", pod.Name, allBinding.Name)
+					glog.V(5).Infof("Found binding match for pod %s/%s with binding %s", pod.Name, pod.Namespace, allBinding.Name)
 					matchedBindings = append(matchedBindings, allBinding)
 				}
 			}
@@ -213,11 +181,20 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			for _, binding := range matchedBindings {
 				glog.V(5).Infof("Looking up id map: %v", binding.Spec.AzureIdentity)
 				if azureID, idPresent := idMap[binding.Spec.AzureIdentity]; idPresent {
-					glog.V(5).Infof("Id %s got for assigning", azureID.Name)
-					assignedID, err := c.MakeAssignedIDs(&azureID, &binding, pod.Name, pod.Namespace, pod.Spec.NodeName)
+					// working in Namespaced mode or this specific identity is namespaced
+					if c.IsNamespaced || aadpodid.IsNamespacedIdentity(&azureID) {
+						// They have to match all
+						if !(azureID.Namespace == binding.Namespace && binding.Namespace == pod.Namespace) {
+							glog.V(5).Infof("identity %s/%s was matched via binding %s/%s to %s/%s but namespaced identity is enforced, so it will be ignored",
+								azureID.Namespace, azureID.Name, binding.Namespace, binding.Name, pod.Namespace, pod.Name)
+							continue
+						}
+					}
+					glog.V(5).Infof("identity %s/%s assigned to %s/%s via %s/%s", azureID.Namespace, azureID.Name, pod.Namespace, pod.Name, binding.Namespace, binding.Namespace)
+					assignedID, err := c.makeAssignedIDs(&azureID, &binding, pod.Name, pod.Namespace, pod.Spec.NodeName)
 
 					if err != nil {
-						glog.Error(err)
+						glog.Errorf("failed to create assignment for pod %s/%s with identity %s/%s with error %v", pod.Name, pod.Namespace, azureID.Namespace, azureID.Name, err.Error())
 						continue
 					}
 					newAssignedIDs = append(newAssignedIDs, *assignedID)
@@ -235,7 +212,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		// Extract add list and delete list based on existing assigned ids in the system (currentAssignedIDs).
 		// and the ones we have arrived at in the volatile list (newAssignedIDs).
 		// TODO: Separate this into two methods.
-		addList, deleteList, err := c.SplitAzureAssignedIDs(currentAssignedIDs, &newAssignedIDs)
+		addList, deleteList, err := c.splitAzureAssignedIDs(currentAssignedIDs, &newAssignedIDs)
 		if err != nil {
 			glog.Error(err)
 			continue
@@ -248,15 +225,15 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			workDone = true
 			for _, delID := range *deleteList {
 				glog.V(5).Infof("Deletion of id: %s", delID.Name)
-				inUse := c.CheckIfInUse(delID, newAssignedIDs)
+				inUse := c.checkIfInUse(delID, newAssignedIDs)
 				removedBinding := delID.Spec.AzureBindingRef
 				// The inUse here checks if there are pods which are using the MSI in the newAssignedIDs.
-				err = c.RemoveAssignedIDsWithDeps(&delID, inUse)
+				err = c.removeAssignedIDsWithDeps(&delID, inUse)
 				if err != nil {
 					// Since k8s event has only Info and Warning, using Warning.
-					c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error",
-						fmt.Sprintf("Binding %s removal from node %s for pod %s resulted in error %v", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod, err))
-					glog.Error(err)
+					message := fmt.Sprintf("Binding %s removal from node %s for pod %s resulted in error %v", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod, err.Error())
+					c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error", message)
+					glog.Error(message)
 					continue
 				}
 				eventRecordStart := time.Now()
@@ -284,7 +261,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 				glog.V(5).Infof("Initiating assigned id creation for pod - %s, binding - %s", createID.Spec.Pod, binding.Name)
 
-				err = c.CreateAssignedIdentityDeps(binding, id, createID.Spec.Pod, createID.Spec.PodNamespace, node)
+				err = c.createAssignedIdentityDeps(&createID, id, node)
 				if err != nil {
 					// Since k8s event has only Info and Warning, using Warning.
 					c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error",
@@ -318,7 +295,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 	}
 }
 
-func (c *Client) MatchAssignedID(x *aadpodid.AzureAssignedIdentity, y *aadpodid.AzureAssignedIdentity) (ret bool, err error) {
+func (c *Client) matchAssignedID(x *aadpodid.AzureAssignedIdentity, y *aadpodid.AzureAssignedIdentity) (ret bool, err error) {
 	bindingX := x.Spec.AzureBindingRef
 	bindingY := y.Spec.AzureBindingRef
 
@@ -333,7 +310,7 @@ func (c *Client) MatchAssignedID(x *aadpodid.AzureAssignedIdentity, y *aadpodid.
 	return false, nil
 }
 
-func (c *Client) SplitAzureAssignedIDs(old *[]aadpodid.AzureAssignedIdentity, new *[]aadpodid.AzureAssignedIdentity) (retCreate *[]aadpodid.AzureAssignedIdentity, retDelete *[]aadpodid.AzureAssignedIdentity, err error) {
+func (c *Client) splitAzureAssignedIDs(old *[]aadpodid.AzureAssignedIdentity, new *[]aadpodid.AzureAssignedIdentity) (retCreate *[]aadpodid.AzureAssignedIdentity, retDelete *[]aadpodid.AzureAssignedIdentity, err error) {
 
 	if old == nil || len(*old) == 0 {
 		return new, nil, nil
@@ -348,7 +325,7 @@ func (c *Client) SplitAzureAssignedIDs(old *[]aadpodid.AzureAssignedIdentity, ne
 	for _, newAssignedID := range *new {
 		idMatch = false
 		for _, oldAssignedID := range *old {
-			idMatch, err = c.MatchAssignedID(&newAssignedID, &oldAssignedID)
+			idMatch, err = c.matchAssignedID(&newAssignedID, &oldAssignedID)
 			if err != nil {
 				glog.Error(err)
 				continue
@@ -371,7 +348,7 @@ func (c *Client) SplitAzureAssignedIDs(old *[]aadpodid.AzureAssignedIdentity, ne
 	for _, oldAssignedID := range *old {
 		idMatch = false
 		for _, newAssignedID := range *new {
-			idMatch, err = c.MatchAssignedID(&newAssignedID, &oldAssignedID)
+			idMatch, err = c.matchAssignedID(&newAssignedID, &oldAssignedID)
 			if err != nil {
 				glog.Error(err)
 				continue
@@ -394,10 +371,10 @@ func (c *Client) SplitAzureAssignedIDs(old *[]aadpodid.AzureAssignedIdentity, ne
 	return &create, &delete, nil
 }
 
-func (c *Client) MakeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpodid.AzureIdentityBinding, podName string, podNameSpace string, nodeName string) (res *aadpodid.AzureAssignedIdentity, err error) {
+func (c *Client) makeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpodid.AzureIdentityBinding, podName string, podNameSpace string, nodeName string) (res *aadpodid.AzureAssignedIdentity, err error) {
 	assignedID := &aadpodid.AzureAssignedIdentity{
 		ObjectMeta: v1.ObjectMeta{
-			Name: c.GetAssignedIDName(podName, podNameSpace, azID.Name),
+			Name: c.getAssignedIDName(podName, podNameSpace, azID.Name),
 		},
 		Spec: aadpodid.AzureAssignedIdentitySpec{
 			AzureIdentityRef: azID,
@@ -410,24 +387,33 @@ func (c *Client) MakeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpod
 			AvailableReplicas: 1,
 		},
 	}
+	// if we are in namespaced mode (or az identity is namespaced)
+	if c.IsNamespaced || aadpodid.IsNamespacedIdentity(azID) {
+		assignedID.Namespace = azID.Namespace
+	} else {
+		// evantually this should be identity namespace
+		// but to maintain back compat we will use existing
+		// behavior
+		assignedID.Namespace = "default"
+	}
+
 	glog.V(5).Infof("Making assigned ID: %v", assignedID)
 	return assignedID, nil
 }
 
-func (c *Client) CreateAssignedIdentityDeps(b *aadpodid.AzureIdentityBinding, id *aadpodid.AzureIdentity,
-	podName string, podNameSpace string, node *corev1.Node) error {
-	name := c.GetAssignedIDName(podName, podNameSpace, id.Name)
-	err := c.CRDClient.CreateAssignedIdentity(name, b, id, podName, podNameSpace, node.Name)
+func (c *Client) createAssignedIdentityDeps(assignedID *aadpodid.AzureAssignedIdentity, id *aadpodid.AzureIdentity, node *corev1.Node) error {
+	err := c.CRDClient.CreateAssignedIdentity(assignedID)
 	if err != nil {
 		glog.Error(err)
 		return err
 	}
 
 	if id.Spec.Type == aadpodid.UserAssignedMSI {
+
 		err = c.CloudClient.AssignUserMSI(id.Spec.ResourceID, node)
 		if err != nil {
 			glog.Error(err)
-			newErr := c.CRDClient.RemoveAssignedIdentity(name)
+			newErr := c.CRDClient.RemoveAssignedIdentity(assignedID)
 			if newErr != nil {
 				glog.Errorf("Error when removing assigned identity in create error path err: %v", newErr)
 			}
@@ -437,8 +423,8 @@ func (c *Client) CreateAssignedIdentityDeps(b *aadpodid.AzureIdentityBinding, id
 	return nil
 }
 
-func (c *Client) RemoveAssignedIDsWithDeps(assignedID *aadpodid.AzureAssignedIdentity, inUse bool) error {
-	err := c.CRDClient.RemoveAssignedIdentity(assignedID.Name)
+func (c *Client) removeAssignedIDsWithDeps(assignedID *aadpodid.AzureAssignedIdentity, inUse bool) error {
+	err := c.CRDClient.RemoveAssignedIdentity(assignedID)
 	if err != nil {
 		glog.Error(err)
 		return nil
@@ -462,6 +448,32 @@ func (c *Client) RemoveAssignedIDsWithDeps(assignedID *aadpodid.AzureAssignedIde
 	return nil
 }
 
-func (c *Client) GetAssignedIDName(podName string, podNameSpace string, idName string) string {
+func (c *Client) getAssignedIDName(podName string, podNameSpace string, idName string) string {
 	return podName + "-" + podNameSpace + "-" + idName
+}
+
+func (c *Client) convertIDListToMap(arr []aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
+	m = make(map[string]aadpodid.AzureIdentity, len(arr))
+	for _, element := range arr {
+		m[element.Name] = element
+	}
+	return m, nil
+}
+
+func (c *Client) checkIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, arr []aadpodid.AzureAssignedIdentity) bool {
+	for _, assignedID := range arr {
+		checkID := checkAssignedID.Spec.AzureIdentityRef
+		id := assignedID.Spec.AzureIdentityRef
+		// If they have the same client id, reside on the same node but the pod name is different, then the
+		// assigned id is in use.
+		// This is applicable only for user assigned MSI since that is node specific. Ignore other cases.
+		if checkID.Spec.Type != aadpodid.UserAssignedMSI {
+			continue
+		}
+		if checkID.Spec.ClientID == id.Spec.ClientID && checkAssignedID.Spec.NodeName == assignedID.Spec.NodeName &&
+			checkAssignedID.Spec.Pod != assignedID.Spec.Pod {
+			return true
+		}
+	}
+	return false
 }
