@@ -16,7 +16,7 @@ import (
 	cp "github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 )
@@ -303,28 +303,8 @@ func (c *TestCrdClient) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureA
 // This function is not used currently
 // TODO: consider remove
 func (c *TestCrdClient) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
-	assignedID := &aadpodid.AzureAssignedIdentity{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      "some-name",
-			Namespace: "default",
-		},
-		Spec: aadpodid.AzureAssignedIdentitySpec{
-			Pod:          "test-pod",
-			PodNamespace: "defaut",
-			NodeName:     "test-node",
-			AzureBindingRef: &aadpodid.AzureIdentityBinding{
-				ObjectMeta: v1.ObjectMeta{
-					Name: "testbinding",
-				},
-			},
-			AzureIdentityRef: &aadpodid.AzureIdentity{
-				ObjectMeta: v1.ObjectMeta{
-					Name: "test-id",
-				},
-			},
-		},
-	}
-	c.assignedIDMap["some-name"] = assignedID
+	assignedIdentityToStore := *assignedIdentity //Make a copy to store in the map.
+	c.assignedIDMap[assignedIdentity.Name] = &assignedIdentityToStore
 	return nil
 }
 
@@ -418,13 +398,30 @@ type LastEvent struct {
 }
 
 type TestEventRecorder struct {
-	lastEvent *LastEvent
+	lastEvent    *LastEvent
+	eventChannel chan bool
+}
+
+func (c TestEventRecorder) WaitForEvents(expectedCount int) bool {
+	count := 0
+	for {
+		select {
+		case <-c.eventChannel:
+			count++
+			if expectedCount == count {
+				return true
+			}
+		case <-time.After(2 * time.Minute):
+			return false
+		}
+	}
 }
 
 func (c TestEventRecorder) Event(object runtime.Object, t string, r string, message string) {
 	c.lastEvent.Type = t
 	c.lastEvent.Reason = r
 	c.lastEvent.Message = message
+	c.eventChannel <- true
 }
 
 func (c TestEventRecorder) Validate(e *LastEvent) bool {
@@ -528,6 +525,7 @@ func TestSimpleMICClient(t *testing.T) {
 	nodeClient := NewTestNodeClient()
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
+	evtRecorder.eventChannel = make(chan bool, 1)
 
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
 
@@ -536,21 +534,23 @@ func TestSimpleMICClient(t *testing.T) {
 
 	nodeClient.AddNode("test-node")
 	podClient.AddPod("test-pod", "default", "test-node", "test-select")
-	podClient.GetPods()
 
 	eventCh <- aadpodid.PodCreated
 	go micClient.Sync(exit)
-	time.Sleep(2 * time.Second)
-	testPass := true
+	evtRecorder.WaitForEvents(1)
+
+	testPass := false
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
 		glog.Error(err)
 		t.Errorf("list assigned failed")
 	}
+
 	if listAssignedIDs != nil {
 		for _, assignedID := range *listAssignedIDs {
 			if assignedID.Spec.Pod == "test-pod" && assignedID.Spec.PodNamespace == "default" && assignedID.Spec.NodeName == "test-node" &&
 				assignedID.Spec.AzureBindingRef.Name == "testbinding" && assignedID.Spec.AzureIdentityRef.Name == "test-id" {
+				testPass = true
 				/*
 					testPass = evtRecorder.Validate(&LastEvent{Type: "Normal", Reason: "binding applied",
 						Message: "Binding testbinding applied on node test-node for pod test-pod-default-test-id"})
@@ -564,7 +564,7 @@ func TestSimpleMICClient(t *testing.T) {
 	}
 
 	if !testPass {
-		t.Errorf("assigned id mismatch")
+		t.Fatalf("assigned id mismatch")
 	}
 
 	//Test2: Remove assigned id event test
@@ -572,12 +572,17 @@ func TestSimpleMICClient(t *testing.T) {
 
 	eventCh <- aadpodid.PodDeleted
 	time.Sleep(5 * time.Second)
-	testPass = true
+
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
 		glog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Fatalf("list assigned failed")
 	}
+
+	if len(*listAssignedIDs) != 0 {
+		t.Fatalf("Assigned id not deleted")
+	}
+
 	/*
 		testPass = evtRecorder.Validate(&LastEvent{Type: "Normal", Reason: "binding removed",
 			Message: "Binding testbinding removed from node test-node for pod test-pod"})
@@ -586,20 +591,32 @@ func TestSimpleMICClient(t *testing.T) {
 			t.Errorf("event mismatch")
 		}
 	*/
+
 	// Test3: Error from cloud provider event test
 	err = errors.New("error returned from cloud provider")
 	cloudClient.SetError(err)
 
 	podClient.AddPod("test-pod", "default", "test-node", "test-select")
 	eventCh <- aadpodid.PodCreated
-	time.Sleep(2 * time.Second)
+	evtRecorder.WaitForEvents(1)
 
-	testPass = evtRecorder.Validate(&LastEvent{Type: "Warning", Reason: "binding apply error",
-		Message: "Applying binding testbinding node test-node for pod test-pod-default-test-id resulted in error error returned from cloud provider"})
-
-	if !testPass {
-		t.Errorf("event mismatch")
+	listAssignedIDs, err = crdClient.ListAssignedIDs()
+	if err != nil {
+		glog.Error(err)
+		t.Fatalf("list assigned failed")
 	}
+
+	if len(*listAssignedIDs) != 0 {
+		t.Fatalf("ID assigned")
+	}
+
+	/*
+		testPass = evtRecorder.Validate(&LastEvent{Type: "Warning", Reason: "binding apply error",
+			Message: "Applying binding testbinding node test-node for pod test-pod-default-test-id resulted in error error returned from cloud provider"})
+
+		if !testPass {
+			t.Errorf("event mismatch")
+		} */
 
 	// Test4: Removal error event test
 	//Reset the state to add the id.
@@ -607,7 +624,6 @@ func TestSimpleMICClient(t *testing.T) {
 
 	//podClient.AddPod("test-pod", "default", "test-node", "test-select")
 	eventCh <- aadpodid.PodCreated
-	time.Sleep(5 * time.Second)
 
 	err = errors.New("remove error returned from cloud provider")
 	cloudClient.SetError(err)
@@ -623,4 +639,90 @@ func TestSimpleMICClient(t *testing.T) {
 			t.Errorf("event mismatch")
 		}
 	*/
+}
+
+func TestAddDelMICClient(t *testing.T) {
+	exit := make(<-chan struct{}, 0)
+	eventCh := make(chan aadpodid.EventType, 100)
+	cloudClient := NewTestCloudClient(config.AzureConfig{})
+	crdClient := NewTestCrdClient(nil)
+	podClient := NewTestPodClient()
+	nodeClient := NewTestNodeClient()
+	var evtRecorder TestEventRecorder
+	evtRecorder.lastEvent = new(LastEvent)
+	evtRecorder.eventChannel = make(chan bool, 1)
+
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
+
+	// Test to add and delete at the same time.
+	// Add a pod, identity and binding.
+	crdClient.CreateId("test-id2", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
+	crdClient.CreateBinding("testbinding2", "test-id2", "test-select2")
+
+	nodeClient.AddNode("test-node2")
+	podClient.AddPod("test-pod2", "default", "test-node2", "test-select2")
+	podClient.GetPods()
+
+	crdClient.CreateId("test-id4", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
+	crdClient.CreateBinding("testbinding4", "test-id4", "test-select4")
+	podClient.AddPod("test-pod4", "default", "test-node2", "test-select4")
+	podClient.GetPods()
+
+	eventCh <- aadpodid.PodCreated
+	go micClient.Sync(exit)
+
+	if !evtRecorder.WaitForEvents(2) {
+		t.Fatalf("Timeout waiting for mic sync cycles")
+	}
+
+	listAssignedIDs, err := crdClient.ListAssignedIDs()
+	if err != nil {
+		t.Fatalf("error from list assigned ids")
+	}
+	expectedLen := 2
+	gotLen := len(*listAssignedIDs)
+
+	//One id should be left around. Rest should be removed
+	if gotLen != expectedLen {
+		glog.Errorf("Expected len: %d. Got: %d", expectedLen, gotLen)
+		t.Fatalf("Add and delete id at same time mismatch")
+	}
+
+	//Delete the pod
+	podClient.DeletePod("test-pod2", "default")
+	podClient.DeletePod("test-pod4", "default")
+
+	//Add a new pod, with different id and binding on the same node.
+	crdClient.CreateId("test-id3", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
+	crdClient.CreateBinding("testbinding3", "test-id3", "test-select3")
+	podClient.AddPod("test-pod3", "default", "test-node2", "test-select3")
+	podClient.GetPods()
+
+	eventCh <- aadpodid.PodCreated
+	go micClient.Sync(exit)
+
+	if !evtRecorder.WaitForEvents(3) {
+		t.Fatalf("Timeout waiting for mic sync cycles")
+	}
+
+	listAssignedIDs, err = crdClient.ListAssignedIDs()
+	if err != nil {
+		glog.Error(err)
+		t.Fatalf("list assigned failed")
+	}
+
+	expectedLen = 1
+	gotLen = len(*listAssignedIDs)
+	//One id should be left around. Rest should be removed
+	if gotLen != expectedLen {
+		glog.Errorf("Expected len: %d. Got: %d", expectedLen, gotLen)
+		t.Fatalf("Add and delete id at same time mismatch")
+	} else {
+		gotID := (*listAssignedIDs)[0].Name
+		expectedID := "test-pod3-default-test-id3"
+		if gotID != expectedID {
+			glog.Errorf("Expected %s. Got: %s", expectedID, gotID)
+			t.Fatalf("Add and delete id at same time. Found wrong id")
+		}
+	}
 }

@@ -360,9 +360,9 @@ func (c *Client) splitAzureAssignedIDs(old *[]aadpodid.AzureAssignedIdentity, ne
 		}
 		if !idMatch {
 			glog.V(5).Infof("ok: %v, Delete added: %s", idMatch, oldAssignedID.Name)
-			// We are done checking that this new id is not present in the old
-			// list. So we will add it to the create list.
-			delete = append(create, oldAssignedID)
+			// We are done checking that this old id is not present in the new
+			// list. So we will add it to the delete list.
+			delete = append(delete, oldAssignedID)
 		}
 	}
 	stats.Put(stats.FindAssignedIDDel, time.Since(begin))
