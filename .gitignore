@@ -51,6 +51,7 @@ junit_*.xml
 images/nmi/nmi
 images/demo/demo
 images/mic/mic
+images/identityvalidator/identityvalidator
 
 # Visual Studio 2015 cache/options directory
 .vs/

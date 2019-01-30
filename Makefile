@@ -4,11 +4,13 @@ REPO_PATH="$(ORG_PATH)/$(PROJECT_NAME)"
 NMI_BINARY_NAME := nmi
 MIC_BINARY_NAME := mic
 DEMO_BINARY_NAME := demo
+
+DEFAULT_VERSION := 0.0.0-dev
 IDENTITY_VALIDATOR_BINARY_NAME := identityvalidator
-NMI_VERSION ?= 1.3
-MIC_VERSION ?= 1.2
-DEMO_VERSION ?= 1.2
-IDENTITY_VALIDATOR_VERSION ?= 1.0
+NMI_VERSION ?= $(DEFAULT_VERSION)
+MIC_VERSION ?= $(DEFAULT_VERSION)
+DEMO_VERSION ?= $(DEFAULT_VERSION)
+IDENTITY_VALIDATOR_VERSION ?= $(DEFAULT_VERSION)
 
 VERSION_VAR := $(REPO_PATH)/version.Version
 GIT_VAR := $(REPO_PATH)/version.GitCommit
@@ -33,89 +35,114 @@ E2E_TEST_OPTIONS := -count=1 -v
 
 # useful for other docker repos
 REGISTRY_NAME ?= upstreamk8sci
-REGISTRY ?= upstreamk8sci.azurecr.io
+REGISTRY ?= $(REGISTRY_NAME).azurecr.io
 REPO_PREFIX ?= k8s/aad-pod-identity
 NMI_IMAGE ?= $(REPO_PREFIX)/$(NMI_BINARY_NAME):$(NMI_VERSION)
 MIC_IMAGE ?= $(REPO_PREFIX)/$(MIC_BINARY_NAME):$(MIC_VERSION)
 DEMO_IMAGE ?= $(REPO_PREFIX)/$(DEMO_BINARY_NAME):$(DEMO_VERSION)
 IDENTITY_VALIDATOR_IMAGE ?= $(REPO_PREFIX)/$(IDENTITY_VALIDATOR_BINARY_NAME):$(IDENTITY_VALIDATOR_VERSION)
 
+.PHONY: clean-nmi
 clean-nmi:
 	rm -rf bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME)
 
+.PHONY: clean-mic
 clean-mic:
 	rm -rf bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME)
 
+.PHONY: clean-demo
 clean-demo:
 	rm -rf bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME)
 
+.PHONY: clean-idenity-validator
 clean-identity-validator:
 	rm -rf bin/$(PROJECT_NAME)/$(IDENTITY_VALIDATOR_BINARY_NAME)
 
+.PHONY: clean
 clean:
 	rm -rf bin/$(PROJECT_NAME)
 
-build-nmi:clean-nmi
+.PHONY: build-nmi
+build-nmi: clean-nmi
 	CGO_ENABLED=0 PKG_NAME=github.com/Azure/$(PROJECT_NAME)/cmd/$(NMI_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME)
 
-build-mic:clean-mic
+.PHONY: build-mic
+build-mic: clean-mic
 	CGO_ENABLED=0 PKG_NAME=github.com/Azure/$(PROJECT_NAME)/cmd/$(MIC_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME)
 
+.PHONY: build-demo
 build-demo: build_tags := netgo osusergo
-build-demo:clean-demo
+build-demo: clean-demo
 	PKG_NAME=github.com/Azure/$(PROJECT_NAME)/cmd/$(DEMO_BINARY_NAME) ${MAKE} bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME)
 
 bin/%:
 	GOOS=linux GOARCH=amd64 go build $(GO_BUILD_OPTIONS) -o "$(@)" "$(PKG_NAME)"
 
-build-identity-validator:clean-identity-validator
+.PHONY: build-identity-validator
+build-identity-validator: clean-identity-validator
 	PKG_NAME=github.com/Azure/$(PROJECT_NAME)/test/e2e/$(IDENTITY_VALIDATOR_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(IDENTITY_VALIDATOR_BINARY_NAME)
 
-build:clean build-nmi build-mic build-demo build-identity-validator
+.PHONY: build
+build: clean build-nmi build-mic build-demo build-identity-validator
 
+.PHONY: deepcopy-gen
 deepcopy-gen:
 	deepcopy-gen -i ./pkg/apis/aadpodidentity/v1/ -o ../../../ -O aadpodidentity_deepcopy_generated -p aadpodidentity
 
+.PHONY: image-nmi
 image-nmi:
-	cp bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME) images/nmi
-	docker build -t $(REGISTRY)/$(NMI_IMAGE) images/nmi
+	docker build -t "$(REGISTRY)/$(NMI_IMAGE)" --build-arg NMI_VEARSION="$(NMI_VERSION)" --target=nmi .
 
+.PHONY: image-mic
 image-mic:
-	cp bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME) images/mic
-	docker build -t $(REGISTRY)/$(MIC_IMAGE) images/mic
+	docker build -t "$(REGISTRY)/$(MIC_IMAGE)" --build-arg MIC_VERSION="$(MIC_VERSION)" --target=mic .
 
+.PHONY: image-demo
 image-demo:
-	cp bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME) images/demo
-	docker build -t $(REGISTRY)/$(DEMO_IMAGE) images/demo
+	docker build -t $(REGISTRY)/$(DEMO_IMAGE) --build-arg DEMO_VERSION="$(DEMO_VERSION)" --target=demo .
 
+.PHONY: image-identity-validator
 image-identity-validator:
-	cp bin/$(PROJECT_NAME)/$(IDENTITY_VALIDATOR_BINARY_NAME) images/identityvalidator
-	docker build -t $(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE) images/identityvalidator
+	docker build -t $(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE) --build-arg IDENTITY_VALIDATOR_VERSION="$(IDENTITY_VALIDATOR_VERSION)" --target=identityvalidator .
 
+.PHONY: imag
 image:image-nmi image-mic image-demo image-identity-validator
 
-push-nmi:
+.PHONY: push-nmi
+push-nmi: validate-version-NMI
 	az acr repository show --name $(REGISTRY_NAME) --image $(NMI_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
 	docker push $(REGISTRY)/$(NMI_IMAGE)
 
-push-mic:
+.PHONY: push-mic
+push-mic: validate-version-MIC
 	az acr repository show --name $(REGISTRY_NAME) --image $(MIC_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
 	docker push $(REGISTRY)/$(MIC_IMAGE)
 
-push-demo:
+.PHONY: push-demo
+push-demo: validate-version-DEMO
 	az acr repository show --name $(REGISTRY_NAME) --image $(DEMO_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
 	docker push $(REGISTRY)/$(DEMO_IMAGE)
 
-push-identity-validator:
+.PHONY: push-identity-validator
+push-identity-validator: validate-version-IDENTITY_VALIDATOR
 	az acr repository show --name $(REGISTRY_NAME) --image $(IDENTITY_VALIDATOR_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
 	docker push $(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE)
 
-push:push-nmi push-mic push-demo push-identity-validator
+.PHONY: push
+push: push-nmi push-mic push-demo push-identity-validator
 
+.PHONY: e2e
 e2e:
 	go test github.com/Azure/$(PROJECT_NAME)/test/e2e $(E2E_TEST_OPTIONS)
 
+.PHONY: unit-test
 unit-test:
 	go test $(shell go list ./... | grep -v /test/e2e) -v
 
-.PHONY: build
+.PHONY: validate-version
+validate-version: validate-version-NMI validate-version-MIC validate-version-IDENTITY_VALIDATOR validate-version-DEMO
+
+.PHONY: validate-version-%
+validate-version-%:
+	@echo $(*)_VERSION=$($(*)_VERSION)
+	@DEFAULT_VERSION=$(DEFAULT_VERSION) CHECK_VERSION="$($(*)_VERSION)" scripts/validate_version.sh
