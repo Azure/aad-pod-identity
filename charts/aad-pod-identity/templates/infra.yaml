@@ -59,9 +59,10 @@ spec:
         name: iptableslock
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.3"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.4"
         imagePullPolicy: Always
         args:
+          - nmi
           - "--host-ip=$(HOST_IP)"
           - "--node=$(NODE_NAME)"
         env:
@@ -146,9 +147,10 @@ spec:
       {{- end }}
       containers:
       - name: mic
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.2"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.3"
         imagePullPolicy: Always
         args:
+          - mic
           - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
