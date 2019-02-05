@@ -182,6 +182,15 @@ kubectl create -f deploy/demo/deployment.yaml
 
 > There's also a detailed tutorial [here](docs/tutorial/README.md).
 
+
+# Uninstall notes
+Upon deploying pod identity (NMI) modifies nodes' iptables to allow it to intercept calls to Azure Instance Metadata endpoint. This allows NMI to assert identities assigned to pod before executing the request on behalf of the caller. When you uninstall pod identity these iptables entries will remain. You can remove them with
+
+```
+iptables -t nat -F
+```
+ 
+
 # Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
