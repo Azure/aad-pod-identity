@@ -16,16 +16,15 @@ variables:
  modulePath: '$(GOPATH)/src/github.com/$(build.repository.name)' # Path to the module's code
 
 steps:
- - script: |
-   mkdir -p '$(GOBIN)'
-   mkdir -p '$(GOPATH)/pkg'
-   mkdir -p '$(modulePath)'
-   shopt -s extglob
-   mv !(gopath) '$(modulePath)'
-   echo '##vso[task.prependpath]$(GOBIN)'
-   echo '##vso[task.prependpath]$(GOROOT)/bin'
+- script: |
+    mkdir -p '$(GOBIN)'
+    mkdir -p '$(GOPATH)/pkg'
+    mkdir -p '$(modulePath)'
+    shopt -s extglob
+    mv !(gopath) '$(modulePath)'
+    echo '##vso[task.prependpath]$(GOBIN)'
+    echo '##vso[task.prependpath]$(GOROOT)/bin'
    displayName: 'Set up the Go workspace'
-
 - script: |
    go version
    go get -v -t -d ./...
@@ -38,7 +37,6 @@ steps:
 - script:  make build
   workingDirectory: '$(modulePath)'
   displayName: 'Build'
-
 - script: |
    go test -v ./...
   workingDirectory: '$(modulePath)'
