@@ -38,6 +38,6 @@ steps:
   workingDirectory: '$(modulePath)'
   displayName: 'Build'
 - script: |
-   go test -v ./...
+   go test -v $(go list ./... | grep -v test/e2e)
   workingDirectory: '$(modulePath)'
   displayName: 'Run tests' 
