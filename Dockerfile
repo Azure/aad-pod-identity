@@ -19,12 +19,16 @@ RUN apk add --no-cache \
 
 FROM base AS nmi
 COPY --from=build /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
+ENTRYPOINT ["nmi"]
 
 FROM base AS mic
 COPY --from=build /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/mic /bin/
+ENTRYPOINT ["mic"]
 
 FROM base AS demo
 COPY --from=build /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/demo /bin/
+ENTRYPOINT ["demo"]
 
 FROM base AS identityvalidator
 COPY --from=build /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/identityvalidator /bin/
+ENTRYPOINT ["identityvalidator"]
