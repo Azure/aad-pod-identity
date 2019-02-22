@@ -11,7 +11,7 @@ ADD script.sh /app
 RUN apk add --update jq && rm -rf /var/cache/apk/*
 
 # Define environment variable
-ENV NAME World
+ENV RESOURCE "MISSING"
 
 # Run shell script
 CMD ["sh", "script.sh"]
