@@ -8,7 +8,7 @@ WORKDIR /app
 ADD script.sh /app
 
 # Install curl + pq (to parse JSON)
-RUN apt-get install curl
+#RUN apt-get install curl
 RUN apt-get install pq
 
 # Define environment variable
