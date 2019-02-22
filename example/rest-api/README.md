@@ -10,3 +10,4 @@ kubectl run aad-id-rest-client --image=vplauzon/aad-pod-id-svc --generator=run-p
 
 kubectl logs aad-id-rest-client
 
+kubectl delete pod aad-id-rest-client

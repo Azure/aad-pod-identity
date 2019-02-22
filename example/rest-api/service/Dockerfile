@@ -8,7 +8,8 @@ WORKDIR /app
 ADD script.sh /app
 
 # Install curl + pq (to parse JSON)
-RUN apt-get update && apt-get install -y \
+RUN apt-get update
+RUN apt-get install -y \
     curl \
     pq
 
