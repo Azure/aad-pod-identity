@@ -8,8 +8,9 @@ WORKDIR /app
 ADD script.sh /app
 
 # Install curl + pq (to parse JSON)
-#RUN apt-get install curl
-RUN apt-get install pq
+RUN apt-get update && apt-get install -y \
+    curl \
+    pq
 
 # Define environment variable
 ENV NAME World
