@@ -1,5 +1,5 @@
 # Use a lean image
-FROM ubuntu/19.04
+FROM ubuntu:19.04
 
 # Set the working directory to /app
 WORKDIR /app
