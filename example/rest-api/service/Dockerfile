@@ -1,5 +1,5 @@
 # Use a lean image
-FROM ubuntu:19.04
+FROM appropriate/curl
 
 # Set the working directory to /app
 WORKDIR /app
@@ -9,8 +9,8 @@ ADD script.sh /app
 
 # Install curl + pq (to parse JSON)
 #RUN apt-get update
-RUN apt-get install -y \
-    curl \
+RUN apk add -y \
+    #curl \
     pq
 
 # Define environment variable
