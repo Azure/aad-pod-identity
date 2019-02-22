@@ -14,4 +14,4 @@ RUN apk add --update jq && rm -rf /var/cache/apk/*
 ENV NAME World
 
 # Run shell script
-CMD ["bash", "script.sh"]
+CMD ["sh", "script.sh"]
