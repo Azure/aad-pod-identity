@@ -11,7 +11,8 @@ do
     echo "Full token:  $jwt"
     token=$(echo $jwt | jq -r '.access_token')
     echo "Access token:  $token"
-    
+    curl -v -H 'Accept: application/json' -H "Authorization: Bearer ${token}" $SERVICE_URL
+
     i=$((i+1))
     sleep 1
 done

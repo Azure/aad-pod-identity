@@ -12,3 +12,5 @@ spec:
     env:
     - name: RESOURCE
       value: https://vault.azure.net
+    - name: SERVICE_URL
+      value: http://test-svc-pod
