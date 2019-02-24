@@ -1,9 +1,21 @@
 apiVersion: v1
+kind: Service
+metadata:
+  name: aad-id-service
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+  selector:
+    app: aad-id-service
+---
+apiVersion: v1
 kind: Pod
 metadata:
-  name: test-svc-pod
+  name: aad-id-service-pod
   labels:
-    app: cli-svc-client
+    app: aad-id-service
+    platform: csharp
 spec:
   containers:
   - name: api-container
