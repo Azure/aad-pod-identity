@@ -1,14 +1,14 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: test-svc-pod
+  name: test-client-pod
   labels:
-    app: cli-test-svc
+    app: cli-test-client
     aadpodidbinding:  little-pod-binding
 spec:
   containers:
   - name: main-container
-    image: vplauzon/aad-pod-id-svc
+    image: vplauzon/aad-pod-id-client
     env:
     - name: RESOURCE
       value: https://vault.azure.net
