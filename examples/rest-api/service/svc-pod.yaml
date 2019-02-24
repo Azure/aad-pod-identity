@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-svc-pod
+  labels:
+    app: cli-svc-client
+spec:
+  containers:
+  - name: api-container
+    image: vplauzon/aad-pod-id-svc
+    env:
+    - name: TENANT_ID
+      value: 72f988bf-86f1-41af-91ab-2d7cd011db47
+    - name: APPLICATION_ID
+      value: https://vault.azure.net
