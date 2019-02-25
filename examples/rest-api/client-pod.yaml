@@ -5,7 +5,7 @@ metadata:
   labels:
     app: aad-id-client
     platform: cli
-    aadpodidbinding:  little-pod-binding
+    aadpodidbinding:  client-principal-pod-binding
 spec:
   containers:
   - name: main-container
