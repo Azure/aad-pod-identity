@@ -1,5 +1,22 @@
 # Using AAD Pod Identity with a custom REST API
 
+## Intro?
+
+myapi application
+
+principal1, principal2
+
+## Create Identities & applications
+
+```bash
+az identity create -g aks2 -n principal1
+az identity create -g aks2 -n principal2
+```
+
+```bash
+az ad app create --display-name myapi --identifier-uris http://myapi.restapi.aad-pod-identity
+```
+
 #	Build client docker container
 sudo docker build -t vplauzon/aad-pod-id-client .
 
