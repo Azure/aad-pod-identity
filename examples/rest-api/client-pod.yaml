@@ -12,6 +12,6 @@ spec:
     image: vplauzon/aad-pod-id-client
     env:
     - name: RESOURCE
-      value: https://vault.azure.net
+      value: <Client ID of the Application>
     - name: SERVICE_URL
       value: http://aad-id-service
