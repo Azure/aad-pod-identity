@@ -16,7 +16,6 @@ metadata:
   labels:
     app: aad-id-service
     platform: csharp
-    aadpodidbinding:  client-principal-pod-binding
 spec:
   containers:
   - name: api-container

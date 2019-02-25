@@ -1,14 +1,16 @@
 # Using AAD Pod Identity with a custom REST API
 
-## Intro?
+We will look at the scenario where a client pod is calling a service (REST API) with an AAD Pod Identity.
 
-myapi application
+The client is a bash script which will request a token, pass it as authorization HTTP header to query a REST API.  The client has a corresponding user managed identity which will be exposed as an AAD Pod Identity.
 
-client-principal
+The REST API is implemented in C# / .NET Core.  It simply validates it receives a bearer token in the authorization header of each request.  The REST API has a corresponding Azure AD Application.  The client requests a token with that AAD application as the *resource*.
+
+**TODO:  simple diagram showing client / service pods + identities involved ; everything is name so no surprised in the script**
 
 ## Prerequisites
 
-* Install AAD Pod Identity
+* An AKS cluster with [AAD Pod Identity installed on it](https://github.com/Azure/aad-pod-identity/blob/master/README.md)
 
 ## Identity
 
@@ -24,7 +26,9 @@ az identity create -g $rg -n client-principal \
 
 ```bash
 aksPrincipalId=$(az aks show -g $rg -n $cluster --query "servicePrincipalProfile.clientId" -o tsv)
-az role assignment create --role "Managed Identity Operator" --assignee $aksPrincipalId --scope <ManagedIdentityId>
+managedId=$(az identity show -g $rg -n client-principal \
+    --query "id" -o tsv)
+az role assignment create --role "Managed Identity Operator" --assignee $aksPrincipalId --scope $managedId
 ```
 
 ## Identity & Binding in Kubernetes
@@ -49,9 +53,10 @@ kubectl get AzureIdentityBinding --namespace pir
 ## Application
 
 ```bash
-az ad app create --display-name myapi \
+appId=$(az ad app create --display-name myapi \
     --identifier-uris http://myapi.restapi.aad-pod-identity \
-    --query "appId" -o tsv
+    --query "appId" -o tsv)
+echo $appId
 ```
 
 In client-pod.yaml, appId
@@ -61,20 +66,27 @@ In service.yaml, APPLICATION_ID & TENANT_ID
 ```bash
 kubectl apply -f service.yaml --namespace pir
 kubectl apply -f client-pod.yaml --namespace pir
-```
-
-```bash
-kubectl get AzureAssignedIdentity --namespace pir
+kubectl get AzureAssignedIdentity --all-namespaces
 ```
 
 ```bash
 kubectl logs aad-id-client-pod --namespace pir  -f
 ```
 
+```bash
+kubectl delete AzureIdentityBinding client-principal-binding --namespace pir
+```
+
+```bash
+kubectl apply -f binding.yaml --namespace pir
+```
+
 ## Clean up
 
 ```bash
 kubectl delete namespace pir
+az identity delete -g $rg -n client-principal
+az ad app delete --id $appId
 ```
 
 #	Build client docker container
