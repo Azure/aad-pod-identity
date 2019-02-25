@@ -6,16 +6,17 @@ myapi application
 
 principal1, principal2
 
-## Create Identities & applications
+## Create Identity & applications
 
 ```bash
-az identity create -g aks2 -n principal1
-az identity create -g aks2 -n principal2
+az identity create -g aks2 -n client-principal
 ```
 
 ```bash
 az ad app create --display-name myapi --identifier-uris http://myapi.restapi.aad-pod-identity
 ```
+
+Using groups:  issue https://github.com/Azure/azure-cli/issues/7283
 
 #	Build client docker container
 sudo docker build -t vplauzon/aad-pod-id-client .
