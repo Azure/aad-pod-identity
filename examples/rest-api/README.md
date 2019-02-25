@@ -4,19 +4,78 @@
 
 myapi application
 
-principal1, principal2
+client-principal
 
-## Create Identity & applications
+## Prerequisites
+
+* Install AAD Pod Identity
+
+## Identity
 
 ```bash
-az identity create -g aks2 -n client-principal
+rg=<name of the resource group>
+cluster=<name of the AKS cluster>
 ```
 
 ```bash
-az ad app create --display-name myapi --identifier-uris http://myapi.restapi.aad-pod-identity
+az identity create -g $rg -n client-principal \
+    --query "{ClientId: clientId, ManagedIdentityId: id, TenantId:  tenantId}" -o jsonc
 ```
 
-Using groups:  issue https://github.com/Azure/azure-cli/issues/7283
+```bash
+aksPrincipalId=$(az aks show -g $rg -n $cluster --query "servicePrincipalProfile.clientId" -o tsv)
+az role assignment create --role "Managed Identity Operator" --assignee $aksPrincipalId --scope <ManagedIdentityId>
+```
+
+## Identity & Binding in Kubernetes
+
+```bash
+kubectl create namespace pir
+kubectl label namespace/pir description=PodIdentityRestApi
+```
+
+In identity.yaml, ResourceID with principal's Id & ClientID with principal's ClientId...
+
+```bash
+kubectl apply -f identity.yaml --namespace pir
+kubectl apply -f binding.yaml --namespace pir
+```
+
+```bash
+kubectl get AzureIdentity --namespace pir
+kubectl get AzureIdentityBinding --namespace pir
+```
+
+## Application
+
+```bash
+az ad app create --display-name myapi \
+    --identifier-uris http://myapi.restapi.aad-pod-identity \
+    --query "appId" -o tsv
+```
+
+In client-pod.yaml, appId
+
+In service.yaml, APPLICATION_ID & TENANT_ID
+
+```bash
+kubectl apply -f service.yaml --namespace pir
+kubectl apply -f client-pod.yaml --namespace pir
+```
+
+```bash
+kubectl get AzureAssignedIdentity --namespace pir
+```
+
+```bash
+kubectl logs aad-id-client-pod --namespace pir  -f
+```
+
+## Clean up
+
+```bash
+kubectl delete namespace pir
+```
 
 #	Build client docker container
 sudo docker build -t vplauzon/aad-pod-id-client .

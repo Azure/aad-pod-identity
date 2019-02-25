@@ -12,6 +12,6 @@ spec:
     image: vplauzon/aad-pod-id-client
     env:
     - name: RESOURCE
-      value: <Client ID of the Application>
+      value: <Application Id>
     - name: SERVICE_URL
       value: http://aad-id-service

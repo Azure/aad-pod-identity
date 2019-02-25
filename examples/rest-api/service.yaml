@@ -16,12 +16,15 @@ metadata:
   labels:
     app: aad-id-service
     platform: csharp
+    aadpodidbinding:  client-principal-pod-binding
 spec:
   containers:
   - name: api-container
     image: vplauzon/aad-pod-id-svc
+    ports:
+    - containerPort: 80
     env:
     - name: TENANT_ID
       value: <ID of TENANT owning the identities>
     - name: APPLICATION_ID
-      value: <Client ID of the Application>
+      value: <Application Id>
