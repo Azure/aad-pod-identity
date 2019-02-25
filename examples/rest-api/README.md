@@ -6,7 +6,7 @@ The client is a bash script which will request a token, pass it as authorization
 
 The REST API is implemented in C# / .NET Core.  It simply validates it receives a bearer token in the authorization header of each request.  The REST API has a corresponding Azure AD Application.  The client requests a token with that AAD application as the *resource*.
 
-**TODO:  simple diagram showing client / service pods + identities involved ; everything is name so no surprised in the script**
+**<span style="background:yellow">TODO:  simple diagram showing client / service pods + identities involved ; everything is name so no surprised in the script</span>**
 
 ## Prerequisites
 
@@ -14,15 +14,25 @@ The REST API is implemented in C# / .NET Core.  It simply validates it receives 
 
 ## Identity
 
+In this section, we'll create the user managed identity used for the client.
+
+First, let's define those variable:
+
 ```bash
-rg=<name of the resource group>
+rg=<name of the resource group where AKS is>
 cluster=<name of the AKS cluster>
 ```
+
+Then, let's create the user managed identity:
 
 ```bash
 az identity create -g $rg -n client-principal \
     --query "{ClientId: clientId, ManagedIdentityId: id, TenantId:  tenantId}" -o jsonc
 ```
+
+This returns three values in a JSON document.  We will use those values later on.
+
+We need to give the Service Principal running the cluster the *Managed Identity Operator* role on the user managed identity:
 
 ```bash
 aksPrincipalId=$(az aks show -g $rg -n $cluster --query "servicePrincipalProfile.clientId" -o tsv)
@@ -31,7 +41,13 @@ managedId=$(az identity show -g $rg -n client-principal \
 az role assignment create --role "Managed Identity Operator" --assignee $aksPrincipalId --scope $managedId
 ```
 
+The first line acquires the AKS service principal client ID.  The second line acquires the client ID of the user managed identity (the *ManagedIdentityId* returned in the JSON above).  The third line performs the role assignment.
+
 ## Identity & Binding in Kubernetes
+
+In this section, we'll configure AAD pod identity with the user managed identity.
+
+We'll create a Kubernetes namespace to put all our resources.  It makes it easier to clean up afterwards.
 
 ```bash
 kubectl create namespace pir
