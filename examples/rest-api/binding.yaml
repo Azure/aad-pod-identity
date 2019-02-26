@@ -5,4 +5,3 @@ metadata:
 spec:
  AzureIdentity: client-principal
  Selector:  client-principal-pod-binding
- 
