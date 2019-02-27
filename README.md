@@ -78,7 +78,7 @@ kubectl create -f https://raw.githubusercontent.com/Azure/aad-pod-identity/maste
 ```
 #### Create User Azure Identity 
 
-Get the client id and resource id for the identity 
+Get the client id and resource id for the identity. Note: the resouce group should be the same with resource group that host the agents, which is MC_<resouce group name>_<resource name>_<resource location>.
 ```
 az identity create -g <resourcegroup> -n <managedidentity-resourcename>
 ```
@@ -100,7 +100,12 @@ MIC uses the service principal credentials [stored within the the AKS](https://d
 
 2. Assign the required permissions - the following command can be used to assign the required permission:
 ```
-az role assignment create --role "Managed Identity Operator" --assignee <sp id> --scope <full id of the managed identity>
+az role assignment create --role "Managed Identity Operator" --assignee <service principle id> --scope <full id of the managed identity>
+```
+
+How to get service principle id:
+```
+az aks show -g <resource group name> -n <resource name> --query servicePrincipalProfile.clientId
 ```
 
 #### Install User Azure Identity on k8s cluster 
