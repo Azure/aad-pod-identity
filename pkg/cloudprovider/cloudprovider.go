@@ -157,13 +157,20 @@ func (c *Client) AssignUserMSI(userAssignedMSIID string, node *corev1.Node) erro
 func (c *Client) getIdentityResource(node *corev1.Node) (idH IdentityHolder, update func() error, retErr error) {
 	name := node.Name // fallback in case parsing the provider spec fails
 	rg := c.Config.ResourceGroupName
-	rt := c.Config.VMType
-	if r, err := ParseResourceID(node.Spec.ProviderID); err == nil {
-		name = r.ResourceName
+	r, err := ParseResourceID(node.Spec.ProviderID)
+	if err != nil {
+		glog.Warningf("Could not parse Azure node resource ID: %v", err)
+	}
+
+	rt := vmTypeOrDefault(&r, c.Config.VMType)
+	glog.V(6).Infof("Using resource type %s for node %s", rt, name)
+
+	if r.ResourceGroup != "" {
 		rg = r.ResourceGroup
-		if r.ResourceType == "virtualMachineScaleSets" {
-			rt = "vmss"
-		}
+	}
+
+	if r.ResourceName != "" {
+		name = r.ResourceName
 	}
 
 	switch rt {
@@ -198,6 +205,21 @@ var (
 	nestedResourceIDPattern = regexp.MustCompile(nestedResourceIDPatternText)
 	resourceIDPattern       = regexp.MustCompile(resourceIDPatternText)
 )
+
+const (
+	vmRT   = "virtualMachines"
+	vmssRT = "virtualMachineScaleSets"
+)
+
+func vmTypeOrDefault(r *azure.Resource, val string) string {
+	switch r.ResourceType {
+	case vmRT:
+		return "vm"
+	case vmssRT:
+		return "vmss"
+	}
+	return val
+}
 
 // ParseResourceID is a slightly modified version of https://github.com/Azure/go-autorest/blob/528b76fd0ebec0682f3e3da7c808cd472b999615/autorest/azure/azure.go#L175
 // The modification here is to support a nested resource such as is the case for a node resource in a vmss.
