@@ -6,7 +6,7 @@ jobs:
   build:
     docker:
       # specify the version
-      - image: circleci/golang:1.10
+      - image: circleci/golang:1.12
 
       # Specify service dependencies here if necessary
       # CircleCI maintains a library of pre-built images
@@ -20,7 +20,6 @@ jobs:
     working_directory: /go/src/github.com/Azure/aad-pod-identity
     steps:
       - checkout
-
       # specify any bash command here prefixed with `run: `
-      - run: go get -v -t -d ./...
-      - run: go test -v $(go list ./... | grep -v test/e2e)
+      - run: make check-mod
+      - run: make unit-test
