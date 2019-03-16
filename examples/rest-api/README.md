@@ -6,7 +6,7 @@ The client is a bash script running in a pod.  The client has a corresponding us
 
 The REST API is implemented in C# / .NET Core and is running in pod as well.  It simply validates it receives a bearer token in the authorization header of each request.  The REST API has a corresponding Azure AD Application.  The client requests a token with that AAD application as the *resource*.
 
-**<span style="background:yellow">TODO:  simple diagram showing client / service pods + identities involved ; everything is name so no surprised in the script</span>**
+![Solution Overview](images/pod-identity-rest.png)
 
 ## Prerequisites
 
