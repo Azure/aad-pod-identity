@@ -356,3 +356,4 @@ sudo docker build -t vplauzon/aad-pod-id-svc .
 
 ###	Publish service image
 sudo docker push vplauzon/aad-pod-id-svc
+
