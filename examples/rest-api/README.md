@@ -2,9 +2,9 @@
 
 We will look at the scenario where a client pod is calling a service (REST API) with an AAD Pod Identity.
 
-The client is a bash script which will request a token, pass it as authorization HTTP header to query a REST API.  The client has a corresponding user managed identity which will be exposed as an AAD Pod Identity.
+The client is a bash script running in a pod.  The client has a corresponding user managed identity which will be exposed as an AAD Pod Identity.  The client will request a token, pass it as authorization HTTP header to query a REST API.
 
-The REST API is implemented in C# / .NET Core.  It simply validates it receives a bearer token in the authorization header of each request.  The REST API has a corresponding Azure AD Application.  The client requests a token with that AAD application as the *resource*.
+The REST API is implemented in C# / .NET Core and is running in pod as well.  It simply validates it receives a bearer token in the authorization header of each request.  The REST API has a corresponding Azure AD Application.  The client requests a token with that AAD application as the *resource*.
 
 **<span style="background:yellow">TODO:  simple diagram showing client / service pods + identities involved ; everything is name so no surprised in the script</span>**
 
