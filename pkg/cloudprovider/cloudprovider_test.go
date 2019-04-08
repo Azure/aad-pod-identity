@@ -11,7 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
-	"github.com/golang/glog"
 )
 
 func TestParseResourceID(t *testing.T) {
@@ -60,9 +59,13 @@ func TestSimple(t *testing.T) {
 	flag.Set("v", "3")
 	flag.Parse()
 
+	vmProvider := "azure:///subscriptions/fakeSub/resourceGroups/fakeGroup/providers/Microsoft.Compute/virtualMachines/node3"
+	vmssProvider := "azure:///subscriptions/fakeSub/resourceGroups/fakeGroup/providers/Microsoft.Compute/virtualMachineScaleSets/node4/virtualMachines/0"
+
 	for _, cfg := range []config.AzureConfig{
 		config.AzureConfig{},
 		config.AzureConfig{VMType: "vmss"},
+		config.AzureConfig{VMType: "vm"},
 	} {
 		desc := cfg.VMType
 		if desc == "" {
@@ -74,27 +77,46 @@ func TestSimple(t *testing.T) {
 			node0 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node0"}}
 			node1 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node1"}}
 			node2 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node2"}}
+			node3 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3-0"}, Spec: corev1.NodeSpec{ProviderID: vmProvider}}
+			node4 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node4-vmss0000000"}, Spec: corev1.NodeSpec{ProviderID: vmssProvider}}
 
 			cloudClient.AssignUserMSI("ID0", node0)
 			cloudClient.AssignUserMSI("ID0", node0)
 			cloudClient.AssignUserMSI("ID0again", node0)
 			cloudClient.AssignUserMSI("ID1", node1)
 			cloudClient.AssignUserMSI("ID2", node2)
+			cloudClient.AssignUserMSI("ID3", node3)
+			cloudClient.AssignUserMSI("ID4", node4)
 
 			testMSI := []string{"ID0", "ID0again"}
-			if !cloudClient.CompareMSI("node0", testMSI) {
-				t.Fatal("MSI mismatch")
+			if !cloudClient.CompareMSI(node0, testMSI) {
+				cloudClient.PrintMSI(t)
+				t.Error("MSI mismatch")
 			}
 
 			cloudClient.RemoveUserMSI("ID0", node0)
 			cloudClient.RemoveUserMSI("ID2", node2)
 			testMSI = []string{"ID0again"}
-			if !cloudClient.CompareMSI(node0.Name, testMSI) {
-				t.Fatal("MSI mismatch")
+			if !cloudClient.CompareMSI(node0, testMSI) {
+				cloudClient.PrintMSI(t)
+				t.Error("MSI mismatch")
 			}
 			testMSI = []string{}
-			if !cloudClient.CompareMSI(node2.Name, testMSI) {
-				t.Fatal("MSI mismatch")
+			if !cloudClient.CompareMSI(node2, testMSI) {
+				cloudClient.PrintMSI(t)
+				t.Error("MSI mismatch")
+			}
+
+			testMSI = []string{"ID3"}
+			if !cloudClient.CompareMSI(node3, testMSI) {
+				cloudClient.PrintMSI(t)
+				t.Error("MSI mismatch")
+			}
+
+			testMSI = []string{"ID4"}
+			if !cloudClient.CompareMSI(node4, testMSI) {
+				cloudClient.PrintMSI(t)
+				t.Error("MSI mismatch")
 			}
 		})
 	}
@@ -222,25 +244,55 @@ func (c *TestVMSSClient) CompareMSI(nodeName string, userIDs []string) bool {
 }
 
 func (c *TestCloudClient) ListMSI() (ret map[string]*[]string) {
-	if c.Client.Config.VMType == "vmss" {
-		return c.testVMSSClient.ListMSI()
+	vmssLs := c.testVMSSClient.ListMSI()
+	vmLs := c.testVMClient.ListMSI()
+
+	if vmssLs == nil {
+		return vmLs
 	}
-	return c.testVMClient.ListMSI()
+	if vmLs == nil {
+		return vmssLs
+	}
+
+	ret = vmssLs
+
+	for k, v := range vmLs {
+		if v == nil {
+			continue
+		}
+		orig := ret[k]
+		if orig == nil {
+			ret[k] = v
+			continue
+		}
+
+		updated := *orig
+		updated = append(updated, *v...)
+		ret[k] = &updated
+	}
+	return ret
 }
 
-func (c *TestCloudClient) CompareMSI(nodeName string, userIDs []string) bool {
-	if c.Client.Config.VMType == "vmss" {
-		return c.testVMSSClient.CompareMSI(nodeName, userIDs)
+func (c *TestCloudClient) CompareMSI(node *corev1.Node, userIDs []string) bool {
+	r, _ := ParseResourceID(node.Spec.ProviderID)
+	vmType := vmTypeOrDefault(&r, c.Client.Config.VMType)
+	name := node.Name
+	if r.ResourceName != "" {
+		name = r.ResourceName
 	}
-	return c.testVMClient.CompareMSI(nodeName, userIDs)
+	if vmType == "vmss" {
+		return c.testVMSSClient.CompareMSI(name, userIDs)
+	}
+	return c.testVMClient.CompareMSI(name, userIDs)
 }
 
-func (c *TestCloudClient) PrintMSI() {
+func (c *TestCloudClient) PrintMSI(t *testing.T) {
+	t.Helper()
 	for key, val := range c.ListMSI() {
-		glog.Infof("\nNode name: %s", key)
+		t.Logf("\nNode name: %s\n", key)
 		if val != nil {
 			for i, id := range *val {
-				glog.Infof("%d) %s", i, id)
+				t.Logf("%d) %s\n", i, id)
 			}
 		}
 	}
