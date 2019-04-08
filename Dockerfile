@@ -1,9 +1,6 @@
 FROM golang:1.11 AS build
-RUN go get github.com/golang/dep/cmd/dep
+ENV GO111MODULE=on
 WORKDIR /go/src/github.com/Azure/aad-pod-identity
-COPY Gopkg.toml ./
-COPY Gopkg.lock ./
-RUN dep ensure --vendor-only
 COPY . ./
 ARG NMI_VERSION=0.0.0-dev
 ARG MIC_VERSION=0.0.0-dev

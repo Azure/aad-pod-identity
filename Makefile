@@ -1,3 +1,6 @@
+GO111MODULE ?= on
+export GO111MODULE
+
 ORG_PATH=github.com/Azure
 PROJECT_NAME := aad-pod-identity
 REPO_PATH="$(ORG_PATH)/$(PROJECT_NAME)"
@@ -146,3 +149,11 @@ validate-version: validate-version-NMI validate-version-MIC validate-version-IDE
 validate-version-%:
 	@echo $(*)_VERSION=$($(*)_VERSION)
 	@DEFAULT_VERSION=$(DEFAULT_VERSION) CHECK_VERSION="$($(*)_VERSION)" scripts/validate_version.sh
+
+.PHONY: mod
+mod:
+	@go mod tidy
+
+.PHONY: check-vendor
+check-mod: mod
+	@git diff --exit-code go.mod go.sum
