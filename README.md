@@ -1,7 +1,7 @@
 ----
 
-Applications running on the POD on Azure Container Service (AKS/ACS Engine) require access to identities in Azure Active Directory (AAD)to access resources that use an identity provider. AAD provides a construct called a Service Principal that allows applications to assume identities with limited permissions, and Managed Service Identity (MSI) - automatically generated and rotated credentials that easily retrieved by an application at run-time to authenticate as a service principal. 
-An cluster admin configures the Azure Identity Binding to the Pod. Without any change of auth code the application running on the pod works on the cluster.
+Applications running on the POD on Azure Container Service (AKS/ACS Engine) require access to identities in Azure Active Directory (AAD) to access resources that use an identity provider. AAD provides a construct called a Service Principal that allows applications to assume identities with limited permissions, and Managed Service Identity (MSI) - automatically generated and rotated credentials that easily retrieved by an application at run-time to authenticate as a service principal. 
+A cluster admin configures the Azure Identity Binding to the Pod. Without any change of auth code the application running on the pod works on the cluster.
 
 ----
 
@@ -18,9 +18,9 @@ This controller watches for pod changes through the api server and caches pod to
 
 # Node Managed Identity (NMI)
 
-The authorization request of fetching Service Principal Token from MSI endpoint is sent to a standard Instance Metadata endpoint which is redirected to the NMI pod by adding ruled to redirect POD CIDR traffic with metadata endpoint IP on port 80 to be sent to the NMI endpoint. The NMI server identifies the pod based on the remote address of the request and then queries the k8s (through MIC) for a matching azure identity. It then make a adal request to get the token for the client id and returns as a response to the request. If the request had client id as part of the query it validates it againsts the admin configured client id.
+The authorization request for fetching Service Principal Token from MSI endpoint is sent to a standard Instance Metadata endpoint which is redirected to the NMI pod by adding ruled to redirect POD CIDR traffic with metadata endpoint IP on port 80 to be sent to the NMI endpoint. The NMI server identifies the pod based on the remote address of the request and then queries the k8s (through MIC) for a matching Azure identity. It then makes an ADAL request to get the token for the client id and returns as a response to the request. If the request had client id as part of the query it validates it againsts the admin configured client id.
 
-Similarly a host can make an authorization request to fetch Service Principal Token for a resource directly from the NMI host endpoint (http://127.0.0.1:2579/host/token/). The request must include the pod namespace `podns` and the pod name `podname` in the request header and the resource endpoint of the resource requesting the token. The NMI server identifies the pod based on the `podns` and `podname` in the request header and then queries k8s (through MIC) for a matching azure identity.  Then nmi makes a adal request to get a token for the resource in the request, returns the `token` and the `clientid` as a response to the request.
+Similarly a host can make an authorization request to fetch Service Principal Token for a resource directly from the NMI host endpoint (http://127.0.0.1:2579/host/token/). The request must include the pod namespace `podns` and the pod name `podname` in the request header and the resource endpoint of the resource requesting the token. The NMI server identifies the pod based on the `podns` and `podname` in the request header and then queries k8s (through MIC) for a matching azure identity.  Then nmi makes an ADAL request to get a token for the resource in the request, returns the `token` and the `clientid` as a response to the request.
 
 An example curl command:
 
@@ -67,7 +67,7 @@ kubectl create -f https://raw.githubusercontent.com/Azure/aad-pod-identity/maste
 Pod Identity requires two components:
 
  1. Managed Identity Controller (MIC). A pod that binds Azure Ids to other pods - creates azureAssignedIdentity CRD. 
- 2. Node Managed Identity (NMI). Identifies the pod based on the remote address of the incoming request, and then queries k8s (through MIC) for a matching Azure Id. It then makes an adal request to get the token for the client id and returns as a reponse to the request. Implemented as a [DaemonSet](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/).
+ 2. Node Managed Identity (NMI). Identifies the pod based on the remote address of the incoming request, and then queries k8s (through MIC) for a matching Azure Id. It then makes an ADAL request to get the token for the client id and returns it as a reponse to the request. Implemented as a [DaemonSet](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/).
 
 If you have RBAC enabled, use the following deployment instead:
 
@@ -125,7 +125,7 @@ kubectl create -f aadpodidentity.yaml
 #### Understanding Namespaced identities
 The system will match `pod` to `identity` across namespaces by default. This behavior can be modified to match to pods within the namespace that holds `AzureIdentity` by
 
-1. On Azure Identity bases, by addinging `aadpodidentity.k8s.io/Behavior: namespaced` annotation (You have to add the annotation on each `AzureIdentity` you want to apply this behavior on).
+1. On Azure Identity basis, by adding `aadpodidentity.k8s.io/Behavior: namespaced` annotation (You have to add the annotation on each `AzureIdentity` you want to apply this behavior on).
 2. Default namespaced behavior on all identities by adding `--forceNamespaced=true` argument on the command line  or declare `FORCENAMESPACED=true` environment variable (for both `nmi` and `mic`).
 
 
