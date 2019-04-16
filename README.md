@@ -1,9 +1,16 @@
 ----
-
-Applications running on the POD on Azure Container Service (AKS/ACS Engine) require access to identities in Azure Active Directory (AAD) to access resources that use an identity provider. AAD provides a construct called a Service Principal that allows applications to assume identities with limited permissions, and Managed Service Identity (MSI) - automatically generated and rotated credentials that easily retrieved by an application at run-time to authenticate as a service principal. 
-A cluster admin configures the Azure Identity Binding to the Pod. Without any change of auth code the application running on the pod works on the cluster.
+Aad Pod Identity enables applications running in pods on AKS or aks-Engine Kubernetes to securely access cloud resources by leveraging Azure Active Directory(AAD). Administrators can configure identities and bindings to match pods with those identities. Following this, without any code modifications, the applications running within the pod can access the appropriate cloud resources. The administrator interactions with the aad-pod-identity is via Kubernetes primitives.
 
 ----
+
+## Table of Contents
+* [Design](#design)
+* [Components](#components)
+* [Getting Started](#getting-started)
+* [Demonstration](#demo)
+* [Tutorial](#tutorial)
+* [Contributing](#contributing)
+
 
 ## Design
 
@@ -12,11 +19,13 @@ The detailed design of the project can be found in the following docs:
 - [Concept](https://github.com/Azure/aad-pod-identity/blob/master/docs/design/concept.md)
 - [Block Diagram](https://github.com/Azure/aad-pod-identity/blob/master/docs/design/concept.png)
 
-# Managed Identity Controller (MIC)
+## Components
+
+### Managed Identity Controller (MIC)
 
 This controller watches for pod changes through the api server and caches pod to admin configured azure identity map.
 
-# Node Managed Identity (NMI)
+### Node Managed Identity (NMI)
 
 The authorization request for fetching Service Principal Token from MSI endpoint is sent to a standard Instance Metadata endpoint which is redirected to the NMI pod by adding ruled to redirect POD CIDR traffic with metadata endpoint IP on port 80 to be sent to the NMI endpoint. The NMI server identifies the pod based on the remote address of the request and then queries the k8s (through MIC) for a matching Azure identity. It then makes an ADAL request to get the token for the client id and returns as a response to the request. If the request had client id as part of the query it validates it againsts the admin configured client id.
 
@@ -29,27 +38,6 @@ curl http://127.0.0.1:2579/host/token/?resource=https://vault.azure.net -H "podn
 ```
 
 # Demo Pod 
-
-## Pod fetching Service Principal Token from MSI endpoint 
-
-```
-spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, resource)
-```
-
-## Pod using identity to Azure Resource Manager (ARM) operation by doing seamless authorization 
-
-```
-import "github.com/Azure/go-autorest/autorest/azure/auth"
-
-authorizer, err := auth.NewAuthorizerFromEnvironment()
-if err != nil {
-	logger.Errorf("failed NewAuthorizerFromEnvironment  %+v", authorizer)
-	return
-}
-vmClient := compute.NewVirtualMachinesClient(subscriptionID)
-vmClient.Authorizer = authorizer
-vmlist, err := vmClient.List(context.Background(), resourceGroup)
-```
 
 ## Get Started
 
@@ -167,7 +155,31 @@ spec:
   Selector: "select_it"
 ```
 
-### Demo app
+## Demonstaration
+
+
+
+### Pod fetching Service Principal Token from MSI endpoint 
+
+```
+spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, resource)
+```
+
+### Pod using identity to Azure Resource Manager (ARM) operation by doing seamless authorization 
+
+```
+import "github.com/Azure/go-autorest/autorest/azure/auth"
+
+authorizer, err := auth.NewAuthorizerFromEnvironment()
+if err != nil {
+	logger.Errorf("failed NewAuthorizerFromEnvironment  %+v", authorizer)
+	return
+}
+vmClient := compute.NewVirtualMachinesClient(subscriptionID)
+vmClient.Authorizer = authorizer
+vmlist, err := vmClient.List(context.Background(), resourceGroup)
+```
+
 
 To deploy the demo app, ensure you have completed the above prerequisite steps!
 
@@ -180,7 +192,7 @@ kubectl create -f deploy/demo/deployment.yaml
 
 > There's also a detailed tutorial [here](docs/tutorial/README.md).
 
-# Contributing
+## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
 Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
