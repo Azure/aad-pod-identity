@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"time"
+	"strings"
 
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -20,6 +21,16 @@ const (
 	getPodListTries                 = 5
 	getPodListSleepTimeMilliseconds = 300
 )
+
+var (
+	// We only want to allow pod-identity with Pending or Running phase status
+	ignorePodPhaseStatuses = []string{"Succeeded", "Failed", "Unknown", "Completed", "CrashLoopBackOff"}
+	phaseStatusFilter = getPodPhaseFilter()
+)
+
+func getPodPhaseFilter() string {
+	return ",status.phase!=" + strings.Join(ignorePodPhaseStatuses, ",status.phase!=")
+}
 
 // Client api client
 type Client interface {
@@ -75,9 +86,9 @@ func (c *KubeClient) GetPodName(podip string) (podns, poddname string, err error
 	return "", "", fmt.Errorf("match failed, ip:%s matching pods:%v", podip, podList)
 }
 
-func (c *KubeClient) getPodListWithTries(podip string, tries int) (*v1.PodList, error) {
+func (c *KubeClient) getPodListWithTries(podip string, tries int) (*v1.PodList, error) {	
 	podList, err := c.ClientSet.CoreV1().Pods("").List(metav1.ListOptions{
-		FieldSelector: "status.podIP==" + podip + ",status.phase==Running",
+		FieldSelector: "status.podIP==" + podip + phaseStatusFilter,
 	})
 
 	if err != nil || len(podList.Items) == 0 {
