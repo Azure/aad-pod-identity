@@ -1,5 +1,5 @@
 ----
-Aad Pod Identity enables applications running in pods on AKS or aks-Engine Kubernetes to securely access cloud resources by leveraging Azure Active Directory(AAD). Administrators can configure identities and bindings to match pods with those identities. Following this, without any code modifications, the applications running within the pod can access the appropriate cloud resources. The administrator interactions with the aad-pod-identity is via Kubernetes primitives.
+Aad Pod Identity enables applications running in pods on AKS or aks-engine Kubernetes clusters to securely access cloud resources, by leveraging Azure Active Directory(AAD). Administrators can configure identities and bindings, to match pods with those identities. Following this, without any code modifications, the applications running within the pod can access the appropriate cloud resources. The administrator interactions with the aad-pod-identity are via Kubernetes primitives.
 
 ----
 
@@ -37,9 +37,7 @@ An example curl command:
 curl http://127.0.0.1:2579/host/token/?resource=https://vault.azure.net -H "podname: nginx-flex-kv-int" -H "podns: default"
 ```
 
-# Demo Pod 
-
-## Get Started
+## Getting Started
 
 ### Prerequisites 
 
@@ -155,17 +153,19 @@ spec:
   Selector: "select_it"
 ```
 
-## Demonstaration
+## Demonstration
 
+The demo program can be found here: [cmd/demo](cmd/demo). It demonstrates how after setting the identity and binding the sample app can list the vms in a resurce group. 
 
+Here are some excerpts from the demo.
 
-### Pod fetching Service Principal Token from MSI endpoint 
+#### Pod fetching Service Principal Token from MSI endpoint 
 
 ```
 spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, resource)
 ```
 
-### Pod using identity to Azure Resource Manager (ARM) operation by doing seamless authorization 
+#### Pod using identity to Azure Resource Manager (ARM) operation by doing seamless authorization 
 
 ```
 import "github.com/Azure/go-autorest/autorest/azure/auth"
@@ -180,7 +180,6 @@ vmClient.Authorizer = authorizer
 vmlist, err := vmClient.List(context.Background(), resourceGroup)
 ```
 
-
 To deploy the demo app, ensure you have completed the above prerequisite steps!
 
 Update the `deploy/demo/deployment.yaml` arguments with your subscription, clientID and resource group.
@@ -190,7 +189,9 @@ Make sure your identity with the client ID has reader permission to the resource
 kubectl create -f deploy/demo/deployment.yaml
 ```
 
-> There's also a detailed tutorial [here](docs/tutorial/README.md).
+## Tutorial
+
+A detailed tutorial can be found here: [docs/tutorial/README.md](docs/tutorial/README.md).
 
 ## Contributing
 
