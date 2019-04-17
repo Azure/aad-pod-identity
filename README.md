@@ -1,5 +1,5 @@
 ----
-Aad Pod Identity enables applications running in pods on AKS or aks-engine Kubernetes clusters to securely access cloud resources, by leveraging Azure Active Directory(AAD). Administrators can configure identities and bindings, to match pods with those identities. Following this, without any code modifications, the applications running within the pod can access the appropriate cloud resources. The administrator interactions with the aad-pod-identity are via Kubernetes primitives.
+Aad Pod Identity enables applications running in pods on AKS or aks-engine Kubernetes clusters to securely access cloud resources by leveraging Azure Active Directory(AAD). Administrators can configure identities and bindings, to match pods with identities. Following this, without any code modifications, the applications running within the pod can access the appropriate cloud resources. The administrator interactions with the aad-pod-identity are via Kubernetes primitives.
 
 ----
 
