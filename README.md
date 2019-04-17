@@ -173,7 +173,7 @@ The user assigned identity should be assigned 'Reader' role on the resource grou
 ```
 az role assignment create --role Reader --assignee <principalid> --scope /subscriptions/<subscriptionid>/resourcegroups/<resourcegroup>
 ```
-## Starting the demo pod
+### Starting the demo pod
 
 Update the `deploy/demo/deployment.yaml` arguments with your subscription, clientID and resource group.
 
