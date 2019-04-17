@@ -3,6 +3,8 @@ Aad Pod Identity enables applications running in pods on AKS or aks-engine Kuber
 
 ----
 
+[![Build Status](https://dev.azure.com/azure/aad-pod-identity/_apis/build/status/aad-pod-identity-CI?branchName=master)](https://dev.azure.com/azure/aad-pod-identity/_build/latest?definitionId=22&branchName=master)
+
 ## Table of Contents
 * [Design](#design)
 * [Components](#components)
