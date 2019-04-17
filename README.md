@@ -44,7 +44,7 @@ curl http://127.0.0.1:2579/host/token/?resource=https://vault.azure.net -H "podn
 
 A running k8s cluster on Azure using AKS or AKS Engine 
 
-### Deploy the azure-aad-identity infra 
+### Deploy the aad-pod-identity infra 
 
 Deploy the infrastructure with the following command to deploy MIC, NMI, and the MIC CRDs on an RBAC enabled cluster.
 
