@@ -7,7 +7,7 @@ Aad Pod Identity enables applications running in pods on AKS or aks-engine Kuber
 * [Design](#design)
 * [Components](#components)
 * [Getting Started](#getting-started)
-* [Demonstration](#demo)
+* [Demonstration](#demonstration)
 * [Tutorial](#tutorial)
 * [Debugging](#debugging)
 * [Contributing](#contributing)
