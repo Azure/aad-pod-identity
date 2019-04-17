@@ -1,5 +1,5 @@
 ----
-Aad Pod Identity enables applications running in pods on AKS or aks-engine Kubernetes clusters to securely access cloud resources by leveraging Azure Active Directory(AAD). Administrators can configure identities and bindings, to match pods with identities. Following this, without any code modifications, the applications running within the pod can access the appropriate cloud resources. The administrator interactions with the aad-pod-identity are via Kubernetes primitives.
+Aad Pod Identity enables applications running in pods on Kubernetes clusters deployed on Azure(managed or unmanaged) to securely access cloud resources by leveraging Azure Active Directory(AAD). Administrators can configure identities and bindings, to match pods with identities. Following this, without any code modifications, the applications running within the pod can access any cloud resources that depend on AAD as Identity Provider. The administrator interactions with the aad-pod-identity are via Kubernetes primitives.
 
 ----
 
@@ -130,9 +130,9 @@ spec:
 
 ### Providing required permissions for MIC
 
-This step is only required if you are using User assigned MSI.
+This step is only required if you are using User assigned MSI and if you are using AKS or aks-engine.
 
-MIC uses the service principal credentials [stored within the the AKS](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal) cluster to access azure resources. This service principal needs to have Microsoft.ManagedIdentity/userAssignedIdentities/\*/assign/action permission on the identity for usage with User assigned MSI. If your identity is created in the same resource group as that of the AKS nodes (typically this resource group is prefixed with 'MC_' string and is automatically generated when you create the cluster), you can skip the next steps.
+MIC uses the service principal credentials [stored within the Kubernetes cluster on Azure](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal) cluster to access azure resources. This service principal needs to have Microsoft.ManagedIdentity/userAssignedIdentities/\*/assign/action permission on the identity for usage with User assigned MSI. If your identity is created in the same resource group as that of the AKS nodes (typically this resource group is prefixed with 'MC_' string and is automatically generated when you create the cluster), you can skip the next steps.
 
 1. Find the service principal used by your cluster - please refer the [AKS docs](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal) to figure out the service principle app Id. For example, if your cluster uses automatically generated service principal, the ~/.azure/aksServicePrincipal.json file in the machine from which you created the AKS cluster has the required information.
 
