@@ -52,14 +52,14 @@ and for non-RBAC clusters:
 ```
 kubectl create -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment.yaml
 ```
-#### Create User Azure Identity 
+### Create User Azure Identity 
 
 Get the client id and resource id for the identity 
 ```
 az identity create -g <resourcegroup> -n <managedidentity-resourcename>
 ```
 
-#### Install User Azure Identity on k8s cluster 
+### Install User Azure Identity on k8s cluster 
 
 Edit and save this as aadpodidentity.yaml
 
@@ -80,14 +80,14 @@ spec:
 kubectl create -f aadpodidentity.yaml
 ```
 
-#### Understanding Namespaced identities
+### Understanding Namespaced identities
 The system will match `pod` to `identity` across namespaces by default. This behavior can be modified to match to pods within the namespace that holds `AzureIdentity` by
 
 1. On Azure Identity basis, by adding `aadpodidentity.k8s.io/Behavior: namespaced` annotation (You have to add the annotation on each `AzureIdentity` you want to apply this behavior on).
 2. Default namespaced behavior on all identities by adding `--forceNamespaced=true` argument on the command line  or declare `FORCENAMESPACED=true` environment variable (for both `nmi` and `mic`).
 
 
-#### Install Pod to Identity Binding on k8s cluster
+### Install Pod to Identity Binding on k8s cluster
 
 Edit and save this as aadpodidentitybinding.yaml.  Note the AzureIdentity name must match the one chosen in aadpodidentity.yaml.
 ```
@@ -125,7 +125,7 @@ spec:
   Selector: "select_it"
 ```
 
-#### Providing required permissions for MIC
+### Providing required permissions for MIC
 
 This step is only required if you are using User assigned MSI.
 
@@ -144,13 +144,13 @@ The demo program can be found here: [cmd/demo](cmd/demo). It demonstrates how af
 
 Here are some excerpts from the demo.
 
-#### Pod fetching Service Principal Token from MSI endpoint 
+### Pod fetching Service Principal Token from MSI endpoint 
 
 ```
 spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, resource)
 ```
 
-#### Pod using identity to Azure Resource Manager (ARM) operation by doing seamless authorization 
+### Pod using identity to Azure Resource Manager (ARM) operation by doing seamless authorization 
 
 ```
 import "github.com/Azure/go-autorest/autorest/azure/auth"
@@ -165,7 +165,7 @@ vmClient.Authorizer = authorizer
 vmlist, err := vmClient.List(context.Background(), resourceGroup)
 ```
 
-#### Assign Reader Role to new Identity
+### Assign Reader Role to new Identity
 
 The user assigned identity should be assigned 'Reader' role on the resource group for performing the vm listing. Use the principalid of your user assigned identity to do it:
 
