@@ -9,6 +9,7 @@ Aad Pod Identity enables applications running in pods on AKS or aks-engine Kuber
 * [Getting Started](#getting-started)
 * [Demonstration](#demo)
 * [Tutorial](#tutorial)
+* [Debugging](#debugging)
 * [Contributing](#contributing)
 
 ## Design
@@ -183,6 +184,10 @@ kubectl create -f deploy/demo/deployment.yaml
 ## Tutorial
 
 A detailed tutorial can be found here: [docs/tutorial/README.md](docs/tutorial/README.md).
+
+## Debugging
+
+Information about how to debug this project can be found at [Debugging](https://github.com/Azure/aad-pod-identity/wiki/Debugging) 
 
 ## Contributing
 
