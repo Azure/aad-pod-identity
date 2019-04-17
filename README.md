@@ -24,7 +24,7 @@ The detailed design of the project can be found in the following docs:
 
 ### Managed Identity Controller(MIC)
 
-This controller watches for releveant changes to pods, identities and bindings through the api server. When a change is detected it runs a loop to check if there are actions to be performed. Based on the change detected MIC would either add or delete assigned identities. In case of user assigned identity usage, MIC is responsible for assigning it to the underlying VM in which the pod gets scheduled during pod creation. During pod deletion it would remove those identities from the VM. Similar steps are taken by MIC when an identities or bindinging are created or deleted.
+This controller watches for releveant changes to pods, identities and bindings through the api server. When a change is detected it runs a loop to check if there are actions to be performed. Based on the change detected MIC would either add or delete assigned identities. In case of user assigned identity usage, MIC is responsible for assigning it to the underlying VM in which the pod gets scheduled during pod creation. During pod deletion it would remove those identities from the VM. Similar steps are taken by MIC when identities or bindings are created or deleted.
 
 ### Node Managed Identity(NMI)
 
