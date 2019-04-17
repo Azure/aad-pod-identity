@@ -11,21 +11,19 @@ Aad Pod Identity enables applications running in pods on AKS or aks-engine Kuber
 * [Tutorial](#tutorial)
 * [Contributing](#contributing)
 
-
 ## Design
 
 The detailed design of the project can be found in the following docs:
-
 - [Concept](https://github.com/Azure/aad-pod-identity/blob/master/docs/design/concept.md)
 - [Block Diagram](https://github.com/Azure/aad-pod-identity/blob/master/docs/design/concept.png)
 
 ## Components
 
-### Managed Identity Controller (MIC)
+### Managed Identity Controller(MIC)
 
 This controller watches for pod changes through the api server and caches pod to admin configured azure identity map.
 
-### Node Managed Identity (NMI)
+### Node Managed Identity(NMI)
 
 The authorization request for fetching Service Principal Token from MSI endpoint is sent to a standard Instance Metadata endpoint which is redirected to the NMI pod by adding ruled to redirect POD CIDR traffic with metadata endpoint IP on port 80 to be sent to the NMI endpoint. The NMI server identifies the pod based on the remote address of the request and then queries the k8s (through MIC) for a matching Azure identity. It then makes an ADAL request to get the token for the client id and returns as a response to the request. If the request had client id as part of the query it validates it againsts the admin configured client id.
 
@@ -41,50 +39,24 @@ curl http://127.0.0.1:2579/host/token/?resource=https://vault.azure.net -H "podn
 
 ### Prerequisites 
 
-A running k8s cluster on Azure using AKS or ACS Engine 
+A running k8s cluster on Azure using AKS or AKS Engine 
 
 ### Deploy the azure-aad-identity infra 
 
-Deploy the infrastructure with the following command to deploy MIC, NMI, and the MIC CRDs.
-```
-kubectl create -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment.yaml
-```
-
-Pod Identity requires two components:
-
- 1. Managed Identity Controller (MIC). A pod that binds Azure Ids to other pods - creates azureAssignedIdentity CRD. 
- 2. Node Managed Identity (NMI). Identifies the pod based on the remote address of the incoming request, and then queries k8s (through MIC) for a matching Azure Id. It then makes an ADAL request to get the token for the client id and returns it as a reponse to the request. Implemented as a [DaemonSet](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/).
-
-If you have RBAC enabled, use the following deployment instead:
+Deploy the infrastructure with the following command to deploy MIC, NMI, and the MIC CRDs on an RBAC enabled cluster.
 
 ```
 kubectl create -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
+```
+and for non-RBAC clusters:
+```
+kubectl create -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment.yaml
 ```
 #### Create User Azure Identity 
 
 Get the client id and resource id for the identity 
 ```
 az identity create -g <resourcegroup> -n <managedidentity-resourcename>
-```
-
-#### Assign Reader Role to new Identity
-
-Using the principalid from the last step, assign reader role to new identity for this resource group
-```
-az role assignment create --role Reader --assignee <principalid> --scope /subscriptions/<subscriptionid>/resourcegroups/<resourcegroup>
-```
-
-#### Providing required permissions for MIC
-
-This step is only required if you are using User assigned MSI.
-
-MIC uses the service principal credentials [stored within the the AKS](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal) cluster to access azure resources. This service principal needs to have Microsoft.ManagedIdentity/userAssignedIdentities/\*/assign/action permission on the identity for usage with User assigned MSI. If your identity is created in the same resource group as that of the AKS nodes (typically this resource group is prefixed with 'MC_' string and is automatically generated when you create the cluster), you can skip the next steps.
-
-1. Find the service principal used by your cluster - please refer the [AKS docs](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal) to figure out the service principle app Id. For example, if your cluster uses automatically generated service principal, the ~/.azure/aksServicePrincipal.json file in the machine from which you created the AKS cluster has the required information.
-
-2. Assign the required permissions - the following command can be used to assign the required permission:
-```
-az role assignment create --role "Managed Identity Operator" --assignee <sp id> --scope <full id of the managed identity>
 ```
 
 #### Install User Azure Identity on k8s cluster 
@@ -153,9 +125,22 @@ spec:
   Selector: "select_it"
 ```
 
+#### Providing required permissions for MIC
+
+This step is only required if you are using User assigned MSI.
+
+MIC uses the service principal credentials [stored within the the AKS](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal) cluster to access azure resources. This service principal needs to have Microsoft.ManagedIdentity/userAssignedIdentities/\*/assign/action permission on the identity for usage with User assigned MSI. If your identity is created in the same resource group as that of the AKS nodes (typically this resource group is prefixed with 'MC_' string and is automatically generated when you create the cluster), you can skip the next steps.
+
+1. Find the service principal used by your cluster - please refer the [AKS docs](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal) to figure out the service principle app Id. For example, if your cluster uses automatically generated service principal, the ~/.azure/aksServicePrincipal.json file in the machine from which you created the AKS cluster has the required information.
+
+2. Assign the required permissions - the following command can be used to assign the required permission:
+```
+az role assignment create --role "Managed Identity Operator" --assignee <sp id> --scope <full id of the managed identity>
+```
+
 ## Demonstration
 
-The demo program can be found here: [cmd/demo](cmd/demo). It demonstrates how after setting the identity and binding the sample app can list the vms in a resurce group. 
+The demo program can be found here: [cmd/demo](cmd/demo). It demonstrates how after setting the identity and binding the sample app can list the vms in a resurce group. To deploy the demo app, ensure you have completed the above prerequisite steps!
 
 Here are some excerpts from the demo.
 
@@ -180,7 +165,13 @@ vmClient.Authorizer = authorizer
 vmlist, err := vmClient.List(context.Background(), resourceGroup)
 ```
 
-To deploy the demo app, ensure you have completed the above prerequisite steps!
+#### Assign Reader Role to new Identity
+
+The user assigned identity should be assigned 'Reader' role on the resource group for performing the vm listing. Use the principalid of your user assigned identity to do it:
+
+```
+az role assignment create --role Reader --assignee <principalid> --scope /subscriptions/<subscriptionid>/resourcegroups/<resourcegroup>
+```
 
 Update the `deploy/demo/deployment.yaml` arguments with your subscription, clientID and resource group.
 Make sure your identity with the client ID has reader permission to the resource group provided in the input. 
