@@ -172,9 +172,9 @@ The user assigned identity should be assigned 'Reader' role on the resource grou
 ```
 az role assignment create --role Reader --assignee <principalid> --scope /subscriptions/<subscriptionid>/resourcegroups/<resourcegroup>
 ```
+## Starting the demo pod
 
 Update the `deploy/demo/deployment.yaml` arguments with your subscription, clientID and resource group.
-Make sure your identity with the client ID has reader permission to the resource group provided in the input. 
 
 ```
 kubectl create -f deploy/demo/deployment.yaml
