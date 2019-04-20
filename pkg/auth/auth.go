@@ -47,6 +47,9 @@ func GetServicePrincipalToken(tenantID, clientID, secret string) (*adal.Token, e
 		secret,
 		resourceManagerEndpoint,
 	)
+	if err != nil {
+		return nil, err
+	}
 	// Evectively acqurie the token
 	err = spt.Refresh()
 	if err != nil {
