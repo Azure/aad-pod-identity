@@ -13,8 +13,7 @@ func TestGetSecret(t *testing.T) {
 
 	fakeClient := fake.NewSimpleClientset()
 
-	secret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secretName}, StringData: make(map[string]string)}
-	secret.StringData["key1"] = "value1"
+	secret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secretName}}
 	fakeClient.CoreV1().Secrets("default").Create(secret)
 
 	kubeClient := &KubeClient{ClientSet: fakeClient}
@@ -29,8 +28,5 @@ func TestGetSecret(t *testing.T) {
 	}
 	if retrievedSecret.ObjectMeta.Name != secretName {
 		t.Fatalf("Incorrect secret name: %v", retrievedSecret.ObjectMeta.Name)
-	}
-	if retrievedSecret.StringData["key1"] != "value1" {
-		t.Fatalf("Incorrect secret data: %v", retrievedSecret.StringData)
 	}
 }

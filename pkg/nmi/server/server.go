@@ -261,8 +261,8 @@ func getTokenForMatchingID(kubeClient k8s.Client, logger *log.Entry, rqClientID 
 				return nil, clientID, err
 			}
 			clientSecret := ""
-			for _, v := range secret.StringData {
-				clientSecret = v
+			for _, v := range secret.Data {
+				clientSecret = string(v)
 				break
 			}
 			token, err := auth.GetServicePrincipalToken(tenantid, clientID, clientSecret)
