@@ -108,10 +108,10 @@ func (i *vmssIdentityInfo) RemoveUserIdentity(id string) error {
 	return nil
 }
 
-func (i *vmssIdentityInfo) AppendUserIdentity(id string) {
+func (i *vmssIdentityInfo) AppendUserIdentity(id string) bool {
 	if i.info.IdentityIds == nil {
 		var ids []string
 		i.info.IdentityIds = &ids
 	}
-	appendUserIdentity(&i.info.Type, i.info.IdentityIds, id)
+	return appendUserIdentity(&i.info.Type, i.info.IdentityIds, id)
 }

@@ -19,7 +19,7 @@ type IdentityHolder interface {
 // have different identity types.
 // This abstracts those differences.
 type IdentityInfo interface {
-	AppendUserIdentity(id string)
+	AppendUserIdentity(id string) bool
 	RemoveUserIdentity(id string) error
 }
 
@@ -74,13 +74,13 @@ func filter(ls *[]string, filter string) {
 
 // appendUserIdentity provides a common implementation for adding a new identity
 // to an identity object.
-func appendUserIdentity(idType *compute.ResourceIdentityType, idList *[]string, newID string) {
+func appendUserIdentity(idType *compute.ResourceIdentityType, idList *[]string, newID string) bool {
 	switch *idType {
 	case compute.ResourceIdentityTypeUserAssigned, compute.ResourceIdentityTypeSystemAssignedUserAssigned:
 		// check if this ID is already in the list
 		for _, id := range *idList {
 			if id == newID {
-				return
+				return false
 			}
 		}
 	case compute.ResourceIdentityTypeSystemAssigned:
@@ -90,4 +90,5 @@ func appendUserIdentity(idType *compute.ResourceIdentityType, idList *[]string, 
 	}
 
 	*idList = append(*idList, newID)
+	return true
 }

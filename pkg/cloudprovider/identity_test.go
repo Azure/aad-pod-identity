@@ -67,7 +67,10 @@ func TestAppendUserIdentity(t *testing.T) {
 		idType compute.ResourceIdentityType
 	)
 
-	appendUserIdentity(&idType, &idList, "A")
+	append := appendUserIdentity(&idType, &idList, "A")
+	if !append {
+		t.Fatalf("Expecting the id to be not present. But present returned by Append.")
+	}
 	expect := []string{"A"}
 	checkIDList(t, expect, idList)
 	if idType != compute.ResourceIdentityTypeUserAssigned {
@@ -75,13 +78,19 @@ func TestAppendUserIdentity(t *testing.T) {
 	}
 
 	// Append the same value again, should not change anything
-	appendUserIdentity(&idType, &idList, "A")
+	append = appendUserIdentity(&idType, &idList, "A")
+	if append {
+		t.Fatalf("Expecting the id to be not present. But present returned by Append.")
+	}
 	checkIDList(t, expect, idList)
 	if idType != compute.ResourceIdentityTypeUserAssigned {
 		t.Fatalf("expected type %s, got: %s", compute.ResourceIdentityTypeUserAssigned, idType)
 	}
 
-	appendUserIdentity(&idType, &idList, "B")
+	append = appendUserIdentity(&idType, &idList, "B")
+	if !append {
+		t.Fatalf("Expecting the id to be not present. But present returned by Append.")
+	}
 	expect = []string{"A", "B"}
 	checkIDList(t, expect, idList)
 	if idType != compute.ResourceIdentityTypeUserAssigned {
@@ -91,7 +100,10 @@ func TestAppendUserIdentity(t *testing.T) {
 	idType = compute.ResourceIdentityTypeSystemAssigned
 	idList = []string{"A"}
 	expect = []string{"A", "B"}
-	appendUserIdentity(&idType, &idList, "B")
+	append = appendUserIdentity(&idType, &idList, "B")
+	if !append {
+		t.Fatalf("Expecting the id to be not present. But present returned by Append.")
+	}
 	checkIDList(t, expect, idList)
 	if idType != compute.ResourceIdentityTypeSystemAssignedUserAssigned {
 		t.Fatalf("expected type %s, got: %s", compute.ResourceIdentityTypeSystemAssignedUserAssigned, idType)
@@ -100,7 +112,10 @@ func TestAppendUserIdentity(t *testing.T) {
 	idType = compute.ResourceIdentityTypeNone
 	idList = []string{}
 	expect = []string{"A"}
-	appendUserIdentity(&idType, &idList, "A")
+	append = appendUserIdentity(&idType, &idList, "A")
+	if !append {
+		t.Fatalf("Expecting the id to be not present. But present returned by Append.")
+	}
 	checkIDList(t, expect, idList)
 	if idType != compute.ResourceIdentityTypeUserAssigned {
 		t.Fatalf("expected type %s, got: %s", compute.ResourceIdentityTypeUserAssigned, idType)
