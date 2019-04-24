@@ -14,6 +14,7 @@ variables:
  GOROOT: '/usr/local/go1.11' # Go installation path
  GOPATH: '$(system.defaultWorkingDirectory)/gopath' # Go workspace path
  modulePath: '$(GOPATH)/src/github.com/$(build.repository.name)' # Path to the module's code
+ GO111MODULE: 'on'
 
 steps:
 - script: |
@@ -40,4 +41,4 @@ steps:
 - script: |
    go test -v $(go list ./... | grep -v test/e2e)
   workingDirectory: '$(modulePath)'
-  displayName: 'Run tests' 
+  displayName: 'Run tests'
