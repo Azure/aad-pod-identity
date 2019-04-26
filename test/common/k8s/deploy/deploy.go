@@ -21,9 +21,9 @@ type List struct {
 
 // Deploy is used to parse data from 'kubectl get deploy'
 type Deploy struct {
-	Metadata Metadata `json:"metadata"`
-	Spec     Spec     `json:"spec"`
-	Status   Status   `json:"status"`
+	Metadata `json:"metadata"`
+	Spec     `json:"spec"`
+	Status   `json:"status"`
 }
 
 // Metadata holds information about a deployment
@@ -55,6 +55,7 @@ func CreateIdentityValidator(subscriptionID, resourceGroup, name, identityBindin
 	}
 	defer deployFile.Close()
 
+	// Go template parameters to be translated in test/e2e/template/deployment.yaml
 	deployData := struct {
 		Name            string
 		IdentityBinding string
@@ -98,8 +99,7 @@ func GetAll() (*List, error) {
 	}
 
 	list := List{}
-	err = json.Unmarshal(out, &list)
-	if err != nil {
+	if err := json.Unmarshal(out, &list); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshall json")
 	}
 
@@ -130,7 +130,7 @@ func WaitOnReady(name string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 
-	fmt.Println("# Tight-poll to check if the deployment is ready...")
+	fmt.Printf("# Tight-poll to check if %s deployment is ready...\n", name)
 	go func() {
 		for {
 			select {
@@ -145,7 +145,7 @@ func WaitOnReady(name string) (bool, error) {
 					successChannel <- true
 					return
 				}
-				fmt.Printf("# The deployment is not ready yet. Retrying in %s...\n", sleep.String())
+				fmt.Printf("# %s deployment is not ready yet. Retrying in %s...\n", name, sleep.String())
 				time.Sleep(sleep)
 			}
 		}
