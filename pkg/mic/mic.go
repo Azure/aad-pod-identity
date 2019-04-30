@@ -5,18 +5,15 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Azure/aad-pod-identity/pkg/stats"
-	"github.com/Azure/aad-pod-identity/version"
-
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
-
 	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	"github.com/Azure/aad-pod-identity/pkg/crd"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
+	"github.com/Azure/aad-pod-identity/pkg/stats"
+	"github.com/Azure/aad-pod-identity/version"
 	"github.com/golang/glog"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -118,7 +115,16 @@ func (c *Client) Start(exit <-chan struct{}) {
 
 func (c *Client) Sync(exit <-chan struct{}) {
 	glog.Info("Sync thread started.")
-	for event := range c.EventChannel {
+
+	var event aadpodid.EventType
+
+	for {
+		select {
+		case <-exit:
+			return
+		case event = <-c.EventChannel:
+		}
+
 		stats.Init()
 		// This is the only place where the AzureAssignedIdentity creation is initiated.
 		begin := time.Now()
@@ -151,6 +157,8 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		}
 		stats.Put(stats.System, time.Since(systemTime))
 
+		nodeRefs := make(map[string]bool)
+
 		var newAssignedIDs []aadpodid.AzureAssignedIdentity
 		beginNewListTime := time.Now()
 		//For each pod, check what bindings are matching. For each binding create volatile azure assigned identity.
@@ -175,6 +183,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 				if allBinding.Spec.Selector == crdPodLabelVal {
 					glog.V(5).Infof("Found binding match for pod %s/%s with binding %s", pod.Name, pod.Namespace, allBinding.Name)
 					matchedBindings = append(matchedBindings, allBinding)
+					nodeRefs[pod.Spec.NodeName] = true
 				}
 			}
 
@@ -223,9 +232,20 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		if deleteList != nil && len(*deleteList) > 0 {
 			beginDeletion := time.Now()
 			workDone = true
+
+			vmssGroups, err := getVMSSGroups(c.NodeClient, nodeRefs)
+			if err != nil {
+				glog.Error(err)
+				continue
+			}
+
 			for _, delID := range *deleteList {
 				glog.V(5).Infof("Deletion of id: %s", delID.Name)
-				inUse := c.checkIfInUse(delID, newAssignedIDs)
+				inUse, err := c.checkIfInUse(delID, newAssignedIDs, vmssGroups)
+				if err != nil {
+					glog.Error(err)
+					continue
+				}
 				removedBinding := delID.Spec.AzureBindingRef
 				// The inUse here checks if there are pods which are using the MSI in the newAssignedIDs.
 				err = c.removeAssignedIDsWithDeps(&delID, inUse)
@@ -460,7 +480,7 @@ func (c *Client) convertIDListToMap(arr []aadpodid.AzureIdentity) (m map[string]
 	return m, nil
 }
 
-func (c *Client) checkIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, arr []aadpodid.AzureAssignedIdentity) bool {
+func (c *Client) checkIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, arr []aadpodid.AzureAssignedIdentity, vmssGroups *vmssGroupList) (bool, error) {
 	for _, assignedID := range arr {
 		checkID := checkAssignedID.Spec.AzureIdentityRef
 		id := assignedID.Spec.AzureIdentityRef
@@ -470,10 +490,33 @@ func (c *Client) checkIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, ar
 		if checkID.Spec.Type != aadpodid.UserAssignedMSI {
 			continue
 		}
-		if checkID.Spec.ClientID == id.Spec.ClientID && checkAssignedID.Spec.NodeName == assignedID.Spec.NodeName &&
-			checkAssignedID.Spec.Pod != assignedID.Spec.Pod {
-			return true
+
+		if checkAssignedID.Spec.Pod == assignedID.Spec.Pod {
+			// No need to do the rest of the checks in this case, since it's the same assignment
+			// The same identity won't be assigned to a pod twice, so it's the same reference.
+			continue
+		}
+
+		if checkID.Spec.ClientID != id.Spec.ClientID {
+			continue
+		}
+
+		if checkAssignedID.Spec.NodeName == assignedID.Spec.NodeName {
+			return true, nil
+		}
+
+		vmss, err := getVMSSGroupFromPossiblyUnreferencedNode(c.NodeClient, vmssGroups, checkAssignedID.Spec.NodeName)
+		if err != nil {
+			return false, err
+		}
+
+		// check if this identity is used on another node in the same vmss
+		// This check is needed because vmss identities currently operate on all nodes
+		// in the vmss not just a single node.
+		if vmss != nil && vmss.hasNode(assignedID.Spec.NodeName) {
+			return true, nil
 		}
 	}
-	return false
+
+	return false, nil
 }
