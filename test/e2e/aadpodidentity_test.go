@@ -509,6 +509,10 @@ func setUpIdentityAndDeployment(azureIdentityName, suffix string) {
 	ok, err := deploy.WaitOnReady(identityValidatorName)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ok).To(Equal(true))
+
+	// TODO: Make this more absolute by checking the presence of NMI liveliness.
+	fmt.Println("Sleeping for 30 seconds to avoid racing with NMI")
+	time.Sleep(30 * time.Second)
 }
 
 // validateAzureAssignedIdentity will make sure a given AzureAssignedIdentity has the correct properties
@@ -541,7 +545,9 @@ func validateAzureAssignedIdentity(azureAssignedIdentity aadpodid.AzureAssignedI
 	} else {
 		err = errors.Errorf("Invalid identity name: %s", identityName)
 	}
-	fmt.Printf("%s\n", cmdOutput)
+	if err != nil {
+		fmt.Printf("%s\n", cmdOutput)
+	}
 	Expect(err).NotTo(HaveOccurred())
 	fmt.Printf("# %s validated!\n", identityName)
 }

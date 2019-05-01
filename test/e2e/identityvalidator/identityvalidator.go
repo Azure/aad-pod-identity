@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/pkg/errors"
 
@@ -91,9 +90,6 @@ func testUserAssignedIdentityOnPod(logger *log.Entry, msiEndpoint, identityClien
 	if err == nil {
 		keyClient.Authorizer = authorizer
 	}
-	// TODO: Make this more absolute by checking the presence of NMI liveliness.
-	logger.Infof("Sleeping for 30 seconds to avoid racing with NMI")
-	time.Sleep(30 * time.Second)
 
 	logger.Infof("%s %s %s\n", keyvaultName, keyvaultSecretName, keyvaultSecretVersion)
 	secret, err := keyClient.GetSecret(context.Background(), fmt.Sprintf("https://%s.vault.azure.net", keyvaultName), keyvaultSecretName, keyvaultSecretVersion)

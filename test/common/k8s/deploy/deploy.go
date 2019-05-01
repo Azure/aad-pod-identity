@@ -89,8 +89,8 @@ func Delete(name, templateOutputPath string) error {
 	return nil
 }
 
-// GetAll will return a list of deployment on a Kubernetes cluster
-func GetAll() (*List, error) {
+// GetAllDeployments will return a list of deployment on a Kubernetes cluster
+func GetAllDeployments() (*List, error) {
 	cmd := exec.Command("kubectl", "get", "deploy", "-ojson")
 	util.PrintCommand(cmd)
 	out, err := cmd.CombinedOutput()
@@ -109,7 +109,7 @@ func GetAll() (*List, error) {
 // IsAvailableReplicasMatchDesired will return a boolean that indicate whether the number
 // of available replicas of a deployment matches the desired number of replicas
 func isAvailableReplicasMatchDesired(name string) (bool, error) {
-	dl, err := GetAll()
+	dl, err := GetAllDeployments()
 	if err != nil {
 		return false, err
 	}
@@ -130,7 +130,7 @@ func WaitOnReady(name string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 
-	fmt.Printf("# Tight-poll to check if %s deployment is ready...\n", name)
+	fmt.Printf("# Poll to check if %s deployment is ready...\n", name)
 	go func() {
 		for {
 			select {
