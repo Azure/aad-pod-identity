@@ -1,6 +1,7 @@
 package mic
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"testing"
@@ -522,10 +523,9 @@ func TestMapMICClient(t *testing.T) {
 }
 
 func TestSimpleMICClient(t *testing.T) {
-	exit := make(chan struct{}, 0)
+	exit := make(chan struct{})
 	defer close(exit)
 
-	exit := make(<-chan struct{})
 	eventCh := make(chan aadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
 	crdClient := NewTestCrdClient(nil)
@@ -651,7 +651,7 @@ func TestSimpleMICClient(t *testing.T) {
 }
 
 func TestAddDelMICClient(t *testing.T) {
-	exit := make(<-chan struct{})
+	exit := make(chan struct{})
 	defer close(exit)
 
 	eventCh := make(chan aadpodid.EventType, 100)
@@ -818,5 +818,32 @@ func TestMicAddDelVMSS(t *testing.T) {
 	}
 	if !cloudClient.CompareMSI("testvmss2", []string{"test-user-msi-resourceid"}) {
 		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss2"])
+	}
+}
+
+func TestSyncExit(t *testing.T) {
+	eventCh := make(chan aadpodid.EventType)
+	cloudClient := NewTestCloudClient(config.AzureConfig{VMType: "vmss"})
+	crdClient := NewTestCrdClient(nil)
+	podClient := NewTestPodClient()
+	nodeClient := NewTestNodeClient()
+	var evtRecorder TestEventRecorder
+	evtRecorder.lastEvent = new(LastEvent)
+	evtRecorder.eventChannel = make(chan bool, 1)
+
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
+
+	exit := make(chan struct{}, 0)
+	close(exit)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	go func() {
+		micClient.Sync(exit)
+		cancel()
+	}()
+
+	<-ctx.Done()
+	if ctx.Err() == context.DeadlineExceeded {
+		t.Fatal("timeout waiting for sync to exit")
 	}
 }
