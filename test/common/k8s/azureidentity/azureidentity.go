@@ -78,7 +78,7 @@ func GetClientID(resourceGroup, name string) (string, error) {
 	cmd := exec.Command("az", "identity", "show", "-g", resourceGroup, "-n", name, "--query", "clientId", "-otsv")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to get the clientID from the identity in Azure")
+		return "", errors.Wrapf(err, "Failed to get the clientID of identity '%s' from resource group '%s'", name, resourceGroup)
 	}
 
 	return strings.TrimSpace(string(out)), nil

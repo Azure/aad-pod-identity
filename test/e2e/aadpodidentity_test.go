@@ -38,6 +38,7 @@ var (
 
 var _ = BeforeSuite(func() {
 	fmt.Println("Setting up the test suite environment...")
+	fmt.Println("Creating directory ", templateOutputPath)
 
 	// Create a folder '_output' in template/ for storing temporary deployment files
 	err := os.Mkdir(templateOutputPath, os.ModePerm)
@@ -531,13 +532,16 @@ func validateAzureAssignedIdentity(azureAssignedIdentity aadpodid.AzureAssignedI
 	Expect(azureAssignedIdentity.Spec.AzureIdentityRef.ObjectMeta.Namespace).To(Equal("default"))
 
 	var err error
+	var cmdOutput []byte
+
 	if strings.HasPrefix(identityName, keyvaultIdentity) {
-		_, err = validateUserAssignedIdentityOnPod(podName, identityClientID)
+		cmdOutput, err = validateUserAssignedIdentityOnPod(podName, identityClientID)
 	} else if strings.HasPrefix(identityName, clusterIdentity) {
-		_, err = validateClusterWideUserAssignedIdentity(podName, identityClientID)
+		cmdOutput, err = validateClusterWideUserAssignedIdentity(podName, identityClientID)
 	} else {
 		err = errors.Errorf("Invalid identity name: %s", identityName)
 	}
+	fmt.Printf("%s\n", cmdOutput)
 	Expect(err).NotTo(HaveOccurred())
 	fmt.Printf("# %s validated!\n", identityName)
 }
