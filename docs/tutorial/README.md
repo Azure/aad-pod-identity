@@ -64,7 +64,7 @@ K8S_NAME="Cluster-Name"
 
 With `kubectl` installed, run the following script
 
-`./scripts/1-init-aks/4-configure-sli.sh`
+`./scripts/1-init-aks/4-configure-cli.sh`
 
 Now the `kubectl` command should control your AKS cluster. Try it out, it should look similar to below:
 
@@ -108,6 +108,10 @@ You might find the Resource Group name with
 Then set the environment variable
 
 `export MC_RG = "resource-group-name"`
+
+Run the following to create an azure id
+
+`./scripts/3-deploy-demo/1-create-azure-id.sh`
 
 ### 3.2. Deploy demo
 
