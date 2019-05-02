@@ -100,10 +100,10 @@ func (i *vmIdentityInfo) RemoveUserIdentity(id string) error {
 	return nil
 }
 
-func (i *vmIdentityInfo) AppendUserIdentity(id string) {
+func (i *vmIdentityInfo) AppendUserIdentity(id string) bool {
 	if i.info.IdentityIds == nil {
 		var ids []string
 		i.info.IdentityIds = &ids
 	}
-	appendUserIdentity(&i.info.Type, i.info.IdentityIds, id)
+	return appendUserIdentity(&i.info.Type, i.info.IdentityIds, id)
 }

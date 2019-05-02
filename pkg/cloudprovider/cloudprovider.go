@@ -143,14 +143,15 @@ func (c *Client) AssignUserMSI(userAssignedMSIID string, node *corev1.Node) erro
 		info = idH.ResetIdentity()
 	}
 
-	info.AppendUserIdentity(userAssignedMSIID)
-
-	timeStarted = time.Now()
-	if err := updateFunc(); err != nil {
-		return err
+	if info.AppendUserIdentity(userAssignedMSIID) {
+		timeStarted = time.Now()
+		if err := updateFunc(); err != nil {
+			return err
+		}
+		glog.V(6).Infof("CreateOrUpdate of %s completed in %s", node.Name, time.Since(timeStarted))
+	} else {
+		glog.V(6).Infof("Identity %s already assigned to node %s. Skipping assignment.", userAssignedMSIID, node.Name)
 	}
-
-	glog.V(6).Infof("CreateOrUpdate of %s completed in %s", node.Name, time.Since(timeStarted))
 	return nil
 }
 
