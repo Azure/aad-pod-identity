@@ -12,7 +12,7 @@ fi
 if [ -z "$K8S_NAME" ]
 then
       echo "Kubernetes Cluster Name Not Set. Set the env variable with the following command:"
-      echo "export RG=\"K8S_NAME\" "
+      echo "export K8S_NAME=\"K8S_NAME\" "
       return 1
 fi
 
