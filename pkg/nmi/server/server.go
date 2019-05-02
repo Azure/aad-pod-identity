@@ -178,7 +178,7 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 	}
 	podIDs = &filterPodIdentities
 	rqClientID, rqResource := parseRequestClientIDAndResource(r)
-	token, clientID, err := getTokenForMatchingID(logger, rqClientID, rqResource, podIDs)
+	token, clientID, err := getTokenForMatchingID(s.KubeClient, logger, rqClientID, rqResource, podIDs)
 	if err != nil {
 		logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
@@ -224,7 +224,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		return
 	}
 	rqClientID, rqResource := parseRequestClientIDAndResource(r)
-	token, _, err := getTokenForMatchingID(logger, rqClientID, rqResource, podIDs)
+	token, _, err := getTokenForMatchingID(s.KubeClient, logger, rqClientID, rqResource, podIDs)
 	if err != nil {
 		logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
@@ -239,7 +239,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	w.Write(response)
 }
 
-func getTokenForMatchingID(logger *log.Entry, rqClientID string, rqResource string, podIDs *[]aadpodid.AzureIdentity) (token *adal.Token, clientID string, err error) {
+func getTokenForMatchingID(kubeClient k8s.Client, logger *log.Entry, rqClientID string, rqResource string, podIDs *[]aadpodid.AzureIdentity) (token *adal.Token, clientID string, err error) {
 	rqHasClientID := len(rqClientID) != 0
 	for _, v := range *podIDs {
 		clientID := v.Spec.ClientID
@@ -256,8 +256,16 @@ func getTokenForMatchingID(logger *log.Entry, rqClientID string, rqResource stri
 		case aadpodid.ServicePrincipal:
 			tenantid := v.Spec.TenantID
 			logger.Infof("matched identityType:%v tenantid:%s clientid:%s", idType, tenantid, clientID)
-			secret := v.Spec.ClientPassword.String()
-			token, err := auth.GetServicePrincipalToken(tenantid, clientID, secret)
+			secret, err := kubeClient.GetSecret(&v.Spec.ClientPassword)
+			if err != nil {
+				return nil, clientID, err
+			}
+			clientSecret := ""
+			for _, v := range secret.Data {
+				clientSecret = string(v)
+				break
+			}
+			token, err := auth.GetServicePrincipalToken(tenantid, clientID, clientSecret)
 			return token, clientID, err
 		default:
 			return nil, clientID, fmt.Errorf("unsupported identity type %+v", idType)
