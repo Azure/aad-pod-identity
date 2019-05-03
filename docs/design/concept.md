@@ -64,7 +64,7 @@ At later phases, the binding will use:
 
 ### Acquiring Tokens
 
-> for reference please read [Azure VM Managed Service Identity (MSI)](https://docs.microsoft.com/en-us/azure/active-directory/managed-service-identity/how-to-use-vm-token) and [Assign a Managed Service Identity](https://docs.microsoft.com/en-us/azure/active-directory/managed-service-identity/howto-assign-access-portal)
+> for reference please read [Azure VM Managed Service Identity (MSI)](https://docs.microsoft.com/en-us/azure/active-directory/managed-service-identity/how-to-use-vm-token) and [Assign a Managed Service Identity](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/howto-assign-access-portal)
 
 1. Kubernetes applications (pods) will default to use MSI endpoint.
 2. All traffic to MSI endpoint is routed via `iptables` to a daemon-set that will use `sourceIp` to identify pod, then find an appropriate `crd:azureIdnetityBinding`. The daemon-set mimics all the REST api offered by MSI endpoint. All tokens are presented to pods on MSI endpoint irrespective of the identity used to back this request (EMSI or service principal).

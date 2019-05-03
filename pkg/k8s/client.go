@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"time"
 	"strings"
+	"time"
 
 	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -25,7 +25,7 @@ const (
 var (
 	// We only want to allow pod-identity with Pending or Running phase status
 	ignorePodPhaseStatuses = []string{"Succeeded", "Failed", "Unknown", "Completed", "CrashLoopBackOff"}
-	phaseStatusFilter = getPodPhaseFilter()
+	phaseStatusFilter      = getPodPhaseFilter()
 )
 
 func getPodPhaseFilter() string {
@@ -38,12 +38,14 @@ type Client interface {
 	GetPodName(podip string) (podns, podname string, err error)
 	// ListPodIds pod matching azure identity or nil
 	ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error)
+	// GetSecret returns secret the secretRef represents
+	GetSecret(secretRef *v1.SecretReference) (*v1.Secret, error)
 }
 
 // KubeClient k8s client
 type KubeClient struct {
 	// Main Kubernetes client
-	ClientSet *kubernetes.Clientset
+	ClientSet kubernetes.Interface
 	// Crd client used to access our CRD resources.
 	CrdClient *crd.Client
 }
@@ -86,7 +88,7 @@ func (c *KubeClient) GetPodName(podip string) (podns, poddname string, err error
 	return "", "", fmt.Errorf("match failed, ip:%s matching pods:%v", podip, podList)
 }
 
-func (c *KubeClient) getPodListWithTries(podip string, tries int) (*v1.PodList, error) {	
+func (c *KubeClient) getPodListWithTries(podip string, tries int) (*v1.PodList, error) {
 	podList, err := c.ClientSet.CoreV1().Pods("").List(metav1.ListOptions{
 		FieldSelector: "status.podIP==" + podip + phaseStatusFilter,
 	})
@@ -121,6 +123,15 @@ func GetLocalIP() (string, error) {
 // ListPodIds lists matching ids for pod or error
 func (c *KubeClient) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error) {
 	return c.CrdClient.ListPodIds(podns, podname)
+}
+
+// GetSecret returns secret the secretRef represents
+func (c *KubeClient) GetSecret(secretRef *v1.SecretReference) (*v1.Secret, error) {
+	secret, err := c.ClientSet.CoreV1().Secrets(secretRef.Namespace).Get(secretRef.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return secret, nil
 }
 
 func getkubeclient(config *rest.Config) (*kubernetes.Clientset, error) {
