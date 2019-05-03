@@ -28,7 +28,7 @@ func main() {
 	pflag.Parse()
 
 	podname := os.Getenv("MY_POD_NAME")
-	podnamespace := os.Getenv("MY_POD_NAME")
+	podnamespace := os.Getenv("MY_POD_NAMESPACE")
 	podip := os.Getenv("MY_POD_IP")
 
 	log.Infof("starting demo pod %s/%s %s", podnamespace, podname, podip)

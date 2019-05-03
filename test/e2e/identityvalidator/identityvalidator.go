@@ -2,32 +2,38 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
-	"strings"
 
-	compute "github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
+	"github.com/pkg/errors"
 
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
+	"github.com/Azure/azure-sdk-for-go/services/keyvault/auth"
+	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
-	"github.com/Azure/go-autorest/autorest/azure/auth"
+	"github.com/Azure/go-autorest/autorest/azure"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
 
 var (
-	resource       = pflag.String("aad-resourcename", "https://management.azure.com/", "name of resource to grant token")
-	subscriptionID = pflag.String("subscriptionid", "", "subscription id for test")
-	clientID       = pflag.String("clientid", "", "client id for the msi id")
-	resourceGroup  = pflag.String("resourcegroup", "", "any resource group name with reader permission to the aad object")
+	subscriptionID        = pflag.String("subscription-id", "", "subscription id for test")
+	identityClientID      = pflag.String("identity-client-id", "", "client id for the msi id")
+	resourceGroup         = pflag.String("resource-group", "", "any resource group name with reader permission to the aad object")
+	keyvaultName          = pflag.String("keyvault-name", "", "the name of the keyvault to extract the secret from")
+	keyvaultSecretName    = pflag.String("keyvault-secret-name", "", "the name of the keyvault secret we are extracting with pod identity")
+	keyvaultSecretVersion = pflag.String("keyvault-secret-version", "", "the version of the keyvault secret we are extracting with pod identity")
 )
 
 func main() {
 	pflag.Parse()
 
-	podname := os.Getenv("MY_POD_NAME")
-	podnamespace := os.Getenv("MY_POD_NAME")
-	podip := os.Getenv("MY_POD_IP")
+	podname := os.Getenv("E2E_TEST_POD_NAME")
+	podnamespace := os.Getenv("E2E_TEST_POD_NAMESPACE")
+	podip := os.Getenv("E2E_TEST_POD_IP")
 
-	log.Infof("starting identity validator pod %s/%s %s", podnamespace, podname, podip)
+	log.Infof("Starting identity validator pod %s/%s %s", podnamespace, podname, podip)
 
 	logger := log.WithFields(log.Fields{
 		"podnamespace": podnamespace,
@@ -39,92 +45,78 @@ func main() {
 	if err != nil {
 		logger.Fatalf("Failed to get msiEndpoint: %+v", err)
 	}
-	logger.Infof("Successfully obtain msiEndpoint: %s", msiEndpoint)
+	logger.Infof("Successfully obtain MSIEndpoint: %s\n", msiEndpoint)
 
-	// Test if an ARM operation can be executed successfully through Managed Service Identity
-	if err := doARMOperations(logger, *subscriptionID, *resourceGroup); err != nil {
-		logger.Fatalf("doARMOperations failed, %+v", err)
+	if *keyvaultName != "" && *keyvaultSecretName != "" && *keyvaultSecretVersion != "" {
+		// Test if the pod identity is set up correctly
+		if err := testUserAssignedIdentityOnPod(logger, msiEndpoint, *identityClientID, *keyvaultName, *keyvaultSecretName, *keyvaultSecretVersion); err != nil {
+			logger.Fatalf("testUserAssignedIdentityOnPod failed, %+v", err)
+		}
+	} else {
+		// Test if the cluster-wide user assigned identity is set up correctly
+		if err := testClusterWideUserAssignedIdentity(logger, msiEndpoint, *subscriptionID, *resourceGroup, *identityClientID); err != nil {
+			logger.Fatalf("testClusterWideUserAssignedIdentity failed, %+v", err)
+		}
 	}
 
 	// Test if a service principal token can be obtained when using a system assigned identity
-	t1, err := testMSIEndpoint(logger, msiEndpoint, *resource)
-	if err != nil || t1 == nil {
-		logger.Fatalf("testMSIEndpoint failed, %+v", err)
-	}
-
-	// Test if a service principal token can be obtained when using a user assigned identity
-	t2, err := testMSIEndpointFromUserAssignedID(logger, msiEndpoint, *clientID, *resource)
-	if err != nil || t2 == nil {
-		logger.Fatalf("testMSIEndpointFromUserAssignedID failed, %+v", err)
-	}
-
-	// Check if the above two tokens are the same
-	if !strings.EqualFold(t1.AccessToken, t2.AccessToken) {
-		logger.Fatalf("msi, emsi test failed %+v %+v", t1, t2)
+	if t1, err := testSystemAssignedIdentity(logger, msiEndpoint); err != nil || t1 == nil {
+		logger.Fatalf("testSystemAssignedIdentity failed, %+v", err)
 	}
 }
 
-// doARMOperations will count how many Azure virtual machines are deployed in the resource group
-func doARMOperations(logger *log.Entry, subscriptionID, resourceGroup string) error {
-	authorizer, err := auth.NewAuthorizerFromEnvironment()
+// testClusterWideUserAssignedIdentity will verify whether cluster-wide user assigned identity is working properly
+func testClusterWideUserAssignedIdentity(logger *log.Entry, msiEndpoint, subscriptionID, resourceGroup, identityClientID string) error {
+	token, err := adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(msiEndpoint, azure.PublicCloud.ResourceManagerEndpoint, identityClientID)
 	if err != nil {
-		logger.Errorf("failed NewAuthorizerFromEnvironment  %+v", authorizer)
-		return err
-	}
-	vmClient := compute.NewVirtualMachinesClient(subscriptionID)
-	vmClient.Authorizer = authorizer
-	vmlist, err := vmClient.List(context.Background(), resourceGroup)
-	if err != nil {
-		logger.Errorf("failed to list all vm %+v", err)
-		return err
+		return errors.Wrapf(err, "Failed to get service principal token from user assigned identity")
 	}
 
-	logger.Infof("succesfull doARMOperations vm count %d", len(vmlist.Values()))
+	vmClient := compute.NewVirtualMachinesClient(subscriptionID)
+	vmClient.Authorizer = autorest.NewBearerAuthorizer(token)
+	vmlist, err := vmClient.List(context.Background(), resourceGroup)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to verify cluster-wide user assigned identity")
+	}
+
+	logger.Infof("Succesfully verified cluster-wide user assigned identity. VM count: %d", len(vmlist.Values()))
+	return nil
+}
+
+// testUserAssignedIdentityOnPod will verify whether a pod identity is working properly
+func testUserAssignedIdentityOnPod(logger *log.Entry, msiEndpoint, identityClientID, keyvaultName, keyvaultSecretName, keyvaultSecretVersion string) error {
+	keyClient := keyvault.New()
+	authorizer, err := auth.NewAuthorizerFromEnvironment()
+	if err == nil {
+		keyClient.Authorizer = authorizer
+	}
+
+	logger.Infof("%s %s %s\n", keyvaultName, keyvaultSecretName, keyvaultSecretVersion)
+	secret, err := keyClient.GetSecret(context.Background(), fmt.Sprintf("https://%s.vault.azure.net", keyvaultName), keyvaultSecretName, keyvaultSecretVersion)
+	if err != nil || *secret.Value == "" {
+		return errors.Wrapf(err, "Failed to verify user assigned identity on pod")
+	}
+
+	logger.Infof("Succesfully verified user assigned identity on pod")
 	return nil
 }
 
 // testMSIEndpoint will return a service principal token obtained through a system assigned identity
-func testMSIEndpoint(logger *log.Entry, msiEndpoint, resource string) (*adal.Token, error) {
-	spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, resource)
+func testSystemAssignedIdentity(logger *log.Entry, msiEndpoint string) (*adal.Token, error) {
+	spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, azure.PublicCloud.ResourceManagerEndpoint)
 	if err != nil {
-		logger.Errorf("failed to acquire a token using the MSI VM extension, Error: %+v", err)
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed to acquire a token using the MSI VM extension")
 	}
 
 	if err := spt.Refresh(); err != nil {
-		logger.Errorf("failed to refresh ServicePrincipalTokenFromMSI using the MSI VM extension, msiEndpoint(%s)", msiEndpoint)
-		return nil, err
+		return nil, errors.Wrapf(err, "Failed to refresh ServicePrincipalTokenFromMSI using the MSI VM extension, msiEndpoint(%s)", msiEndpoint)
 	}
 
 	token := spt.Token()
 	if token.IsZero() {
-		logger.Errorf("zero token found, MSI VM extension, msiEndpoint(%s)", msiEndpoint)
-		return nil, err
+		return nil, errors.Errorf("No token found, MSI VM extension, msiEndpoint(%s)", msiEndpoint)
 	}
 
-	logger.Infof("succesfully acquired a token using the MSI, msiEndpoint(%s)", msiEndpoint)
+	logger.Infof("Succesfully acquired a token using the MSI, msiEndpoint(%s)", msiEndpoint)
 	return &token, nil
-}
-
-// testMSIEndpointFromUserAssignedID will return a service principal token obtained through a user assigned identity
-func testMSIEndpointFromUserAssignedID(logger *log.Entry, msiEndpoint, userAssignedID, resource string) (*adal.Token, error) {
-	spt, err := adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(msiEndpoint, resource, userAssignedID)
-	if err != nil {
-		logger.Errorf("failed NewServicePrincipalTokenFromMSIWithUserAssignedID, clientID: %s Error: %+v", userAssignedID, err)
-		return nil, err
-	}
-
-	if err := spt.Refresh(); err != nil {
-		logger.Errorf("failed to refresh ServicePrincipalToken userAssignedID MSI, msiEndpoint(%s)", msiEndpoint)
-		return nil, err
-	}
-
-	token := spt.Token()
-	if token.IsZero() {
-		logger.Errorf("zero token found, userAssignedID MSI, msiEndpoint(%s) clientID(%s)", msiEndpoint, userAssignedID)
-		return nil, err
-	}
-
-	logger.Infof("succesfully acquired a token, userAssignedID MSI, msiEndpoint(%s) clientID(%s)", msiEndpoint, userAssignedID)
-	return &token, err
 }

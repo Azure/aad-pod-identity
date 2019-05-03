@@ -1,44 +1,67 @@
 # E2E Testing
 
-End-to-end (e2e) testing is used to test whether the flow of the AAD pod identity is behaving as designed from start to finish.
+End-to-end (e2e) testing is used to test whether the group of AAD pod identity modules are behaving as designed .
 
 ## Get Started
 
-To run the e2e tests locally, a running k8s created through acs-engine or Azure Kubernetes Service (AKS) is required. If the client ID of the service principal is unknown, for AKS, you can refer to [here](https://github.com/Azure/aad-pod-identity#providing-required-permissions-for-mic). For acs-engine, search for the `servicePrincipalProfile` field in `apimodel.json` under the deployment folder.
+To run the e2e tests in a given Azure subscription, a running Kubernetes cluster created through acs-engine or Azure Kubernetes Service (AKS) is required. To collect the cluster's service principal credential, for AKS, you can refer to [here](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal). For acs-engine, if you have an existing cluster, search for the `servicePrincipalProfile` field in `apimodel.json` under the deployment folder. Otherwise, refer to [here](https://github.com/Azure/acs-engine/blob/master/docs/serviceprincipal.md). Also, an Azure keyvault is created to simulate the action of accessing Azure resources.
 
-Execute the following commands to run the e2e tests:
+The e2e tests utilizes environment variables to extract certain information. Below is a list of environment variables required. Currently, e2e tests does not automate the creation of Azure resources such as identities and keyvault (but plan to support it in the future). In order to run the tests without errors, you have to create a keyvault within the same resource group as the cluster and insert a test secret into the keyvault.
 
+```bash
+# The Azure subscription ID
+export SUBSCRIPTION_ID=$(az account list --query "[?name=='<Azure subscription name>'].id" -otsv)
+
+# The Azure resource group name of the Kubernetes cluster
+export RESOURCE_GROUP='...'
+
+# The client ID of the service principal that the Azure Kubernetes cluster is using
+export AZURE_CLIENT_ID='...'
+
+# The name of the keyvault
+export KEYVAULT_NAME='...'
+
+# The name of the secret inserted into the keyvault
+export KEYVAULT_SECRET_NAME='...'
+
+# The version of the secret inserted into the keyvault
+export KEYVAULT_SECRET_VERSION='...'
+```
+
+At the same time, the tests utilizes two user assigned identities, `keyvault-identity` (have read access to the keyvault that you create) and `cluster-identity` (have read access to the resource group level). You can create necessary Azure resources and roles with the bash script [`setup.sh`](./setup.sh) (Note that reader assignment in the script might need a few attempts to succeed).
+
+Finally, to start the e2e tests, execute the following commands:
 ```bash
 cd $GOPATH/src/github.com/Azure/aad-pod-identity
 
 # Ensure that the local project and the dependencies are in sync
-$ dep ensure
+dep ensure
 
-# Set environment variables before testing
-# The Azure subscription ID
-$ export SUBSCRIPTION_ID='...'
-
-# The resource group name
-$ export RESOURCE_GROUP='...'
-
-# The client ID of the service principal that the Azure k8s cluster is using
-$ export AZURE_CLIENT_ID='...'
-
-$ make e2e
+make e2e
 ```
+
 
 ## Identity Validator
 
-To validate the pod identity functionality, you can deploy the image [`identityvalidator`](../../images/identityvalidator/Dockerfile) as a Kubernetes deployment to the cluster. The binary `identityvalidator` within the pod is essentially the compiled version of [`identityvalidator.go`](identityvalidator/identityvalidator.go). If the binary execution returns an exit status of 0, it means that the pod identity and its binding are working properly. Otherwise, it means that the pod identity is not established. To execute the binary within the pod, execute the following command:
+During the e2e test run , the image [`identityvalidator`](../../images/identityvalidator/Dockerfile) is deployed as a Kubernetes deployment to the cluster to validate the pod identity. The binary `identityvalidator` within the pod is essentially the compiled version of [`identityvalidator.go`](identityvalidator/identityvalidator.go). If the binary execution returns an exit status of 0, it means that the pod identity and its binding are working properly. Otherwise, it means that the pod identity is not established. You can manually try out the identity validator by executing the following command:
 ```bash
-# Create an identityvalidator (make sure the go template parameters is replaced by the desired values)
-$ kubectl apply -f test/e2e/template/deployment.yaml
+# Deploy aad pod identity infra and create an identity validator deployment (make sure the go template parameters are replaced by the desired values)
+kubectl apply -f ../../deploy/infra/deployment-rbac.yaml
+kubectl apply -f test/e2e/template/aadpodidentity.yaml
+kubectl apply -f test/e2e/template/aadpodidentitybinding.yaml
+kubectl apply -f test/e2e/template/deployment.yaml
 
-# Get the pod name of identityvalidator deployment
-$ kubectl get pods
+# Get the pod name of identity validator deployment
+kubectl get pods
 
 # Execute the binary within the pod
-kubectl exec <pod name> -- identityvalidator --subscriptionid $SUBSCRIPTION_ID --resourcegroup $RESOURCE_GROUP --clientid $AZURE_CLIENT_ID
+kubectl exec <identity validator pod name> -- identityvalidator
+                                           --subscription-id "$SUBSCRIPTION_ID" \
+                                           --resource-group "$RESOURCE_GROUP" \
+                                           --identity-client-id "$AZURE_CLIENT_ID" \
+                                           --keyvault-name "$KEYVAULT_NAME" \
+                                           --keyvault-secret-name "$KEYVAULT_SECRET_NAME" \
+                                           --keyvault-secret-version "$KEYVAULT_SECRET_VERSION"
 
 # Check the exit status
 echo "$?"
@@ -55,6 +78,19 @@ To ensure consistency across all tests, they generally follow the format below:
 5. Assertions
 6. Clean up the testing environment
 
+## Supported Tests
+
+| Test Description | Expected Result | Category |
+| - | - | - |
+| Add an AzureIdentity and AzureBinding, deploy identity validator with the label marked in binding | New AzureAssignedIdentity is created and the underlying node assigned identity, and identity validator should be able to access Azure resources | Basic |
+| With AzureIdentity, AzureBinding and identity validator deployed, remove the AzureIdentity | AzureAssignedIdentity should get removed and identity validator should not be able to access Azure resources | Basic |
+| With AzureIdentity, AzureBinding and identity validator deployed, remove the AzureIdentityBinding | AzureAssignedIdentity should get removed and identity validator should not be able to access Azure resources | Basic |
+| With AzureIdentity, AzureBinding and identity validator deployed, remove the identity validator deployment | AzureAssignedIdentity should get removed | Basic |
+| Add an AzureIdentity and AzureBinding, deploy identity validator with the label marked in binding, then drain the node containing the identity validator deployment | A new AzureAssignedIdentity should be established with the new pod and the old one should be removed | Advanced |
+| Add a number of AzureIdentities and AzureIdentityBindings in order and remove them in random order | The correct identities and identity binding should be removed and the rest should remain untouched | Random |
+| Enable a user assigned identity on VMs, then assign a different user assigned identity to a pod | Pod identity should work as expected and the user assigned identity on VMs should not be altered after deleting the pod identity | Advanced |
+| Enable a user assigned identity on VMs, then assign the same user assigned identity to a pod | Pod identity should work as expected and the user assigned identity on VMs should not be altered after deleting the pod identity | Advanced |
+| Enable system assigned identity on VMs, then assign a user assigned identity to a pod | Pod identity should work as expected and the system assigned identity on VMs should not be altered after deleting the pod identity | Advanced |
 
 ## Development
 

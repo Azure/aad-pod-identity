@@ -7,9 +7,9 @@ REPO_PATH="$(ORG_PATH)/$(PROJECT_NAME)"
 NMI_BINARY_NAME := nmi
 MIC_BINARY_NAME := mic
 DEMO_BINARY_NAME := demo
+IDENTITY_VALIDATOR_BINARY_NAME := identityvalidator
 
 DEFAULT_VERSION := 0.0.0-dev
-IDENTITY_VALIDATOR_BINARY_NAME := identityvalidator
 NMI_VERSION ?= $(DEFAULT_VERSION)
 MIC_VERSION ?= $(DEFAULT_VERSION)
 DEMO_VERSION ?= $(DEFAULT_VERSION)
@@ -34,7 +34,7 @@ else
 endif
 
 GO_BUILD_OPTIONS := --tags "netgo osusergo"  -ldflags "-s -X $(VERSION_VAR)=$(NMI_VERSION) -X $(GIT_VAR)=$(GIT_HASH) -X $(BUILD_DATE_VAR)=$(BUILD_DATE) -extldflags '-static'"
-E2E_TEST_OPTIONS := -count=1 -v
+E2E_TEST_OPTIONS := -count=1 -v -timeout 24h -ginkgo.failFast
 
 # useful for other docker repos
 REGISTRY_NAME ?= upstreamk8sci

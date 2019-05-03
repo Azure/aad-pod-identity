@@ -2,6 +2,7 @@ package azure
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -10,23 +11,51 @@ import (
 	"github.com/pkg/errors"
 )
 
+// UserAssignedIdentity is used to parse user assigned identity data from 'az vm identity show'
+type UserAssignedIdentity struct {
+	ClientID    string `json:"clientId"`
+	PrincipalID string `json:"principalId"`
+}
+
+// VMIdentity is used to parse system assigned identity data from 'az vm identity show'
+type VMIdentity struct {
+	PrincipalID            string           `json:"principalId"`
+	TenantID               string           `json:"tenantId"`
+	Type                   string           `json:"type"`
+	UserAssignedIdentities *json.RawMessage `json:"userAssignedIdentities"`
+}
+
 // CreateIdentity will create a user-assigned identity on Azure, assign 'Reader' role
 // to the identity and assign 'Managed Identity Operator' role to service principal
-func CreateIdentity(subscriptionID, resourceGroup, azureClientID, name string) error {
-	cmd := exec.Command("az", "identity", "create", "-g", resourceGroup, "-n", name)
+func CreateIdentity(subscriptionID, resourceGroup, azureClientID, identityName, keyvaultName string) error {
+	fmt.Printf("# Creating user assigned identity on Azure: %s\n", identityName)
+	cmd := exec.Command("az", "identity", "create", "-g", resourceGroup, "-n", identityName)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		return errors.Wrap(err, "Failed to create a user-assigned identity on Azure")
 	}
 
-	// Assigning 'Reader' role to the identity
-	_, err = WaitOnReaderRoleAssignment(resourceGroup, name)
+	// Assigning 'Reader' role on keyvault to the identity
+	_, err = WaitOnReaderRoleAssignment(subscriptionID, resourceGroup, identityName, keyvaultName)
 	if err != nil {
 		return err
 	}
 
+	// Grant identity access to keyvault secret
+	identityClientID, err := GetIdentityClientID(resourceGroup, identityName)
+	if err != nil {
+		return err
+	}
+
+	cmd = exec.Command("az", "keyvault", "set-policy", "-n", keyvaultName, "--secret-permissions", "get", "list", "--spn", identityClientID)
+	_, err = cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrapf(err, "Failed to grant identity %s access to keyvault secret", identityName)
+	}
+
 	// Assign 'Managed Identity Operator' to Service Principal
-	cmd = exec.Command("az", "role", "assignment", "create", "--role", "Managed Identity Operator", "--assignee", azureClientID, "--scope", "/subscriptions/"+subscriptionID+"/resourcegroups/"+resourceGroup+"/providers/Microsoft.ManagedIdentity/userAssignedIdentities/"+name)
+	identityResourceID := fmt.Sprintf("/subscriptions/%s/resourcegroups/%s/providers/Microsoft.ManagedIdentity/userAssignedIdentities/%s", subscriptionID, resourceGroup, identityName)
+	cmd = exec.Command("az", "role", "assignment", "create", "--role", "Managed Identity Operator", "--assignee", azureClientID, "--scope", identityResourceID)
 	_, err = cmd.CombinedOutput()
 	if err != nil {
 		return errors.Wrap(err, "Failed to assign 'Managed Identity Operator' role to service principal on Azure")
@@ -36,8 +65,8 @@ func CreateIdentity(subscriptionID, resourceGroup, azureClientID, name string) e
 }
 
 // DeleteIdentity will delete a given user-assigned identity on Azure
-func DeleteIdentity(resourceGroup, name string) error {
-	cmd := exec.Command("az", "identity", "delete", "-g", resourceGroup, "-n", name)
+func DeleteIdentity(resourceGroup, identityName string) error {
+	cmd := exec.Command("az", "identity", "delete", "-g", resourceGroup, "-n", identityName)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
 		return errors.Wrap(err, "Failed to delete the Azure identity from Azure")
@@ -47,8 +76,8 @@ func DeleteIdentity(resourceGroup, name string) error {
 }
 
 // GetIdentityClientID will return the client id of a user-assigned identity on Azure
-func GetIdentityClientID(resourceGroup, name string) (string, error) {
-	cmd := exec.Command("az", "identity", "show", "-g", resourceGroup, "-n", name, "--query", "clientId", "-otsv")
+func GetIdentityClientID(resourceGroup, identityName string) (string, error) {
+	cmd := exec.Command("az", "identity", "show", "-g", resourceGroup, "-n", identityName, "--query", "clientId", "-otsv")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get the clientID from the identity in Azure")
@@ -58,8 +87,8 @@ func GetIdentityClientID(resourceGroup, name string) (string, error) {
 }
 
 // GetIdentityPrincipalID will return the principal id (objecet id) of a user-assigned identity on Azure
-func GetIdentityPrincipalID(resourceGroup, name string) (string, error) {
-	cmd := exec.Command("az", "identity", "show", "-g", resourceGroup, "-n", name, "--query", "principalId", "-otsv")
+func GetIdentityPrincipalID(resourceGroup, identityName string) (string, error) {
+	cmd := exec.Command("az", "identity", "show", "-g", resourceGroup, "-n", identityName, "--query", "principalId", "-otsv")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get the principalID from the identity in Azure")
@@ -69,11 +98,12 @@ func GetIdentityPrincipalID(resourceGroup, name string) (string, error) {
 }
 
 // WaitOnReaderRoleAssignment will block until the assignement of 'Reader' role to an identity is executed successfully
-func WaitOnReaderRoleAssignment(resourceGroup, name string) (bool, error) {
-	principalID, err := GetIdentityPrincipalID(resourceGroup, name)
+func WaitOnReaderRoleAssignment(subscriptionID, resourceGroup, identityName, keyvaultName string) (bool, error) {
+	principalID, err := GetIdentityPrincipalID(resourceGroup, identityName)
 	if err != nil {
 		return false, err
 	}
+	keyvaultResource := fmt.Sprintf("/subscriptions/%s/resourceGroups/aad-pod-identity-e2e/providers/Microsoft.KeyVault/vaults/%s", subscriptionID, keyvaultName)
 
 	// Need to tight poll the following command because principalID is not
 	// immediately available for role assignment after identity creation
@@ -88,7 +118,7 @@ func WaitOnReaderRoleAssignment(resourceGroup, name string) (bool, error) {
 			case <-ctx.Done():
 				errorChannel <- errors.Errorf("Timeout exceeded (%s) while assigning 'Reader' role to identity on Azure", duration.String())
 			default:
-				cmd := exec.Command("az", "role", "assignment", "create", "--role", "Reader", "--assignee-object-id", principalID, "-g", resourceGroup)
+				cmd := exec.Command("az", "role", "assignment", "create", "--role", "Reader", "--assignee", principalID, "--scope", keyvaultResource)
 				_, err := cmd.CombinedOutput()
 				if err == nil {
 					readyChannel <- true
@@ -108,4 +138,150 @@ func WaitOnReaderRoleAssignment(resourceGroup, name string) (bool, error) {
 			return ready, nil
 		}
 	}
+}
+
+// StartVM will start a stopped VM
+func StartVM(resourceGroup, vmName string) error {
+	fmt.Printf("# Starting a VM...\n")
+	cmd := exec.Command("az", "vm", "start", "-g", resourceGroup, "-n", vmName)
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrap(err, "Failed to start the VM")
+	}
+
+	return nil
+}
+
+// StopVM will stop a running VM
+func StopVM(resourceGroup, vmName string) error {
+	fmt.Printf("# Stopping a VM...\n")
+	cmd := exec.Command("az", "vm", "stop", "-g", resourceGroup, "-n", vmName)
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrap(err, "Failed to stop the VM")
+	}
+
+	return nil
+}
+
+// StartKubelet will start the kubelet on a given VM
+func StartKubelet(resourceGroup, vmName string) error {
+	fmt.Printf("# Starting kubelet on %s...\n", vmName)
+	cmd := exec.Command("az", "vm", "run-command", "invoke", "-g", resourceGroup, "-n", vmName, "--command-id", "RunShellScript", "--scripts", "sudo systemctl start kubelet && sudo systemctl daemon-reload")
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrap(err, "Failed to start kubelet on the VM")
+	}
+
+	return nil
+}
+
+// StopKubelet will stop the kubelet on a given VM
+func StopKubelet(resourceGroup, vmName string) error {
+	fmt.Printf("# Stopping kubelet on %s...\n", vmName)
+	cmd := exec.Command("az", "vm", "run-command", "invoke", "-g", resourceGroup, "-n", vmName, "--command-id", "RunShellScript", "--scripts", "sudo systemctl stop kubelet")
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrap(err, "Failed to stop kubelet on the VM")
+	}
+
+	return nil
+}
+
+// EnableUserAssignedIdentityOnVM will enable a user assigned identity to a VM
+func EnableUserAssignedIdentityOnVM(resourceGroup, vmName, identityName string) error {
+	fmt.Printf("# Assigning user assigned identity '%s' to %s...\n", identityName, vmName)
+	cmd := exec.Command("az", "vm", "identity", "assign", "-g", resourceGroup, "-n", vmName, "--identities", identityName)
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrap(err, "Failed to assign user assigned identity to VM")
+	}
+
+	return nil
+}
+
+// EnableSystemAssignedIdentityOnVM will enable a system assigned identity to a VM
+func EnableSystemAssignedIdentityOnVM(resourceGroup, vmName string) error {
+	fmt.Printf("# Assigning system assigned identity to %s...\n", vmName)
+	cmd := exec.Command("az", "vm", "identity", "assign", "-g", resourceGroup, "-n", vmName)
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrap(err, "Failed to enable identity to VM")
+	}
+
+	return nil
+}
+
+// GetUserAssignedIdentities will return the list of user assigned identity in a given VM
+func GetUserAssignedIdentities(resourceGroup, vmName string) (*map[string]UserAssignedIdentity, error) {
+	// Sleep for 30 seconds to allow potential changes to propagate to Azure
+	time.Sleep(time.Second * 30)
+
+	cmd := exec.Command("az", "vm", "identity", "show", "-g", resourceGroup, "-n", vmName)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to get user assigned identity from VM")
+	}
+
+	var vmIdentity VMIdentity
+	var userAssignedIdentities map[string]UserAssignedIdentity
+
+	// Return an empty userAssignedIdentities if out slice is empty
+	if len(out) == 0 {
+		return &userAssignedIdentities, nil
+	} else if err := json.Unmarshal(out, &vmIdentity); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshall json")
+	}
+
+	if vmIdentity.Type == "SystemAssigned" {
+		return &userAssignedIdentities, nil
+	} else if err := json.Unmarshal(*vmIdentity.UserAssignedIdentities, &userAssignedIdentities); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshall json")
+	}
+
+	return &userAssignedIdentities, nil
+}
+
+// RemoveUserAssignedIdentityFromVM will remove a user assigned identity to a VM
+func RemoveUserAssignedIdentityFromVM(resourceGroup, vmName, identityName string) error {
+	fmt.Printf("# Removing identity '%s' from %s...\n", identityName, vmName)
+	cmd := exec.Command("az", "vm", "identity", "remove", "-g", resourceGroup, "-n", vmName, "--identities", identityName)
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrap(err, "Failed to remove user assigned identity to VM")
+	}
+
+	return nil
+}
+
+// GetSystemAssignedIdentity will return the principal ID and tenant ID of a system assigned identity
+func GetSystemAssignedIdentity(resourceGroup, vmName string) (string, string, error) {
+	cmd := exec.Command("az", "vm", "identity", "show", "-g", resourceGroup, "-n", vmName)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", "", errors.Wrap(err, "Failed to get system assigned identity from VM")
+	}
+
+	var systemAssignedIdentity VMIdentity
+	if err := json.Unmarshal(out, &systemAssignedIdentity); err != nil {
+		return "", "", errors.Wrap(err, "Failed to unmarshall json")
+	}
+
+	if strings.Contains(systemAssignedIdentity.Type, "SystemAssigned") {
+		return systemAssignedIdentity.PrincipalID, systemAssignedIdentity.TenantID, nil
+	}
+
+	return "", "", nil
+}
+
+// RemoveSystemAssignedIdentityFromVM will remove the system assigned identity to a VM
+func RemoveSystemAssignedIdentityFromVM(resourceGroup, vmName string) error {
+	fmt.Printf("# Removing system assigned identity from %s...\n", vmName)
+	cmd := exec.Command("az", "vm", "identity", "remove", "-g", resourceGroup, "-n", vmName)
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrap(err, "Failed to remove system assigned identity to VM")
+	}
+
+	return nil
 }

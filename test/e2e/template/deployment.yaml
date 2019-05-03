@@ -2,7 +2,7 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   labels:
-    app: {{.Name}}
+    app: identity-validator
     aadpodidbinding: {{.IdentityBinding}}
   name: {{.Name}}
   namespace: default
@@ -10,26 +10,26 @@ spec:
   template:
     metadata:
       labels:
-        app: {{.Name}}
+        app: identity-validator
         aadpodidbinding: {{.IdentityBinding}}
     spec:
       containers:
       - name: {{.Name}}
-        image: chewong/identityvalidator:1.0
+        image: kkmsft/identityvalidator:1.2
         command:
           - sleep
           - "3600"
         imagePullPolicy: Always
         env:
-        - name: MY_POD_NAME
+        - name: E2E_TEST_POD_NAME
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: MY_POD_NAMESPACE
+        - name: E2E_TEST_POD_NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: MY_POD_IP
+        - name: E2E_TEST_POD_IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP

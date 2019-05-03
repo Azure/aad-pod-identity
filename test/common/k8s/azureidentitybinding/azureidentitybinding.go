@@ -26,6 +26,7 @@ func Create(name, templateOutputPath string) error {
 	}
 	defer deployFile.Close()
 
+	// Go template parameters to be translated in test/e2e/template/aadpodidentitybinding.yaml
 	deployData := struct {
 		Name string
 	}{
@@ -67,8 +68,7 @@ func GetAll() (*aadpodid.AzureIdentityBindingList, error) {
 	}
 
 	list := aadpodid.AzureIdentityBindingList{}
-	err = json.Unmarshal(out, &list)
-	if err != nil {
+	if err := json.Unmarshal(out, &list); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshall json")
 	}
 
