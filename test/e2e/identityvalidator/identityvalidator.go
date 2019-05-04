@@ -47,7 +47,7 @@ func main() {
 	}
 	logger.Infof("Successfully obtain MSIEndpoint: %s\n", msiEndpoint)
 
-	if *keyvaultName != "" && *keyvaultSecretName != "" && *keyvaultSecretVersion != "" {
+	if *keyvaultName != "" && *keyvaultSecretName != "" {
 		// Test if the pod identity is set up correctly
 		if err := testUserAssignedIdentityOnPod(logger, msiEndpoint, *identityClientID, *keyvaultName, *keyvaultSecretName, *keyvaultSecretVersion); err != nil {
 			logger.Fatalf("testUserAssignedIdentityOnPod failed, %+v", err)

@@ -474,6 +474,9 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity)
 
 		waitForDeployDeletion(identityValidator)
+		ok, err := azureassignedidentity.WaitOnLengthMatched(0)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
 
 		// Ensure that the identity is unchanged
 		principalIDAfter, tenantIDAfter, err := azure.GetSystemAssignedIdentity(cfg.ResourceGroup, nodeName)

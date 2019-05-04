@@ -204,8 +204,9 @@ func EnableUserAssignedIdentityOnVM(resourceGroup, vmName, identityName string) 
 func EnableSystemAssignedIdentityOnVM(resourceGroup, vmName string) error {
 	fmt.Printf("# Assigning system assigned identity to %s...\n", vmName)
 	cmd := exec.Command("az", "vm", "identity", "assign", "-g", resourceGroup, "-n", vmName)
-	_, err := cmd.CombinedOutput()
+	cmdOutput, err := cmd.CombinedOutput()
 	if err != nil {
+		fmt.Printf("%s\n", cmdOutput)
 		return errors.Wrap(err, "Failed to enable identity to VM")
 	}
 
@@ -278,8 +279,9 @@ func GetSystemAssignedIdentity(resourceGroup, vmName string) (string, string, er
 func RemoveSystemAssignedIdentityFromVM(resourceGroup, vmName string) error {
 	fmt.Printf("# Removing system assigned identity from %s...\n", vmName)
 	cmd := exec.Command("az", "vm", "identity", "remove", "-g", resourceGroup, "-n", vmName)
-	_, err := cmd.CombinedOutput()
+	cmdOutput, err := cmd.CombinedOutput()
 	if err != nil {
+		fmt.Printf("%s\n", cmdOutput)
 		return errors.Wrap(err, "Failed to remove system assigned identity to VM")
 	}
 
