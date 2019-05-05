@@ -8,13 +8,12 @@ set -euo pipefail
 [[ ! -z "${AZURE_CLIENT_ID:-}" ]]         || (echo 'Must specify AZURE_CLIENT_ID' && exit -1)
 [[ ! -z "${KEYVAULT_NAME:-}" ]]           || (echo 'Must specify KEYVAULT_NAME' && exit -1)
 [[ ! -z "${KEYVAULT_SECRET_NAME:-}" ]]    || (echo 'Must specify KEYVAULT_SECRET_NAME' && exit -1)
-[[ ! -z "${KEYVAULT_SECRET_VERSION:-}" ]] || (echo 'Must specify KEYVAULT_SECRET_VERSION' && exit -1)
 [[ -z "$(hash az)" ]]                     || (echo 'Azure CLI not found' && exit -1)
 [[ -z "$(hash kubectl)" ]]                || (echo 'kubectl not found' && exit -1)
 
 # Create a keyvault
-# az keyvault create -g "$RESOURCE_GROUP" -n "$KEYVAULT_NAME"
-# az keyvault secret set --vault-name "$KEYVAULT_NAME" -n "$KEYVAULT_SECRET_NAME" --value test-value
+az keyvault create -g "$RESOURCE_GROUP" -n "$KEYVAULT_NAME"
+az keyvault secret set --vault-name "$KEYVAULT_NAME" -n "$KEYVAULT_SECRET_NAME" --value test-value
 
 echo 'Creating a keyvault-identity and assign appropriate roles...'
 az identity create -g "$RESOURCE_GROUP" -n keyvault-identity
