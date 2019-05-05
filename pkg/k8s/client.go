@@ -75,7 +75,7 @@ func (c *KubeClient) GetPodName(podip string) (podns, poddname string, err error
 		return "", "", fmt.Errorf("podip is empty")
 	}
 
-	podList, err := c.getPodListWithTries(podip, getPodListTries)
+	podList, err := c.getPodListWithTries(podip, getPodListTries, getPodListSleepTimeMilliseconds)
 
 	if err != nil {
 		return "", "", err
@@ -88,15 +88,15 @@ func (c *KubeClient) GetPodName(podip string) (podns, poddname string, err error
 	return "", "", fmt.Errorf("match failed, ip:%s matching pods:%v", podip, podList)
 }
 
-func (c *KubeClient) getPodListWithTries(podip string, tries int) (*v1.PodList, error) {
+func (c *KubeClient) getPodListWithTries(podip string, tries int, sleeptime time.Duration) (*v1.PodList, error) {
 	podList, err := c.ClientSet.CoreV1().Pods("").List(metav1.ListOptions{
 		FieldSelector: "status.podIP==" + podip + phaseStatusFilter,
 	})
 
 	if err != nil || len(podList.Items) == 0 {
 		if tries > 1 {
-			time.Sleep(getPodListSleepTimeMilliseconds * time.Millisecond)
-			return c.getPodListWithTries(podip, tries-1)
+			time.Sleep(sleeptime * time.Millisecond)
+			return c.getPodListWithTries(podip, tries-1, sleeptime)
 		}
 	}
 
