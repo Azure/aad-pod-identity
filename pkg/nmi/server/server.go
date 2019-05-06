@@ -7,9 +7,12 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
+	"os/signal"
 	"runtime"
 	"runtime/debug"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Azure/go-autorest/autorest/adal"
@@ -74,14 +77,27 @@ func (s *Server) Run() error {
 // NOT originating from HostIP destined to metadata endpoint are
 // routed to NMI endpoint
 func (s *Server) updateIPTableRules() {
-	log.Infof("node: %s %s", s.NodeName, s.HostIP)
-	for range time.Tick(time.Second * time.Duration(s.IPTableUpdateTimeIntervalInSeconds)) {
-		log.Infof("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, s.MetadataIP, s.MetadataPort, s.NMIPort)
-		if err := iptables.AddCustomChain(s.MetadataIP, s.MetadataPort, s.HostIP, s.NMIPort); err != nil {
-			log.Fatalf("%s", err)
-		}
-		if err := iptables.LogCustomChain(); err != nil {
-			log.Fatalf("%s", err)
+	signalChan := make(chan os.Signal)
+	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
+
+	ticker := time.NewTicker(time.Second * time.Duration(s.IPTableUpdateTimeIntervalInSeconds))
+	defer ticker.Stop()
+
+loop:
+	for {
+		select {
+		case <-signalChan:
+			handleTermination()
+			break loop
+
+		case <-ticker.C:
+			log.Infof("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, s.MetadataIP, s.MetadataPort, s.NMIPort)
+			if err := iptables.AddCustomChain(s.MetadataIP, s.MetadataPort, s.HostIP, s.NMIPort); err != nil {
+				log.Fatalf("%s", err)
+			}
+			if err := iptables.LogCustomChain(); err != nil {
+				log.Fatalf("%s", err)
+			}
 		}
 	}
 }
@@ -345,4 +361,22 @@ func copyHeader(dst, src http.Header) {
 			dst.Add(k, v)
 		}
 	}
+}
+
+func handleTermination() {
+	log.Info("Received SIGTERM, shutting down")
+
+	exitCode := 0
+	// clean up iptables
+	if err := iptables.DeleteCustomChain(); err != nil {
+		log.Infof("Error cleaning up during shutdown: %v", err)
+		exitCode = 1
+	}
+
+	// wait for pod to delete
+	log.Info("Handled termination, awaiting pod deletion")
+	time.Sleep(10 * time.Second)
+
+	log.Infof("Exiting with %v", exitCode)
+	os.Exit(exitCode)
 }
