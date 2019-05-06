@@ -130,7 +130,7 @@ func deleteCustomChainInChain(ipt *iptables.IPTables, table, chain string) error
 	if err == nil && exists {
 		return ipt.Delete(table, chain, "-j", customchainname)
 	}
-	return err
+	return nil
 }
 
 // deleteCustomChain -  flush and then delete custom chain
