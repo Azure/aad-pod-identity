@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path"
 	"regexp"
 	"time"
@@ -34,16 +35,29 @@ type ClientInt interface {
 
 // NewCloudProvider returns a azure cloud provider client
 func NewCloudProvider(configFile string) (c *Client, e error) {
-	bytes, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		glog.Errorf("Read file (%s) error: %+v", configFile, err)
-		return nil, err
-	}
 	azureConfig := config.AzureConfig{}
-	if err = yaml.Unmarshal(bytes, &azureConfig); err != nil {
-		glog.Errorf("Unmarshall error: %v", err)
-		return nil, err
+	if configFile != "" {
+		glog.V(6).Info("Populate AzureConfig from azure.json")
+		bytes, err := ioutil.ReadFile(configFile)
+		if err != nil {
+			glog.Errorf("Read file (%s) error: %+v", configFile, err)
+			return nil, err
+		}
+		if err = yaml.Unmarshal(bytes, &azureConfig); err != nil {
+			glog.Errorf("Unmarshall error: %v", err)
+			return nil, err
+		}
+	} else {
+		glog.V(6).Info("Populate AzureConfig from secret/environment variables")
+		azureConfig.Cloud = os.Getenv("CLOUD")
+		azureConfig.TenantID = os.Getenv("TENANT_ID")
+		azureConfig.ClientID = os.Getenv("CLIENT_ID")
+		azureConfig.ClientSecret = os.Getenv("CLIENT_SECRET")
+		azureConfig.SubscriptionID = os.Getenv("SUBSCRIPTION_ID")
+		azureConfig.ResourceGroupName = os.Getenv("RESOURCE_GROUP")
+		azureConfig.VMType = os.Getenv("VM_TYPE")
 	}
+
 	azureEnv, err := azure.EnvironmentFromName(azureConfig.Cloud)
 	if err != nil {
 		glog.Errorf("Get cloud env error: %+v", err)

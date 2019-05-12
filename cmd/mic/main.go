@@ -23,7 +23,7 @@ func main() {
 	flag.BoolVar(&forceNamespaced, "forceNamespaced", false, "Forces namespaced identities, binding, and assignment")
 	flag.Parse()
 	if cloudconfig == "" {
-		glog.Fatalf("Could not get the cloud config")
+		glog.Warningf("--cloudconfig not passed will use aadpodidentity-admin-secret")
 	}
 	if kubeconfig == "" {
 		glog.Warningf("--kubeconfig not passed will use InClusterConfig")
