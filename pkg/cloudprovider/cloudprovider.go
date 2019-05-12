@@ -21,11 +21,10 @@ import (
 
 // Client is a cloud provider client
 type Client struct {
-	ResourceGroupName string
-	VMClient          VMClientInt
-	VMSSClient        VMSSClientInt
-	ExtClient         compute.VirtualMachineExtensionsClient
-	Config            config.AzureConfig
+	VMClient   VMClientInt
+	VMSSClient VMSSClientInt
+	ExtClient  compute.VirtualMachineExtensionsClient
+	Config     config.AzureConfig
 }
 
 type ClientInt interface {
@@ -85,9 +84,8 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 	extClient.PollingDelay = 5 * time.Second
 
 	client := &Client{
-		ResourceGroupName: azureConfig.ResourceGroupName,
-		Config:            azureConfig,
-		ExtClient:         extClient,
+		Config:    azureConfig,
+		ExtClient: extClient,
 	}
 
 	client.VMSSClient, err = NewVMSSClient(azureConfig, spt)
