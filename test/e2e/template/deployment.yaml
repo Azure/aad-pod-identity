@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
       - name: {{.Name}}
-        image: mcr.microsoft.com/k8s/aad-pod-identity/identityvalidator:1.4
+        image: {{.Registry}}/identityvalidator:{{.IdentityValidatorVersion}}
         command:
           - sleep
           - "3600"

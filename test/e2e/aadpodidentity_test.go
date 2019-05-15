@@ -28,7 +28,7 @@ import (
 const (
 	clusterIdentity   = "cluster-identity"
 	keyvaultIdentity  = "keyvault-identity"
-	identityValidator = "identity-validator"
+	identityValidator = "identity-validator-deployment.yaml"
 )
 
 var (
@@ -44,14 +44,11 @@ var _ = BeforeSuite(func() {
 	err := os.Mkdir(templateOutputPath, os.ModePerm)
 	Expect(err).NotTo(HaveOccurred())
 
-	c, err := config.ParseConfig()
+	cfg, err := config.ParseConfig()
 	Expect(err).NotTo(HaveOccurred())
-	cfg = *c // To avoid 'Declared and not used' linting error
 
 	// Install CRDs and deploy MIC and NMI
-	cmd := exec.Command("kubectl", "apply", "-f", "../../deploy/infra/deployment-rbac.yaml")
-	util.PrintCommand(cmd)
-	_, err = cmd.CombinedOutput()
+	err = deploy.CreateInfra("default", cfg.Registry, cfg.NMIVersion, cfg.MICVersion, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 })
 
@@ -59,9 +56,7 @@ var _ = AfterSuite(func() {
 	fmt.Println("\nTearing down the test suite environment...")
 
 	// Uninstall CRDs and delete MIC and NMI
-	cmd := exec.Command("kubectl", "delete", "-f", "../../deploy/infra/deployment-rbac.yaml", "--ignore-not-found")
-	util.PrintCommand(cmd)
-	_, err := cmd.CombinedOutput()
+	err := deploy.Delete("default-deployment-rbac.yaml", templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
 	cmd = exec.Command("kubectl", "delete", "deploy", "--all")
@@ -565,7 +560,7 @@ func setUpIdentityAndDeployment(azureIdentityName, suffix string) {
 	err = azureidentitybinding.Create(azureIdentityName, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = deploy.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, identityValidatorName, azureIdentityName, templateOutputPath)
+	err = deploy.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, cfg.Registry, azureIdentityName, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
 	ok, err := deploy.WaitOnReady(identityValidatorName)
