@@ -108,7 +108,7 @@ func flushCreateCustomChainrules(ipt *iptables.IPTables, destIP, destPort, targe
 	return nil
 }
 
-// DeleteCustomChain removees the custom chain aad-metadata reference from PREROUTING
+// DeleteCustomChain removes the custom chain aad-metadata reference from PREROUTING
 // chain and then removes the chain aad-metadata from nat table
 func DeleteCustomChain() error {
 	ipt, err := iptables.New()

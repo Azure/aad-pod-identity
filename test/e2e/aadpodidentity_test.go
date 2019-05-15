@@ -49,7 +49,7 @@ var _ = BeforeSuite(func() {
 	cfg = *c // To avoid 'Declared and not used' linting error
 
 	// Install CRDs and deploy MIC and NMI
-	cmd := exec.Command("kubectl", "apply", "-f", "../../deploy/infra/deployment.yaml")
+	cmd := exec.Command("kubectl", "apply", "-f", "../../deploy/infra/deployment-rbac.yaml")
 	util.PrintCommand(cmd)
 	_, err = cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred())
@@ -59,7 +59,7 @@ var _ = AfterSuite(func() {
 	fmt.Println("\nTearing down the test suite environment...")
 
 	// Uninstall CRDs and delete MIC and NMI
-	cmd := exec.Command("kubectl", "delete", "-f", "../../deploy/infra/deployment.yaml", "--ignore-not-found")
+	cmd := exec.Command("kubectl", "delete", "-f", "../../deploy/infra/deployment-rbac.yaml", "--ignore-not-found")
 	util.PrintCommand(cmd)
 	_, err := cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred())
@@ -474,7 +474,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		}
 
 		// delete the aad-pod-identity deployment
-		cmd = exec.Command("kubectl", "delete", "-f", "../../deploy/infra/deployment.yaml")
+		cmd = exec.Command("kubectl", "delete", "-f", "../../deploy/infra/deployment-rbac.yaml", "--ignore-not-found")
 		_, err = cmd.CombinedOutput()
 		Expect(err).NotTo(HaveOccurred())
 
@@ -500,7 +500,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		_, err = cmd.CombinedOutput()
 		Expect(err).NotTo(HaveOccurred())
 
-		cmd = exec.Command("kubectl", "apply", "-f", "../../deploy/infra/deployment.yaml")
+		cmd = exec.Command("kubectl", "apply", "-f", "../../deploy/infra/deployment-rbac.yaml")
 		_, err = cmd.CombinedOutput()
 		Expect(err).NotTo(HaveOccurred())
 	})
