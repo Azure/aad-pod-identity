@@ -115,7 +115,7 @@ func DeleteCustomChain() error {
 	if err != nil {
 		return err
 	}
-	if err := removeCustonChainReference(ipt, tablename, "PREROUTING"); err != nil {
+	if err := removeCustomChainReference(ipt, tablename, "PREROUTING"); err != nil {
 		return err
 	}
 	if err := removeCustomChain(ipt, tablename); err != nil {
@@ -124,8 +124,8 @@ func DeleteCustomChain() error {
 	return nil
 }
 
-// removeCustonChainReference - iptables -t "table" -D "chain" -j "customchainname"
-func removeCustonChainReference(ipt *iptables.IPTables, table, chain string) error {
+// removeCustomChainReference - iptables -t "table" -D "chain" -j "customchainname"
+func removeCustomChainReference(ipt *iptables.IPTables, table, chain string) error {
 	exists, err := ipt.Exists(table, chain, "-j", customchainname)
 	if err == nil && exists {
 		return ipt.Delete(table, chain, "-j", customchainname)
