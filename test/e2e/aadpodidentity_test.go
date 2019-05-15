@@ -49,7 +49,7 @@ var _ = BeforeSuite(func() {
 	cfg = *c // To avoid 'Declared and not used' linting error
 
 	// Install CRDs and deploy MIC and NMI
-	cmd := exec.Command("kubectl", "apply", "-f", "../../deploy/infra/deployment-rbac.yaml")
+	cmd := exec.Command("kubectl", "apply", "-f", "../../deploy/infra/deployment.yaml")
 	util.PrintCommand(cmd)
 	_, err = cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred())
@@ -59,7 +59,7 @@ var _ = AfterSuite(func() {
 	fmt.Println("\nTearing down the test suite environment...")
 
 	// Uninstall CRDs and delete MIC and NMI
-	cmd := exec.Command("kubectl", "delete", "-f", "../../deploy/infra/deployment-rbac.yaml", "--ignore-not-found")
+	cmd := exec.Command("kubectl", "delete", "-f", "../../deploy/infra/deployment.yaml", "--ignore-not-found")
 	util.PrintCommand(cmd)
 	_, err := cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred())
@@ -445,6 +445,65 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 	// 	removeUserAssignedIdentityFromCluster(nodeList, clusterIdentity)
 	// })
+
+	It("should cleanup iptable rules after deleting aad-pod-identity", func() {
+		// create the helper ssh daemon for validating the iptable rules
+		cmd := exec.Command("kubectl", "apply", "-f", "template/busyboxds.yaml")
+		_, err := cmd.CombinedOutput()
+		Expect(err).NotTo(HaveOccurred())
+
+		time.Sleep(90 * time.Second)
+
+		// check if the iptable rules exist before test
+		pods, err := pod.GetAllNameByPrefix("busybox")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(pods).NotTo(BeNil())
+
+		for _, p := range pods {
+			// install iptables in the busybox to keep the vanilla alpine image for busybox
+			_, err := pod.RunCommandInPod("exec", p, "--", "apk", "add", "iptables")
+			Expect(err).NotTo(HaveOccurred())
+
+			// ensure aad-metadata target reference exists
+			_, err = pod.RunCommandInPod("exec", p, "--", "iptables", "-t", "nat", "--check", "PREROUTING", "-j", "aad-metadata")
+			Expect(err).NotTo(HaveOccurred())
+
+			// ensure aad-metadata custom chain rules exists
+			_, err = pod.RunCommandInPod("exec", p, "--", "iptables", "-t", "nat", "-L", "aad-metadata")
+			Expect(err).NotTo(HaveOccurred())
+		}
+
+		// delete the aad-pod-identity deployment
+		cmd = exec.Command("kubectl", "delete", "-f", "../../deploy/infra/deployment.yaml")
+		_, err = cmd.CombinedOutput()
+		Expect(err).NotTo(HaveOccurred())
+
+		ok, err := pod.WaitOnDeletion("nmi")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		// check to ensure the custom iptable rules have been cleaned up
+		for _, p := range pods {
+			// ensure aad-metadata target reference doesn't exist anymore
+			out, err := pod.RunCommandInPod("exec", p, "--", "iptables", "-t", "nat", "--check", "PREROUTING", "-j", "aad-metadata")
+			Expect(err).To(HaveOccurred())
+			Expect(out).To(ContainSubstring("No such file or directory"))
+
+			// ensure aad-metadata custom chain rule doesn't exist anymore
+			out, err = pod.RunCommandInPod("exec", p, "--", "iptables", "-t", "nat", "-L", "aad-metadata")
+			Expect(err).To(HaveOccurred())
+			Expect(out).To(ContainSubstring("No chain/target/match by that name."))
+		}
+
+		// put back the deployment for further tests and cleanup ssh daemon
+		cmd = exec.Command("kubectl", "delete", "-f", "template/busyboxds.yaml")
+		_, err = cmd.CombinedOutput()
+		Expect(err).NotTo(HaveOccurred())
+
+		cmd = exec.Command("kubectl", "apply", "-f", "../../deploy/infra/deployment.yaml")
+		_, err = cmd.CombinedOutput()
+		Expect(err).NotTo(HaveOccurred())
+	})
 
 	It("should not alter the system assigned identity after creating and deleting pod identity", func() {
 		// Assign system assigned identity to every node

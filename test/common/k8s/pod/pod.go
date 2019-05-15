@@ -72,6 +72,34 @@ func GetNameByPrefix(prefix string) (string, error) {
 	return "", nil
 }
 
+// GetAllNameByPrefix will return the name of all pods that matches a prefix
+func GetAllNameByPrefix(prefix string) ([]string, error) {
+	var pods []string
+	list, err := GetAll()
+	if err != nil {
+		return pods, err
+	}
+
+	for _, pod := range list.Pods {
+		if strings.HasPrefix(pod.Metadata.Name, prefix) && pod.Status.Phase == "Running" {
+			pods = append(pods, pod.Metadata.Name)
+		}
+	}
+
+	return pods, nil
+}
+
+// RunCommandInPod runs command with kubectl exec in pod
+func RunCommandInPod(execCmd ...string) (string, error) {
+	cmd := exec.Command("kubectl", execCmd...)
+	util.PrintCommand(cmd)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return string(out), errors.Wrap(err, fmt.Sprintf("Failed to execute command in pod"))
+	}
+	return string(out), err
+}
+
 // GetNodeName will return the name of the node the pod is running on
 func GetNodeName(podName string) (string, error) {
 	cmd := exec.Command("kubectl", "get", "pod", podName, "-ojson")
