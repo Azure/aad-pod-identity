@@ -1,11 +1,12 @@
 package main
 
 import (
+	"os"
+
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
-	"os"
 )
 
 const (

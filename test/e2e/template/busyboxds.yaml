@@ -1,0 +1,23 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: busybox
+  namespace: default
+spec:
+  template:
+    metadata:
+      labels:
+        component: busybox
+    spec:
+      hostNetwork: true
+      containers:
+      - name: busybox
+        image: alpine:3.8
+        stdin: true
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+            - NET_ADMIN
+      nodeSelector:
+        beta.kubernetes.io/os: linux

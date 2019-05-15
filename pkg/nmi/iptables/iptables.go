@@ -107,3 +107,41 @@ func flushCreateCustomChainrules(ipt *iptables.IPTables, destIP, destPort, targe
 
 	return nil
 }
+
+// DeleteCustomChain removes the custom chain aad-metadata reference from PREROUTING
+// chain and then removes the chain aad-metadata from nat table
+func DeleteCustomChain() error {
+	ipt, err := iptables.New()
+	if err != nil {
+		return err
+	}
+	if err := removeCustomChainReference(ipt, tablename, "PREROUTING"); err != nil {
+		return err
+	}
+	if err := removeCustomChain(ipt, tablename); err != nil {
+		return err
+	}
+	return nil
+}
+
+// removeCustomChainReference - iptables -t "table" -D "chain" -j "customchainname"
+func removeCustomChainReference(ipt *iptables.IPTables, table, chain string) error {
+	exists, err := ipt.Exists(table, chain, "-j", customchainname)
+	if err == nil && exists {
+		return ipt.Delete(table, chain, "-j", customchainname)
+	}
+	return nil
+}
+
+// removeCustomChain -  flush and then delete custom chain
+// iptables -t "table" -F "customchainname"
+// iptables -t "table" -X "customchainname"
+func removeCustomChain(ipt *iptables.IPTables, table string) error {
+	if err := ipt.ClearChain(table, customchainname); err != nil {
+		return err
+	}
+	if err := ipt.DeleteChain(table, customchainname); err != nil {
+		return err
+	}
+	return nil
+}

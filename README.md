@@ -183,6 +183,21 @@ Update the `deploy/demo/deployment.yaml` arguments with your subscription, clien
 kubectl create -f deploy/demo/deployment.yaml
 ```
 
+## Uninstall notes
+
+The NMI pods modify the nodes iptables to intercept calls to Azure Instance Metadata endpoint. This allows NMI to assert identities assigned to pod before executing the request on behalf of the caller. These iptable entries will be cleaned up when the pod-identity pods are uninstalled. However if the pods are terminated because of other reasons (non actionable signals), they can be manually removed with
+
+```
+#remove the custom chain reference
+iptables -t nat -D PREROUTING -j aad-metadata
+
+#flush the custom chain
+iptables -t nat -F aad-metadata
+
+#remove the custom chain
+iptables -t nat -X aad-metadata
+```
+
 ## Tutorial
 
 A detailed tutorial can be found here: [docs/tutorial/README.md](docs/tutorial/README.md).
