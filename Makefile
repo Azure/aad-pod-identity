@@ -14,6 +14,7 @@ NMI_VERSION ?= $(DEFAULT_VERSION)
 MIC_VERSION ?= $(DEFAULT_VERSION)
 DEMO_VERSION ?= $(DEFAULT_VERSION)
 IDENTITY_VALIDATOR_VERSION ?= $(DEFAULT_VERSION)
+BINARY_VERSION := ${MIC_VERSION}-mic-${NMI_VERSION}-nmi
 
 VERSION_VAR := $(REPO_PATH)/version.Version
 GIT_VAR := $(REPO_PATH)/version.GitCommit
@@ -33,7 +34,7 @@ else
 	endif
 endif
 
-GO_BUILD_OPTIONS := --tags "netgo osusergo"  -ldflags "-s -X $(VERSION_VAR)=$(NMI_VERSION) -X $(GIT_VAR)=$(GIT_HASH) -X $(BUILD_DATE_VAR)=$(BUILD_DATE) -extldflags '-static'"
+GO_BUILD_OPTIONS := --tags "netgo osusergo"  -ldflags "-s -X $(VERSION_VAR)=$(BINARY_VERSION) -X $(GIT_VAR)=$(GIT_HASH) -X $(BUILD_DATE_VAR)=$(BUILD_DATE) -extldflags '-static'"
 E2E_TEST_OPTIONS := -count=1 -v -timeout 24h -ginkgo.failFast
 
 # useful for other docker repos
