@@ -5,6 +5,7 @@ import (
 
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
+	"github.com/Azure/aad-pod-identity/version"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
@@ -32,7 +33,7 @@ func main() {
 	if *debug {
 		log.SetLevel(log.DebugLevel)
 	}
-	log.Info("starting nmi process")
+	log.Info("Starting nmi process. Version: %v. Build date: %v", version.NMIVersion, version.BuildDate)
 	client, err := k8s.NewKubeClient()
 	if err != nil {
 		log.Fatalf("%+v", err)
