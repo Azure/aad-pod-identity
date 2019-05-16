@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/Azure/aad-pod-identity/pkg/mic"
+	"github.com/Azure/aad-pod-identity/version"
 	"github.com/golang/glog"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -22,6 +23,7 @@ func main() {
 	flag.StringVar(&cloudconfig, "cloudconfig", "", "Path to cloud config e.g. Azure.json file")
 	flag.BoolVar(&forceNamespaced, "forceNamespaced", false, "Forces namespaced identities, binding, and assignment")
 	flag.Parse()
+	log.Info("Starting mic process. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
 	if cloudconfig == "" {
 		glog.Fatalf("Could not get the cloud config")
 	}
