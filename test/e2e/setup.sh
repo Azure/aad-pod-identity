@@ -22,15 +22,25 @@ IDENTITY_PRINCIPAL_ID=$(az identity show -g "$RESOURCE_GROUP" -n keyvault-identi
 az role assignment create --role 'Managed Identity Operator' --assignee "$AZURE_CLIENT_ID" --scope "/subscriptions/$SUBSCRIPTION_ID/resourcegroups/$RESOURCE_GROUP/providers/Microsoft.ManagedIdentity/userAssignedIdentities/keyvault-identity" || true
 az keyvault set-policy -n "$KEYVAULT_NAME" --secret-permissions get list --spn "$IDENTITY_CLIENT_ID" || true
 # The following command might need a couple of retries to succeed
-az role assignment create --role Reader --assignee "$IDENTITY_PRINCIPAL_ID" --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$KEYVAULT_NAME" || true
+set +e
+for i in {0..10}; do
+    az role assignment create --role Reader --assignee "$IDENTITY_PRINCIPAL_ID" --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$KEYVAULT_NAME"
+    [ $? -eq 0 ] && break || sleep 6
+done
+set -e
 
 echo 'Creating a cluster-identity and assign appropriate roles...'
 az identity create -g "$RESOURCE_GROUP" -n cluster-identity
 IDENTITY_CLIENT_ID=$(az identity show -g "$RESOURCE_GROUP" -n cluster-identity  --query 'clientId' -otsv)
 IDENTITY_PRINCIPAL_ID=$(az identity show -g "$RESOURCE_GROUP" -n cluster-identity --query 'principalId' -otsv)
-az role assignment create --role 'Managed Identity Operator' --assignee "$AZURE_CLIENT_ID" --scope "/subscriptions/$SUBSCRIPTION_ID/resourcegroups/$RESOURCE_GROUP/providers/Microsoft.ManagedIdentity/userAssignedIdentities/cluster-identity" || true
+az role assignment create --role 'Managed Identity Operator' --assignee "$AZURE_CLIENT_ID" --scope "/subscriptions/$SUBSCRIPTION_ID/resourcegroups/$RESOURCE_GROUP/providers/Microsoft.ManagedIdentity/userAssignedIdentities/cluster-identity"
 # The following command might need a couple of retries to succeed
-az role assignment create --role Reader --assignee "$IDENTITY_PRINCIPAL_ID" -g "$RESOURCE_GROUP" || true
+set +e
+for i in {0..10}; do
+    az role assignment create --role Reader --assignee "$IDENTITY_PRINCIPAL_ID" -g "$RESOURCE_GROUP"
+    [ $? -eq 0 ] && break || sleep 6
+done
+set -e
 
 # Create 5 keyvault identities for test #6
 for i in {0..4}; do
@@ -42,5 +52,10 @@ for i in {0..4}; do
     az role assignment create --role 'Managed Identity Operator' --assignee "$AZURE_CLIENT_ID" --scope "/subscriptions/$SUBSCRIPTION_ID/resourcegroups/$RESOURCE_GROUP/providers/Microsoft.ManagedIdentity/userAssignedIdentities/$IDENTITY_NAME" || true
     az keyvault set-policy -n "$KEYVAULT_NAME" --secret-permissions get list --spn "$IDENTITY_CLIENT_ID" || true
     # The following command might need a couple of retries to succeed
-    az role assignment create --role Reader --assignee "$IDENTITY_PRINCIPAL_ID" --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$KEYVAULT_NAME" || true
+    set +e
+    for i in {0..10}; do
+        az role assignment create --role Reader --assignee "$IDENTITY_PRINCIPAL_ID" --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$KEYVAULT_NAME"
+        [ $? -eq 0 ] && break || sleep 6
+    done
+    set -e
 done
