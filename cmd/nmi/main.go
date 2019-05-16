@@ -19,6 +19,7 @@ const (
 
 var (
 	debug                              = pflag.Bool("debug", true, "sets log to debug level")
+	versionInfo                        = pflag.Bool("version", false, "prints the version information")
 	nmiPort                            = pflag.String("nmi-port", defaultNmiPort, "NMI application port")
 	metadataIP                         = pflag.String("metadata-ip", defaultMetadataIP, "instance metadata host ip")
 	metadataPort                       = pflag.String("metadata-port", defaultMetadataPort, "instance metadata host ip")
@@ -30,6 +31,9 @@ var (
 
 func main() {
 	pflag.Parse()
+	if *versionInfo {
+		version.PrintVersionAndExit()
+	}
 	if *debug {
 		log.SetLevel(log.DebugLevel)
 	}
