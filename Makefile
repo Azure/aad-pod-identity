@@ -95,7 +95,7 @@ deepcopy-gen:
 
 .PHONY: image-nmi
 image-nmi:
-	docker build -t "$(REGISTRY)/$(NMI_IMAGE)" --build-arg NMI_VEARSION="$(NMI_VERSION)" --target=nmi .
+	docker build -t "$(REGISTRY)/$(NMI_IMAGE)" --build-arg NMI_VERSION="$(NMI_VERSION)" --target=nmi .
 
 .PHONY: image-mic
 image-mic:
