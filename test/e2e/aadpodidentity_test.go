@@ -124,7 +124,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should pass the identity validating test", func() {
-		setUpIdentityAndDeployment(keyvaultIdentity, "")
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
 		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
 		Expect(err).NotTo(HaveOccurred())
@@ -137,7 +137,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should not pass the identity validating test if the AzureIdentity is deleted", func() {
-		setUpIdentityAndDeployment(keyvaultIdentity, "")
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
 		err := azureidentity.DeleteOnCluster(keyvaultIdentity, templateOutputPath)
 		Expect(err).NotTo(HaveOccurred())
@@ -159,7 +159,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should not pass the identity validating test if the AzureIdentityBinding is deleted", func() {
-		setUpIdentityAndDeployment(keyvaultIdentity, "")
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
 		err := azureidentitybinding.Delete(keyvaultIdentity, templateOutputPath)
 		Expect(err).NotTo(HaveOccurred())
@@ -181,7 +181,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should delete the AzureAssignedIdentity if the deployment is deleted", func() {
-		setUpIdentityAndDeployment(keyvaultIdentity, "")
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
 		waitForDeployDeletion(identityValidator)
 
@@ -191,7 +191,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should establish a new AzureAssignedIdentity and remove the old one when draining the node containing identity validator", func() {
-		setUpIdentityAndDeployment(keyvaultIdentity, "")
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
 		podName, err := pod.GetNameByPrefix(identityValidator)
 		Expect(err).NotTo(HaveOccurred())
@@ -230,8 +230,11 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 			identityName := fmt.Sprintf("%s-%d", keyvaultIdentity, i)
 			identityValidatorName := fmt.Sprintf("identity-validator-%d", i)
 
-			setUpIdentityAndDeployment(keyvaultIdentity, fmt.Sprintf("%d", i))
-			time.Sleep(5 * time.Second)
+			setUpIdentityAndDeployment(keyvaultIdentity, fmt.Sprintf("%d", i), "1")
+
+			ok, err := azureassignedidentity.WaitOnLengthMatched(i + 1)
+			Expect(ok).To(Equal(true))
+			Expect(err).NotTo(HaveOccurred())
 
 			identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, identityName)
 			Expect(err).NotTo(HaveOccurred())
@@ -339,7 +342,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		enableUserAssignedIdentityOnCluster(nodeList, clusterIdentity)
 
-		setUpIdentityAndDeployment(keyvaultIdentity, "")
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
 		podName, err := pod.GetNameByPrefix(identityValidator)
 		Expect(err).NotTo(HaveOccurred())
@@ -489,7 +492,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		enableSystemAssignedIdentityOnCluster(nodeList)
 
-		setUpIdentityAndDeployment(keyvaultIdentity, "")
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
 		podName, err := pod.GetNameByPrefix(identityValidator)
 		Expect(err).NotTo(HaveOccurred())
@@ -524,12 +527,42 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		removeSystemAssignedIdentityOnCluster(nodeList)
 	})
+
+	It("should create azureassignedidentities for 40 pods within ~2mins", func() {
+		// setup all the 40 pods in a loop to ensure mic handles
+		// scale out efficiently
+		for i := 0; i < 5; i++ {
+			setUpIdentityAndDeployment(keyvaultIdentity, fmt.Sprintf("%d", i), "8")
+		}
+
+		// WaitOnLengthMatched waits for 2 mins, so this will ensure we are performant at high scale
+		ok, err := azureassignedidentity.WaitOnLengthMatched(40)
+		Expect(ok).To(Equal(true))
+		Expect(err).NotTo(HaveOccurred())
+
+		for i := 0; i < 5; i++ {
+			identityName := fmt.Sprintf("%s-%d", keyvaultIdentity, i)
+			identityValidatorName := fmt.Sprintf("identity-validator-%d", i)
+
+			identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, identityName)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(identityClientID).NotTo(Equal(""))
+
+			azureAssignedIdentities, err := azureassignedidentity.GetAllByPrefix(identityValidatorName)
+			Expect(err).NotTo(HaveOccurred())
+
+			for _, azureAssignedIdentity := range azureAssignedIdentities {
+				validateAzureAssignedIdentity(azureAssignedIdentity, identityName)
+			}
+		}
+	})
 })
 
 // setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
 func setupInfra() {
 	// Install CRDs and deploy MIC and NMI
 	err := infra.CreateInfra("default", cfg.Registry, cfg.NMIVersion, cfg.MICVersion, templateOutputPath)
+
 	Expect(err).NotTo(HaveOccurred())
 
 	ok, err := daemonset.WaitOnReady(nmiDaemonSet)
@@ -566,7 +599,8 @@ func setupInfra() {
 
 // setUpIdentityAndDeployment will deploy AzureIdentity, AzureIdentityBinding, and an identity validator
 // Suffix will give the tests the option to add a suffix to the end of the identity name, useful for scale tests
-func setUpIdentityAndDeployment(azureIdentityName, suffix string) {
+// replicas to indicate the number of replicas for the deployment
+func setUpIdentityAndDeployment(azureIdentityName, suffix, replicas string) {
 	identityValidatorName := identityValidator
 
 	if suffix != "" {
@@ -580,7 +614,7 @@ func setUpIdentityAndDeployment(azureIdentityName, suffix string) {
 	err = azureidentitybinding.Create(azureIdentityName, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = infra.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, cfg.Registry, identityValidatorName, azureIdentityName, cfg.IdentityValidatorVersion, templateOutputPath)
+	err = infra.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, cfg.Registry, identityValidatorName, azureIdentityName, cfg.IdentityValidatorVersion, templateOutputPath, replicas)
 	Expect(err).NotTo(HaveOccurred())
 
 	ok, err := deploy.WaitOnReady(identityValidatorName)
@@ -592,6 +626,8 @@ func setUpIdentityAndDeployment(azureIdentityName, suffix string) {
 	ok, err = daemonset.WaitOnReady(nmiDaemonSet)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ok).To(Equal(true))
+
+	time.Sleep(30 * time.Second)
 }
 
 // validateAzureAssignedIdentity will make sure a given AzureAssignedIdentity has the correct properties

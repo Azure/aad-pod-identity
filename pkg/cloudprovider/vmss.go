@@ -121,3 +121,7 @@ func (i *vmssIdentityInfo) AppendUserIdentity(id string) bool {
 	}
 	return appendUserIdentity(&i.info.Type, i.info.IdentityIds, id)
 }
+
+func (i *vmssIdentityInfo) GetUserIdentityList() []string {
+	return *i.info.IdentityIds
+}

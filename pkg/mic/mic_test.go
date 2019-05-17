@@ -78,7 +78,9 @@ func (c *TestVMClient) ListMSI() (ret map[string]*[]string) {
 	defer c.mu.Unlock()
 
 	for key, val := range c.nodeMap {
-		ret[key] = val.Identity.IdentityIds
+		if val.Identity != nil {
+			ret[key] = val.Identity.IdentityIds
+		}
 	}
 	return ret
 }
@@ -793,7 +795,7 @@ func TestAddDelMICClient(t *testing.T) {
 		t.Fatalf("Add and delete id at same time mismatch")
 	}
 
-	//Delete the pod
+	// Delete the pod
 	podClient.DeletePod("test-pod2", "default")
 	podClient.DeletePod("test-pod4", "default")
 

@@ -115,3 +115,7 @@ func (i *vmIdentityInfo) AppendUserIdentity(id string) bool {
 	}
 	return appendUserIdentity(&i.info.Type, i.info.IdentityIds, id)
 }
+
+func (i *vmIdentityInfo) GetUserIdentityList() []string {
+	return *i.info.IdentityIds
+}

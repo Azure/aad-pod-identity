@@ -27,9 +27,12 @@ type Client struct {
 	Config     config.AzureConfig
 }
 
+// ClientInt client interface
 type ClientInt interface {
 	RemoveUserMSI(userAssignedMSIID string, node *corev1.Node) error
 	AssignUserMSI(userAssignedMSIID string, node *corev1.Node) error
+	UpdateUserMSI(addUserAssignedMSIIDs []string, removeUserAssignedMSIIDs []string, node *corev1.Node) error
+	GetUserMSIs(node *corev1.Node) ([]string, error)
 }
 
 // NewCloudProvider returns a azure cloud provider client
@@ -112,6 +115,59 @@ func withInspection() autorest.PrepareDecorator {
 	}
 }
 
+// GetUserMSIs will return a list of all identities on the node
+func (c *Client) GetUserMSIs(node *corev1.Node) ([]string, error) {
+	idH, _, err := c.getIdentityResource(node)
+	if err != nil {
+		glog.Errorf("GetUserMSIs: get identity resource failed with error %v", err)
+		return nil, err
+	}
+	info := idH.IdentityInfo()
+	if info == nil {
+		return nil, fmt.Errorf("identity info is nil")
+	}
+	idList := info.GetUserIdentityList()
+	return idList, nil
+}
+
+// UpdateUserMSI will batch process the removal and addition of ids
+func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs []string, removeUserAssignedMSIIDs []string, node *corev1.Node) error {
+	idH, updateFunc, err := c.getIdentityResource(node)
+	if err != nil {
+		return err
+	}
+
+	info := idH.IdentityInfo()
+	if info == nil {
+		info = idH.ResetIdentity()
+	}
+
+	requiresUpdate := false
+	// remove msi ids from the list
+	for _, userAssignedMSIID := range removeUserAssignedMSIIDs {
+		requiresUpdate = true
+		if err := info.RemoveUserIdentity(userAssignedMSIID); err != nil {
+			return fmt.Errorf("could not remove identity from node %s: %v", node.Name, err)
+		}
+	}
+	// add new ids to the list
+	for _, userAssignedMSIID := range addUserAssignedMSIIDs {
+		addedToList := info.AppendUserIdentity(userAssignedMSIID)
+		if !addedToList {
+			glog.V(6).Infof("Identity %s already assigned to node %s. Skipping assignment.", userAssignedMSIID, node.Name)
+		}
+		requiresUpdate = requiresUpdate || addedToList
+	}
+	if requiresUpdate {
+		timeStarted := time.Now()
+		if err := updateFunc(); err != nil {
+			return err
+		}
+		glog.V(6).Infof("UpdateUserMSI of %s completed in %s", node.Name, time.Since(timeStarted))
+	}
+	return nil
+}
+
 //RemoveUserMSI - Use the underlying cloud api calls and remove the given user assigned MSI from the vm.
 func (c *Client) RemoveUserMSI(userAssignedMSIID string, node *corev1.Node) error {
 	idH, updateFunc, err := c.getIdentityResource(node)
@@ -137,6 +193,7 @@ func (c *Client) RemoveUserMSI(userAssignedMSIID string, node *corev1.Node) erro
 	return nil
 }
 
+// AssignUserMSI - Use the underlying cloud api call and add the given user assigned MSI to the vm
 func (c *Client) AssignUserMSI(userAssignedMSIID string, node *corev1.Node) error {
 	// Get the vm using the VmClient
 	// Update the assigned identity into the VM using the CreateOrUpdate

@@ -53,6 +53,12 @@ type ClientInt interface {
 	Sync(exit <-chan struct{})
 }
 
+type trackUserAssignedMSIIds struct {
+	addUserAssignedMSIIDs    []string
+	removeUserAssignedMSIIDs []string
+	node                     *corev1.Node
+}
+
 func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool) (*Client, error) {
 	glog.Infof("Starting to create the pod identity client. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
 
@@ -241,8 +247,14 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 		// Extract add list and delete list based on existing assigned ids in the system (currentAssignedIDs).
 		// and the ones we have arrived at in the volatile list (newAssignedIDs).
-		// TODO: Separate this into two methods.
-		addList, deleteList, err := c.splitAzureAssignedIDs(currentAssignedIDs, &newAssignedIDs)
+		// get list of new assigned ids to create
+		addList, err := c.getAzureAssignedIDsToCreate(currentAssignedIDs, &newAssignedIDs)
+		if err != nil {
+			glog.Error(err)
+			continue
+		}
+		// get list of assigned ids to delete
+		deleteList, err := c.getAzureAssignedIDsToDelete(currentAssignedIDs, &newAssignedIDs)
 		if err != nil {
 			glog.Error(err)
 			continue
@@ -250,8 +262,9 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 		glog.V(5).Infof("del: %v, add: %v", deleteList, addList)
 
+		nodeMap := make(map[string]trackUserAssignedMSIIds)
+
 		if deleteList != nil && len(*deleteList) > 0 {
-			beginDeletion := time.Now()
 			workDone = true
 
 			vmssGroups, err := getVMSSGroups(c.NodeClient, nodeRefs)
@@ -267,31 +280,31 @@ func (c *Client) Sync(exit <-chan struct{}) {
 					glog.Error(err)
 					continue
 				}
+				id := delID.Spec.AzureIdentityRef
 				removedBinding := delID.Spec.AzureBindingRef
-				// The inUse here checks if there are pods which are using the MSI in the newAssignedIDs.
-				err = c.removeAssignedIDsWithDeps(&delID, inUse)
+				isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
+
+				node, err := c.NodeClient.Get(delID.Spec.NodeName)
 				if err != nil {
-					// Since k8s event has only Info and Warning, using Warning.
-					message := fmt.Sprintf("Binding %s removal from node %s for pod %s resulted in error %v", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod, err.Error())
-					c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error", message)
-					glog.Error(message)
+					c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "get node error",
+						fmt.Sprintf("Lookup of node %s for pod %s resulted in error %v", delID.Spec.NodeName, delID.Name, err))
 					continue
 				}
-				eventRecordStart := time.Now()
+
+				if !inUse && isUserAssignedMSI {
+					c.appendToRemoveListForNode(nodeMap, id.Spec.ResourceID, node)
+				}
+
 				glog.V(5).Infof("Binding removed: %+v", removedBinding)
-				c.EventRecorder.Event(removedBinding, corev1.EventTypeNormal, "binding removed",
-					fmt.Sprintf("Binding %s removed from node %s for pod %s", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod))
-				stats.Update(stats.EventRecord, time.Since(eventRecordStart))
 			}
-			stats.Update(stats.TotalIDDel, time.Since(beginDeletion))
 		}
 
 		if addList != nil && len(*addList) > 0 {
-			beginAdding := time.Now()
 			workDone = true
 			for _, createID := range *addList {
 				id := createID.Spec.AzureIdentityRef
 				binding := createID.Spec.AzureBindingRef
+				isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
 
 				node, err := c.NodeClient.Get(createID.Spec.NodeName)
 				if err != nil {
@@ -300,25 +313,48 @@ func (c *Client) Sync(exit <-chan struct{}) {
 					continue
 				}
 
-				glog.V(5).Infof("Initiating assigned id creation for pod - %s, binding - %s", createID.Spec.Pod, binding.Name)
+				if isUserAssignedMSI {
+					glog.V(5).Infof("Initiating assigned id creation for pod - %s, binding - %s", createID.Spec.Pod, binding.Name)
 
-				err = c.createAssignedIdentityDeps(&createID, id, node)
-				if err != nil {
-					// Since k8s event has only Info and Warning, using Warning.
-					c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error",
-						fmt.Sprintf("Applying binding %s node %s for pod %s resulted in error %v", binding.Name, createID.Spec.NodeName, createID.Name, err))
-					glog.Error(err)
-					continue
+					err := c.createAssignedIdentity(&createID)
+					if err != nil {
+						c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error",
+							fmt.Sprintf("Creating assigned identity binding %s node %s for pod %s resulted in error %v", binding.Name, createID.Spec.NodeName, createID.Name, err))
+						glog.Error(err)
+						continue
+					}
+
+					c.appendToAddListForNode(nodeMap, id.Spec.ResourceID, node)
 				}
+
 				appliedBinding := createID.Spec.AzureBindingRef
-				eventRecordStart := time.Now()
 				glog.V(5).Infof("Binding applied: %+v", appliedBinding)
-				c.EventRecorder.Event(appliedBinding, corev1.EventTypeNormal, "binding applied",
-					fmt.Sprintf("Binding %s applied on node %s for pod %s", appliedBinding.Name, createID.Spec.NodeName, createID.Name))
-				stats.Update(stats.EventRecord, time.Since(eventRecordStart))
 			}
-			stats.Put(stats.TotalIDAdd, time.Since(beginAdding))
 		}
+
+		// one final createorupdate to each node in the map
+		// TODO: parallelize this process
+		var nodeWithErrors []string
+		for _, n := range nodeMap {
+			beginAdding := time.Now()
+
+			// generate unique list so we don't make multiple calls to assign/remove same id
+			n.addUserAssignedMSIIDs = c.getUniqueIDs(n.addUserAssignedMSIIDs)
+			n.removeUserAssignedMSIIDs = c.getUniqueIDs(n.removeUserAssignedMSIIDs)
+
+			err = c.CloudClient.UpdateUserMSI(n.addUserAssignedMSIIDs, n.removeUserAssignedMSIIDs, n.node)
+			if err != nil {
+				// check which all identity assignment failed
+				// remove those assigned identities
+				// TODO check with identity team if CreateOrUpdate results in error, is it all or some failed
+				glog.Errorf("UpdateUserMSI failed for node %s with error %v", n.node.Name, err)
+				nodeWithErrors = append(nodeWithErrors, n.node.Name)
+			}
+			stats.Put(stats.TotalCreateOrUpdate, time.Since(beginAdding))
+		}
+
+		// handle node errors
+		c.handleNodeErrors(nodeWithErrors, addList, deleteList, newAssignedIDs, nodeRefs)
 
 		if workDone {
 			idsFound := 0
@@ -351,15 +387,14 @@ func (c *Client) matchAssignedID(x *aadpodid.AzureAssignedIdentity, y *aadpodid.
 	return false, nil
 }
 
-func (c *Client) splitAzureAssignedIDs(old *[]aadpodid.AzureAssignedIdentity, new *[]aadpodid.AzureAssignedIdentity) (retCreate *[]aadpodid.AzureAssignedIdentity, retDelete *[]aadpodid.AzureAssignedIdentity, err error) {
-
+func (c *Client) getAzureAssignedIDsToCreate(old *[]aadpodid.AzureAssignedIdentity, new *[]aadpodid.AzureAssignedIdentity) (*[]aadpodid.AzureAssignedIdentity, error) {
+	// everything in new needs to be created
 	if old == nil || len(*old) == 0 {
-		return new, nil, nil
+		return new, nil
 	}
 
 	create := make([]aadpodid.AzureAssignedIdentity, 0)
-	delete := make([]aadpodid.AzureAssignedIdentity, 0)
-
+	var err error
 	idMatch := false
 	begin := time.Now()
 	// TODO: We should be able to optimize the many for loops.
@@ -384,8 +419,24 @@ func (c *Client) splitAzureAssignedIDs(old *[]aadpodid.AzureAssignedIdentity, ne
 		}
 	}
 	stats.Put(stats.FindAssignedIDCreate, time.Since(begin))
+	return &create, nil
+}
 
-	begin = time.Now()
+func (c *Client) getAzureAssignedIDsToDelete(old *[]aadpodid.AzureAssignedIdentity, new *[]aadpodid.AzureAssignedIdentity) (*[]aadpodid.AzureAssignedIdentity, error) {
+	// nothing to delete
+	if old == nil || len(*old) == 0 {
+		return nil, nil
+	}
+	// delete everything as nothing in new
+	if new == nil || len(*new) == 0 {
+		return old, nil
+	}
+
+	delete := make([]aadpodid.AzureAssignedIdentity, 0)
+	var err error
+	idMatch := false
+
+	begin := time.Now()
 	for _, oldAssignedID := range *old {
 		idMatch = false
 		for _, newAssignedID := range *new {
@@ -407,9 +458,7 @@ func (c *Client) splitAzureAssignedIDs(old *[]aadpodid.AzureAssignedIdentity, ne
 		}
 	}
 	stats.Put(stats.FindAssignedIDDel, time.Since(begin))
-
-	//	glog.Info("Time taken to split create/delete list: %s", time.Since(begin).String())
-	return &create, &delete, nil
+	return &delete, nil
 }
 
 func (c *Client) makeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpodid.AzureIdentityBinding, podName string, podNameSpace string, nodeName string) (res *aadpodid.AzureAssignedIdentity, err error) {
@@ -442,55 +491,160 @@ func (c *Client) makeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpod
 	return assignedID, nil
 }
 
-func (c *Client) createAssignedIdentityDeps(assignedID *aadpodid.AzureAssignedIdentity, id *aadpodid.AzureIdentity, node *corev1.Node) error {
+func (c *Client) createAssignedIdentity(assignedID *aadpodid.AzureAssignedIdentity) error {
 	err := c.CRDClient.CreateAssignedIdentity(assignedID)
 	if err != nil {
-		glog.Error(err)
 		return err
 	}
+	return nil
+}
 
-	if id.Spec.Type == aadpodid.UserAssignedMSI {
+func (c *Client) removeAssignedIdentity(assignedID *aadpodid.AzureAssignedIdentity) error {
+	err := c.CRDClient.RemoveAssignedIdentity(assignedID)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
-		err = c.CloudClient.AssignUserMSI(id.Spec.ResourceID, node)
+func (c *Client) appendToRemoveListForNode(nodeMap map[string]trackUserAssignedMSIIds, resourceID string, node *corev1.Node) {
+	if trackList, ok := nodeMap[node.Name]; ok {
+		if trackList.removeUserAssignedMSIIDs != nil {
+			trackList.removeUserAssignedMSIIDs = append(trackList.removeUserAssignedMSIIDs, resourceID)
+			trackList.node = node
+		} else {
+			trackList.removeUserAssignedMSIIDs = []string{resourceID}
+			trackList.node = node
+		}
+		nodeMap[node.Name] = trackList
+	} else {
+		nodeMap[node.Name] = trackUserAssignedMSIIds{removeUserAssignedMSIIDs: []string{resourceID}, node: node}
+	}
+}
+
+func (c *Client) appendToAddListForNode(nodeMap map[string]trackUserAssignedMSIIds, resourceID string, node *corev1.Node) {
+	if trackList, ok := nodeMap[node.Name]; ok {
+		if trackList.addUserAssignedMSIIDs != nil {
+			trackList.addUserAssignedMSIIDs = append(trackList.addUserAssignedMSIIDs, resourceID)
+			trackList.node = node
+		} else {
+			trackList.addUserAssignedMSIIDs = []string{resourceID}
+			trackList.node = node
+		}
+		nodeMap[node.Name] = trackList
+	} else {
+		nodeMap[node.Name] = trackUserAssignedMSIIds{addUserAssignedMSIIDs: []string{resourceID}, node: node}
+	}
+}
+
+func (c *Client) handleNodeErrors(nodesWithError []string, addList, deleteList *[]aadpodid.AzureAssignedIdentity, newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeRefs map[string]bool) error {
+
+	nodeIdentityList := make(map[string][]string)
+	for _, n := range nodesWithError {
+		// get the list of user assigned identities currently on node
+		node, err := c.NodeClient.Get(n)
 		if err != nil {
-			glog.Error(err)
-			newErr := c.CRDClient.RemoveAssignedIdentity(assignedID)
-			if newErr != nil {
-				glog.Errorf("Error when removing assigned identity in create error path err: %v", newErr)
+			glog.Errorf("Lookup of node %s resulted in error %v", n, err)
+			continue
+		}
+		idList, err := c.getUserMSIListForNode(node)
+		if err != nil {
+			glog.Errorf("Getting list of msi's from node %s resulted in error %v", n, err)
+			// if err here, we continue because the idList returned will be nil for error
+		}
+		nodeIdentityList[n] = idList
+	}
+
+	isNodeErrored := func(node string) bool {
+		for _, n := range nodesWithError {
+			if n == node {
+				return true
 			}
-			return err
+		}
+		return false
+	}
+
+	if addList != nil && len(*addList) > 0 {
+		for _, createID := range *addList {
+			id := createID.Spec.AzureIdentityRef
+			binding := createID.Spec.AzureBindingRef
+
+			idExistsOnNode := c.checkIfMSIExistsOnNode(id, createID.Spec.NodeName, nodeIdentityList)
+			nodeHasErrors := isNodeErrored(createID.Spec.NodeName)
+
+			if !nodeHasErrors || idExistsOnNode {
+				// the identity was successfully assigned to the node
+				c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding applied",
+					fmt.Sprintf("Binding %s applied on node %s for pod %s", binding.Name, createID.Spec.NodeName, createID.Name))
+			}
+		}
+	}
+
+	if deleteList != nil && len(*deleteList) > 0 {
+		for _, delID := range *deleteList {
+			vmssGroups, err := getVMSSGroups(c.NodeClient, nodeRefs)
+			if err != nil {
+				glog.Error(err)
+				continue
+			}
+			inUse, err := c.checkIfInUse(delID, newAssignedIDs, vmssGroups)
+			if err != nil {
+				glog.Error(err)
+				continue
+			}
+			id := delID.Spec.AzureIdentityRef
+			removedBinding := delID.Spec.AzureBindingRef
+			isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
+			nodeHasErrors := isNodeErrored(delID.Spec.NodeName)
+
+			idExistsOnNode := c.checkIfMSIExistsOnNode(id, delID.Spec.NodeName, nodeIdentityList)
+
+			if !nodeHasErrors || !idExistsOnNode {
+				// the identity was successfully removed from node
+				c.EventRecorder.Event(removedBinding, corev1.EventTypeNormal, "binding removed",
+					fmt.Sprintf("Binding %s removed from node %s for pod %s", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod))
+
+				// remove assigned identity crd from cluster
+				if err := c.removeAssignedIdentity(&delID); err != nil {
+					// Since k8s event has only Info and Warning, using Warning.
+					c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding apply error",
+						fmt.Sprintf("Removing assigned identity binding %s node %s for pod %s resulted in error %v", removedBinding.Name, delID.Spec.NodeName, delID.Name, err))
+					glog.Error(err)
+				}
+				continue
+			}
+
+			if isUserAssignedMSI && !inUse {
+				message := fmt.Sprintf("Binding %s removal from node %s for pod %s failed", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod)
+				c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error", message)
+				glog.Error(message)
+			}
 		}
 	}
 	return nil
 }
 
-func (c *Client) removeAssignedIDsWithDeps(assignedID *aadpodid.AzureAssignedIdentity, inUse bool) error {
-	err := c.CRDClient.RemoveAssignedIdentity(assignedID)
-	if err != nil {
-		glog.Error(err)
-		return nil
-	}
-	if !inUse {
-		id := assignedID.Spec.AzureIdentityRef
-		if id.Spec.Type == aadpodid.UserAssignedMSI {
-
-			node, err := c.NodeClient.Get(assignedID.Spec.NodeName)
-			if err != nil {
-				return err
-			}
-
-			err = c.CloudClient.RemoveUserMSI(id.Spec.ResourceID, node)
-			if err != nil {
-				glog.Error(err)
-				return err
-			}
-		}
-	}
-	return nil
+func (c *Client) checkIfUserAssignedMSI(id *aadpodid.AzureIdentity) bool {
+	return id.Spec.Type == aadpodid.UserAssignedMSI
 }
 
 func (c *Client) getAssignedIDName(podName string, podNameSpace string, idName string) string {
 	return podName + "-" + podNameSpace + "-" + idName
+}
+
+func (c *Client) checkIfMSIExistsOnNode(id *aadpodid.AzureIdentity, nodeName string, nodeMSIList map[string][]string) bool {
+	if nList, ok := nodeMSIList[nodeName]; ok {
+		for _, userAssignedMSI := range nList {
+			if userAssignedMSI == id.Spec.ResourceID {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (c *Client) getUserMSIListForNode(node *corev1.Node) ([]string, error) {
+	return c.CloudClient.GetUserMSIs(node)
 }
 
 func (c *Client) convertIDListToMap(arr []aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
@@ -540,4 +694,17 @@ func (c *Client) checkIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, ar
 	}
 
 	return false, nil
+}
+
+func (c *Client) getUniqueIDs(idList []string) []string {
+	idSet := make(map[string]struct{})
+	var uniqueList []string
+
+	for _, id := range idList {
+		idSet[id] = struct{}{}
+	}
+	for id := range idSet {
+		uniqueList = append(uniqueList, id)
+	}
+	return uniqueList
 }
