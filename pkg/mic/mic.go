@@ -14,7 +14,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/crd"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	"github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
@@ -49,7 +49,7 @@ type ClientInt interface {
 }
 
 func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool) (*Client, error) {
-	glog.Infof("Starting to create the pod identity client. Version: %v. Build date: %v", version.Version, version.BuildDate)
+	glog.Infof("Starting to create the pod identity client. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
 
 	clientSet := kubernetes.NewForConfigOrDie(config)
 	informer := informers.NewSharedInformerFactory(clientSet, 30*time.Second)
