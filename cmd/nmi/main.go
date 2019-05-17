@@ -37,7 +37,7 @@ func main() {
 	if *debug {
 		log.SetLevel(log.DebugLevel)
 	}
-	log.Info("Starting nmi process. Version: %v. Build date: %v", version.NMIVersion, version.BuildDate)
+	log.Infof("Starting nmi process. Version: %v. Build date: %v", version.NMIVersion, version.BuildDate)
 	client, err := k8s.NewKubeClient()
 	if err != nil {
 		log.Fatalf("%+v", err)

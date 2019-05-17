@@ -28,7 +28,7 @@ func main() {
 	if versionInfo {
 		version.PrintVersionAndExit()
 	}
-	glog.Info("Starting mic process. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
+	glog.Infof("Starting mic process. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
 	if cloudconfig == "" {
 		glog.Fatalf("Could not get the cloud config")
 	}
