@@ -107,7 +107,7 @@ You might find the Resource Group name with
 
 Then set the environment variable
 
-`export MC_RG= "resource-group-name"`
+`export MC_RG="resource-group-name"`
 
 Run the following to create an azure id
 
