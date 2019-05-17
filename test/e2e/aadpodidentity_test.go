@@ -28,7 +28,7 @@ import (
 const (
 	clusterIdentity   = "cluster-identity"
 	keyvaultIdentity  = "keyvault-identity"
-	identityValidator = "identity-validator-deployment.yaml"
+	identityValidator = "identity-validator"
 )
 
 var (
@@ -560,7 +560,7 @@ func setUpIdentityAndDeployment(azureIdentityName, suffix string) {
 	err = azureidentitybinding.Create(azureIdentityName, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = deploy.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, cfg.Registry, azureIdentityName, templateOutputPath)
+	err = deploy.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, cfg.Registry, "identity-validator", "test-identity", cfg.IdentityValidatorVersion, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
 	ok, err := deploy.WaitOnReady(identityValidatorName)
