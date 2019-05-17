@@ -56,7 +56,7 @@ var _ = AfterSuite(func() {
 	fmt.Println("\nTearing down the test suite environment...")
 
 	// Uninstall CRDs and delete MIC and NMI
-	err := deploy.Delete("default-deployment-rbac.yaml", templateOutputPath)
+	err := deploy.Delete("default", templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
 	cmd = exec.Command("kubectl", "delete", "deploy", "--all")
