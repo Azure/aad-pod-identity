@@ -48,7 +48,7 @@ func CreateInfra(namespace, registry, nmiVersion, micVersion, templateOutputPath
 		return errors.Wrap(err, "Failed to parse deployment-rbac.yaml")
 	}
 
-	deployFilePath := path.Join(templateOutputPath, namespace+"-deployment-rbac.yaml")
+	deployFilePath := path.Join(templateOutputPath, namespace+"-deployment.yaml")
 	deployFile, err := os.Create(deployFilePath)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create a deployment file from deployment-rbac.yaml")
