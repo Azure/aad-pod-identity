@@ -560,7 +560,7 @@ func setUpIdentityAndDeployment(azureIdentityName, suffix string) {
 	err = azureidentitybinding.Create(azureIdentityName, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = deploy.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, cfg.Registry, "identity-validator", "test-identity", cfg.IdentityValidatorVersion, templateOutputPath)
+	err = deploy.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, cfg.Registry, identityValidator, "test-identity", cfg.IdentityValidatorVersion, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
 	ok, err := deploy.WaitOnReady(identityValidatorName)
