@@ -59,7 +59,7 @@ var _ = AfterSuite(func() {
 	err := deploy.Delete("default", templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
-	cmd = exec.Command("kubectl", "delete", "deploy", "--all")
+	cmd := exec.Command("kubectl", "delete", "deploy", "--all")
 	util.PrintCommand(cmd)
 	_, err = cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred())
