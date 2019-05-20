@@ -27,16 +27,19 @@ export KEYVAULT_SECRET_NAME='...'
 # The version of the secret inserted into the keyvault
 export KEYVAULT_SECRET_VERSION='...'
 
-# The registry where to get the images from. Use "mcr.microsoft.com/k8s/aad-pod-identity/" to run the tests with released images
+
+Optionally, to use custom images:
+
+# The registry where to get the images from. Defaults to `mcr.microsoft.com/k8s/aad-pod-identity/`.
 export REGISTRY='...'
 
-# The version of the NMI image to test
+# The version of the NMI image to test. Defaults to `1.4`.
 export NMI_VERSION='...'
 
-# The version of the MIC image to test
+# The version of the MIC image to test. Defaults to `1.3`.
 export MIC_VERSION='...'
 
-# The version of the identity validator to test
+# The version of the identity validator to test. Defaults to `1.4`.
 export IDENTITY_VALIDATOR_VERSION='...'
 
 ```
@@ -49,7 +52,7 @@ Finally, to start the E2E tests, execute the following commands:
 cd $GOPATH/src/github.com/Azure/aad-pod-identity
 
 # Ensure that the local project and the dependencies are in sync
-dep ensure
+make mod
 
 make e2e
 ```

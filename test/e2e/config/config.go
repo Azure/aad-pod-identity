@@ -10,10 +10,10 @@ type Config struct {
 	KeyvaultName             string `envconfig:"KEYVAULT_NAME"`
 	KeyvaultSecretName       string `envconfig:"KEYVAULT_SECRET_NAME"`
 	KeyvaultSecretVersion    string `envconfig:"KEYVAULT_SECRET_VERSION"`
-	MICVersion               string `envconfig:"MIC_VERSION"`
-	NMIVersion               string `envconfig:"NMI_VERSION"`
-	Registry                 string `envconfig:"REGISTRY"`
-	IdentityValidatorVersion string `envconfig:"IDENTITY_VALIDATOR_VERSION"`
+	MICVersion               string `envconfig:"MIC_VERSION" default:"1.3"`
+	NMIVersion               string `envconfig:"NMI_VERSION" default:"1.4"`
+	Registry                 string `envconfig:"REGISTRY" default:"mcr.microsoft.com/k8s/aad-pod-identity"`
+	IdentityValidatorVersion string `envconfig:"IDENTITY_VALIDATOR_VERSION" default:"1.4"`
 }
 
 // ParseConfig will parse needed environment variables for running the tests
