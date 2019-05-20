@@ -42,7 +42,7 @@ AKS requires the following resources: Microsoft.Network, Microsoft.Storage, Micr
 
 Set an environment variable in your shell, for the name of your resource group.
 
-`export RG ="k8s-test"`
+`export RG="k8s-test"`
 
 This resource group is for your AKS cluster. Create it with this command.
 
@@ -90,7 +90,7 @@ Deploy the infrastructure with the following command to deploy MIC, NMI, and MIC
 NOTE: If you have RBAC enabled, use the following deployment instead:
 
 ```
-kubectl create -f ../../../../deploy/infra/deployment-rbac.yaml
+kubectl create -f ../../deploy/infra/deployment-rbac.yaml
 ```
 
 ## 3. Deploy the demo
@@ -107,7 +107,7 @@ You might find the Resource Group name with
 
 Then set the environment variable
 
-`export MC_RG = "resource-group-name"`
+`export MC_RG="resource-group-name"`
 
 Run the following to create an azure id
 
