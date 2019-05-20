@@ -30,7 +30,7 @@ export KEYVAULT_SECRET_VERSION='...'
 
 Optionally, to use custom images:
 
-# The registry where to get the images from. Defaults to `mcr.microsoft.com/k8s/aad-pod-identity/`.
+# The registry where to get the images from. Defaults to `mcr.microsoft.com/k8s/aad-pod-identity`.
 export REGISTRY='...'
 
 # The version of the NMI image to test. Defaults to `1.4`.
