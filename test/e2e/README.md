@@ -1,12 +1,12 @@
 # E2E Testing
 
-End-to-end (e2e) testing is used to test whether the group of AAD pod identity modules are behaving as designed .
+End-to-end (E2E) testing is used to test whether the group of AAD pod identity modules are behaving as designed .
 
 ## Get Started
 
-To run the e2e tests in a given Azure subscription, a running Kubernetes cluster created through acs-engine or Azure Kubernetes Service (AKS) is required. To collect the cluster's service principal credential, for AKS, you can refer to [here](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal). For acs-engine, if you have an existing cluster, search for the `servicePrincipalProfile` field in `apimodel.json` under the deployment folder. Otherwise, refer to [here](https://github.com/Azure/acs-engine/blob/master/docs/serviceprincipal.md). Also, an Azure keyvault is created to simulate the action of accessing Azure resources.
+To run the E2E tests in a given Azure subscription, a running Kubernetes cluster created through AKS Engine or Azure Kubernetes Service (AKS) is required. To collect the cluster's service principal credential, for AKS, you can refer to [here](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal). For AKS Engine, if you have an existing cluster, search for the `servicePrincipalProfile` field in `apimodel.json` under the deployment folder. Otherwise, refer to [here](https://github.com/Azure/aks-engine/blob/master/docs/topics/service-principals.md). Also, an Azure keyvault is created to simulate the action of accessing Azure resources.
 
-The e2e tests utilizes environment variables to extract certain information. Below is a list of environment variables required. Currently, e2e tests does not automate the creation of Azure resources such as identities and keyvault (but plan to support it in the future). In order to run the tests without errors, you have to create a keyvault within the same resource group as the cluster and insert a test secret into the keyvault.
+The E2E tests utilize environment variables to extract certain information. Below is a list of environment variables required. Currently, E2E tests do not automate the creation of Azure resources such as identities and keyvault (but plan to support it in the future). In order to run the tests without errors, you have to create a keyvault within the same resource group as the cluster and insert a test secret into the keyvault.
 
 ```bash
 # The Azure subscription ID
@@ -30,7 +30,7 @@ export KEYVAULT_SECRET_VERSION='...'
 
 At the same time, the tests utilizes two user assigned identities, `keyvault-identity` (have read access to the keyvault that you create) and `cluster-identity` (have read access to the resource group level). You can create necessary Azure resources and roles with the bash script [`setup.sh`](./setup.sh) (Note that reader assignment in the script might need a few attempts to succeed).
 
-Finally, to start the e2e tests, execute the following commands:
+Finally, to start the E2E tests, execute the following commands:
 ```bash
 cd $GOPATH/src/github.com/Azure/aad-pod-identity
 
@@ -43,7 +43,7 @@ make e2e
 
 ## Identity Validator
 
-During the e2e test run , the image [`identityvalidator`](../../images/identityvalidator/Dockerfile) is deployed as a Kubernetes deployment to the cluster to validate the pod identity. The binary `identityvalidator` within the pod is essentially the compiled version of [`identityvalidator.go`](identityvalidator/identityvalidator.go). If the binary execution returns an exit status of 0, it means that the pod identity and its binding are working properly. Otherwise, it means that the pod identity is not established. You can manually try out the identity validator by executing the following command:
+During the E2E test run, the image [`identityvalidator`](../../images/identityvalidator/Dockerfile) is deployed as a Kubernetes deployment to the cluster to validate the pod identity. The binary `identityvalidator` within the pod is essentially the compiled version of [`identityvalidator.go`](identityvalidator/identityvalidator.go). If the binary execution returns an exit status of 0, it means that the pod identity and its binding are working properly. Otherwise, it means that the pod identity is not established. You can manually try out the identity validator by executing the following command:
 ```bash
 # Deploy aad pod identity infra and create an identity validator deployment (make sure the go template parameters are replaced by the desired values)
 kubectl apply -f ../../deploy/infra/deployment-rbac.yaml
