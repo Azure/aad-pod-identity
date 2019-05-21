@@ -26,24 +26,41 @@ export KEYVAULT_SECRET_NAME='...'
 
 # The version of the secret inserted into the keyvault
 export KEYVAULT_SECRET_VERSION='...'
+
+
+Optionally, to use custom images:
+
+# The registry where to get the images from. Defaults to `mcr.microsoft.com/k8s/aad-pod-identity`.
+export REGISTRY='...'
+
+# The version of the NMI image to test. Defaults to `1.4`.
+export NMI_VERSION='...'
+
+# The version of the MIC image to test. Defaults to `1.3`.
+export MIC_VERSION='...'
+
+# The version of the identity validator to test. Defaults to `1.4`.
+export IDENTITY_VALIDATOR_VERSION='...'
+
 ```
 
 At the same time, the tests utilizes two user assigned identities, `keyvault-identity` (have read access to the keyvault that you create) and `cluster-identity` (have read access to the resource group level). You can create necessary Azure resources and roles with the bash script [`setup.sh`](./setup.sh) (Note that reader assignment in the script might need a few attempts to succeed).
 
 Finally, to start the E2E tests, execute the following commands:
+
 ```bash
 cd $GOPATH/src/github.com/Azure/aad-pod-identity
 
 # Ensure that the local project and the dependencies are in sync
-dep ensure
+make mod
 
 make e2e
 ```
 
-
 ## Identity Validator
 
 During the E2E test run, the image [`identityvalidator`](../../images/identityvalidator/Dockerfile) is deployed as a Kubernetes deployment to the cluster to validate the pod identity. The binary `identityvalidator` within the pod is essentially the compiled version of [`identityvalidator.go`](identityvalidator/identityvalidator.go). If the binary execution returns an exit status of 0, it means that the pod identity and its binding are working properly. Otherwise, it means that the pod identity is not established. You can manually try out the identity validator by executing the following command:
+
 ```bash
 # Deploy aad pod identity infra and create an identity validator deployment (make sure the go template parameters are replaced by the desired values)
 kubectl apply -f ../../deploy/infra/deployment-rbac.yaml

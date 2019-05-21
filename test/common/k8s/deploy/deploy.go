@@ -41,8 +41,47 @@ type Status struct {
 	AvailableReplicas int `json:"availableReplicas"`
 }
 
+// CreateInfra will deploy all the infrastructure components (nmi and mic) on a Kubernetes cluster
+func CreateInfra(namespace, registry, nmiVersion, micVersion, templateOutputPath string) error {
+	t, err := template.New("deployment-rbac.yaml").ParseFiles(path.Join("template", "deployment-rbac.yaml"))
+	if err != nil {
+		return errors.Wrap(err, "Failed to parse deployment-rbac.yaml")
+	}
+
+	deployFilePath := path.Join(templateOutputPath, namespace+"-deployment.yaml")
+	deployFile, err := os.Create(deployFilePath)
+	if err != nil {
+		return errors.Wrap(err, "Failed to create a deployment file from deployment-rbac.yaml")
+	}
+	defer deployFile.Close()
+
+	deployData := struct {
+		Namespace  string
+		Registry   string
+		NMIVersion string
+		MICVersion string
+	}{
+		namespace,
+		registry,
+		nmiVersion,
+		micVersion,
+	}
+	if err := t.Execute(deployFile, deployData); err != nil {
+		return errors.Wrap(err, "Failed to create a deployment file from deployment-rbac.yaml")
+	}
+
+	cmd := exec.Command("kubectl", "apply", "-f", deployFilePath)
+	util.PrintCommand(cmd)
+	_, err = cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrap(err, "Failed to deploy Infrastructure to the Kubernetes cluster")
+	}
+
+	return nil
+}
+
 // CreateIdentityValidator will create an identity validator deployment on a Kubernetes cluster
-func CreateIdentityValidator(subscriptionID, resourceGroup, name, identityBinding, templateOutputPath string) error {
+func CreateIdentityValidator(subscriptionID, resourceGroup, registryName, name, identityBinding, identityValidatorVersion, templateOutputPath string) error {
 	t, err := template.New("deployment.yaml").ParseFiles(path.Join("template", "deployment.yaml"))
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse deployment.yaml")
@@ -57,11 +96,15 @@ func CreateIdentityValidator(subscriptionID, resourceGroup, name, identityBindin
 
 	// Go template parameters to be translated in test/e2e/template/deployment.yaml
 	deployData := struct {
-		Name            string
-		IdentityBinding string
+		Name                     string
+		IdentityBinding          string
+		Registry                 string
+		IdentityValidatorVersion string
 	}{
 		name,
 		identityBinding,
+		registryName,
+		identityValidatorVersion,
 	}
 	if err := t.Execute(deployFile, deployData); err != nil {
 		return errors.Wrap(err, "Failed to create a deployment file from deployment.yaml")
@@ -83,7 +126,7 @@ func Delete(name, templateOutputPath string) error {
 	util.PrintCommand(cmd)
 	_, err := cmd.CombinedOutput()
 	if err != nil {
-		return errors.Wrap(err, "Failed to delete AzureIdentityBinding from the Kubernetes cluster")
+		return errors.Wrapf(err, "Failed to delete %v from the Kubernetes cluster", name)
 	}
 
 	return nil

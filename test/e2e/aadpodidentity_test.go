@@ -46,12 +46,10 @@ var _ = BeforeSuite(func() {
 
 	c, err := config.ParseConfig()
 	Expect(err).NotTo(HaveOccurred())
-	cfg = *c // To avoid 'Declared and not used' linting error
+	cfg = *c
 
 	// Install CRDs and deploy MIC and NMI
-	cmd := exec.Command("kubectl", "apply", "-f", "../../deploy/infra/deployment-rbac.yaml")
-	util.PrintCommand(cmd)
-	_, err = cmd.CombinedOutput()
+	err = deploy.CreateInfra("default", cfg.Registry, cfg.NMIVersion, cfg.MICVersion, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 })
 
@@ -59,12 +57,10 @@ var _ = AfterSuite(func() {
 	fmt.Println("\nTearing down the test suite environment...")
 
 	// Uninstall CRDs and delete MIC and NMI
-	cmd := exec.Command("kubectl", "delete", "-f", "../../deploy/infra/deployment-rbac.yaml", "--ignore-not-found")
-	util.PrintCommand(cmd)
-	_, err := cmd.CombinedOutput()
+	err := deploy.Delete("default", templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
-	cmd = exec.Command("kubectl", "delete", "deploy", "--all")
+	cmd := exec.Command("kubectl", "delete", "deploy", "--all")
 	util.PrintCommand(cmd)
 	_, err = cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred())
@@ -565,7 +561,7 @@ func setUpIdentityAndDeployment(azureIdentityName, suffix string) {
 	err = azureidentitybinding.Create(azureIdentityName, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = deploy.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, identityValidatorName, azureIdentityName, templateOutputPath)
+	err = deploy.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, cfg.Registry, identityValidator, "test-identity", cfg.IdentityValidatorVersion, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
 	ok, err := deploy.WaitOnReady(identityValidatorName)
