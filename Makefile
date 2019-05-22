@@ -45,6 +45,13 @@ NMI_IMAGE ?= $(REPO_PREFIX)/$(NMI_BINARY_NAME):$(NMI_VERSION)
 MIC_IMAGE ?= $(REPO_PREFIX)/$(MIC_BINARY_NAME):$(MIC_VERSION)
 DEMO_IMAGE ?= $(REPO_PREFIX)/$(DEMO_BINARY_NAME):$(DEMO_VERSION)
 IDENTITY_VALIDATOR_IMAGE ?= $(REPO_PREFIX)/$(IDENTITY_VALIDATOR_BINARY_NAME):$(IDENTITY_VALIDATOR_VERSION)
+CODE_GEN_PATH := $$(grep code-generator go.mod| cut -f2 -d" ")
+
+.PHONY: deps
+deps:
+	# Because go get will error with .go files, we ignore the error
+	go get k8s.io/code-generator@$(CODE_GEN_PATH) 2>&1 > /dev/null || true
+	bash $(GOPATH)/pkg/mod/k8s.io/code-generator\@$(CODE_GEN_PATH)/generate-groups.sh client,informer,lister github.com/Azure/aad-pod-identity/pkg/generated github.com/Azure/aad-pod-identity/pkg/apis aadpodidentity:v1
 
 .PHONY: clean-nmi
 clean-nmi:
@@ -65,6 +72,7 @@ clean-identity-validator:
 .PHONY: clean
 clean:
 	rm -rf bin/$(PROJECT_NAME)
+	rm -rf pkg/generated
 
 .PHONY: build-nmi
 build-nmi: clean-nmi
@@ -152,7 +160,7 @@ validate-version-%:
 	@DEFAULT_VERSION=$(DEFAULT_VERSION) CHECK_VERSION="$($(*)_VERSION)" scripts/validate_version.sh
 
 .PHONY: mod
-mod:
+mod: clean
 	@go mod tidy
 
 .PHONY: check-vendor

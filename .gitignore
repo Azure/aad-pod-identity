@@ -319,3 +319,6 @@ __pycache__/
 # vim files
 *.swp
 *.swo
+
+#codegen client, lister and informer generated files.
+pkg/generated*
