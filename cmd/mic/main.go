@@ -30,7 +30,7 @@ func main() {
 	}
 	glog.Infof("Starting mic process. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
 	if cloudconfig == "" {
-		glog.Fatalf("Could not get the cloud config")
+		glog.Warningf("--cloudconfig not passed will use aadpodidentity-admin-secret")
 	}
 	if kubeconfig == "" {
 		glog.Warningf("--kubeconfig not passed will use InClusterConfig")
