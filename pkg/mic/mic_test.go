@@ -3,6 +3,7 @@ package mic
 import (
 	"errors"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -31,8 +32,9 @@ type TestCloudClient struct {
 
 type TestVMClient struct {
 	*cp.VMClient
-	nodeMap map[string]*compute.VirtualMachine
-	err     *error
+	nodeMapMutex sync.RWMutex
+	nodeMap      map[string]*compute.VirtualMachine
+	err          *error
 }
 
 func (c *TestVMClient) SetError(err error) {
@@ -48,6 +50,7 @@ func (c *TestVMClient) Get(rgName string, nodeName string) (ret compute.VirtualM
 	if stored == nil {
 		vm := new(compute.VirtualMachine)
 		c.nodeMap[nodeName] = vm
+		c.nodeMapMutex = sync.RWMutex{}
 		return *vm, nil
 	}
 	return *stored, nil
@@ -57,7 +60,9 @@ func (c *TestVMClient) CreateOrUpdate(rg string, nodeName string, vm compute.Vir
 	if c.err != nil {
 		return *c.err
 	}
+	c.nodeMapMutex.Lock()
 	c.nodeMap[nodeName] = &vm
+	c.nodeMapMutex.Unlock()
 	return nil
 }
 
@@ -178,10 +183,12 @@ func (c *TestCloudClient) UnSetError() {
 
 func NewTestVMClient() *TestVMClient {
 	nodeMap := make(map[string]*compute.VirtualMachine, 0)
+	nodeMapMutex := sync.RWMutex{}
 	vmClient := &cp.VMClient{}
 
 	return &TestVMClient{
 		vmClient,
+		nodeMapMutex,
 		nodeMap,
 		nil,
 	}
@@ -339,28 +346,28 @@ func (c *TestCrdClient) CreateId(idName string, t aadpodid.IdentityType, rId str
 	c.idMap[idName] = id
 }
 
-func (c *TestCrdClient) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
-	idList := make([]aadpodid.AzureIdentity, 0)
+func (c *TestCrdClient) ListIds() (res []*aadpodid.AzureIdentity, err error) {
+	idList := make([]*aadpodid.AzureIdentity, 0)
 	for _, v := range c.idMap {
-		idList = append(idList, *v)
+		idList = append(idList, v)
 	}
-	return &idList, nil
+	return idList, nil
 }
 
-func (c *TestCrdClient) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
-	bindingList := make([]aadpodid.AzureIdentityBinding, 0)
+func (c *TestCrdClient) ListBindings() (res []*aadpodid.AzureIdentityBinding, err error) {
+	bindingList := make([]*aadpodid.AzureIdentityBinding, 0)
 	for _, v := range c.bindingMap {
-		bindingList = append(bindingList, *v)
+		bindingList = append(bindingList, v)
 	}
-	return &bindingList, nil
+	return bindingList, nil
 }
 
-func (c *TestCrdClient) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
-	assignedIdList := make([]aadpodid.AzureAssignedIdentity, 0)
+func (c *TestCrdClient) ListAssignedIDs() (res []*aadpodid.AzureAssignedIdentity, err error) {
+	assignedIdList := make([]*aadpodid.AzureAssignedIdentity, 0)
 	for _, v := range c.assignedIDMap {
-		assignedIdList = append(assignedIdList, *v)
+		assignedIdList = append(assignedIdList, v)
 	}
-	return &assignedIdList, nil
+	return assignedIdList, nil
 }
 func (c *Client) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error) {
 	return &[]aadpodid.AzureIdentity{}, nil
@@ -474,15 +481,16 @@ type TestMICClient struct {
 func TestMapMICClient(t *testing.T) {
 	micClient := &TestMICClient{}
 
-	idList := make([]aadpodid.AzureIdentity, 0)
+	idList := make([]*aadpodid.AzureIdentity, 0)
 
 	id := new(aadpodid.AzureIdentity)
 	id.Name = "test-azure-identity"
 
-	idList = append(idList, *id)
+	idList = append(idList, id)
 
-	id.Name = "test-akssvcrg-id"
-	idList = append(idList, *id)
+	id1 := new(aadpodid.AzureIdentity)
+	id1.Name = "test-akssvcrg-id"
+	idList = append(idList, id1)
 
 	idMap, _ := micClient.convertIDListToMap(idList)
 
@@ -510,7 +518,7 @@ func TestMapMICClient(t *testing.T) {
 		count = count - 1
 	}
 	if count != 0 {
-		t.Errorf("Test count mismatch")
+		t.Errorf("Test count mismatch. Expected: 0. Got: %d.", count)
 	}
 
 }
@@ -547,7 +555,7 @@ func TestSimpleMICClient(t *testing.T) {
 	}
 
 	if listAssignedIDs != nil {
-		for _, assignedID := range *listAssignedIDs {
+		for _, assignedID := range listAssignedIDs {
 			if assignedID.Spec.Pod == "test-pod" && assignedID.Spec.PodNamespace == "default" && assignedID.Spec.NodeName == "test-node" &&
 				assignedID.Spec.AzureBindingRef.Name == "testbinding" && assignedID.Spec.AzureIdentityRef.Name == "test-id" {
 				testPass = true
@@ -579,7 +587,7 @@ func TestSimpleMICClient(t *testing.T) {
 		t.Fatalf("list assigned failed")
 	}
 
-	if len(*listAssignedIDs) != 0 {
+	if len(listAssignedIDs) != 0 {
 		t.Fatalf("Assigned id not deleted")
 	}
 
@@ -606,7 +614,7 @@ func TestSimpleMICClient(t *testing.T) {
 		t.Fatalf("list assigned failed")
 	}
 
-	if len(*listAssignedIDs) != 0 {
+	if len(listAssignedIDs) != 0 {
 		t.Fatalf("ID assigned")
 	}
 
@@ -680,7 +688,7 @@ func TestAddDelMICClient(t *testing.T) {
 		t.Fatalf("error from list assigned ids")
 	}
 	expectedLen := 2
-	gotLen := len(*listAssignedIDs)
+	gotLen := len(listAssignedIDs)
 
 	//One id should be left around. Rest should be removed
 	if gotLen != expectedLen {
@@ -712,13 +720,13 @@ func TestAddDelMICClient(t *testing.T) {
 	}
 
 	expectedLen = 1
-	gotLen = len(*listAssignedIDs)
+	gotLen = len(listAssignedIDs)
 	//One id should be left around. Rest should be removed
 	if gotLen != expectedLen {
 		glog.Errorf("Expected len: %d. Got: %d", expectedLen, gotLen)
 		t.Fatalf("Add and delete id at same time mismatch")
 	} else {
-		gotID := (*listAssignedIDs)[0].Name
+		gotID := (listAssignedIDs)[0].Name
 		expectedID := "test-pod3-default-test-id3"
 		if gotID != expectedID {
 			glog.Errorf("Expected %s. Got: %s", expectedID, gotID)

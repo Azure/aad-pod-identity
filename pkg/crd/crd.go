@@ -22,11 +22,13 @@ import (
 )
 
 type Client struct {
-	rest            *rest.RESTClient
-	BindingWatcher  cache.SharedInformer
-	IdWatcher       cache.SharedInformer
-	InformerFactory informers.SharedInformerFactory
-	IDListers       listers.AzureIdentityLister
+	rest             *rest.RESTClient
+	BindingWatcher   cache.SharedInformer
+	IdWatcher        cache.SharedInformer
+	InformerFactory  informers.SharedInformerFactory
+	IDLister         listers.AzureIdentityLister
+	BindingLister    listers.AzureIdentityBindingLister
+	AssignedIDLister listers.AzureAssignedIdentityLister
 }
 
 type ClientInt interface {
@@ -34,20 +36,27 @@ type ClientInt interface {
 	SyncCache(exit <-chan struct{})
 	RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
-	ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error)
-	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
+	ListBindings() (res []*aadpodid.AzureIdentityBinding, err error)
+	ListAssignedIDs() (res []*aadpodid.AzureAssignedIdentity, err error)
 	ListIds() (res []*aadpodid.AzureIdentity, err error)
 	ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error)
 }
 
 func NewCRDClientLite(config *rest.Config) (crdClient *Client, err error) {
-	restClient, err := newRestClient(config)
+
+	informerClient, err := clientset.NewForConfig(config)
 	if err != nil {
 		glog.Error(err)
 		return nil, err
 	}
+
+	aadpodidentityinformers := informers.NewSharedInformerFactory(informerClient, 30*time.Second)
+	assignedIDLister := aadpodidentityinformers.Aadpodidentity().V1().AzureAssignedIdentities().Lister()
+	exit := make(chan struct{})
+	go aadpodidentityinformers.Start(exit)
+
 	return &Client{
-		rest: restClient,
+		AssignedIDLister: assignedIDLister,
 	}, nil
 }
 
@@ -71,17 +80,25 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 	}
 
 	informerClient, err := clientset.NewForConfig(config)
-	// TODO: error handle
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+
 	aadpodidentityinformers := informers.NewSharedInformerFactory(informerClient, 30*time.Second)
 
 	idLister := aadpodidentityinformers.Aadpodidentity().V1().AzureIdentities().Lister()
+	bindingLister := aadpodidentityinformers.Aadpodidentity().V1().AzureIdentityBindings().Lister()
+	assignedIDLister := aadpodidentityinformers.Aadpodidentity().V1().AzureAssignedIdentities().Lister()
 
 	return &Client{
-		rest:            restClient,
-		BindingWatcher:  bindingWatcher,
-		IdWatcher:       idWatcher,
-		InformerFactory: aadpodidentityinformers,
-		IDListers:       idLister,
+		rest:             restClient,
+		BindingWatcher:   bindingWatcher,
+		IdWatcher:        idWatcher,
+		InformerFactory:  aadpodidentityinformers,
+		IDLister:         idLister,
+		BindingLister:    bindingLister,
+		AssignedIDLister: assignedIDLister,
 	}, nil
 }
 
@@ -204,33 +221,31 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	return nil
 }
 
-func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
+func (c *Client) ListBindings() (res []*aadpodid.AzureIdentityBinding, err error) {
 	begin := time.Now()
-	var ret aadpodid.AzureIdentityBindingList
-	err = c.rest.Get().Namespace(v1.NamespaceAll).Resource("azureidentitybindings").Do().Into(&ret)
+	res, err = c.BindingLister.List(labels.Everything())
 	if err != nil {
 		glog.Error(err)
 		return nil, err
 	}
 	stats.Update(stats.BindingList, time.Since(begin))
-	return &ret.Items, nil
+	return res, nil
 }
 
-func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
+func (c *Client) ListAssignedIDs() (res []*aadpodid.AzureAssignedIdentity, err error) {
 	begin := time.Now()
-	var ret aadpodid.AzureAssignedIdentityList
-	err = c.rest.Get().Namespace(v1.NamespaceAll).Resource("azureassignedidentities").Do().Into(&ret)
+	res, err = c.AssignedIDLister.List(labels.Everything())
 	if err != nil {
 		glog.Error(err)
 		return nil, err
 	}
 	stats.Update(stats.AssignedIDList, time.Since(begin))
-	return &ret.Items, nil
+	return res, nil
 }
 
 func (c *Client) ListIds() (res []*aadpodid.AzureIdentity, err error) {
 	begin := time.Now()
-	res, err = c.IDListers.List(labels.Everything())
+	res, err = c.IDLister.List(labels.Everything())
 	if err != nil {
 		glog.Error(err)
 		return nil, err
@@ -241,14 +256,14 @@ func (c *Client) ListIds() (res []*aadpodid.AzureIdentity, err error) {
 
 //ListPodIds - given a pod with pod name space
 func (c *Client) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error) {
-	var azAssignedIDList aadpodid.AzureAssignedIdentityList
-	var matchedIds []aadpodid.AzureIdentity
-	err := c.rest.Get().Namespace(v1.NamespaceAll).Resource("azureassignedidentities").Do().Into(&azAssignedIDList)
+
+	azAssignedIDs, err := c.AssignedIDLister.List(labels.Everything())
 	if err != nil {
 		glog.Error(err)
 		return nil, err
 	}
-	for _, v := range azAssignedIDList.Items {
+	var matchedIds []aadpodid.AzureIdentity
+	for _, v := range azAssignedIDs {
 		if v.Spec.Pod == podname && v.Spec.PodNamespace == podns {
 			matchedIds = append(matchedIds, *v.Spec.AzureIdentityRef)
 		}

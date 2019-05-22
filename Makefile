@@ -46,9 +46,12 @@ MIC_IMAGE ?= $(REPO_PREFIX)/$(MIC_BINARY_NAME):$(MIC_VERSION)
 DEMO_IMAGE ?= $(REPO_PREFIX)/$(DEMO_BINARY_NAME):$(DEMO_VERSION)
 IDENTITY_VALIDATOR_IMAGE ?= $(REPO_PREFIX)/$(IDENTITY_VALIDATOR_BINARY_NAME):$(IDENTITY_VALIDATOR_VERSION)
 CODE_GEN_PATH := $$(grep code-generator go.mod| cut -f2 -d" ")
+GENERATED_PATH := pkg/generated
 
 .PHONY: deps
-deps:
+deps: $(GENERATED_PATH)
+
+pkg/generated:
 	# Because go get will error with .go files, we ignore the error
 	go get k8s.io/code-generator@$(CODE_GEN_PATH) 2>&1 > /dev/null || true
 	bash $(GOPATH)/pkg/mod/k8s.io/code-generator\@$(CODE_GEN_PATH)/generate-groups.sh client,informer,lister github.com/Azure/aad-pod-identity/pkg/generated github.com/Azure/aad-pod-identity/pkg/apis aadpodidentity:v1
@@ -75,11 +78,11 @@ clean:
 	rm -rf pkg/generated
 
 .PHONY: build-nmi
-build-nmi: clean-nmi
+build-nmi: clean-nmi deps
 	CGO_ENABLED=0 PKG_NAME=github.com/Azure/$(PROJECT_NAME)/cmd/$(NMI_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME)
 
 .PHONY: build-mic
-build-mic: clean-mic
+build-mic: clean-mic deps
 	CGO_ENABLED=0 PKG_NAME=github.com/Azure/$(PROJECT_NAME)/cmd/$(MIC_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME)
 
 .PHONY: build-demo

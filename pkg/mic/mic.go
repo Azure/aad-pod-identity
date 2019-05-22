@@ -151,7 +151,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		}
 		stats.Put(stats.System, time.Since(systemTime))
 
-		var newAssignedIDs []aadpodid.AzureAssignedIdentity
+		var newAssignedIDs []*aadpodid.AzureAssignedIdentity
 		beginNewListTime := time.Now()
 		//For each pod, check what bindings are matching. For each binding create volatile azure assigned identity.
 		//Compare this list with the current list of azure assigned identities.
@@ -171,10 +171,10 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			}
 			//glog.Infof("Found label with our CRDKey %s for pod: %s", crdPodLabelVal, pod.Name)
 			var matchedBindings []aadpodid.AzureIdentityBinding
-			for _, allBinding := range *listBindings {
+			for _, allBinding := range listBindings {
 				if allBinding.Spec.Selector == crdPodLabelVal {
 					glog.V(5).Infof("Found binding match for pod %s/%s with binding %s", pod.Name, pod.Namespace, allBinding.Name)
-					matchedBindings = append(matchedBindings, allBinding)
+					matchedBindings = append(matchedBindings, *allBinding)
 				}
 			}
 
@@ -197,7 +197,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 						glog.Errorf("failed to create assignment for pod %s/%s with identity %s/%s with error %v", pod.Name, pod.Namespace, azureID.Namespace, azureID.Name, err.Error())
 						continue
 					}
-					newAssignedIDs = append(newAssignedIDs, *assignedID)
+					newAssignedIDs = append(newAssignedIDs, assignedID)
 				} else {
 					// This is the case where the identity has been deleted.
 					// In such a case, we will skip it from matching binding.
@@ -212,7 +212,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		// Extract add list and delete list based on existing assigned ids in the system (currentAssignedIDs).
 		// and the ones we have arrived at in the volatile list (newAssignedIDs).
 		// TODO: Separate this into two methods.
-		addList, deleteList, err := c.splitAzureAssignedIDs(currentAssignedIDs, &newAssignedIDs)
+		addList, deleteList, err := c.splitAzureAssignedIDs(currentAssignedIDs, newAssignedIDs)
 		if err != nil {
 			glog.Error(err)
 			continue
@@ -220,15 +220,15 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 		glog.V(5).Infof("del: %v, add: %v", deleteList, addList)
 
-		if deleteList != nil && len(*deleteList) > 0 {
+		if deleteList != nil && len(deleteList) > 0 {
 			beginDeletion := time.Now()
 			workDone = true
-			for _, delID := range *deleteList {
+			for _, delID := range deleteList {
 				glog.V(5).Infof("Deletion of id: %s", delID.Name)
 				inUse := c.checkIfInUse(delID, newAssignedIDs)
 				removedBinding := delID.Spec.AzureBindingRef
 				// The inUse here checks if there are pods which are using the MSI in the newAssignedIDs.
-				err = c.removeAssignedIDsWithDeps(&delID, inUse)
+				err = c.removeAssignedIDsWithDeps(delID, inUse)
 				if err != nil {
 					// Since k8s event has only Info and Warning, using Warning.
 					message := fmt.Sprintf("Binding %s removal from node %s for pod %s resulted in error %v", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod, err.Error())
@@ -245,10 +245,10 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			stats.Update(stats.TotalIDDel, time.Since(beginDeletion))
 		}
 
-		if addList != nil && len(*addList) > 0 {
+		if addList != nil && len(addList) > 0 {
 			beginAdding := time.Now()
 			workDone = true
-			for _, createID := range *addList {
+			for _, createID := range addList {
 				id := createID.Spec.AzureIdentityRef
 				binding := createID.Spec.AzureBindingRef
 
@@ -261,7 +261,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 				glog.V(5).Infof("Initiating assigned id creation for pod - %s, binding - %s", createID.Spec.Pod, binding.Name)
 
-				err = c.createAssignedIdentityDeps(&createID, id, node)
+				err = c.createAssignedIdentityDeps(createID, id, node)
 				if err != nil {
 					// Since k8s event has only Info and Warning, using Warning.
 					c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error",
@@ -286,7 +286,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 				idsFound = len(listIDs)
 			}
 			if listBindings != nil {
-				bindingsFound = len(*listBindings)
+				bindingsFound = len(listBindings)
 			}
 			glog.Infof("Found %d pods, %d ids, %d bindings", len(listPods), idsFound, bindingsFound)
 			stats.Put(stats.Total, time.Since(begin))
@@ -310,22 +310,22 @@ func (c *Client) matchAssignedID(x *aadpodid.AzureAssignedIdentity, y *aadpodid.
 	return false, nil
 }
 
-func (c *Client) splitAzureAssignedIDs(old *[]aadpodid.AzureAssignedIdentity, new *[]aadpodid.AzureAssignedIdentity) (retCreate *[]aadpodid.AzureAssignedIdentity, retDelete *[]aadpodid.AzureAssignedIdentity, err error) {
+func (c *Client) splitAzureAssignedIDs(old []*aadpodid.AzureAssignedIdentity, new []*aadpodid.AzureAssignedIdentity) (retCreate []*aadpodid.AzureAssignedIdentity, retDelete []*aadpodid.AzureAssignedIdentity, err error) {
 
-	if old == nil || len(*old) == 0 {
+	if old == nil || len(old) == 0 {
 		return new, nil, nil
 	}
 
-	create := make([]aadpodid.AzureAssignedIdentity, 0)
-	delete := make([]aadpodid.AzureAssignedIdentity, 0)
+	create := make([]*aadpodid.AzureAssignedIdentity, 0)
+	delete := make([]*aadpodid.AzureAssignedIdentity, 0)
 
 	idMatch := false
 	begin := time.Now()
 	// TODO: We should be able to optimize the many for loops.
-	for _, newAssignedID := range *new {
+	for _, newAssignedID := range new {
 		idMatch = false
-		for _, oldAssignedID := range *old {
-			idMatch, err = c.matchAssignedID(&newAssignedID, &oldAssignedID)
+		for _, oldAssignedID := range old {
+			idMatch, err = c.matchAssignedID(newAssignedID, oldAssignedID)
 			if err != nil {
 				glog.Error(err)
 				continue
@@ -345,10 +345,10 @@ func (c *Client) splitAzureAssignedIDs(old *[]aadpodid.AzureAssignedIdentity, ne
 	stats.Put(stats.FindAssignedIDCreate, time.Since(begin))
 
 	begin = time.Now()
-	for _, oldAssignedID := range *old {
+	for _, oldAssignedID := range old {
 		idMatch = false
-		for _, newAssignedID := range *new {
-			idMatch, err = c.matchAssignedID(&newAssignedID, &oldAssignedID)
+		for _, newAssignedID := range new {
+			idMatch, err = c.matchAssignedID(newAssignedID, oldAssignedID)
 			if err != nil {
 				glog.Error(err)
 				continue
@@ -368,7 +368,7 @@ func (c *Client) splitAzureAssignedIDs(old *[]aadpodid.AzureAssignedIdentity, ne
 	stats.Put(stats.FindAssignedIDDel, time.Since(begin))
 
 	//	glog.Info("Time taken to split create/delete list: %s", time.Since(begin).String())
-	return &create, &delete, nil
+	return create, delete, nil
 }
 
 func (c *Client) makeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpodid.AzureIdentityBinding, podName string, podNameSpace string, nodeName string) (res *aadpodid.AzureAssignedIdentity, err error) {
@@ -460,7 +460,7 @@ func (c *Client) convertIDListToMap(arr []*aadpodid.AzureIdentity) (m map[string
 	return m, nil
 }
 
-func (c *Client) checkIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, arr []aadpodid.AzureAssignedIdentity) bool {
+func (c *Client) checkIfInUse(checkAssignedID *aadpodid.AzureAssignedIdentity, arr []*aadpodid.AzureAssignedIdentity) bool {
 	for _, assignedID := range arr {
 		checkID := checkAssignedID.Spec.AzureIdentityRef
 		id := assignedID.Spec.AzureIdentityRef
