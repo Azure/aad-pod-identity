@@ -147,11 +147,11 @@ push-identity-validator: validate-version-IDENTITY_VALIDATOR
 push: push-nmi push-mic push-demo push-identity-validator
 
 .PHONY: e2e
-e2e:
+e2e: deps
 	go test github.com/Azure/$(PROJECT_NAME)/test/e2e $(E2E_TEST_OPTIONS)
 
 .PHONY: unit-test
-unit-test:
+unit-test: deps
 	go test $(shell go list ./... | grep -v /test/e2e) -v
 
 .PHONY: validate-version
