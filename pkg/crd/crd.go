@@ -5,11 +5,15 @@ import (
 	"time"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	informers "github.com/Azure/aad-pod-identity/pkg/generated/informers/externalversions"
+	listers "github.com/Azure/aad-pod-identity/pkg/generated/listers/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
+	clientset "github.com/Azure/aad-pod-identity/pkg/generated/clientset/versioned"
 	"github.com/golang/glog"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -18,9 +22,11 @@ import (
 )
 
 type Client struct {
-	rest           *rest.RESTClient
-	BindingWatcher cache.SharedInformer
-	IdWatcher      cache.SharedInformer
+	rest            *rest.RESTClient
+	BindingWatcher  cache.SharedInformer
+	IdWatcher       cache.SharedInformer
+	InformerFactory informers.SharedInformerFactory
+	IDListers       listers.AzureIdentityLister
 }
 
 type ClientInt interface {
@@ -30,7 +36,7 @@ type ClientInt interface {
 	CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error)
 	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
-	ListIds() (res *[]aadpodid.AzureIdentity, err error)
+	ListIds() (res []*aadpodid.AzureIdentity, err error)
 	ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error)
 }
 
@@ -64,10 +70,18 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 		return nil, err
 	}
 
+	informerClient, err := clientset.NewForConfig(config)
+	// TODO: error handle
+	aadpodidentityinformers := informers.NewSharedInformerFactory(informerClient, 30*time.Second)
+
+	idLister := aadpodidentityinformers.Aadpodidentity().V1().AzureIdentities().Lister()
+
 	return &Client{
-		rest:           restClient,
-		BindingWatcher: bindingWatcher,
-		IdWatcher:      idWatcher,
+		rest:            restClient,
+		BindingWatcher:  bindingWatcher,
+		IdWatcher:       idWatcher,
+		InformerFactory: aadpodidentityinformers,
+		IDListers:       idLister,
 	}, nil
 }
 
@@ -153,6 +167,7 @@ func newIdWatcher(r *rest.RESTClient, eventCh chan aadpodid.EventType) (cache.Sh
 func (c *Client) Start(exit <-chan struct{}) {
 	go c.BindingWatcher.Run(exit)
 	go c.IdWatcher.Run(exit)
+	go c.InformerFactory.Start(exit)
 	glog.Info("CRD watchers started")
 }
 
@@ -213,16 +228,15 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 	return &ret.Items, nil
 }
 
-func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
+func (c *Client) ListIds() (res []*aadpodid.AzureIdentity, err error) {
 	begin := time.Now()
-	var ret aadpodid.AzureIdentityList
-	err = c.rest.Get().Namespace(v1.NamespaceAll).Resource("azureidentities").Do().Into(&ret)
+	res, err = c.IDListers.List(labels.Everything())
 	if err != nil {
 		glog.Error(err)
 		return nil, err
 	}
 	stats.Update(stats.IDList, time.Since(begin))
-	return &ret.Items, nil
+	return res, nil
 }
 
 //ListPodIds - given a pod with pod name space

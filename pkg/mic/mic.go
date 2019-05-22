@@ -139,7 +139,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		if err != nil {
 			continue
 		}
-		idMap, err := c.convertIDListToMap(*listIDs)
+		idMap, err := c.convertIDListToMap(listIDs)
 		if err != nil {
 			glog.Error(err)
 			continue
@@ -283,7 +283,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			idsFound := 0
 			bindingsFound := 0
 			if listIDs != nil {
-				idsFound = len(*listIDs)
+				idsFound = len(listIDs)
 			}
 			if listBindings != nil {
 				bindingsFound = len(*listBindings)
@@ -452,10 +452,10 @@ func (c *Client) getAssignedIDName(podName string, podNameSpace string, idName s
 	return podName + "-" + podNameSpace + "-" + idName
 }
 
-func (c *Client) convertIDListToMap(arr []aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
+func (c *Client) convertIDListToMap(arr []*aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
 	m = make(map[string]aadpodid.AzureIdentity, len(arr))
 	for _, element := range arr {
-		m[element.Name] = element
+		m[element.Name] = *element
 	}
 	return m, nil
 }

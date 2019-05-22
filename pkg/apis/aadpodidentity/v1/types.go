@@ -33,6 +33,7 @@ const (
 /*** Global data structures ***/
 
 // AzureIdentity is the specification of the identity data structure.
+//+genclient
 //+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AzureIdentity struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -43,7 +44,7 @@ type AzureIdentity struct {
 }
 
 // AzureIdentityBinding brings together the spec of matching pods and the identity which they can use.
-
+//+genclient
 //+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AzureIdentityBinding struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -54,7 +55,7 @@ type AzureIdentityBinding struct {
 }
 
 //AzureAssignedIdentity contains the identity <-> pod mapping which is matched.
-
+//+genclient
 //+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AzureAssignedIdentity struct {
 	metav1.TypeMeta   `json:",inline"`
