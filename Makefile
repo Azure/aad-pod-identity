@@ -45,16 +45,17 @@ NMI_IMAGE ?= $(REPO_PREFIX)/$(NMI_BINARY_NAME):$(NMI_VERSION)
 MIC_IMAGE ?= $(REPO_PREFIX)/$(MIC_BINARY_NAME):$(MIC_VERSION)
 DEMO_IMAGE ?= $(REPO_PREFIX)/$(DEMO_BINARY_NAME):$(DEMO_VERSION)
 IDENTITY_VALIDATOR_IMAGE ?= $(REPO_PREFIX)/$(IDENTITY_VALIDATOR_BINARY_NAME):$(IDENTITY_VALIDATOR_VERSION)
-CODE_GEN_PATH := $$(grep code-generator go.mod| cut -f2 -d" ")
-GENERATED_PATH := pkg/generated
 
-.PHONY: deps
-deps: $(GENERATED_PATH)
+#CODE_GEN_PATH := $$(grep code-generator go.mod| cut -f2 -d" ")
+#GENERATED_PATH := pkg/generated
 
-pkg/generated:
+#.PHONY: deps
+#deps: $(GENERATED_PATH)
+
+#pkg/generated:
 	# Because go get will error with .go files, we ignore the error
-	go get k8s.io/code-generator@$(CODE_GEN_PATH) 2>&1 > /dev/null || true
-	bash $(GOPATH)/pkg/mod/k8s.io/code-generator\@$(CODE_GEN_PATH)/generate-groups.sh client,informer,lister github.com/Azure/aad-pod-identity/pkg/generated github.com/Azure/aad-pod-identity/pkg/apis aadpodidentity:v1
+#	go get k8s.io/code-generator@$(CODE_GEN_PATH) 2>&1 > /dev/null || true
+#	bash $(GOPATH)/pkg/mod/k8s.io/code-generator\@$(CODE_GEN_PATH)/generate-groups.sh client,informer,lister github.com/Azure/aad-pod-identity/pkg/generated github.com/Azure/aad-pod-identity/pkg/apis aadpodidentity:v1
 
 .PHONY: clean-nmi
 clean-nmi:
@@ -75,14 +76,13 @@ clean-identity-validator:
 .PHONY: clean
 clean:
 	rm -rf bin/$(PROJECT_NAME)
-	rm -rf pkg/generated
 
 .PHONY: build-nmi
-build-nmi: clean-nmi deps
+build-nmi: clean-nmi
 	CGO_ENABLED=0 PKG_NAME=github.com/Azure/$(PROJECT_NAME)/cmd/$(NMI_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(NMI_BINARY_NAME)
 
 .PHONY: build-mic
-build-mic: clean-mic deps
+build-mic: clean-mic 
 	CGO_ENABLED=0 PKG_NAME=github.com/Azure/$(PROJECT_NAME)/cmd/$(MIC_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME)
 
 .PHONY: build-demo
@@ -147,11 +147,11 @@ push-identity-validator: validate-version-IDENTITY_VALIDATOR
 push: push-nmi push-mic push-demo push-identity-validator
 
 .PHONY: e2e
-e2e: deps
+e2e: 
 	go test github.com/Azure/$(PROJECT_NAME)/test/e2e $(E2E_TEST_OPTIONS)
 
 .PHONY: unit-test
-unit-test: deps
+unit-test: 
 	go test $(shell go list ./... | grep -v /test/e2e) -v
 
 .PHONY: validate-version
@@ -163,7 +163,7 @@ validate-version-%:
 	@DEFAULT_VERSION=$(DEFAULT_VERSION) CHECK_VERSION="$($(*)_VERSION)" scripts/validate_version.sh
 
 .PHONY: mod
-mod: clean
+mod: 
 	@go mod tidy
 
 .PHONY: check-vendor

@@ -320,5 +320,3 @@ __pycache__/
 *.swp
 *.swo
 
-#codegen client, lister and informer generated files.
-pkg/generated*
