@@ -27,7 +27,13 @@ type VMSSClientInt interface {
 // NewVMSSClient creates a new vmss client.
 func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (c *VMSSClient, e error) {
 	client := compute.NewVirtualMachineScaleSetsClient(config.SubscriptionID)
-	client.BaseURI = azure.PublicCloud.ResourceManagerEndpoint
+
+	azureEnv, err := azure.EnvironmentFromName(config.Cloud)
+	if err != nil {
+		glog.Errorf("Get cloud env error: %+v", err)
+		return nil, err
+	}
+	client.BaseURI = azureEnv.ResourceManagerEndpoint
 	client.Authorizer = autorest.NewBearerAuthorizer(spt)
 	client.PollingDelay = 5 * time.Second
 	return &VMSSClient{
