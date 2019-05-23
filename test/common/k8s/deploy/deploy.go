@@ -56,7 +56,7 @@ func CreateInfra(namespace, registry, nmiVersion, micVersion, templateOutputPath
 	defer deployFile.Close()
 
 	// this arg is required only for these specific versions
-	// we can get remove this after next release
+	// we can remove this after next release
 	var micArg, nmiArg bool
 	micArg = micVersion == "1.3"
 	nmiArg = nmiVersion == "1.4"
