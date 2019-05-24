@@ -24,7 +24,13 @@ type VMClientInt interface {
 
 func NewVirtualMachinesClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (c *VMClient, e error) {
 	client := compute.NewVirtualMachinesClient(config.SubscriptionID)
-	client.BaseURI = azure.PublicCloud.ResourceManagerEndpoint
+
+	azureEnv, err := azure.EnvironmentFromName(config.Cloud)
+	if err != nil {
+		glog.Errorf("Get cloud env error: %+v", err)
+		return nil, err
+	}
+	client.BaseURI = azureEnv.ResourceManagerEndpoint
 	client.Authorizer = autorest.NewBearerAuthorizer(spt)
 	client.PollingDelay = 5 * time.Second
 	return &VMClient{
