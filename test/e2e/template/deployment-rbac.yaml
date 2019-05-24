@@ -98,6 +98,7 @@ spec:
         image: "{{.Registry}}/nmi:{{.NMIVersion}}"
         imagePullPolicy: Always
         args:
+          {{if .NMIArg}}- nmi {{ end }}
           - "--host-ip=$(HOST_IP)"
           - "--node=$(NODE_NAME)"
         env:
@@ -179,6 +180,7 @@ spec:
         image: "{{.Registry}}/mic:{{.MICVersion}}"
         imagePullPolicy: Always
         args:
+          {{if .MICArg}}- mic {{ end }}
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
         volumeMounts:

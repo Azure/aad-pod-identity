@@ -55,16 +55,26 @@ func CreateInfra(namespace, registry, nmiVersion, micVersion, templateOutputPath
 	}
 	defer deployFile.Close()
 
+	// this arg is required only for these specific versions
+	// we can remove this after next release
+	var micArg, nmiArg bool
+	micArg = micVersion == "1.3"
+	nmiArg = nmiVersion == "1.4"
+
 	deployData := struct {
 		Namespace  string
 		Registry   string
 		NMIVersion string
 		MICVersion string
+		MICArg     bool
+		NMIArg     bool
 	}{
 		namespace,
 		registry,
 		nmiVersion,
 		micVersion,
+		micArg,
+		nmiArg,
 	}
 	if err := t.Execute(deployFile, deployData); err != nil {
 		return errors.Wrap(err, "Failed to create a deployment file from deployment-rbac.yaml")
