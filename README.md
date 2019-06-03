@@ -262,6 +262,7 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 [Block Diagram]: docs/design/concept.png
 [Components]: #components
 [Concept]: docs/design/concept.md
+[Contributing]: CONTRIBUTING.md
 [credentials stored in the cluster]: https://docs.microsoft.com/azure/aks/kubernetes-service-principal
 [custom resource]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
 [Debugging]: https://github.com/Azure/aad-pod-identity/wiki/Debugging
