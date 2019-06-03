@@ -12,6 +12,7 @@ import (
 	"github.com/golang/glog"
 
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -49,8 +50,13 @@ func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType) {
 
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
-				glog.V(6).Infof("Pod Updated")
-				eventCh <- aadpodid.PodUpdated
+				// We are only interested in updates to pod if the node changes.
+				// Having this check will ensure that mic sync loop does not do extra work
+				// for every pod update.
+				if (OldObj.(*v1.Pod)).Spec.NodeName != (newObj.(*v1.Pod)).Spec.NodeName {
+					glog.V(6).Infof("Pod Updated")
+					eventCh <- aadpodid.PodUpdated
+				}
 			},
 		},
 	)
