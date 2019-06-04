@@ -54,8 +54,8 @@ Here is an example of the output:
 $ az identity create -g myresourcegroup -n myidentity -o json
 {
   "clientId": "00000000-0000-0000-0000-000000000000",
-  "clientSecretUrl": "https://control-eastus.identity.azure.net/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/maboersm/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myidentity/credentials?tid=00000000-0000-0000-0000-000000000000&oid=00000000-0000-0000-0000-000000000000&aid=00000000-0000-0000-0000-000000000000",
-  "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/maboersm/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myidentity",
+  "clientSecretUrl": "https://control-eastus.identity.azure.net/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/myresourcegroup/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myidentity/credentials?tid=00000000-0000-0000-0000-000000000000&oid=00000000-0000-0000-0000-000000000000&aid=00000000-0000-0000-0000-000000000000",
+  "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/myresourcegroup/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myidentity",
   "location": "eastus",
   "name": "myidentity",
   "principalId": "00000000-0000-0000-0000-000000000000",
