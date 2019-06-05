@@ -20,9 +20,9 @@ import (
 type Client struct {
 	rest                *rest.RESTClient
 	BindingListWatch    *cache.ListWatch
-	BindingWatcher      cache.SharedInformer
+	BindingInformer     cache.SharedInformer
 	IDListWatch         *cache.ListWatch
-	IdWatcher           cache.SharedInformer
+	IDInformer          cache.SharedInformer
 	AssignedIDListWatch *cache.ListWatch
 }
 
@@ -57,7 +57,7 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 
 	bindingListWatch := newBindingListWatch(restClient)
 
-	bindingWatcher, err := newBindingWatcher(restClient, eventCh, bindingListWatch)
+	bindingInformer, err := newBindingInformer(restClient, eventCh, bindingListWatch)
 	if err != nil {
 		glog.Error(err)
 		return nil, err
@@ -65,7 +65,7 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 
 	idListWatch := newIDListWatch(restClient)
 
-	idWatcher, err := newIdWatcher(restClient, eventCh, idListWatch)
+	idInformer, err := newIDInformer(restClient, eventCh, idListWatch)
 	if err != nil {
 		glog.Error(err)
 		return nil, err
@@ -76,8 +76,8 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 	return &Client{
 		rest:                restClient,
 		BindingListWatch:    bindingListWatch,
-		BindingWatcher:      bindingWatcher,
-		IdWatcher:           idWatcher,
+		BindingInformer:     bindingInformer,
+		IDInformer:          idInformer,
 		IDListWatch:         idListWatch,
 		AssignedIDListWatch: assignedIDListWatch,
 	}, nil
@@ -112,15 +112,15 @@ func newBindingListWatch(r *rest.RESTClient) *cache.ListWatch {
 	return cache.NewListWatchFromClient(r, aadpodid.AzureIDBindingResource, v1.NamespaceAll, fields.Everything())
 }
 
-func newBindingWatcher(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cache.ListWatch) (cache.SharedInformer, error) {
-	azBindingWatcher := cache.NewSharedInformer(
+func newBindingInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cache.ListWatch) (cache.SharedInformer, error) {
+	azBindingInformer := cache.NewSharedInformer(
 		lw,
 		&aadpodid.AzureIdentityBinding{},
 		time.Minute*10)
-	if azBindingWatcher == nil {
+	if azBindingInformer == nil {
 		return nil, fmt.Errorf("Could not create watcher for %s", aadpodid.AzureIDBindingResource)
 	}
-	azBindingWatcher.AddEventHandler(
+	azBindingInformer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				glog.V(6).Infof("Binding created")
@@ -136,22 +136,22 @@ func newBindingWatcher(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *
 			},
 		},
 	)
-	return azBindingWatcher, nil
+	return azBindingInformer, nil
 }
 
 func newIDListWatch(r *rest.RESTClient) *cache.ListWatch {
 	return cache.NewListWatchFromClient(r, aadpodid.AzureIDResource, v1.NamespaceAll, fields.Everything())
 }
 
-func newIdWatcher(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cache.ListWatch) (cache.SharedInformer, error) {
-	azIdWatcher := cache.NewSharedInformer(
+func newIDInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cache.ListWatch) (cache.SharedInformer, error) {
+	azIDInformer := cache.NewSharedInformer(
 		lw,
 		&aadpodid.AzureIdentity{},
 		time.Minute*10)
-	if azIdWatcher == nil {
+	if azIDInformer == nil {
 		return nil, fmt.Errorf("Could not create Identity watcher for %s", aadpodid.AzureIDResource)
 	}
-	azIdWatcher.AddEventHandler(
+	azIDInformer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				glog.V(6).Infof("Identity created")
@@ -167,7 +167,7 @@ func newIdWatcher(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cache
 			},
 		},
 	)
-	return azIdWatcher, nil
+	return azIDInformer, nil
 }
 
 func newAssignedIDListWatch(r *rest.RESTClient) *cache.ListWatch {
@@ -175,8 +175,8 @@ func newAssignedIDListWatch(r *rest.RESTClient) *cache.ListWatch {
 }
 
 func (c *Client) Start(exit <-chan struct{}) {
-	go c.BindingWatcher.Run(exit)
-	go c.IdWatcher.Run(exit)
+	go c.BindingInformer.Run(exit)
+	go c.IDInformer.Run(exit)
 	glog.Info("CRD watchers started")
 }
 
