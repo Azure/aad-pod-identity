@@ -26,18 +26,18 @@ You will need a Kubernetes cluster running on Azure, either managed by [AKS] or 
 
 ### 1. Create the Deployment
 
-AAD Pod Identity consists of the Managed Identity Controller (MIC) and Node Managed Identity (NMI) components in a Kubernetes deployment. For more information, see [Components].
+AAD Pod Identity consists of the Managed Identity Controller (MIC) deployment, the Node Managed Identity (NMI) daemon set, and several standard and custom resources. For more information, see [Components].
 
 Run this command to create the `aad-pod-identity` deployment on an RBAC-enabled cluster:
 
 ```shell
-kubectl create -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
+kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
 ```
 
 Or run this command to deploy to a non-RBAC cluster:
 
 ```shell
-kubectl create -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment.yaml
+kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment.yaml
 ```
 
 ### 2. Create an Azure Identity
@@ -86,7 +86,7 @@ Replace the placeholders with your user identity values. Set `type: 0` for user-
 Finally, save your changes to the file, then create the `AzureIdentity` resource in your cluster:
 
 ```shell
-kubectl create -f aadpodidentity.yaml
+kubectl apply -f aadpodidentity.yaml
 ```
 
 ### 4. (Optional) Match Pods in the Namespace
@@ -94,7 +94,41 @@ kubectl create -f aadpodidentity.yaml
 By default, AAD Pod Identity matches pods to identities across namespaces. To match only pods in the namespace containing `AzureIdentity`, use one of these techniques:
 
 * Attach a `aadpodidentity.k8s.io/Behavior: namespaced` [annotation] to each `AzureIdentity` resource.
-* Add the `--forceNamespaced=true` command line argument or set the `FORCENAMESPACED=true` environment variable when starting both the MIC and NMI components.
+
+    Here is the `AzureIdentity` manifest from the previous step with this annotation added:
+
+    ```yaml
+    apiVersion: "aadpodidentity.k8s.io/v1"
+    kind: AzureIdentity
+    metadata:
+      name: <a-idname>
+      annotations:
+      - aadpodidentity.k8s.io/Behavior: namespaced
+    spec:
+      type: 0
+      ResourceID: /subscriptions/<subid>/resourcegroups/<resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>
+      ClientID: <clientId>
+    ```
+
+* Add the `--forceNamespaced` command line argument or set the `FORCENAMESPACED=true` environment variable when starting both the MIC and NMI components.
+
+    Here is a section from the MIC deployment which adds *both* the command line argument and the environment variable for illustration. Pick one approach and use it to update both the MIC deployment and the NMI daemon set.
+
+    ```yaml
+        spec:
+          containers:
+          - name: mic
+            image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.3"
+            imagePullPolicy: Always
+            args:
+              - mic
+              - "--cloudconfig=/etc/kubernetes/azure.json"
+              - "--logtostderr"
+              - "--forceNamespaced"
+            env:
+              - name: FORCENAMESPACED
+                value: "true"
+    ```
 
 ### 5. Install the Azure Identity Binding
 
@@ -115,7 +149,7 @@ Replace the placeholders with your values. Ensure that the `AzureIdentity` name 
 Finally, save your changes to the file, then create the `AzureIdentityBinding` resource in your cluster:
 
 ```shell
-kubectl create -f aadpodidentitybinding.yaml
+kubectl apply -f aadpodidentitybinding.yaml
 ```
 
 For a pod to match an identity binding, it needs a [label] with the key `aadpodidbinding` whose value is that of the `Selector:` field in the binding. Here is an example pod with a label:
@@ -196,7 +230,7 @@ az role assignment create --role Reader --assignee <principalid> --scope /subscr
 Update the `deploy/demo/deployment.yaml` arguments with your subscription, clientID and resource group, then create the demo deployment:
 
 ```shell
-kubectl create -f deploy/demo/deployment.yaml
+kubectl apply -f deploy/demo/deployment.yaml
 ```
 
 ## Components
