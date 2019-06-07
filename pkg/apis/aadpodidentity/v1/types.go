@@ -144,9 +144,9 @@ const (
 )
 
 const (
-	AzureIDResource        = "azureidentities"
-	AzureIDBindingResource = "azureidentitybindings"
-	AureAssignedIDResource = "azureassignedidentities"
+	AzureIDResource         = "azureidentities"
+	AzureIDBindingResource  = "azureidentitybindings"
+	AzureAssignedIDResource = "azureassignedidentities"
 )
 
 // AzureIdentityBindingSpec matches the pod with the Identity.
