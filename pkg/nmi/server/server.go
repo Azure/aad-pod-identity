@@ -77,7 +77,7 @@ func (s *Server) Run() error {
 // NOT originating from HostIP destined to metadata endpoint are
 // routed to NMI endpoint
 func (s *Server) updateIPTableRules() {
-	signalChan := make(chan os.Signal)
+	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
 
 	ticker := time.NewTicker(time.Second * time.Duration(s.IPTableUpdateTimeIntervalInSeconds))

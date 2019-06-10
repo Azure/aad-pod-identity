@@ -354,6 +354,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(ok).To(Equal(true))
 
 		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
 		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity)
 
 		// Delete pod identity to verify that the VM identity did not get deleted
