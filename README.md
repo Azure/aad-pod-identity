@@ -188,6 +188,23 @@ If the Azure identity is in the same resource group as your AKS cluster nodes, y
 az role assignment create --role "Managed Identity Operator" --assignee <sp id> --scope <full id of the managed identity>
 ```
 
+### Uninstall Notes
+
+The NMI pods modify the nodes' [iptables] to intercept calls to Azure Instance Metadata endpoint. This allows NMI to insert identities assigned to a pod before executing the request on behalf of the caller.
+
+These iptables entries will be cleaned up when the pod-identity pods are uninstalled. However, if the pods are terminated for unexpected reasons, the iptables entries can be removed with these commands on the node:
+
+```shell
+# remove the custom chain reference
+iptables -t nat -D PREROUTING -j aad-metadata
+
+# flush the custom chain
+iptables -t nat -F aad-metadata
+
+# remove the custom chain
+iptables -t nat -X aad-metadata
+```
+
 ## Demo
 
 The demonstration program illustrates how, after setting the identity and binding, the sample app can list VMs in an Azure resource group. To deploy the demo, please ensure you have completed the [Prerequisites] and understood the previous sections in this document.
@@ -253,23 +270,6 @@ Here is an example cURL command:
 
 ```bash
 curl http://127.0.0.1:2579/host/token/?resource=https://vault.azure.net -H "podname: nginx-flex-kv-int" -H "podns: default"
-```
-
-### Uninstall Notes
-
-The NMI pods modify the nodes' [iptables] to intercept calls to Azure Instance Metadata endpoint. This allows NMI to insert identities assigned to a pod before executing the request on behalf of the caller.
-
-These iptables entries will be cleaned up when the pod-identity pods are uninstalled. However, if the pods are terminated for unexpected reasons, the iptables entries can be removed with these commands on the node:
-
-```shell
-# remove the custom chain reference
-iptables -t nat -D PREROUTING -j aad-metadata
-
-# flush the custom chain
-iptables -t nat -F aad-metadata
-
-# remove the custom chain
-iptables -t nat -X aad-metadata
 ```
 
 ## What To Do Next?
