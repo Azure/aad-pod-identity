@@ -110,7 +110,7 @@ image-demo:
 image-identity-validator:
 	docker build -t $(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE) --build-arg IDENTITY_VALIDATOR_VERSION="$(IDENTITY_VALIDATOR_VERSION)" --target=identityvalidator .
 
-.PHONY: imag
+.PHONY: image
 image:image-nmi image-mic image-demo image-identity-validator
 
 .PHONY: push-nmi
