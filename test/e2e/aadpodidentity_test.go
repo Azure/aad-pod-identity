@@ -11,6 +11,7 @@ import (
 	"time"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	"github.com/Azure/aad-pod-identity/test/common/azure"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/azureassignedidentity"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/azureidentity"
@@ -591,6 +592,76 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity)
 	})
+
+	It("should not delete an in use identity from a vmss", func() {
+		// This test is specifically testing vmss behavior
+		// As such we'll look through the cluster to see if there are nodes assigned
+		// to a vmss, and if any of thoe vmss's have more than one node.
+		//
+		// We cannot do the test if there is not at least1 vmss with at least 2 nodes
+		// attach to it.
+		nodeList, err := node.GetAll()
+		Expect(err).NotTo(HaveOccurred())
+
+		vmssNodes := make(map[string][]node.Node)
+		for _, n := range nodeList.Nodes {
+			r, _ := cloudprovider.ParseResourceID(n.Spec.ProviderID)
+			if r.ResourceType == cloudprovider.VMSSResourceType {
+				ls := vmssNodes[r.ResourceName]
+				vmssNodes[r.ResourceName] = append(ls, n)
+			}
+		}
+
+		var vmssID string
+		for id, ls := range vmssNodes {
+			if len(ls) > 1 {
+				vmssID = id
+				break
+			}
+		}
+
+		if vmssID == "" {
+			fmt.Println("skipping test since no there is no vmss with more than 1 node")
+			return
+		}
+
+		vmss := vmssNodes[vmssID]
+
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1", func(d *infra.IdentityValidatorTemplateData) {
+			d.NodeName = vmss[0].Name
+		})
+		defer waitForDeployDeletion(identityValidator)
+
+		podName, err := pod.GetNameByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(podName).NotTo(Equal(""))
+
+		nodeName, err := pod.GetNodeName(podName)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(nodeName).NotTo(Equal(""))
+
+		data := infra.IdentityValidatorTemplateData{
+			Name:                     identityValidator + "2",
+			IdentityBinding:          keyvaultIdentity,
+			Registry:                 cfg.Registry,
+			IdentityValidatorVersion: cfg.IdentityValidatorVersion,
+			NodeName:                 vmss[1].Name,
+		}
+
+		err = infra.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, templateOutputPath, data)
+		Expect(err).NotTo(HaveOccurred())
+
+		exists, err := azure.UserIdentityAssignedToVMSS(cfg.ResourceGroup, vmssID, keyvaultIdentity)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(exists).To(Equal(true))
+
+		waitForDeployDeletion(identityValidator + "2")
+
+		// TODO: this is racey, there is no way to know if MIC has even done a reconciliation
+		exists, err = azure.UserIdentityAssignedToVMSS(cfg.ResourceGroup, vmssID, keyvaultIdentity)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(exists).To(Equal(true))
+	})
 })
 
 // setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
@@ -635,7 +706,7 @@ func setupInfra(registry, nmiVersion, micVersion string) {
 // setUpIdentityAndDeployment will deploy AzureIdentity, AzureIdentityBinding, and an identity validator
 // Suffix will give the tests the option to add a suffix to the end of the identity name, useful for scale tests
 // replicas to indicate the number of replicas for the deployment
-func setUpIdentityAndDeployment(azureIdentityName, suffix, replicas string) {
+func setUpIdentityAndDeployment(azureIdentityName, suffix, replicas string, tmplOpts ...func(*infra.IdentityValidatorTemplateData)) {
 	identityValidatorName := identityValidator
 
 	if suffix != "" {
@@ -649,7 +720,19 @@ func setUpIdentityAndDeployment(azureIdentityName, suffix, replicas string) {
 	err = azureidentitybinding.Create(azureIdentityName, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = infra.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, cfg.Registry, identityValidatorName, azureIdentityName, cfg.IdentityValidatorVersion, templateOutputPath, replicas)
+	data := infra.IdentityValidatorTemplateData{
+		Name:                     identityValidator,
+		IdentityBinding:          azureIdentityName,
+		Registry:                 cfg.Registry,
+		IdentityValidatorVersion: cfg.IdentityValidatorVersion,
+		Replicas:                 replicas,
+	}
+
+	for _, o := range tmplOpts {
+		o(&data)
+	}
+
+	err = infra.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, templateOutputPath, data)
 	Expect(err).NotTo(HaveOccurred())
 
 	ok, err := deploy.WaitOnReady(identityValidatorName)

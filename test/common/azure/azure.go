@@ -1,6 +1,7 @@
 package azure
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -211,6 +212,41 @@ func EnableSystemAssignedIdentityOnVM(resourceGroup, vmName string) error {
 	}
 
 	return nil
+}
+
+func UserIdentityAssignedToVMSS(resourceGroup, vmssName, identityName string) (bool, error) {
+	cmd := exec.Command("az", "vmss", "identity", "show", "-o", "json", "-g", resourceGroup, "-n", vmssName)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return false, errors.Wrapf(err, "Failed to get user assigned identity from VMSS %q: %s", vmssName, out)
+	}
+
+	out = bytes.TrimSpace(out)
+	if len(out) == 0 {
+		return false, nil
+	}
+
+	var id VMIdentity
+	if err := json.Unmarshal(out, &id); err != nil {
+		return false, errors.Wrap(err, "error unmarshaling json")
+	}
+	if id.Type == "SystemAssigned" {
+		return false, nil
+	}
+
+	var userAssignedIdentities map[string]UserAssignedIdentity
+	if err := json.Unmarshal(*id.UserAssignedIdentities, &userAssignedIdentities); err != nil {
+		return false, errors.Wrap(err, "failed to unmarshall json for user assigned identities")
+	}
+
+	for rID := range userAssignedIdentities {
+		s := strings.Split(rID, "/")
+		if s[len(s)-1] == identityName {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // GetUserAssignedIdentities will return the list of user assigned identity in a given VM
