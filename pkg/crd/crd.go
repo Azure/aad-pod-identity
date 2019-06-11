@@ -43,8 +43,12 @@ func NewCRDClientLite(config *rest.Config) (crdClient *Client, err error) {
 		glog.Error(err)
 		return nil, err
 	}
+
+	assignedIDListWatch := newAssignedIDListWatch(restClient)
+
 	return &Client{
-		rest: restClient,
+		AssignedIDListWatch: assignedIDListWatch,
+		rest:                restClient,
 	}, nil
 }
 
