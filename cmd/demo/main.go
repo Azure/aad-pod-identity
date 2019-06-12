@@ -131,12 +131,21 @@ func testInstanceMetadataRequests(logger *log.Entry) {
 		Timeout: time.Duration(2) * time.Second,
 	}
 	req, err := http.NewRequest("GET", "http://169.254.169.254/metadata/instance?api-version=2017-08-01", nil)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
 	req.Header.Add("Metadata", "true")
 	resp, err := client.Do(req)
 	if err != nil {
-		logger.Errorf("failed, GET on instance metadata")
+		logger.Error(err)
+		return
 	}
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		logger.Error(err)
+		return
+	}
 	logger.Infof("succesfully made GET on instance metadata, %s", body)
 }
