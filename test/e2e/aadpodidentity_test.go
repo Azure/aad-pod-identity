@@ -738,6 +738,7 @@ func waitForIPTableRulesToExist(prefix string) (bool, error) {
 				list, err := pod.GetAllNameByPrefix(prefix)
 				if err != nil {
 					errorChannel <- err
+					return
 				}
 
 				found := true
