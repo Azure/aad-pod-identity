@@ -85,6 +85,7 @@ func WaitOnReady(name string) (bool, error) {
 				match, err := isAvailableReplicasMatchDesired(name)
 				if err != nil {
 					errorChannel <- err
+					return
 				}
 				if match {
 					successChannel <- true

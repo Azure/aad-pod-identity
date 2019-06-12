@@ -134,6 +134,7 @@ func WaitOnDeletion(prefix string) (bool, error) {
 				list, err := GetAll()
 				if err != nil {
 					errorChannel <- err
+					return
 				}
 
 				matched := false
