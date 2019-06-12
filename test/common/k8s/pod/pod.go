@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// List is a container that holds all deployment returned from 'kubectl get pods'
+// List is a container that holds all pods returned from 'kubectl get pods'
 type List struct {
 	Pods []Pod `json:"items"`
 }
@@ -134,6 +134,7 @@ func WaitOnDeletion(prefix string) (bool, error) {
 				list, err := GetAll()
 				if err != nil {
 					errorChannel <- err
+					return
 				}
 
 				matched := false

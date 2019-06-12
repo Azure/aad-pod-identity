@@ -1,6 +1,7 @@
 package aadpodidentity
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"os"
@@ -14,7 +15,9 @@ import (
 	"github.com/Azure/aad-pod-identity/test/common/k8s/azureassignedidentity"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/azureidentity"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/azureidentitybinding"
+	"github.com/Azure/aad-pod-identity/test/common/k8s/daemonset"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/deploy"
+	"github.com/Azure/aad-pod-identity/test/common/k8s/infra"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/node"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/pod"
 	"github.com/Azure/aad-pod-identity/test/common/util"
@@ -29,6 +32,7 @@ const (
 	clusterIdentity   = "cluster-identity"
 	keyvaultIdentity  = "keyvault-identity"
 	identityValidator = "identity-validator"
+	nmiDaemonSet      = "nmi"
 )
 
 var (
@@ -48,9 +52,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	cfg = *c
 
-	// Install CRDs and deploy MIC and NMI
-	err = deploy.CreateInfra("default", cfg.Registry, cfg.NMIVersion, cfg.MICVersion, templateOutputPath)
-	Expect(err).NotTo(HaveOccurred())
+	setupInfra()
 })
 
 var _ = AfterSuite(func() {
@@ -60,7 +62,12 @@ var _ = AfterSuite(func() {
 	err := deploy.Delete("default", templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
-	cmd := exec.Command("kubectl", "delete", "deploy", "--all")
+	cmd := exec.Command("kubectl", "delete", "-f", "template/busyboxds.yaml")
+	util.PrintCommand(cmd)
+	_, err = cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+
+	cmd = exec.Command("kubectl", "delete", "deploy", "--all")
 	util.PrintCommand(cmd)
 	_, err = cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred())
@@ -322,9 +329,9 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	// })
 
 	It("should not alter the user assigned identity on VM after AAD pod identity is created and deleted", func() {
-		azureIdentityResource := "/subscriptions/%s/resourceGroups/aad-pod-identity-e2e/providers/Microsoft.ManagedIdentity/userAssignedIdentities/%s"
-		clusterIdentityResource := fmt.Sprintf(azureIdentityResource, cfg.SubscriptionID, clusterIdentity)
-		keyvaultIdentityResource := fmt.Sprintf(azureIdentityResource, cfg.SubscriptionID, keyvaultIdentity)
+		azureIdentityResource := "/subscriptions/%s/resourceGroups/%s/providers/Microsoft.ManagedIdentity/userAssignedIdentities/%s"
+		clusterIdentityResource := fmt.Sprintf(azureIdentityResource, cfg.SubscriptionID, cfg.ResourceGroup, clusterIdentity)
+		keyvaultIdentityResource := fmt.Sprintf(azureIdentityResource, cfg.SubscriptionID, cfg.ResourceGroup, keyvaultIdentity)
 
 		// Assign user assigned identity to every node
 		nodeList, err := node.GetAll()
@@ -444,40 +451,19 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	// })
 
 	It("should cleanup iptable rules after deleting aad-pod-identity", func() {
-		// create the helper ssh daemon for validating the iptable rules
-		cmd := exec.Command("kubectl", "apply", "-f", "template/busyboxds.yaml")
-		_, err := cmd.CombinedOutput()
-		Expect(err).NotTo(HaveOccurred())
-
-		time.Sleep(90 * time.Second)
-
-		// check if the iptable rules exist before test
-		pods, err := pod.GetAllNameByPrefix("busybox")
-		Expect(err).NotTo(HaveOccurred())
-		Expect(pods).NotTo(BeNil())
-
-		for _, p := range pods {
-			// install iptables in the busybox to keep the vanilla alpine image for busybox
-			_, err := pod.RunCommandInPod("exec", p, "--", "apk", "add", "iptables")
-			Expect(err).NotTo(HaveOccurred())
-
-			// ensure aad-metadata target reference exists
-			_, err = pod.RunCommandInPod("exec", p, "--", "iptables", "-t", "nat", "--check", "PREROUTING", "-j", "aad-metadata")
-			Expect(err).NotTo(HaveOccurred())
-
-			// ensure aad-metadata custom chain rules exists
-			_, err = pod.RunCommandInPod("exec", p, "--", "iptables", "-t", "nat", "-L", "aad-metadata")
-			Expect(err).NotTo(HaveOccurred())
-		}
-
 		// delete the aad-pod-identity deployment
-		cmd = exec.Command("kubectl", "delete", "-f", "../../deploy/infra/deployment-rbac.yaml", "--ignore-not-found")
-		_, err = cmd.CombinedOutput()
+		cmd := exec.Command("kubectl", "delete", "-f", "../../deploy/infra/deployment-rbac.yaml", "--ignore-not-found")
+		_, err := cmd.CombinedOutput()
 		Expect(err).NotTo(HaveOccurred())
 
 		ok, err := pod.WaitOnDeletion("nmi")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
+
+		// check if the iptable rules exist before test
+		pods, err := pod.GetAllNameByPrefix("busybox")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(pods).NotTo(BeNil())
 
 		// check to ensure the custom iptable rules have been cleaned up
 		for _, p := range pods {
@@ -492,14 +478,8 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 			Expect(out).To(ContainSubstring("No chain/target/match by that name."))
 		}
 
-		// put back the deployment for further tests and cleanup ssh daemon
-		cmd = exec.Command("kubectl", "delete", "-f", "template/busyboxds.yaml")
-		_, err = cmd.CombinedOutput()
-		Expect(err).NotTo(HaveOccurred())
-
-		cmd = exec.Command("kubectl", "apply", "-f", "../../deploy/infra/deployment-rbac.yaml")
-		_, err = cmd.CombinedOutput()
-		Expect(err).NotTo(HaveOccurred())
+		// reset the infra to previous state
+		setupInfra()
 	})
 
 	It("should not alter the system assigned identity after creating and deleting pod identity", func() {
@@ -546,6 +526,44 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 })
 
+// setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
+func setupInfra() {
+	// Install CRDs and deploy MIC and NMI
+	err := infra.CreateInfra("default", cfg.Registry, cfg.NMIVersion, cfg.MICVersion, templateOutputPath)
+	Expect(err).NotTo(HaveOccurred())
+
+	ok, err := daemonset.WaitOnReady(nmiDaemonSet)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(ok).To(Equal(true))
+
+	// create the helper ssh daemon for validating the iptable rules
+	cmd := exec.Command("kubectl", "apply", "-f", "template/busyboxds.yaml")
+	_, err = cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+
+	// wait for busbox daemonset to be ready
+	ok, err = daemonset.WaitOnReady("busybox")
+	Expect(err).NotTo(HaveOccurred())
+	Expect(ok).To(Equal(true))
+
+	// check if the iptable rules exist before test
+	pods, err := pod.GetAllNameByPrefix("busybox")
+	Expect(err).NotTo(HaveOccurred())
+	Expect(pods).NotTo(BeNil())
+
+	for _, p := range pods {
+		// install iptables in the busybox to keep the vanilla alpine image for busybox
+		_, err := pod.RunCommandInPod("exec", p, "--", "apk", "add", "iptables")
+		Expect(err).NotTo(HaveOccurred())
+	}
+
+	// ensure iptable entries for aad-metadata exist before we begin this test
+	// if this fails, then nmi is not working as expected
+	ok, err = waitForIPTableRulesToExist("busybox")
+	Expect(err).NotTo(HaveOccurred())
+	Expect(ok).To(Equal(true))
+}
+
 // setUpIdentityAndDeployment will deploy AzureIdentity, AzureIdentityBinding, and an identity validator
 // Suffix will give the tests the option to add a suffix to the end of the identity name, useful for scale tests
 func setUpIdentityAndDeployment(azureIdentityName, suffix string) {
@@ -562,16 +580,18 @@ func setUpIdentityAndDeployment(azureIdentityName, suffix string) {
 	err = azureidentitybinding.Create(azureIdentityName, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = deploy.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, cfg.Registry, identityValidator, azureIdentityName, cfg.IdentityValidatorVersion, templateOutputPath)
+	err = infra.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, cfg.Registry, identityValidatorName, azureIdentityName, cfg.IdentityValidatorVersion, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
 	ok, err := deploy.WaitOnReady(identityValidatorName)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ok).To(Equal(true))
 
-	// TODO: Make this more absolute by checking the presence of NMI liveliness.
-	fmt.Println("Sleeping for 30 seconds to avoid racing with NMI")
-	time.Sleep(30 * time.Second)
+	// additional redundant check to ensure nmi exists and is ready
+	// this check is already performed in before suite, so nmi will exist before reaching here
+	ok, err = daemonset.WaitOnReady(nmiDaemonSet)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(ok).To(Equal(true))
 }
 
 // validateAzureAssignedIdentity will make sure a given AzureAssignedIdentity has the correct properties
@@ -698,5 +718,57 @@ func removeSystemAssignedIdentityOnCluster(nodeList *node.List) {
 		}
 		err := azure.RemoveSystemAssignedIdentityFromVM(cfg.ResourceGroup, n.Name)
 		Expect(err).NotTo(HaveOccurred())
+	}
+}
+
+// waitForIPTableRulesToExist will block until custom chain iptable rules are inserted for each node
+func waitForIPTableRulesToExist(prefix string) (bool, error) {
+	successChannel, errorChannel := make(chan bool, 1), make(chan error)
+	duration, sleep := 120*time.Second, 10*time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), duration)
+	defer cancel()
+
+	fmt.Println("# Tight-poll to check if iptable rules for aad-metadata exist on all nodes...")
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				errorChannel <- errors.Errorf("Timeout exceeded (%s) while waiting for iptable rules to exist", duration.String())
+			default:
+				list, err := pod.GetAllNameByPrefix(prefix)
+				if err != nil {
+					errorChannel <- err
+					return
+				}
+
+				found := true
+				for _, p := range list {
+					// ensure aad-metadata target reference exists
+					_, err1 := pod.RunCommandInPod("exec", p, "--", "iptables", "-t", "nat", "--check", "PREROUTING", "-j", "aad-metadata")
+					// ensure aad-metadata custom chain rules exists
+					_, err2 := pod.RunCommandInPod("exec", p, "--", "iptables", "-t", "nat", "-L", "aad-metadata")
+					if err1 != nil || err2 != nil {
+						found = false
+					}
+				}
+
+				if found {
+					successChannel <- true
+					return
+				}
+
+				fmt.Printf("# iptable entries for aad-metadata not found on all nodes. Retrying in %s...\n", sleep.String())
+				time.Sleep(sleep)
+			}
+		}
+	}()
+
+	for {
+		select {
+		case err := <-errorChannel:
+			return false, err
+		case success := <-successChannel:
+			return success, nil
+		}
 	}
 }

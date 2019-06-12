@@ -63,7 +63,9 @@ func WaitOnLengthMatched(target int) (bool, error) {
 				list, err := GetAll()
 				if err != nil {
 					errorChannel <- err
+					return
 				}
+				// len of nil slices is 0, so shouldn't panic here
 				if len(list.Items) == target {
 					successChannel <- true
 					return
