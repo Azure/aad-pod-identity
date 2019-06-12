@@ -7,9 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
+
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
@@ -48,6 +51,8 @@ type KubeClient struct {
 	ClientSet kubernetes.Interface
 	// Crd client used to access our CRD resources.
 	CrdClient *crd.Client
+	//PodListWatch is used to list the pods from cache
+	PodListWatch *cache.ListWatch
 }
 
 // NewKubeClient new kubernetes api client
@@ -64,7 +69,14 @@ func NewKubeClient() (Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	kubeClient := &KubeClient{ClientSet: clientset, CrdClient: crdclient}
+
+	podListWatch := cache.NewListWatchFromClient(
+		clientset.CoreV1().RESTClient(),
+		"pods",
+		v1.NamespaceAll,
+		fields.Everything())
+
+	kubeClient := &KubeClient{CrdClient: crdclient, ClientSet: clientset, PodListWatch: podListWatch}
 
 	return kubeClient, nil
 }
@@ -89,18 +101,18 @@ func (c *KubeClient) GetPodName(podip string) (podns, poddname string, err error
 }
 
 func (c *KubeClient) getPodListWithTries(podip string, tries int, sleeptime time.Duration) (*v1.PodList, error) {
-	podList, err := c.ClientSet.CoreV1().Pods("").List(metav1.ListOptions{
+	podList, err := c.PodListWatch.List(metav1.ListOptions{
 		FieldSelector: "status.podIP==" + podip + phaseStatusFilter,
 	})
 
-	if err != nil || len(podList.Items) == 0 {
+	if err != nil || len(podList.(*v1.PodList).Items) == 0 {
 		if tries > 1 {
 			time.Sleep(sleeptime * time.Millisecond)
 			return c.getPodListWithTries(podip, tries-1, sleeptime)
 		}
 	}
 
-	return podList, err
+	return podList.(*v1.PodList), err
 }
 
 // GetLocalIP returns the non loopback local IP of the host
