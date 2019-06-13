@@ -53,7 +53,7 @@ func (c *TestCrdClient) CreateBinding(bindingName string, idName string, selecto
 		},
 		Spec: aadpodid.AzureIdentityBindingSpec{
 			AzureIdentity: idName,
-			Selector:      selector,
+			Selector:      map[string]string{aadpodid.CRDLabelKey: selector},
 		},
 	}
 	c.bindingMap[bindingName] = binding

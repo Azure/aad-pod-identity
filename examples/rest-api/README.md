@@ -80,7 +80,8 @@ metadata:
  name: client-principal-binding
 spec:
  AzureIdentity: client-principal
- Selector:  client-principal-pod-binding
+ Selector: 
+  aadpodidbinding: client-principal-pod-binding
 ```
 
 We can now deploy those two files in the *pir* namespace:
