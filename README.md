@@ -141,7 +141,8 @@ metadata:
   name: demo1-azure-identity-binding
 spec:
   AzureIdentity: <a-idname>
-  Selector: <label value to match>
+  Selector: 
+    aadpodidbinding: <label value to match>
 ```
 
 Replace the placeholders with your values. Ensure that the `AzureIdentity` name matches the one in `aadpodidentity.yaml`.
@@ -169,7 +170,8 @@ metadata:
   name: test-azure-id-binding
 spec:
   AzureIdentity: "test-azure-identity"
-  Selector: "select_it"
+  Selector: 
+    aadpodidbinding: "select_it"
 ```
 
 ### 6. Set Permissions for MIC
