@@ -4,5 +4,4 @@ metadata:
   name: {{.Name}}-binding
 spec:
   AzureIdentity: {{.Name}}
-  Selector: 
-    aadpodidbinding: {{.Name}}
+  Selector: {{.Name}}

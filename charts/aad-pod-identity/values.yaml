@@ -14,8 +14,7 @@ azureIdentity:
 
 azureIdentityBinding:
   name: "azure-identity-binding"
-  selector: {}
-   # aadpodidbinding: demo
+  selector: "" # demo
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious

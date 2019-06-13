@@ -172,7 +172,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			//glog.Infof("Found label with our CRDKey %s for pod: %s", crdPodLabelVal, pod.Name)
 			var matchedBindings []aadpodid.AzureIdentityBinding
 			for _, allBinding := range *listBindings {
-				if allBinding.Spec.Selector[aadpodid.CRDLabelKey] == crdPodLabelVal {
+				if allBinding.Spec.Selector == crdPodLabelVal {
 					glog.V(5).Infof("Found binding match for pod %s/%s with binding %s", pod.Name, pod.Namespace, allBinding.Name)
 					matchedBindings = append(matchedBindings, allBinding)
 				}

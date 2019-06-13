@@ -4,5 +4,4 @@ metadata:
   name: demo-azure-id-binding
 spec: 
   AzureIdentity: "demo-aad1"
-  Selector:
-   aadpodidbinding: demo
+  Selector: "demo"

@@ -44,11 +44,7 @@ git clone git@github.com:Azure/aad-pod-identity.git && cd aad-pod-identity/chart
 
 5. Update the `azureIdentity` values with your Azure identity's resource ID and client ID (retrievable from the CLI or portal).
 
-6. Update the `azureIdentityBinding` label selector value with a value that will match the label applied to the pods you wish to assign the identity to i.e. 
-```
-selector: 
-  aadpodidbinding: demo
-```
+6. Update the `azureIdentityBinding` selector value with a value that will match the label applied to the pods you wish to assign the identity to i.e. `selector: demo`.
 
 7. Ensure you have helm initialized correctly to work with your cluster. If not, follow this [guide](https://docs.helm.sh/using_helm/#initialize-helm-and-install-tiller). If your cluster has rbac-enabled, you'll need to initialize tiller with a suitable `service-account`.
 
