@@ -8,7 +8,7 @@ Users now have the option to deploy aad-pod-identity with a separate service pri
 
 ## Permissions
 
-The permission of the admin service principal needs to be 'Contributor' role over the scope of node resource group starting with "MC_". (TODO: check if 'Virtual Machine Contributor' over the node resource group works)
+The permission of the admin service principal needs to be 'Contributor' role over the scope of node resource group starting with "MC_".
 
 Create a new service principal with the permission:
 
@@ -24,7 +24,7 @@ Or assign the permission for an existing service principal:
 az role assignment create --role "Contributor" --assignee <sp_id> --scope "/subscriptions/<subscription-id>/resourceGroups/<MC_node_resource_group>"
 ```
 
-For any subsequent user assigned managed identity that's intended for a pod, it's also required to grant the service principal 'Managed Identity Operator' permission (also stated [here](../../../README.md#providing-required-permissions-for-mic)):
+For any subsequent user assigned managed identity that's intended for a pod, it's also required to grant the service principal 'Managed Identity Operator' permission (also stated [here](../../../README.md#6-set-permissions-for-mic)):
 
 ```
 az role assignment create --role "Managed Identity Operator" --assignee <sp_id> --scope <resource id of the managed identity>
@@ -44,10 +44,10 @@ The `aadpodidentity-admin-secret` contains the following fields:
 
 > Use `echo -n 'secret-content' | base64` to create a base64 encoded string.
 
-'Cloud' should be chosen from the following case-insensitive values: `AzurePublicCloud`, `AzureUSGovernmentCloud`, `AzureChinaCloud`, `AzureGermanCloud` (values taken from [here](https://raw.githubusercontent.com/Azure/go-autorest/master/autorest/azure/environments.go)). 'ResourceGroup' is the node resource group where the actual virtual machines or virtual machine scale set resides. 'VMType' is optional and can be one of these values: `standard` for normal virtual machine nodes, and `vmss` for cluster deployed with a virtual machine scale set. 'TenantID', 'ClientID' and 'ClientSecret' are service principal's `tenant`, `appId`, `password` respectively. (TODO: validate if vmtype is optional)
+'Cloud' should be chosen from the following case-insensitive values: `AzurePublicCloud`, `AzureUSGovernmentCloud`, `AzureChinaCloud`, `AzureGermanCloud` (values taken from [here](https://raw.githubusercontent.com/Azure/go-autorest/master/autorest/azure/environments.go)). 'ResourceGroup' is the node resource group where the actual virtual machines or virtual machine scale set resides. 'VMType' is optional and can be one of these values: `standard` for normal virtual machine nodes, and `vmss` for cluster deployed with a virtual machine scale set. 'TenantID', 'ClientID' and 'ClientSecret' are service principal's `tenant`, `appId`, `password` respectively.
 
 Fill out those secret values in the /deploy/infra/noazurejson/deployment.yaml or /deploy/infra/noazurejson/deployment-rbac.yaml before executing `kubectl create -f ./deploy/infra/noazurejson/deployment.yaml` or `kubectl create -f ./deploy/infra/noazurejson/deployment-rbac.yaml`.
 
 > Note that if not use the above yaml's, `aadpodidentity-admin-secret` must be created before deploying `mic` and `mic` must reference the secret as shown in the yaml's.
 
-The secret will be injected as an environment variable into `mic` upon pod creation and cannot be updated during the lifecycle of `mic`. However, redeploying `mic` should pick up the updated service principal's information should they change. (TODO: validate the claim)
+The secret will be injected as an environment variable into `mic` upon pod creation and cannot be updated during the lifecycle of `mic`. However, redeploying `mic` should pick up the updated service principal's information should they change.
