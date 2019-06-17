@@ -103,7 +103,7 @@ By default, AAD Pod Identity matches pods to identities across namespaces. To ma
     metadata:
       name: <a-idname>
       annotations:
-      - aadpodidentity.k8s.io/Behavior: namespaced
+        aadpodidentity.k8s.io/Behavior: namespaced
     spec:
       type: 0
       ResourceID: /subscriptions/<subid>/resourcegroups/<resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>
