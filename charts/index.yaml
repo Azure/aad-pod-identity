@@ -1,0 +1,13 @@
+apiVersion: v1
+entries:
+  aad-pod-identity:
+  - apiVersion: v1
+    appVersion: "1.0"
+    created: "2019-06-18T12:57:13.096466-07:00"
+    description: A chart to deploy the components needed for AAD pod identity
+    digest: 743a637ca59012f06369476b917d4c9330d9a2ba6e0f43faf00adc9023f4bf16
+    name: aad-pod-identity
+    urls:
+    - https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts/aad-pod-identity-0.1.0.tgz
+    version: 0.1.0
+generated: "2019-06-18T12:57:13.0954652-07:00"
