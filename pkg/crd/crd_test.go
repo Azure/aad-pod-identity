@@ -17,9 +17,9 @@ type TestCrdClient struct {
 
 func NewTestCrdClient(config *rest.Config) *TestCrdClient {
 	return &TestCrdClient{
-		assignedIDMap: make(map[string]*aadpodid.AzureAssignedIdentity, 0),
-		bindingMap:    make(map[string]*aadpodid.AzureIdentityBinding, 0),
-		idMap:         make(map[string]*aadpodid.AzureIdentity, 0),
+		assignedIDMap: make(map[string]*aadpodid.AzureAssignedIdentity),
+		bindingMap:    make(map[string]*aadpodid.AzureIdentityBinding),
+		idMap:         make(map[string]*aadpodid.AzureIdentity),
 	}
 }
 
@@ -59,18 +59,18 @@ func (c *TestCrdClient) CreateBinding(bindingName string, idName string, selecto
 	c.bindingMap[bindingName] = binding
 }
 
-func (c *TestCrdClient) CreateId(idName string, t aadpodid.IdentityType, rId string, cId string, cp *api.SecretReference, tId string, adRId string, adEpt string) {
+func (c *TestCrdClient) CreateID(idName string, t aadpodid.IdentityType, rID string, cID string, cp *api.SecretReference, tID string, adRID string, adEpt string) {
 	id := &aadpodid.AzureIdentity{
 		ObjectMeta: v1.ObjectMeta{
 			Name: idName,
 		},
 		Spec: aadpodid.AzureIdentitySpec{
 			Type:       t,
-			ResourceID: rId,
-			ClientID:   cId,
+			ResourceID: rID,
+			ClientID:   cID,
 			//ClientPassword: *cp,
-			TenantID:     tId,
-			ADResourceID: adRId,
+			TenantID:     tID,
+			ADResourceID: adRID,
 			ADEndpoint:   adEpt,
 		},
 	}
@@ -94,9 +94,9 @@ func (c *TestCrdClient) ListBindings() (res *[]aadpodid.AzureIdentityBinding, er
 }
 
 func (c *TestCrdClient) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
-	assignedIdList := make([]aadpodid.AzureAssignedIdentity, 0)
+	assignedIDList := make([]aadpodid.AzureAssignedIdentity, 0)
 	for _, v := range c.assignedIDMap {
-		assignedIdList = append(assignedIdList, *v)
+		assignedIDList = append(assignedIDList, *v)
 	}
-	return &assignedIdList, nil
+	return &assignedIDList, nil
 }

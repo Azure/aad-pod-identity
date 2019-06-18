@@ -307,7 +307,7 @@ func (c *TestCloudClient) UnSetError() {
 }
 
 func NewTestVMClient() *TestVMClient {
-	nodeMap := make(map[string]*compute.VirtualMachine, 0)
+	nodeMap := make(map[string]*compute.VirtualMachine)
 	vmClient := &VMClient{}
 
 	return &TestVMClient{
@@ -318,7 +318,7 @@ func NewTestVMClient() *TestVMClient {
 }
 
 func NewTestVMSSClient() *TestVMSSClient {
-	nodeMap := make(map[string]*compute.VirtualMachineScaleSet, 0)
+	nodeMap := make(map[string]*compute.VirtualMachineScaleSet)
 	vmssClient := &VMSSClient{}
 
 	return &TestVMSSClient{

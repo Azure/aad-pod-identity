@@ -83,7 +83,7 @@ func doARMOperations(logger *log.Entry, subscriptionID, resourceGroup string) {
 		return
 	}
 
-	logger.Infof("succesfull doARMOperations vm count %d", len(vmlist.Values()))
+	logger.Infof("successful doARMOperations vm count %d", len(vmlist.Values()))
 }
 
 func testMSIEndpoint(logger *log.Entry, msiEndpoint, resource string) *adal.Token {
@@ -101,7 +101,7 @@ func testMSIEndpoint(logger *log.Entry, msiEndpoint, resource string) *adal.Toke
 		logger.Errorf("zero token found, MSI VM extension, msiEndpoint(%s)", msiEndpoint)
 		return nil
 	}
-	logger.Infof("succesfully acquired a token using the MSI, msiEndpoint(%s)", msiEndpoint)
+	logger.Infof("successfully acquired a token using the MSI, msiEndpoint(%s)", msiEndpoint)
 	return &token
 }
 
@@ -120,7 +120,7 @@ func testMSIEndpointFromUserAssignedID(logger *log.Entry, msiEndpoint, userAssig
 		logger.Errorf("zero token found, userAssignedID MSI, msiEndpoint(%s) clientID(%s)", msiEndpoint, userAssignedID)
 		return nil
 	}
-	logger.Infof("succesfully acquired a token, userAssignedID MSI, msiEndpoint(%s) clientID(%s)", msiEndpoint, userAssignedID)
+	logger.Infof("successfully acquired a token, userAssignedID MSI, msiEndpoint(%s) clientID(%s)", msiEndpoint, userAssignedID)
 	return &token
 }
 
@@ -147,5 +147,5 @@ func testInstanceMetadataRequests(logger *log.Entry) {
 		logger.Error(err)
 		return
 	}
-	logger.Infof("succesfully made GET on instance metadata, %s", body)
+	logger.Infof("successfully made GET on instance metadata, %s", body)
 }
