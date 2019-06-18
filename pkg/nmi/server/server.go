@@ -271,7 +271,7 @@ func getTokenForMatchingID(kubeClient k8s.Client, logger *log.Entry, rqClientID 
 			return token, clientID, err
 		case aadpodid.ServicePrincipal:
 			tenantid := v.Spec.TenantID
-			logger.Infof("matched identityType:%v tenantid:%s clientid:%s", idType, tenantid, clientID)
+			logger.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantid, clientID, rqResource)
 			secret, err := kubeClient.GetSecret(&v.Spec.ClientPassword)
 			if err != nil {
 				return nil, clientID, err
@@ -281,7 +281,7 @@ func getTokenForMatchingID(kubeClient k8s.Client, logger *log.Entry, rqClientID 
 				clientSecret = string(v)
 				break
 			}
-			token, err := auth.GetServicePrincipalToken(tenantid, clientID, clientSecret)
+			token, err := auth.GetServicePrincipalToken(tenantid, clientID, clientSecret, rqResource)
 			return token, clientID, err
 		default:
 			return nil, clientID, fmt.Errorf("unsupported identity type %+v", idType)
