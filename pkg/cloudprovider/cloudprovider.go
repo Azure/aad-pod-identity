@@ -62,11 +62,11 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 		glog.Errorf("Get cloud env error: %+v", err)
 		return nil, err
 	}
-	oauthConfig, _ := adal.NewOAuthConfig(azureEnv.ActiveDirectoryEndpoint, azureConfig.TenantID)
+	oauthConfig, err := adal.NewOAuthConfig(azureEnv.ActiveDirectoryEndpoint, azureConfig.TenantID)
 	if err != nil {
-		return nil, fmt.Errorf("creating the OAuth config: %v", err)
+		glog.Errorf("Create OAuth config error: %+v", err)
+		return nil, err
 	}
-	//glog.Info("%+v\n", oauthConfig)
 	spt, err := adal.NewServicePrincipalToken(
 		*oauthConfig,
 		azureConfig.ClientID,
