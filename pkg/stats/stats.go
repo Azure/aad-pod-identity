@@ -33,7 +33,7 @@ const (
 )
 
 func Init() {
-	GlobalStats = make(map[StatsType]time.Duration, 0)
+	GlobalStats = make(map[StatsType]time.Duration)
 }
 
 func Put(key StatsType, val time.Duration) {

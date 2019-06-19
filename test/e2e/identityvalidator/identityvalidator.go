@@ -79,7 +79,7 @@ func testClusterWideUserAssignedIdentity(logger *log.Entry, msiEndpoint, subscri
 		return errors.Wrapf(err, "Failed to verify cluster-wide user assigned identity")
 	}
 
-	logger.Infof("Succesfully verified cluster-wide user assigned identity. VM count: %d", len(vmlist.Values()))
+	logger.Infof("Successfully verified cluster-wide user assigned identity. VM count: %d", len(vmlist.Values()))
 	return nil
 }
 
@@ -97,7 +97,7 @@ func testUserAssignedIdentityOnPod(logger *log.Entry, msiEndpoint, identityClien
 		return errors.Wrapf(err, "Failed to verify user assigned identity on pod")
 	}
 
-	logger.Infof("Succesfully verified user assigned identity on pod")
+	logger.Infof("Successfully verified user assigned identity on pod")
 	return nil
 }
 
@@ -117,6 +117,6 @@ func testSystemAssignedIdentity(logger *log.Entry, msiEndpoint string) (*adal.To
 		return nil, errors.Errorf("No token found, MSI VM extension, msiEndpoint(%s)", msiEndpoint)
 	}
 
-	logger.Infof("Succesfully acquired a token using the MSI, msiEndpoint(%s)", msiEndpoint)
+	logger.Infof("Successfully acquired a token using the MSI, msiEndpoint(%s)", msiEndpoint)
 	return &token, nil
 }

@@ -29,7 +29,7 @@ func (c TestPodClient) GetPods() (pods []*corev1.Pod, err error) {
 }
 
 func (c *TestPodClient) AddPod(podName string, podNs string, nodeName string, binding string) {
-	labels := make(map[string]string, 0)
+	labels := make(map[string]string)
 	labels[aadpodid.CRDLabelKey] = binding
 	pod := &corev1.Pod{
 		ObjectMeta: v1.ObjectMeta{

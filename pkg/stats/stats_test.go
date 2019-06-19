@@ -11,7 +11,7 @@ import (
 
 func TestBasics(t *testing.T) {
 	glog.Infof("Test started")
-	validateMap := make(map[stats.StatsType]time.Duration, 0)
+	validateMap := make(map[stats.StatsType]time.Duration)
 	stats.Init()
 	stats.Put(stats.Total, time.Second*20)
 	validateMap[stats.Total] = time.Second * 20

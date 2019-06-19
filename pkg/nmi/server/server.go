@@ -214,9 +214,9 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 }
 
 // msiHandler uses the remote address to identify the pod ip and uses it
-// to find maching client id, and then returns the token sourced through
+// to find a matching client id, and then returns the token sourced through
 // AAD using adal
-// if the requests contains client id it validates it againsts the admin
+// if the requests contains client id it validates it against the admin
 // configured id.
 func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
 	podIP := parseRemoteAddr(r.RemoteAddr)

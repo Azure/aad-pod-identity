@@ -1,7 +1,7 @@
 package v1
 
-func IsNamespacedIdentity(azureId *AzureIdentity) bool {
-	if val, ok := azureId.Annotations[BehaviorKey]; ok {
+func IsNamespacedIdentity(azureID *AzureIdentity) bool {
+	if val, ok := azureID.Annotations[BehaviorKey]; ok {
 		if val == BehaviorNamespaced {
 			return true
 		}

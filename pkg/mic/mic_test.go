@@ -177,7 +177,7 @@ func (c *TestCloudClient) UnSetError() {
 }
 
 func NewTestVMClient() *TestVMClient {
-	nodeMap := make(map[string]*compute.VirtualMachine, 0)
+	nodeMap := make(map[string]*compute.VirtualMachine)
 	vmClient := &cp.VMClient{}
 
 	return &TestVMClient{
@@ -188,7 +188,7 @@ func NewTestVMClient() *TestVMClient {
 }
 
 func NewTestVMSSClient() *TestVMSSClient {
-	nodeMap := make(map[string]*compute.VirtualMachineScaleSet, 0)
+	nodeMap := make(map[string]*compute.VirtualMachineScaleSet)
 	vmssClient := &cp.VMSSClient{}
 
 	return &TestVMSSClient{
@@ -236,7 +236,7 @@ func (c TestPodClient) GetPods() (pods []*corev1.Pod, err error) {
 }
 
 func (c *TestPodClient) AddPod(podName string, podNs string, nodeName string, binding string) {
-	labels := make(map[string]string, 0)
+	labels := make(map[string]string)
 	labels[aadpodid.CRDLabelKey] = binding
 	pod := &corev1.Pod{
 		ObjectMeta: v1.ObjectMeta{
@@ -278,9 +278,9 @@ type TestCrdClient struct {
 
 func NewTestCrdClient(config *rest.Config) *TestCrdClient {
 	return &TestCrdClient{
-		assignedIDMap: make(map[string]*aadpodid.AzureAssignedIdentity, 0),
-		bindingMap:    make(map[string]*aadpodid.AzureIdentityBinding, 0),
-		idMap:         make(map[string]*aadpodid.AzureIdentity, 0),
+		assignedIDMap: make(map[string]*aadpodid.AzureAssignedIdentity),
+		bindingMap:    make(map[string]*aadpodid.AzureIdentityBinding),
+		idMap:         make(map[string]*aadpodid.AzureIdentity),
 	}
 }
 
@@ -321,18 +321,18 @@ func (c *TestCrdClient) CreateBinding(bindingName string, idName string, selecto
 	c.bindingMap[bindingName] = binding
 }
 
-func (c *TestCrdClient) CreateId(idName string, t aadpodid.IdentityType, rId string, cId string, cp *api.SecretReference, tId string, adRId string, adEpt string) {
+func (c *TestCrdClient) CreateID(idName string, t aadpodid.IdentityType, rID string, cID string, cp *api.SecretReference, tID string, adRID string, adEpt string) {
 	id := &aadpodid.AzureIdentity{
 		ObjectMeta: v1.ObjectMeta{
 			Name: idName,
 		},
 		Spec: aadpodid.AzureIdentitySpec{
 			Type:       t,
-			ResourceID: rId,
-			ClientID:   cId,
+			ResourceID: rID,
+			ClientID:   cID,
 			//ClientPassword: *cp,
-			TenantID:     tId,
-			ADResourceID: adRId,
+			TenantID:     tID,
+			ADResourceID: adRID,
 			ADEndpoint:   adEpt,
 		},
 	}
@@ -356,11 +356,11 @@ func (c *TestCrdClient) ListBindings() (res *[]aadpodid.AzureIdentityBinding, er
 }
 
 func (c *TestCrdClient) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
-	assignedIdList := make([]aadpodid.AzureAssignedIdentity, 0)
+	assignedIDList := make([]aadpodid.AzureAssignedIdentity, 0)
 	for _, v := range c.assignedIDMap {
-		assignedIdList = append(assignedIdList, *v)
+		assignedIDList = append(assignedIDList, *v)
 	}
-	return &assignedIdList, nil
+	return &assignedIDList, nil
 }
 func (c *Client) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error) {
 	return &[]aadpodid.AzureIdentity{}, nil
@@ -517,7 +517,7 @@ func TestMapMICClient(t *testing.T) {
 
 func TestSimpleMICClient(t *testing.T) {
 
-	exit := make(<-chan struct{}, 0)
+	exit := make(<-chan struct{})
 	eventCh := make(chan aadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
 	crdClient := NewTestCrdClient(nil)
@@ -529,7 +529,7 @@ func TestSimpleMICClient(t *testing.T) {
 
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
 
-	crdClient.CreateId("test-id", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
+	crdClient.CreateID("test-id", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
 	crdClient.CreateBinding("testbinding", "test-id", "test-select")
 
 	nodeClient.AddNode("test-node")
@@ -642,7 +642,7 @@ func TestSimpleMICClient(t *testing.T) {
 }
 
 func TestAddDelMICClient(t *testing.T) {
-	exit := make(<-chan struct{}, 0)
+	exit := make(<-chan struct{})
 	eventCh := make(chan aadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
 	crdClient := NewTestCrdClient(nil)
@@ -656,14 +656,14 @@ func TestAddDelMICClient(t *testing.T) {
 
 	// Test to add and delete at the same time.
 	// Add a pod, identity and binding.
-	crdClient.CreateId("test-id2", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
+	crdClient.CreateID("test-id2", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
 	crdClient.CreateBinding("testbinding2", "test-id2", "test-select2")
 
 	nodeClient.AddNode("test-node2")
 	podClient.AddPod("test-pod2", "default", "test-node2", "test-select2")
 	podClient.GetPods()
 
-	crdClient.CreateId("test-id4", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
+	crdClient.CreateID("test-id4", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
 	crdClient.CreateBinding("testbinding4", "test-id4", "test-select4")
 	podClient.AddPod("test-pod4", "default", "test-node2", "test-select4")
 	podClient.GetPods()
@@ -693,7 +693,7 @@ func TestAddDelMICClient(t *testing.T) {
 	podClient.DeletePod("test-pod4", "default")
 
 	//Add a new pod, with different id and binding on the same node.
-	crdClient.CreateId("test-id3", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
+	crdClient.CreateID("test-id3", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
 	crdClient.CreateBinding("testbinding3", "test-id3", "test-select3")
 	podClient.AddPod("test-pod3", "default", "test-node2", "test-select3")
 	podClient.GetPods()
