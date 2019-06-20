@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v2"
+	aadpodidv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
 	"github.com/golang/glog"
@@ -19,8 +20,8 @@ import (
 
 type Client struct {
 	rest                *rest.RESTClient
-	BindingListWatch    *cache.ListWatch
-	BindingInformer     cache.SharedInformer
+	BindingListWatch    map[string]*cache.ListWatch
+	BindingInformer     map[string]cache.SharedInformer
 	IDListWatch         *cache.ListWatch
 	IDInformer          cache.SharedInformer
 	AssignedIDListWatch *cache.ListWatch
@@ -56,8 +57,15 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 	}
 
 	bindingListWatch := newBindingListWatch(restClient)
+	bindingListWatchV2 := newBindingListWatchV2(restClient)
 
 	bindingInformer, err := newBindingInformer(restClient, eventCh, bindingListWatch)
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+
+	bindingInformerV2, err := newBindingInformerV2(restClient, eventCh, bindingListWatchV2)
 	if err != nil {
 		glog.Error(err)
 		return nil, err
@@ -75,8 +83,14 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 
 	return &Client{
 		rest:                restClient,
-		BindingListWatch:    bindingListWatch,
-		BindingInformer:     bindingInformer,
+		BindingListWatch:    map[string]*cache.ListWatch{			
+			"v1": bindingListWatch,
+			"v2": bindingListWatchV2,
+		},
+		BindingInformer:     map[string]cache.SharedInformer{
+			"V1": bindingInformer, 
+			"V2": bindingInformerV2,
+		},
 		IDInformer:          idInformer,
 		IDListWatch:         idListWatch,
 		AssignedIDListWatch: assignedIDListWatch,
@@ -108,14 +122,45 @@ func newRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
 	return restClient, nil
 }
 
+func newBindingListWatchV2(r *rest.RESTClient) *cache.ListWatch {
+	return cache.NewListWatchFromClient(r, aadpodid.AzureIDBindingResource, v1.NamespaceAll, fields.Everything())
+}
+
 func newBindingListWatch(r *rest.RESTClient) *cache.ListWatch {
 	return cache.NewListWatchFromClient(r, aadpodid.AzureIDBindingResource, v1.NamespaceAll, fields.Everything())
+}
+
+func newBindingInformerV2(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cache.ListWatch) (cache.SharedInformer, error) {
+	azBindingInformerV2 := cache.NewSharedInformer(
+		lw,
+		&aadpodid.AzureIdentityBinding{},
+		time.Minute*10)
+	if azBindingInformerV2 == nil {
+		return nil, fmt.Errorf("Could not create watcher for %s V2", aadpodid.AzureIDBindingResource)
+	}
+	azBindingInformerV2.AddEventHandler(
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				glog.V(6).Infof("Binding created")
+				eventCh <- aadpodid.BindingCreated
+			},
+			DeleteFunc: func(obj interface{}) {
+				glog.V(6).Infof("Binding deleted")
+				eventCh <- aadpodid.BindingDeleted
+			},
+			UpdateFunc: func(OldObj, newObj interface{}) {
+				glog.V(6).Infof("Binding updated")
+				eventCh <- aadpodid.BindingUpdated
+			},
+		},
+	)
+	return azBindingInformerV2, nil
 }
 
 func newBindingInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cache.ListWatch) (cache.SharedInformer, error) {
 	azBindingInformer := cache.NewSharedInformer(
 		lw,
-		&aadpodid.AzureIdentityBinding{},
+		&aadpodidv1.AzureIdentityBinding{},
 		time.Minute*10)
 	if azBindingInformer == nil {
 		return nil, fmt.Errorf("Could not create watcher for %s", aadpodid.AzureIDBindingResource)
@@ -175,7 +220,8 @@ func newAssignedIDListWatch(r *rest.RESTClient) *cache.ListWatch {
 }
 
 func (c *Client) Start(exit <-chan struct{}) {
-	go c.BindingInformer.Run(exit)
+	go c.BindingInformer["V1"].Run(exit)
+	go c.BindingInformer["V2"].Run(exit)
 	go c.IDInformer.Run(exit)
 	glog.Info("CRD watchers started")
 }
@@ -216,13 +262,45 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
 	begin := time.Now()
 
-	ret, err := c.BindingListWatch.List(v1.ListOptions{})
+	retV1, err := c.BindingListWatch["v1"].List(v1.ListOptions{})
 	if err != nil {
 		glog.Error(err)
 		return nil, err
 	}
+
+	retV2, err := c.BindingListWatch["v2"].List(v1.ListOptions{})
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+
+ 	var listV1 = &retV1.(*aadpodidv1.AzureIdentityBindingList).Items
+	var listV2 = &retV2.(*aadpodid.AzureIdentityBindingList).Items
+	for _, allBinding := range *listV1 {
+		var labelValue = allBinding.Spec.Selector
+
+ 		binding := &aadpodid.AzureIdentityBinding{
+			TypeMeta: allBinding.TypeMeta,
+			ObjectMeta: allBinding.ObjectMeta,
+			Spec: aadpodid.AzureIdentityBindingSpec{
+				ObjectMeta: allBinding.Spec.ObjectMeta,
+				AzureIdentity: allBinding.Spec.AzureIdentity,
+				Selector: v1.LabelSelector{
+					MatchLabels: map[string]string{aadpodid.CRDLabelKey: labelValue},
+				},
+				Weight: allBinding.Spec.Weight,
+			},
+			Status: aadpodid.AzureIdentityBindingStatus {
+				ObjectMeta: allBinding.Status.ObjectMeta,
+				AvailableReplicas: allBinding.Status.AvailableReplicas,
+			},
+		}
+
+ 		*listV2 = append(*listV2, *binding)
+	}
+
 	stats.Update(stats.BindingList, time.Since(begin))
-	return &ret.(*aadpodid.AzureIdentityBindingList).Items, nil
+	return listV2, nil
 }
 
 func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {

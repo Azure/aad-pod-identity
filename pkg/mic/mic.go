@@ -8,7 +8,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	"github.com/Azure/aad-pod-identity/version"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v2"
 
 	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	"github.com/Azure/aad-pod-identity/pkg/crd"
@@ -163,19 +163,31 @@ func (c *Client) Sync(exit <-chan struct{}) {
 				glog.V(2).Infof("Pod %s/%s has no assigned node yet. it will be ignored", pod.Name, pod.Namespace)
 				continue
 			}
-			crdPodLabelVal := pod.Labels[aadpodid.CRDLabelKey]
-			if crdPodLabelVal == "" {
-				//No binding mentioned in the label. Just continue to the next pod
-				glog.V(2).Infof("Pod %s/%s has correct %s label but with no value. it will be ignored", pod.Name, pod.Namespace, aadpodid.CRDLabelKey)
-				continue
-			}
+
 			//glog.Infof("Found label with our CRDKey %s for pod: %s", crdPodLabelVal, pod.Name)
+			var hasAllBindings = true
 			var matchedBindings []aadpodid.AzureIdentityBinding
 			for _, allBinding := range *listBindings {
-				if allBinding.Spec.Selector[aadpodid.CRDLabelKey] == crdPodLabelVal {
-					glog.V(5).Infof("Found binding match for pod %s/%s with binding %s", pod.Name, pod.Namespace, allBinding.Name)
-					matchedBindings = append(matchedBindings, allBinding)
+				if len(allBinding.Spec.Selector.MatchLabels) != 0 {
+					for k, v := range allBinding.Spec.Selector.MatchLabels {
+						crdPodLabelVal := pod.Labels[k]
+						if crdPodLabelVal != v {
+							hasAllBindings = false
+							break
+						}
+					}
+
+					if hasAllBindings {
+						glog.V(5).Infof("Found binding match for pod %s/%s with binding %s", pod.Name, pod.Namespace, allBinding.Name)
+						matchedBindings = append(matchedBindings, allBinding)
+					}
 				}
+			}
+
+			if !hasAllBindings {
+				//All labels were not mapped from AzureIdentityBinding to Pod Labels
+				glog.V(2).Infof("Pod %s/%s has correct %s label but with no value. it will be ignored", pod.Name, pod.Namespace, aadpodid.CRDLabelKey)
+				continue
 			}
 
 			for _, binding := range matchedBindings {

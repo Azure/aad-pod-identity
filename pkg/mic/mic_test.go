@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v2"
 	"github.com/Azure/aad-pod-identity/pkg/config"
 
 	"github.com/golang/glog"
@@ -315,7 +315,9 @@ func (c *TestCrdClient) CreateBinding(bindingName string, idName string, selecto
 		},
 		Spec: aadpodid.AzureIdentityBindingSpec{
 			AzureIdentity: idName,
-			Selector:      map[string]string{aadpodid.CRDLabelKey: selector},
+			Selector: v1.LabelSelector{
+				MatchLabels: map[string]string{aadpodid.CRDLabelKey: selector},
+			},
 		},
 	}
 	c.bindingMap[bindingName] = binding

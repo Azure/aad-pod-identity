@@ -1,4 +1,4 @@
-package v1
+package v2
 
 import (
 	api "k8s.io/api/core/v1"
@@ -22,7 +22,7 @@ const (
 
 const (
 	CRDGroup    = "aadpodidentity.k8s.io"
-	CRDVersion  = "v1"
+	CRDVersion  = "v2"
 	CRDLabelKey = "aadpodidbinding"
 
 	BehaviorKey = "aadpodidentity.k8s.io/Behavior"
@@ -155,7 +155,7 @@ const (
 type AzureIdentityBindingSpec struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	AzureIdentity     string `json:"azureidentity"`
-	Selector          string `json:"selector"`
+	Selector          metav1.LabelSelector `json:"selector"`
 	// Weight is used to figure out which of the matching identities would be selected.
 	Weight int `json:"weight"`
 }
