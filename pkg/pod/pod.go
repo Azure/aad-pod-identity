@@ -5,14 +5,15 @@ import (
 
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
+	// "k8s.io/apimachinery/pkg/labels"
+	// "k8s.io/apimachinery/pkg/selection"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v2"
 	"github.com/golang/glog"
 
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
@@ -23,7 +24,7 @@ type Client struct {
 }
 
 type ClientInt interface {
-	GetPods() (pods []*corev1.Pod, err error)
+	GetPods(labelSelector *metav1.LabelSelector) (pods []*corev1.Pod, err error)
 	Start(exit <-chan struct{})
 }
 
@@ -78,16 +79,14 @@ func (c *Client) Start(exit <-chan struct{}) {
 	glog.Info("Pod watcher started !!")
 }
 
-func (c *Client) GetPods() (pods []*corev1.Pod, err error) {
+func (c *Client) GetPods(labelSelector *metav1.LabelSelector) (pods []*corev1.Pod, err error) {
 	begin := time.Now()
-	crdReq, err := labels.NewRequirement(aadpodid.CRDLabelKey, selection.Exists, nil)
+	selector, err := metav1.LabelSelectorAsSelector(labelSelector)
 	if err != nil {
-		glog.Error(err)
 		return nil, err
 	}
-	crdSelector := labels.NewSelector().Add(*crdReq)
-	listPods, err := c.PodWatcher.Lister().List(crdSelector)
-	//ClientSet.CoreV1().Pods("").List(v1.ListOptions{})
+
+	listPods, err := c.PodWatcher.Lister().List(selector)
 	if err != nil {
 		return nil, err
 	}

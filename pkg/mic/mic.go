@@ -124,13 +124,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		begin := time.Now()
 		workDone := false
 		glog.V(6).Infof("Received event: %v", event)
-		// List all pods in all namespaces
 		systemTime := time.Now()
-		listPods, err := c.PodClient.GetPods()
-		if err != nil {
-			glog.Error(err)
-			continue
-		}
 		listBindings, err := c.CRDClient.ListBindings()
 		if err != nil {
 			continue
@@ -153,57 +147,39 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 		var newAssignedIDs []aadpodid.AzureAssignedIdentity
 		beginNewListTime := time.Now()
-		//For each pod, check what bindings are matching. For each binding create volatile azure assigned identity.
+		//For each binding, check what pods match, and create volatile azure assigned identity.
 		//Compare this list with the current list of azure assigned identities.
 		//For any new assigned identities found in this volatile list, create assigned identity and assign user assigned msis.
 		//For any assigned ids not present the volatile list, proceed with the deletion.
-		for _, pod := range listPods {
-			//Node is not yet allocated. In that case skip the pod
-			if pod.Spec.NodeName == "" {
-				glog.V(2).Infof("Pod %s/%s has no assigned node yet. it will be ignored", pod.Name, pod.Namespace)
+
+		var totalPods = 0
+		for _, allBinding := range *listBindings {
+			listPods, err := c.PodClient.GetPods(&allBinding.Spec.Selector)
+			if err != nil {
 				continue
 			}
+			totalPods += len(listPods)
 
-			//glog.Infof("Found label with our CRDKey %s for pod: %s", crdPodLabelVal, pod.Name)
-			var hasAllBindings = true
-			var matchedBindings []aadpodid.AzureIdentityBinding
-			for _, allBinding := range *listBindings {
-				if len(allBinding.Spec.Selector.MatchLabels) != 0 {
-					for k, v := range allBinding.Spec.Selector.MatchLabels {
-						crdPodLabelVal := pod.Labels[k]
-						if crdPodLabelVal != v {
-							hasAllBindings = false
-							break
-						}
-					}
-
-					if hasAllBindings {
-						glog.V(5).Infof("Found binding match for pod %s/%s with binding %s", pod.Name, pod.Namespace, allBinding.Name)
-						matchedBindings = append(matchedBindings, allBinding)
-					}
+			for _, pod := range listPods {
+				//Node is not yet allocated. In that case skip the pod
+				if pod.Spec.NodeName == "" {
+					glog.V(2).Infof("Pod %s/%s has no assigned node yet. it will be ignored", pod.Name, pod.Namespace)
+					continue
 				}
-			}
 
-			if !hasAllBindings {
-				//All labels were not mapped from AzureIdentityBinding to Pod Labels
-				glog.V(2).Infof("Pod %s/%s has correct %s label but with no value. it will be ignored", pod.Name, pod.Namespace, aadpodid.CRDLabelKey)
-				continue
-			}
-
-			for _, binding := range matchedBindings {
-				glog.V(5).Infof("Looking up id map: %v", binding.Spec.AzureIdentity)
-				if azureID, idPresent := idMap[binding.Spec.AzureIdentity]; idPresent {
+				glog.V(5).Infof("Looking up id map: %v", allBinding.Spec.AzureIdentity)
+				if azureID, idPresent := idMap[allBinding.Spec.AzureIdentity]; idPresent {
 					// working in Namespaced mode or this specific identity is namespaced
 					if c.IsNamespaced || aadpodid.IsNamespacedIdentity(&azureID) {
 						// They have to match all
-						if !(azureID.Namespace == binding.Namespace && binding.Namespace == pod.Namespace) {
+						if !(azureID.Namespace == allBinding.Namespace && allBinding.Namespace == pod.Namespace) {
 							glog.V(5).Infof("identity %s/%s was matched via binding %s/%s to %s/%s but namespaced identity is enforced, so it will be ignored",
-								azureID.Namespace, azureID.Name, binding.Namespace, binding.Name, pod.Namespace, pod.Name)
+								azureID.Namespace, azureID.Name, allBinding.Namespace, allBinding.Name, pod.Namespace, pod.Name)
 							continue
 						}
 					}
-					glog.V(5).Infof("identity %s/%s assigned to %s/%s via %s/%s", azureID.Namespace, azureID.Name, pod.Namespace, pod.Name, binding.Namespace, binding.Namespace)
-					assignedID, err := c.makeAssignedIDs(&azureID, &binding, pod.Name, pod.Namespace, pod.Spec.NodeName)
+					glog.V(5).Infof("identity %s/%s assigned to %s/%s via %s/%s", azureID.Namespace, azureID.Name, pod.Namespace, pod.Name, allBinding.Namespace, allBinding.Namespace)
+					assignedID, err := c.makeAssignedIDs(&azureID, &allBinding, pod.Name, pod.Namespace, pod.Spec.NodeName)
 
 					if err != nil {
 						glog.Errorf("failed to create assignment for pod %s/%s with identity %s/%s with error %v", pod.Name, pod.Namespace, azureID.Namespace, azureID.Name, err.Error())
@@ -215,10 +191,11 @@ func (c *Client) Sync(exit <-chan struct{}) {
 					// In such a case, we will skip it from matching binding.
 					// This will ensure that the new assigned ids created will not have the
 					// one associated with this azure identity.
-					glog.V(5).Infof("%s identity not found when using %s binding", binding.Spec.AzureIdentity, binding.Name)
+					glog.V(5).Infof("%s identity not found when using %s binding", allBinding.Spec.AzureIdentity, allBinding.Name)
 				}
 			}
 		}
+
 		stats.Put(stats.CurrentState, time.Since(beginNewListTime))
 
 		// Extract add list and delete list based on existing assigned ids in the system (currentAssignedIDs).
@@ -300,7 +277,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			if listBindings != nil {
 				bindingsFound = len(*listBindings)
 			}
-			glog.Infof("Found %d pods, %d ids, %d bindings", len(listPods), idsFound, bindingsFound)
+			glog.Infof("Found %d pods, %d ids, %d bindings", totalPods, idsFound, bindingsFound)
 			stats.Put(stats.Total, time.Since(begin))
 			stats.PrintSync()
 		}
