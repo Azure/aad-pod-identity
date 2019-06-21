@@ -3,6 +3,7 @@ package mic
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
@@ -22,6 +23,11 @@ import (
 	"k8s.io/client-go/tools/record"
 )
 
+const (
+	stopped = int32(0)
+	running = int32(1)
+)
+
 type NodeGetter interface {
 	Get(name string) (*corev1.Node, error)
 	Start(<-chan struct{})
@@ -37,6 +43,8 @@ type Client struct {
 	EventChannel  chan aadpodid.EventType
 	NodeClient    NodeGetter
 	IsNamespaced  bool
+
+	syncing int32 // protect against conucrrent sync's
 }
 
 type ClientInt interface {
@@ -113,7 +121,20 @@ func (c *Client) Start(exit <-chan struct{}) {
 	go c.Sync(exit)
 }
 
+func (c *Client) canSync() bool {
+	return atomic.CompareAndSwapInt32(&c.syncing, stopped, running)
+}
+
+func (c *Client) setStopped() {
+	atomic.StoreInt32(&c.syncing, stopped)
+}
+
 func (c *Client) Sync(exit <-chan struct{}) {
+	if !c.canSync() {
+		panic("concurrent syncs")
+	}
+	defer c.setStopped()
+
 	glog.Info("Sync thread started.")
 
 	var event aadpodid.EventType
