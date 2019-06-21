@@ -35,7 +35,7 @@ func filterUserIdentity(idType *compute.ResourceIdentityType, idList *[]string, 
 	case compute.ResourceIdentityTypeUserAssigned,
 		compute.ResourceIdentityTypeSystemAssignedUserAssigned:
 	default:
-		return errNotFound
+		return nil
 	}
 
 	origLen := len(*idList)

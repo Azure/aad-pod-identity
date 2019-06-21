@@ -235,14 +235,15 @@ func (c TestPodClient) GetPods() (pods []*corev1.Pod, err error) {
 	return c.pods, nil
 }
 
-func (c *TestPodClient) AddPod(podName string, podNs string, nodeName string, binding string) {
+func (c *TestPodClient) AddPod(podName, podNs, nodeName, binding, resourceVersion string) {
 	labels := make(map[string]string)
 	labels[aadpodid.CRDLabelKey] = binding
 	pod := &corev1.Pod{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      podName,
-			Namespace: podNs,
-			Labels:    labels,
+			Name:            podName,
+			Namespace:       podNs,
+			Labels:          labels,
+			ResourceVersion: resourceVersion,
 		},
 		Spec: corev1.PodSpec{
 			NodeName: nodeName,
@@ -274,6 +275,7 @@ type TestCrdClient struct {
 	assignedIDMap map[string]*aadpodid.AzureAssignedIdentity
 	bindingMap    map[string]*aadpodid.AzureIdentityBinding
 	idMap         map[string]*aadpodid.AzureIdentity
+	err           *error
 }
 
 func NewTestCrdClient(config *rest.Config) *TestCrdClient {
@@ -296,6 +298,9 @@ func (c *TestCrdClient) CreateCrdWatchers(eventCh chan aadpodid.EventType) (err 
 }
 
 func (c *TestCrdClient) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
+	if c.err != nil {
+		return *c.err
+	}
 	delete(c.assignedIDMap, assignedIdentity.Name)
 	return nil
 }
@@ -303,6 +308,13 @@ func (c *TestCrdClient) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureA
 // This function is not used currently
 // TODO: consider remove
 func (c *TestCrdClient) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
+	assignedIdentityToStore := *assignedIdentity //Make a copy to store in the map.
+	c.assignedIDMap[assignedIdentity.Name] = &assignedIdentityToStore
+	return nil
+}
+
+func (c *TestCrdClient) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error {
+	assignedIdentity.Status.Status = status
 	assignedIdentityToStore := *assignedIdentity //Make a copy to store in the map.
 	c.assignedIDMap[assignedIdentity.Name] = &assignedIdentityToStore
 	return nil
@@ -364,6 +376,14 @@ func (c *TestCrdClient) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity
 }
 func (c *Client) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error) {
 	return &[]aadpodid.AzureIdentity{}, nil
+}
+
+func (c *TestCrdClient) SetError(err error) {
+	c.err = &err
+}
+
+func (c *TestCrdClient) UnSetError() {
+	c.err = nil
 }
 
 /************************ NODE MOCK *************************************/
@@ -533,7 +553,7 @@ func TestSimpleMICClient(t *testing.T) {
 	crdClient.CreateBinding("testbinding", "test-id", "test-select")
 
 	nodeClient.AddNode("test-node")
-	podClient.AddPod("test-pod", "default", "test-node", "test-select")
+	podClient.AddPod("test-pod", "default", "test-node", "test-select", "1227727")
 
 	eventCh <- aadpodid.PodCreated
 	go micClient.Sync(exit)
@@ -596,7 +616,7 @@ func TestSimpleMICClient(t *testing.T) {
 	err = errors.New("error returned from cloud provider")
 	cloudClient.SetError(err)
 
-	podClient.AddPod("test-pod", "default", "test-node", "test-select")
+	podClient.AddPod("test-pod", "default", "test-node", "test-select", "1227727")
 	eventCh <- aadpodid.PodCreated
 	evtRecorder.WaitForEvents(1)
 
@@ -660,12 +680,12 @@ func TestAddDelMICClient(t *testing.T) {
 	crdClient.CreateBinding("testbinding2", "test-id2", "test-select2")
 
 	nodeClient.AddNode("test-node2")
-	podClient.AddPod("test-pod2", "default", "test-node2", "test-select2")
+	podClient.AddPod("test-pod2", "default", "test-node2", "test-select2", "1227727")
 	podClient.GetPods()
 
 	crdClient.CreateID("test-id4", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
 	crdClient.CreateBinding("testbinding4", "test-id4", "test-select4")
-	podClient.AddPod("test-pod4", "default", "test-node2", "test-select4")
+	podClient.AddPod("test-pod4", "default", "test-node2", "test-select4", "1227727")
 	podClient.GetPods()
 
 	eventCh <- aadpodid.PodCreated
@@ -695,7 +715,7 @@ func TestAddDelMICClient(t *testing.T) {
 	//Add a new pod, with different id and binding on the same node.
 	crdClient.CreateID("test-id3", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
 	crdClient.CreateBinding("testbinding3", "test-id3", "test-select3")
-	podClient.AddPod("test-pod3", "default", "test-node2", "test-select3")
+	podClient.AddPod("test-pod3", "default", "test-node2", "test-select3", "1227727")
 	podClient.GetPods()
 
 	eventCh <- aadpodid.PodCreated
@@ -719,10 +739,114 @@ func TestAddDelMICClient(t *testing.T) {
 		t.Fatalf("Add and delete id at same time mismatch")
 	} else {
 		gotID := (*listAssignedIDs)[0].Name
-		expectedID := "test-pod3-default-test-id3"
+		expectedID := "test-pod3-default-1227727-test-id3"
 		if gotID != expectedID {
 			glog.Errorf("Expected %s. Got: %s", expectedID, gotID)
 			t.Fatalf("Add and delete id at same time. Found wrong id")
 		}
 	}
+}
+
+func TestAssignedIdentityStates(t *testing.T) {
+	exit := make(<-chan struct{})
+	eventCh := make(chan aadpodid.EventType, 100)
+	cloudClient := NewTestCloudClient(config.AzureConfig{})
+	crdClient := NewTestCrdClient(nil)
+	podClient := NewTestPodClient()
+	nodeClient := NewTestNodeClient()
+	var evtRecorder TestEventRecorder
+	evtRecorder.lastEvent = new(LastEvent)
+	evtRecorder.eventChannel = make(chan bool, 100)
+
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
+
+	crdClient.CreateID("test-id2", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
+	crdClient.CreateBinding("testbinding2", "test-id2", "test-select2")
+
+	nodeClient.AddNode("test-node2")
+	podClient.AddPod("test-pod2", "default", "test-node2", "test-select2", "1227727")
+	podClient.GetPods()
+
+	eventCh <- aadpodid.PodCreated
+	go micClient.Sync(exit)
+
+	time.Sleep(5 * time.Second)
+
+	listAssignedIDs, err := crdClient.ListAssignedIDs()
+	if err != nil {
+		t.Fatalf("error from list assigned ids")
+	}
+	expectedLen := 1
+	gotLen := len(*listAssignedIDs)
+
+	if gotLen != expectedLen {
+		t.Fatalf("Expected len: %d. Got: %d", expectedLen, gotLen)
+	}
+	if (*listAssignedIDs)[0].Status.Status != IdentityAssigned {
+		t.Fatalf("Expected status to be: %s. Got: %s", IdentityAssigned, (*listAssignedIDs)[0].Status.Status)
+	}
+
+	// delete the pod, simulate failure in cloud calls on trying to un-assign identity from node
+	podClient.DeletePod("test-pod2", "default")
+	cloudClient.SetError(errors.New("error removing identity from node"))
+
+	eventCh <- aadpodid.PodDeleted
+	time.Sleep(5 * time.Second)
+
+	// the identity state should still be assigned
+	listAssignedIDs, err = crdClient.ListAssignedIDs()
+	if err != nil {
+		t.Fatalf("error from list assigned ids")
+	}
+	expectedLen = 1
+	gotLen = len(*listAssignedIDs)
+
+	if gotLen != expectedLen {
+		t.Fatalf("Expected len: %d. Got: %d", expectedLen, gotLen)
+	}
+	if (*listAssignedIDs)[0].Status.Status != IdentityAssigned {
+		t.Fatalf("Expected status to be: %s. Got: %s", IdentityAssigned, (*listAssignedIDs)[0].Status.Status)
+	}
+
+	// add new pod, this time the old assigned identity which is in Assigned state should be tried to delete
+	// simulate failure on kube api call to delete crd
+	cloudClient.UnSetError()
+	crdClient.SetError(errors.New("error from crd client"))
+
+	crdClient.CreateID("test-id4", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
+	crdClient.CreateBinding("testbinding4", "test-id4", "test-select4")
+
+	nodeClient.AddNode("test-node4")
+	podClient.AddPod("test-pod4", "default", "test-node4", "test-select4", "1227727")
+	podClient.GetPods()
+
+	eventCh <- aadpodid.PodCreated
+
+	time.Sleep(5 * time.Second)
+
+	// the identity state should still be assigned
+	listAssignedIDs, err = crdClient.ListAssignedIDs()
+	if err != nil {
+		t.Fatalf("error from list assigned ids")
+	}
+	expectedLen = 2
+	gotLen = len(*listAssignedIDs)
+
+	if gotLen != expectedLen {
+		t.Fatalf("Expected len: %d. Got: %d", expectedLen, gotLen)
+	}
+	for _, assignedID := range *listAssignedIDs {
+		if assignedID.Spec.Pod == "test-pod4" {
+			if assignedID.Status.Status != IdentityAssigned {
+				t.Fatalf("Expected status to be: %s. Got: %s", IdentityAssigned, assignedID.Status.Status)
+			}
+		}
+		if assignedID.Spec.Pod == "test-pod2" {
+			if assignedID.Status.Status != IdentityUnassigned {
+				t.Fatalf("Expected status to be: %s. Got: %s", IdentityUnassigned, assignedID.Status.Status)
+			}
+		}
+	}
+
+	crdClient.UnSetError()
 }

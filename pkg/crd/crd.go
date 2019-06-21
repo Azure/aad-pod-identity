@@ -1,6 +1,7 @@
 package crd
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 )
@@ -31,6 +33,7 @@ type ClientInt interface {
 	SyncCache(exit <-chan struct{})
 	RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
+	UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error
 	ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error)
 	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
 	ListIds() (res *[]aadpodid.AzureIdentity, err error)
@@ -191,7 +194,7 @@ func (c *Client) SyncCache(exit <-chan struct{}) {
 }
 
 func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
-	glog.V(6).Infof("Deletion of id named: %s", assignedIdentity.Name)
+	glog.V(6).Infof("Deletion of assigned id named: %s", assignedIdentity.Name)
 	begin := time.Now()
 	err := c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Name(assignedIdentity.Name).Do().Error()
 	stats.Update(stats.AssignedIDDel, time.Since(begin))
@@ -199,13 +202,12 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 }
 
 func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
-	glog.Infof("Got id %s to assign", assignedIdentity.Name)
+	glog.Infof("Got assigned id %s to create", assignedIdentity.Name)
 	begin := time.Now()
 	// Create a new AzureAssignedIdentity which maps the relationship between
 	// id and pod
 	glog.Infof("Creating assigned Id: %s", assignedIdentity.Name)
 	var res aadpodid.AzureAssignedIdentity
-	// TODO: Ensure that the status reflects the corresponding
 	err := c.rest.Post().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Body(assignedIdentity).Do().Into(&res)
 	if err != nil {
 		glog.Error(err)
@@ -213,7 +215,6 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	}
 
 	stats.Update(stats.AssignedIDAdd, time.Since(begin))
-	//TODO: Update the status of the assign identity to indicate that the node assignment got done.
 	return nil
 }
 
@@ -267,4 +268,36 @@ func (c *Client) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, e
 	}
 
 	return &matchedIds, nil
+}
+
+type patchStatusOps struct {
+	Op    string      `json:"op"`
+	Path  string      `json:"path"`
+	Value interface{} `json:"value"`
+}
+
+// UpdateAzureAssignedIdentityStatus updates the status field in AzureAssignedIdentity to indicate current status
+func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error {
+	glog.Infof("Updating assigned identity %s/%s status to %s", assignedIdentity.Namespace, assignedIdentity.Name, status)
+
+	ops := make([]patchStatusOps, 1)
+	ops[0].Op = "replace"
+	ops[0].Path = "/Status/status"
+	ops[0].Value = status
+
+	patchBytes, err := json.Marshal(ops)
+	if err != nil {
+		return err
+	}
+
+	err = c.rest.
+		Patch(types.JSONPatchType).
+		Namespace(assignedIdentity.Namespace).
+		Resource("azureassignedidentities").
+		Name(assignedIdentity.Name).
+		Body(patchBytes).
+		Do().
+		Error()
+
+	return err
 }
