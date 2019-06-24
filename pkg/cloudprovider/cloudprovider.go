@@ -220,15 +220,15 @@ var (
 )
 
 const (
-	vmRT   = "virtualMachines"
-	vmssRT = "virtualMachineScaleSets"
+	VMResourceType   = "virtualMachines"
+	VMSSResourceType = "virtualMachineScaleSets"
 )
 
 func vmTypeOrDefault(r *azure.Resource, val string) string {
 	switch r.ResourceType {
-	case vmRT:
+	case VMResourceType:
 		return "vm"
-	case vmssRT:
+	case VMSSResourceType:
 		return "vmss"
 	}
 	return val

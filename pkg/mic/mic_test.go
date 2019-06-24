@@ -1,6 +1,7 @@
 package mic
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"testing"
@@ -386,8 +387,14 @@ func (c *TestNodeClient) Get(name string) (*corev1.Node, error) {
 
 func (c *TestNodeClient) Start(<-chan struct{}) {}
 
-func (c *TestNodeClient) AddNode(name string) {
-	c.nodes[name] = &corev1.Node{ObjectMeta: v1.ObjectMeta{Name: name}}
+func (c *TestNodeClient) AddNode(name string, opts ...func(*corev1.Node)) {
+	n := &corev1.Node{ObjectMeta: v1.ObjectMeta{Name: name}, Spec: corev1.NodeSpec{
+		ProviderID: "azure:///subscriptions/testSub/resourceGroups/fakeGroup/providers/Microsoft.Compute/virtualMachines/" + name,
+	}}
+	for _, o := range opts {
+		o(n)
+	}
+	c.nodes[name] = n
 }
 
 /************************ EVENT RECORDER MOCK *************************************/
@@ -516,8 +523,9 @@ func TestMapMICClient(t *testing.T) {
 }
 
 func TestSimpleMICClient(t *testing.T) {
+	exit := make(chan struct{})
+	defer close(exit)
 
-	exit := make(<-chan struct{})
 	eventCh := make(chan aadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
 	crdClient := NewTestCrdClient(nil)
@@ -571,7 +579,9 @@ func TestSimpleMICClient(t *testing.T) {
 	podClient.DeletePod("test-pod", "default")
 
 	eventCh <- aadpodid.PodDeleted
-	time.Sleep(5 * time.Second)
+	if !evtRecorder.WaitForEvents(1) {
+		t.Fatal("timeout waiting for event sync")
+	}
 
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
@@ -630,7 +640,6 @@ func TestSimpleMICClient(t *testing.T) {
 
 	podClient.DeletePod("test-pod", "default")
 	eventCh <- aadpodid.PodDeleted
-	time.Sleep(5 * time.Second)
 	/*
 		testPass = evtRecorder.Validate(&LastEvent{Type: "Warning", Reason: "binding remove error",
 			Message: "Binding testbinding removal from node test-node for pod test-pod resulted in error remove error returned from cloud provider"})
@@ -642,7 +651,9 @@ func TestSimpleMICClient(t *testing.T) {
 }
 
 func TestAddDelMICClient(t *testing.T) {
-	exit := make(<-chan struct{})
+	exit := make(chan struct{})
+	defer close(exit)
+
 	eventCh := make(chan aadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
 	crdClient := NewTestCrdClient(nil)
@@ -668,6 +679,7 @@ func TestAddDelMICClient(t *testing.T) {
 	podClient.AddPod("test-pod4", "default", "test-node2", "test-select4")
 	podClient.GetPods()
 
+	eventCh <- aadpodid.PodCreated
 	eventCh <- aadpodid.PodCreated
 	go micClient.Sync(exit)
 
@@ -699,6 +711,8 @@ func TestAddDelMICClient(t *testing.T) {
 	podClient.GetPods()
 
 	eventCh <- aadpodid.PodCreated
+	eventCh <- aadpodid.PodDeleted
+	eventCh <- aadpodid.PodDeleted
 	go micClient.Sync(exit)
 
 	if !evtRecorder.WaitForEvents(3) {
@@ -724,5 +738,112 @@ func TestAddDelMICClient(t *testing.T) {
 			glog.Errorf("Expected %s. Got: %s", expectedID, gotID)
 			t.Fatalf("Add and delete id at same time. Found wrong id")
 		}
+	}
+}
+
+func TestMicAddDelVMSS(t *testing.T) {
+	exit := make(chan struct{}, 0)
+	defer close(exit)
+
+	eventCh := make(chan aadpodid.EventType, 100)
+	cloudClient := NewTestCloudClient(config.AzureConfig{VMType: "vmss"})
+	crdClient := NewTestCrdClient(nil)
+	podClient := NewTestPodClient()
+	nodeClient := NewTestNodeClient()
+	var evtRecorder TestEventRecorder
+	evtRecorder.lastEvent = new(LastEvent)
+	evtRecorder.eventChannel = make(chan bool, 1)
+
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
+
+	// Test to add and delete at the same time.
+	// Add a pod, identity and binding.
+	crdClient.CreateID("test-id1", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
+	crdClient.CreateBinding("testbinding1", "test-id1", "test-select1")
+
+	nodeClient.AddNode("test-node1", func(n *corev1.Node) {
+		n.Spec.ProviderID = "azure:///subscriptions/fakeSub/resourceGroups/fakeGroup/providers/Microsoft.Compute/virtualMachineScaleSets/testvmss1/virtualMachines/0"
+	})
+
+	nodeClient.AddNode("test-node2", func(n *corev1.Node) {
+		n.Spec.ProviderID = "azure:///subscriptions/fakeSub/resourceGroups/fakeGroup/providers/Microsoft.Compute/virtualMachineScaleSets/testvmss1/virtualMachines/1"
+	})
+
+	nodeClient.AddNode("test-node3", func(n *corev1.Node) {
+		n.Spec.ProviderID = "azure:///subscriptions/fakeSub/resourceGroups/fakeGroup/providers/Microsoft.Compute/virtualMachineScaleSets/testvmss2/virtualMachines/0"
+	})
+
+	podClient.AddPod("test-pod1", "default", "test-node1", "test-select1")
+	podClient.AddPod("test-pod2", "default", "test-node2", "test-select1")
+	podClient.AddPod("test-pod3", "default", "test-node3", "test-select1")
+
+	go micClient.Sync(exit)
+
+	eventCh <- aadpodid.PodCreated
+	eventCh <- aadpodid.PodCreated
+	eventCh <- aadpodid.PodCreated
+	if !evtRecorder.WaitForEvents(3) {
+		t.Fatalf("Timeout waiting for mic sync cycles")
+	}
+
+	if !cloudClient.CompareMSI("testvmss1", []string{"test-user-msi-resourceid"}) {
+		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss1"])
+	}
+	if !cloudClient.CompareMSI("testvmss2", []string{"test-user-msi-resourceid"}) {
+		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss2"])
+	}
+
+	podClient.DeletePod("test-pod1", "default")
+	eventCh <- aadpodid.PodDeleted
+
+	if !evtRecorder.WaitForEvents(1) {
+		t.Fatal("Timeout waiting for mic sync cycles")
+	}
+
+	if !cloudClient.CompareMSI("testvmss1", []string{"test-user-msi-resourceid"}) {
+		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss1"])
+	}
+	if !cloudClient.CompareMSI("testvmss2", []string{"test-user-msi-resourceid"}) {
+		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss2"])
+	}
+
+	podClient.DeletePod("test-pod2", "default")
+	eventCh <- aadpodid.PodDeleted
+	if !evtRecorder.WaitForEvents(1) {
+		t.Fatal("Timeout waiting for mic sync cycles")
+	}
+
+	if !cloudClient.CompareMSI("testvmss1", []string{}) {
+		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss1"])
+	}
+	if !cloudClient.CompareMSI("testvmss2", []string{"test-user-msi-resourceid"}) {
+		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss2"])
+	}
+}
+
+func TestSyncExit(t *testing.T) {
+	eventCh := make(chan aadpodid.EventType)
+	cloudClient := NewTestCloudClient(config.AzureConfig{VMType: "vmss"})
+	crdClient := NewTestCrdClient(nil)
+	podClient := NewTestPodClient()
+	nodeClient := NewTestNodeClient()
+	var evtRecorder TestEventRecorder
+	evtRecorder.lastEvent = new(LastEvent)
+	evtRecorder.eventChannel = make(chan bool, 1)
+
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
+
+	exit := make(chan struct{}, 0)
+	close(exit)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	go func() {
+		micClient.Sync(exit)
+		cancel()
+	}()
+
+	<-ctx.Done()
+	if ctx.Err() == context.DeadlineExceeded {
+		t.Fatal("timeout waiting for sync to exit")
 	}
 }
