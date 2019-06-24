@@ -68,12 +68,12 @@ func NewKubeClient() (Client, error) {
 		return nil, err
 	}
 
-	optionsModifer := func(options *metav1.ListOptions) {}
+	optionsModifier := func(options *metav1.ListOptions) {}
 	podListWatch := cache.NewFilteredListWatchFromClient(
 		clientset.CoreV1().RESTClient(),
 		"pods",
 		v1.NamespaceAll,
-		optionsModifer,
+		optionsModifier,
 	)
 
 	kubeClient := &KubeClient{CrdClient: crdclient, ClientSet: clientset, PodListWatch: podListWatch}
