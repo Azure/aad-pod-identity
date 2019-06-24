@@ -7,8 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/fields"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -70,11 +68,13 @@ func NewKubeClient() (Client, error) {
 		return nil, err
 	}
 
-	podListWatch := cache.NewListWatchFromClient(
+	optionsModifier := func(options *metav1.ListOptions) {}
+	podListWatch := cache.NewFilteredListWatchFromClient(
 		clientset.CoreV1().RESTClient(),
 		"pods",
 		v1.NamespaceAll,
-		fields.Everything())
+		optionsModifier,
+	)
 
 	kubeClient := &KubeClient{CrdClient: crdclient, ClientSet: clientset, PodListWatch: podListWatch}
 
