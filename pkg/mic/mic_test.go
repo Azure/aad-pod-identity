@@ -1,9 +1,9 @@
 package mic
 
 import (
-	"context"
 	"errors"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -32,6 +32,8 @@ type TestCloudClient struct {
 
 type TestVMClient struct {
 	*cp.VMClient
+
+	mu      sync.Mutex
 	nodeMap map[string]*compute.VirtualMachine
 	err     *error
 }
@@ -45,6 +47,9 @@ func (c *TestVMClient) UnSetError() {
 }
 
 func (c *TestVMClient) Get(rgName string, nodeName string) (ret compute.VirtualMachine, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	stored := c.nodeMap[nodeName]
 	if stored == nil {
 		vm := new(compute.VirtualMachine)
@@ -55,15 +60,22 @@ func (c *TestVMClient) Get(rgName string, nodeName string) (ret compute.VirtualM
 }
 
 func (c *TestVMClient) CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachine) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if c.err != nil {
 		return *c.err
 	}
+
 	c.nodeMap[nodeName] = &vm
 	return nil
 }
 
 func (c *TestVMClient) ListMSI() (ret map[string]*[]string) {
 	ret = make(map[string]*[]string)
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	for key, val := range c.nodeMap {
 		ret[key] = val.Identity.IdentityIds
@@ -72,6 +84,9 @@ func (c *TestVMClient) ListMSI() (ret map[string]*[]string) {
 }
 
 func (c *TestVMClient) CompareMSI(nodeName string, userIDs []string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	stored := c.nodeMap[nodeName]
 	if stored == nil || stored.Identity == nil {
 		return false
@@ -89,6 +104,8 @@ func (c *TestVMClient) CompareMSI(nodeName string, userIDs []string) bool {
 
 type TestVMSSClient struct {
 	*cp.VMSSClient
+
+	mu      sync.Mutex
 	nodeMap map[string]*compute.VirtualMachineScaleSet
 	err     *error
 }
@@ -102,6 +119,9 @@ func (c *TestVMSSClient) UnSetError() {
 }
 
 func (c *TestVMSSClient) Get(rgName string, nodeName string) (ret compute.VirtualMachineScaleSet, err error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	stored := c.nodeMap[nodeName]
 	if stored == nil {
 		vm := new(compute.VirtualMachineScaleSet)
@@ -112,6 +132,9 @@ func (c *TestVMSSClient) Get(rgName string, nodeName string) (ret compute.Virtua
 }
 
 func (c *TestVMSSClient) CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachineScaleSet) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if c.err != nil {
 		return *c.err
 	}
@@ -122,6 +145,9 @@ func (c *TestVMSSClient) CreateOrUpdate(rg string, nodeName string, vm compute.V
 func (c *TestVMSSClient) ListMSI() (ret map[string]*[]string) {
 	ret = make(map[string]*[]string)
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	for key, val := range c.nodeMap {
 		ret[key] = val.Identity.IdentityIds
 	}
@@ -129,6 +155,9 @@ func (c *TestVMSSClient) ListMSI() (ret map[string]*[]string) {
 }
 
 func (c *TestVMSSClient) CompareMSI(nodeName string, userIDs []string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	stored := c.nodeMap[nodeName]
 	if stored == nil || stored.Identity == nil {
 		return false
@@ -182,9 +211,8 @@ func NewTestVMClient() *TestVMClient {
 	vmClient := &cp.VMClient{}
 
 	return &TestVMClient{
-		vmClient,
-		nodeMap,
-		nil,
+		VMClient: vmClient,
+		nodeMap:  nodeMap,
 	}
 }
 
@@ -193,9 +221,8 @@ func NewTestVMSSClient() *TestVMSSClient {
 	vmssClient := &cp.VMSSClient{}
 
 	return &TestVMSSClient{
-		vmssClient,
-		nodeMap,
-		nil,
+		VMSSClient: vmssClient,
+		nodeMap:    nodeMap,
 	}
 }
 
@@ -217,6 +244,7 @@ func NewTestCloudClient(cfg config.AzureConfig) *TestCloudClient {
 
 /****************** POD MOCK ****************************/
 type TestPodClient struct {
+	mu   sync.Mutex
 	pods []*corev1.Pod
 }
 
@@ -227,13 +255,19 @@ func NewTestPodClient() *TestPodClient {
 	}
 }
 
-func (c TestPodClient) Start(exit <-chan struct{}) {
+func (c *TestPodClient) Start(exit <-chan struct{}) {
 	glog.Info("Start called from the test interface")
 }
 
-func (c TestPodClient) GetPods() (pods []*corev1.Pod, err error) {
+func (c *TestPodClient) GetPods() ([]*corev1.Pod, error) {
 	//TODO: Add label matching. For now we add only pods which we want to add.
-	return c.pods, nil
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	pods := make([]*corev1.Pod, len(c.pods))
+	copy(pods, c.pods)
+
+	return pods, nil
 }
 
 func (c *TestPodClient) AddPod(podName string, podNs string, nodeName string, binding string) {
@@ -249,12 +283,19 @@ func (c *TestPodClient) AddPod(podName string, podNs string, nodeName string, bi
 			NodeName: nodeName,
 		},
 	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.pods = append(c.pods, pod)
 }
 
 func (c *TestPodClient) DeletePod(podName string, podNs string) {
 	var newPods []*corev1.Pod
 	changed := false
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	for _, pod := range c.pods {
 		if pod.Name == podName && pod.Namespace == podNs {
 			changed = true
@@ -272,6 +313,7 @@ func (c *TestPodClient) DeletePod(podName string, podNs string) {
 
 type TestCrdClient struct {
 	*Client
+	mu            sync.Mutex
 	assignedIDMap map[string]*aadpodid.AzureAssignedIdentity
 	bindingMap    map[string]*aadpodid.AzureIdentityBinding
 	idMap         map[string]*aadpodid.AzureIdentity
@@ -297,7 +339,9 @@ func (c *TestCrdClient) CreateCrdWatchers(eventCh chan aadpodid.EventType) (err 
 }
 
 func (c *TestCrdClient) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
+	c.mu.Lock()
 	delete(c.assignedIDMap, assignedIdentity.Name)
+	c.mu.Unlock()
 	return nil
 }
 
@@ -305,7 +349,9 @@ func (c *TestCrdClient) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureA
 // TODO: consider remove
 func (c *TestCrdClient) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
 	assignedIdentityToStore := *assignedIdentity //Make a copy to store in the map.
+	c.mu.Lock()
 	c.assignedIDMap[assignedIdentity.Name] = &assignedIdentityToStore
+	c.mu.Unlock()
 	return nil
 }
 
@@ -319,7 +365,9 @@ func (c *TestCrdClient) CreateBinding(bindingName string, idName string, selecto
 			Selector:      selector,
 		},
 	}
+	c.mu.Lock()
 	c.bindingMap[bindingName] = binding
+	c.mu.Unlock()
 }
 
 func (c *TestCrdClient) CreateID(idName string, t aadpodid.IdentityType, rID string, cID string, cp *api.SecretReference, tID string, adRID string, adEpt string) {
@@ -337,30 +385,38 @@ func (c *TestCrdClient) CreateID(idName string, t aadpodid.IdentityType, rID str
 			ADEndpoint:   adEpt,
 		},
 	}
+	c.mu.Lock()
 	c.idMap[idName] = id
+	c.mu.Unlock()
 }
 
 func (c *TestCrdClient) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 	idList := make([]aadpodid.AzureIdentity, 0)
+	c.mu.Lock()
 	for _, v := range c.idMap {
 		idList = append(idList, *v)
 	}
+	c.mu.Unlock()
 	return &idList, nil
 }
 
 func (c *TestCrdClient) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
 	bindingList := make([]aadpodid.AzureIdentityBinding, 0)
+	c.mu.Lock()
 	for _, v := range c.bindingMap {
 		bindingList = append(bindingList, *v)
 	}
+	c.mu.Unlock()
 	return &bindingList, nil
 }
 
 func (c *TestCrdClient) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
 	assignedIDList := make([]aadpodid.AzureAssignedIdentity, 0)
+	c.mu.Lock()
 	for _, v := range c.assignedIDMap {
 		assignedIDList = append(assignedIDList, *v)
 	}
+	c.mu.Unlock()
 	return &assignedIDList, nil
 }
 func (c *Client) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error) {
@@ -405,11 +461,13 @@ type LastEvent struct {
 }
 
 type TestEventRecorder struct {
-	lastEvent    *LastEvent
+	mu        sync.Mutex
+	lastEvent *LastEvent
+
 	eventChannel chan bool
 }
 
-func (c TestEventRecorder) WaitForEvents(expectedCount int) bool {
+func (c *TestEventRecorder) WaitForEvents(expectedCount int) bool {
 	count := 0
 	for {
 		select {
@@ -424,17 +482,26 @@ func (c TestEventRecorder) WaitForEvents(expectedCount int) bool {
 	}
 }
 
-func (c TestEventRecorder) Event(object runtime.Object, t string, r string, message string) {
+func (c *TestEventRecorder) Event(object runtime.Object, t string, r string, message string) {
+	c.mu.Lock()
+
 	c.lastEvent.Type = t
 	c.lastEvent.Reason = r
 	c.lastEvent.Message = message
+
+	c.mu.Unlock()
+
 	c.eventChannel <- true
 }
 
-func (c TestEventRecorder) Validate(e *LastEvent) bool {
+func (c *TestEventRecorder) Validate(e *LastEvent) bool {
+	c.mu.Lock()
+
 	t := c.lastEvent.Type
 	r := c.lastEvent.Reason
 	m := c.lastEvent.Message
+
+	c.mu.Unlock()
 
 	if t != e.Type || r != e.Reason || m != e.Message {
 		glog.Errorf("event mismatch. expected - (t:%s, r:%s, m:%s). got - (t:%s, r:%s, m:%s)", e.Type, e.Reason, e.Message, t, r, m)
@@ -443,15 +510,15 @@ func (c TestEventRecorder) Validate(e *LastEvent) bool {
 	return true
 }
 
-func (c TestEventRecorder) Eventf(object runtime.Object, t string, r string, messageFmt string, args ...interface{}) {
+func (c *TestEventRecorder) Eventf(object runtime.Object, t string, r string, messageFmt string, args ...interface{}) {
 
 }
 
-func (c TestEventRecorder) PastEventf(object runtime.Object, timestamp v1.Time, t string, m1 string, messageFmt string, args ...interface{}) {
+func (c *TestEventRecorder) PastEventf(object runtime.Object, timestamp v1.Time, t string, m1 string, messageFmt string, args ...interface{}) {
 
 }
 
-func (c TestEventRecorder) AnnotatedEventf(object runtime.Object, annotations map[string]string, eventtype, reason, messageFmt string, args ...interface{}) {
+func (c *TestEventRecorder) AnnotatedEventf(object runtime.Object, annotations map[string]string, eventtype, reason, messageFmt string, args ...interface{}) {
 
 }
 
@@ -522,10 +589,35 @@ func TestMapMICClient(t *testing.T) {
 
 }
 
-func TestSimpleMICClient(t *testing.T) {
+func (c *TestMICClient) testRunSync() func(t *testing.T) {
+	done := make(chan struct{})
 	exit := make(chan struct{})
-	defer close(exit)
+	var closeOnce sync.Once
 
+	go func() {
+		c.Sync(exit)
+		close(done)
+	}()
+
+	return func(t *testing.T) {
+		t.Helper()
+
+		closeOnce.Do(func() {
+			close(exit)
+		})
+
+		timeout := time.NewTimer(30 * time.Second)
+		defer timeout.Stop()
+
+		select {
+		case <-done:
+		case <-timeout.C:
+			t.Fatal("timeout waiting for sync to exit")
+		}
+	}
+}
+
+func TestSimpleMICClient(t *testing.T) {
 	eventCh := make(chan aadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
 	crdClient := NewTestCrdClient(nil)
@@ -533,7 +625,7 @@ func TestSimpleMICClient(t *testing.T) {
 	nodeClient := NewTestNodeClient()
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
-	evtRecorder.eventChannel = make(chan bool, 1)
+	evtRecorder.eventChannel = make(chan bool, 100)
 
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
 
@@ -544,7 +636,9 @@ func TestSimpleMICClient(t *testing.T) {
 	podClient.AddPod("test-pod", "default", "test-node", "test-select")
 
 	eventCh <- aadpodid.PodCreated
-	go micClient.Sync(exit)
+
+	defer micClient.testRunSync()(t)
+
 	evtRecorder.WaitForEvents(1)
 
 	testPass := false
@@ -651,9 +745,6 @@ func TestSimpleMICClient(t *testing.T) {
 }
 
 func TestAddDelMICClient(t *testing.T) {
-	exit := make(chan struct{})
-	defer close(exit)
-
 	eventCh := make(chan aadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
 	crdClient := NewTestCrdClient(nil)
@@ -661,7 +752,7 @@ func TestAddDelMICClient(t *testing.T) {
 	nodeClient := NewTestNodeClient()
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
-	evtRecorder.eventChannel = make(chan bool, 1)
+	evtRecorder.eventChannel = make(chan bool, 100)
 
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
 
@@ -681,7 +772,9 @@ func TestAddDelMICClient(t *testing.T) {
 
 	eventCh <- aadpodid.PodCreated
 	eventCh <- aadpodid.PodCreated
-	go micClient.Sync(exit)
+
+	stopSync1 := micClient.testRunSync()
+	defer stopSync1(t)
 
 	if !evtRecorder.WaitForEvents(2) {
 		t.Fatalf("Timeout waiting for mic sync cycles")
@@ -713,7 +806,9 @@ func TestAddDelMICClient(t *testing.T) {
 	eventCh <- aadpodid.PodCreated
 	eventCh <- aadpodid.PodDeleted
 	eventCh <- aadpodid.PodDeleted
-	go micClient.Sync(exit)
+
+	stopSync1(t)
+	defer micClient.testRunSync()(t)
 
 	if !evtRecorder.WaitForEvents(3) {
 		t.Fatalf("Timeout waiting for mic sync cycles")
@@ -742,9 +837,6 @@ func TestAddDelMICClient(t *testing.T) {
 }
 
 func TestMicAddDelVMSS(t *testing.T) {
-	exit := make(chan struct{}, 0)
-	defer close(exit)
-
 	eventCh := make(chan aadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{VMType: "vmss"})
 	crdClient := NewTestCrdClient(nil)
@@ -752,7 +844,7 @@ func TestMicAddDelVMSS(t *testing.T) {
 	nodeClient := NewTestNodeClient()
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
-	evtRecorder.eventChannel = make(chan bool, 1)
+	evtRecorder.eventChannel = make(chan bool, 100)
 
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
 
@@ -777,7 +869,7 @@ func TestMicAddDelVMSS(t *testing.T) {
 	podClient.AddPod("test-pod2", "default", "test-node2", "test-select1")
 	podClient.AddPod("test-pod3", "default", "test-node3", "test-select1")
 
-	go micClient.Sync(exit)
+	defer micClient.testRunSync()(t)
 
 	eventCh <- aadpodid.PodCreated
 	eventCh <- aadpodid.PodCreated
@@ -829,21 +921,9 @@ func TestSyncExit(t *testing.T) {
 	nodeClient := NewTestNodeClient()
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
-	evtRecorder.eventChannel = make(chan bool, 1)
+	evtRecorder.eventChannel = make(chan bool)
 
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
 
-	exit := make(chan struct{}, 0)
-	close(exit)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	go func() {
-		micClient.Sync(exit)
-		cancel()
-	}()
-
-	<-ctx.Done()
-	if ctx.Err() == context.DeadlineExceeded {
-		t.Fatal("timeout waiting for sync to exit")
-	}
+	micClient.testRunSync()(t)
 }
