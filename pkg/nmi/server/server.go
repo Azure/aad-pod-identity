@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strings"
@@ -231,12 +232,45 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		http.Error(w, msg, http.StatusInternalServerError)
 		return
 	}
-	podns, podname, err := s.KubeClient.GetPodName(podIP)
+	podns, podname, deployment, err := s.KubeClient.GetPodInfo(podIP)
 	if err != nil {
 		logger.Errorf("missing podname for podip:%s, %+v", podIP, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// TODO: make it generic for whitelisting of applications
+	micRegEx := regexp.MustCompile(`^mic-*`)
+	micMatch := micRegEx.MatchString(deployment)
+
+	// Request id and request resource extraction are common steps required for
+	// requests from mic as well as other applications.
+	rqClientID, rqResource := parseRequestClientIDAndResource(r)
+
+	// If its mic, then just directly get the token and pass back.
+	if micMatch {
+		var token *adal.Token
+		// UserAssignedIdentity clientID is empty, so we are going to use system assigned MSI
+		if rqClientID == "" {
+			token, err = auth.GetServicePrincipalTokenFromMSI(rqResource)
+		} else { // User assigned identity usage.
+			token, err = auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(rqClientID, rqResource)
+		}
+		if err != nil {
+			logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return
+		}
+		response, err := json.Marshal(*token)
+		if err != nil {
+			logger.Errorf("failed to marshal service principal token for pod:%s/%s, %+v", podns, podname, err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Write(response)
+		return
+	}
+
 	podIDs, err := listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttempts)
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
@@ -244,6 +278,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		http.Error(w, msg, http.StatusNotFound)
 		return
 	}
+
 	token, _, err := getTokenForMatchingID(s.KubeClient, logger, rqClientID, rqResource, podIDs)
 	if err != nil {
 		logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)

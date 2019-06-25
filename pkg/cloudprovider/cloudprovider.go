@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strings"
 	"time"
 
 	config "github.com/Azure/aad-pod-identity/pkg/config"
@@ -59,6 +60,8 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 		azureConfig.SubscriptionID = os.Getenv("SUBSCRIPTION_ID")
 		azureConfig.ResourceGroupName = os.Getenv("RESOURCE_GROUP")
 		azureConfig.VMType = os.Getenv("VM_TYPE")
+		azureConfig.UseManagedIdentityExtension = strings.EqualFold(os.Getenv("USE_MSI"), "True")
+		azureConfig.UserAssignedIdentityID = os.Getenv("USER_ASSIGNED_MSI_CLIENTID")
 	}
 
 	azureEnv, err := azure.EnvironmentFromName(azureConfig.Cloud)
@@ -77,15 +80,40 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 		glog.Errorf("Create OAuth config error: %+v", err)
 		return nil, err
 	}
-	spt, err := adal.NewServicePrincipalToken(
-		*oauthConfig,
-		azureConfig.ClientID,
-		azureConfig.ClientSecret,
-		azureEnv.ResourceManagerEndpoint,
-	)
-	if err != nil {
-		glog.Errorf("Get service principle token error: %+v", err)
-		return nil, err
+
+	var spt *adal.ServicePrincipalToken
+	if azureConfig.UseManagedIdentityExtension {
+		// MSI endpoing is required for both types of MSI - system assigned and user assigned.
+		msiEndpoint, err := adal.GetMSIVMEndpoint()
+		if err != nil {
+			glog.Errorf("Failed to get msiEndpoint: %+v", err)
+			return nil, err
+		}
+		// UserAssignedIdentityID is empty, so we are going to use system assigned MSI
+		if azureConfig.UserAssignedIdentityID == "" {
+			spt, err = adal.NewServicePrincipalTokenFromMSI(msiEndpoint, azureEnv.ResourceManagerEndpoint)
+			if err != nil {
+				glog.Errorf("Get token from system assigned MSI error: %+v", err)
+				return nil, err
+			}
+		} else { // User assigned identity usage.
+			spt, err = adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(msiEndpoint, azureEnv.ResourceManagerEndpoint, azureConfig.UserAssignedIdentityID)
+			if err != nil {
+				glog.Errorf("Get token from user assigned MSI error: %+v", err)
+				return nil, err
+			}
+		}
+	} else { // This is the default scenario - use service principal to get the token.
+		spt, err = adal.NewServicePrincipalToken(
+			*oauthConfig,
+			azureConfig.ClientID,
+			azureConfig.ClientSecret,
+			azureEnv.ResourceManagerEndpoint,
+		)
+		if err != nil {
+			glog.Errorf("Get service principle token error: %+v", err)
+			return nil, err
+		}
 	}
 
 	extClient := compute.NewVirtualMachineExtensionsClient(azureConfig.SubscriptionID)
