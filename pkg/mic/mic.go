@@ -157,6 +157,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		begin := time.Now()
 		workDone := false
 		glog.V(6).Infof("Received event: %v", event)
+		fmt.Printf("Received event: %v\n", event)
 		// List all pods in all namespaces
 		systemTime := time.Now()
 		listPods, err := c.PodClient.GetPods()
@@ -261,6 +262,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		}
 
 		glog.V(5).Infof("del: %v, add: %v", deleteList, addList)
+		fmt.Printf("del: %v, add: %v\n", deleteList, addList)
 
 		nodeMap := make(map[string]trackUserAssignedMSIIds)
 
@@ -555,6 +557,8 @@ func (c *Client) handleNodeErrors(nodesWithError []string, addList, deleteList *
 		nodeIdentityList[n] = idList
 	}
 
+	fmt.Println("nodes with error ", nodesWithError)
+	fmt.Println("node identity list ", nodeIdentityList)
 	isNodeErrored := func(node string) bool {
 		for _, n := range nodesWithError {
 			if n == node {
@@ -576,6 +580,17 @@ func (c *Client) handleNodeErrors(nodesWithError []string, addList, deleteList *
 				// the identity was successfully assigned to the node
 				c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding applied",
 					fmt.Sprintf("Binding %s applied on node %s for pod %s", binding.Name, createID.Spec.NodeName, createID.Name))
+				continue
+			}
+
+			if !idExistsOnNode {
+				// identity doesn't exist on the node so the assigned identity deleted and retried on the next sync cycle
+				if err := c.removeAssignedIdentity(&createID); err != nil {
+					// Since k8s event has only Info and Warning, using Warning.
+					c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error",
+						fmt.Sprintf("Removing assigned identity binding %s node %s for pod %s resulted in error %v", binding.Name, createID.Spec.NodeName, createID.Name, err))
+					glog.Error(err)
+				}
 			}
 		}
 	}
@@ -615,6 +630,7 @@ func (c *Client) handleNodeErrors(nodesWithError []string, addList, deleteList *
 			}
 
 			if isUserAssignedMSI && !inUse {
+				fmt.Println("coming in here")
 				message := fmt.Sprintf("Binding %s removal from node %s for pod %s failed", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod)
 				c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error", message)
 				glog.Error(message)
