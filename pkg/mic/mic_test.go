@@ -64,9 +64,9 @@ func (c *TestVMClient) CreateOrUpdate(rg string, nodeName string, vm compute.Vir
 	defer c.mu.Unlock()
 
 	if c.err != nil {
+		c.nodeMap[nodeName].Identity = nil
 		return *c.err
 	}
-
 	c.nodeMap[nodeName] = &vm
 	return nil
 }
@@ -703,6 +703,7 @@ func TestSimpleMICClient(t *testing.T) {
 	cloudClient.SetError(err)
 
 	podClient.AddPod("test-pod", "default", "test-node", "test-select")
+
 	eventCh <- aadpodid.PodCreated
 	evtRecorder.WaitForEvents(1)
 
@@ -725,7 +726,7 @@ func TestSimpleMICClient(t *testing.T) {
 		} */
 
 	// Test4: Removal error event test
-	//Reset the state to add the id.
+	// Reset the state to add the id.
 	cloudClient.UnSetError()
 
 	//podClient.AddPod("test-pod", "default", "test-node", "test-select")

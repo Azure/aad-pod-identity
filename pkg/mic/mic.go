@@ -568,6 +568,7 @@ func (c *Client) handleNodeErrors(nodesWithError []string, addList, deleteList *
 		for _, createID := range *addList {
 			id := createID.Spec.AzureIdentityRef
 			binding := createID.Spec.AzureBindingRef
+			isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
 
 			idExistsOnNode := c.checkIfMSIExistsOnNode(id, createID.Spec.NodeName, nodeIdentityList)
 			nodeHasErrors := isNodeErrored(createID.Spec.NodeName)
@@ -579,14 +580,17 @@ func (c *Client) handleNodeErrors(nodesWithError []string, addList, deleteList *
 				continue
 			}
 
-			if !idExistsOnNode {
+			if isUserAssignedMSI && !idExistsOnNode {
 				// identity doesn't exist on the node so the assigned identity deleted and retried on the next sync cycle
 				if err := c.removeAssignedIdentity(&createID); err != nil {
-					// Since k8s event has only Info and Warning, using Warning.
 					c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error",
 						fmt.Sprintf("Removing assigned identity binding %s node %s for pod %s resulted in error %v", binding.Name, createID.Spec.NodeName, createID.Name, err))
 					glog.Error(err)
 				}
+				c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error",
+					fmt.Sprintf("Applying binding %s node %s for pod %s resulted in error", binding.Name, createID.Spec.NodeName, createID.Name))
+				continue
+
 			}
 		}
 	}
@@ -606,30 +610,27 @@ func (c *Client) handleNodeErrors(nodesWithError []string, addList, deleteList *
 			id := delID.Spec.AzureIdentityRef
 			removedBinding := delID.Spec.AzureBindingRef
 			isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
-			nodeHasErrors := isNodeErrored(delID.Spec.NodeName)
-
 			idExistsOnNode := c.checkIfMSIExistsOnNode(id, delID.Spec.NodeName, nodeIdentityList)
 
-			if !nodeHasErrors || !idExistsOnNode {
-				// the identity was successfully removed from node
-				c.EventRecorder.Event(removedBinding, corev1.EventTypeNormal, "binding removed",
-					fmt.Sprintf("Binding %s removed from node %s for pod %s", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod))
-
-				// remove assigned identity crd from cluster
-				if err := c.removeAssignedIdentity(&delID); err != nil {
-					// Since k8s event has only Info and Warning, using Warning.
-					c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding apply error",
-						fmt.Sprintf("Removing assigned identity binding %s node %s for pod %s resulted in error %v", removedBinding.Name, delID.Spec.NodeName, delID.Name, err))
-					glog.Error(err)
-				}
-				continue
-			}
-
-			if isUserAssignedMSI && !inUse {
+			if isUserAssignedMSI && !inUse && idExistsOnNode {
 				message := fmt.Sprintf("Binding %s removal from node %s for pod %s failed", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod)
 				c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error", message)
 				glog.Error(message)
+				continue
 			}
+
+			// remove assigned identity crd from cluster
+			if err := c.removeAssignedIdentity(&delID); err != nil {
+				// Since k8s event has only Info and Warning, using Warning.
+				c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding apply error",
+					fmt.Sprintf("Removing assigned identity binding %s node %s for pod %s resulted in error %v", removedBinding.Name, delID.Spec.NodeName, delID.Name, err))
+				glog.Error(err)
+				continue
+			}
+
+			// the identity was successfully removed from node
+			c.EventRecorder.Event(removedBinding, corev1.EventTypeNormal, "binding removed",
+				fmt.Sprintf("Binding %s removed from node %s for pod %s", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod))
 		}
 	}
 	return nil
