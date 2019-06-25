@@ -625,7 +625,7 @@ func TestSimpleMICClient(t *testing.T) {
 	nodeClient := NewTestNodeClient()
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
-	evtRecorder.eventChannel = make(chan bool, 1)
+	evtRecorder.eventChannel = make(chan bool, 100)
 
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
 
@@ -745,7 +745,6 @@ func TestSimpleMICClient(t *testing.T) {
 }
 
 func TestAddDelMICClient(t *testing.T) {
-
 	eventCh := make(chan aadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
 	crdClient := NewTestCrdClient(nil)
@@ -753,7 +752,7 @@ func TestAddDelMICClient(t *testing.T) {
 	nodeClient := NewTestNodeClient()
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
-	evtRecorder.eventChannel = make(chan bool, 1)
+	evtRecorder.eventChannel = make(chan bool, 100)
 
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
 
@@ -845,7 +844,7 @@ func TestMicAddDelVMSS(t *testing.T) {
 	nodeClient := NewTestNodeClient()
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
-	evtRecorder.eventChannel = make(chan bool, 1)
+	evtRecorder.eventChannel = make(chan bool, 100)
 
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
 
@@ -922,7 +921,7 @@ func TestSyncExit(t *testing.T) {
 	nodeClient := NewTestNodeClient()
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
-	evtRecorder.eventChannel = make(chan bool, 1)
+	evtRecorder.eventChannel = make(chan bool)
 
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
 
