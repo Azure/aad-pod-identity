@@ -33,9 +33,10 @@ type TestCloudClient struct {
 type TestVMClient struct {
 	*cp.VMClient
 
-	mu      sync.Mutex
-	nodeMap map[string]*compute.VirtualMachine
-	err     *error
+	mu       sync.Mutex
+	nodeMap  map[string]*compute.VirtualMachine
+	err      *error
+	identity *compute.VirtualMachineIdentity
 }
 
 func (c *TestVMClient) SetError(err error) {
@@ -64,7 +65,7 @@ func (c *TestVMClient) CreateOrUpdate(rg string, nodeName string, vm compute.Vir
 	defer c.mu.Unlock()
 
 	if c.err != nil {
-		c.nodeMap[nodeName].Identity = nil
+		c.nodeMap[nodeName].Identity = c.identity
 		return *c.err
 	}
 	c.nodeMap[nodeName] = &vm
@@ -107,9 +108,10 @@ func (c *TestVMClient) CompareMSI(nodeName string, userIDs []string) bool {
 type TestVMSSClient struct {
 	*cp.VMSSClient
 
-	mu      sync.Mutex
-	nodeMap map[string]*compute.VirtualMachineScaleSet
-	err     *error
+	mu       sync.Mutex
+	nodeMap  map[string]*compute.VirtualMachineScaleSet
+	err      *error
+	identity *compute.VirtualMachineScaleSetIdentity
 }
 
 func (c *TestVMSSClient) SetError(err error) {
@@ -138,6 +140,7 @@ func (c *TestVMSSClient) CreateOrUpdate(rg string, nodeName string, vm compute.V
 	defer c.mu.Unlock()
 
 	if c.err != nil {
+		c.nodeMap[nodeName].Identity = c.identity
 		return *c.err
 	}
 	c.nodeMap[nodeName] = &vm
@@ -211,20 +214,24 @@ func (c *TestCloudClient) UnSetError() {
 func NewTestVMClient() *TestVMClient {
 	nodeMap := make(map[string]*compute.VirtualMachine)
 	vmClient := &cp.VMClient{}
+	identity := &compute.VirtualMachineIdentity{IdentityIds: &[]string{}}
 
 	return &TestVMClient{
 		VMClient: vmClient,
 		nodeMap:  nodeMap,
+		identity: identity,
 	}
 }
 
 func NewTestVMSSClient() *TestVMSSClient {
 	nodeMap := make(map[string]*compute.VirtualMachineScaleSet)
 	vmssClient := &cp.VMSSClient{}
+	identity := &compute.VirtualMachineScaleSetIdentity{IdentityIds: &[]string{}}
 
 	return &TestVMSSClient{
 		VMSSClient: vmssClient,
 		nodeMap:    nodeMap,
+		identity:   identity,
 	}
 }
 
@@ -272,7 +279,7 @@ func (c *TestPodClient) GetPods() ([]*corev1.Pod, error) {
 	return pods, nil
 }
 
-func (c *TestPodClient) AddPod(podName string, podNs string, nodeName string, binding string) {
+func (c *TestPodClient) AddPod(podName, podNs, nodeName, binding string) {
 	labels := make(map[string]string)
 	labels[aadpodid.CRDLabelKey] = binding
 	pod := &corev1.Pod{
@@ -319,6 +326,7 @@ type TestCrdClient struct {
 	assignedIDMap map[string]*aadpodid.AzureAssignedIdentity
 	bindingMap    map[string]*aadpodid.AzureIdentityBinding
 	idMap         map[string]*aadpodid.AzureIdentity
+	err           *error
 }
 
 func NewTestCrdClient(config *rest.Config) *TestCrdClient {
@@ -342,8 +350,12 @@ func (c *TestCrdClient) CreateCrdWatchers(eventCh chan aadpodid.EventType) (err 
 
 func (c *TestCrdClient) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
 	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.err != nil {
+		return *c.err
+	}
 	delete(c.assignedIDMap, assignedIdentity.Name)
-	c.mu.Unlock()
 	return nil
 }
 
@@ -354,6 +366,13 @@ func (c *TestCrdClient) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureA
 	c.mu.Lock()
 	c.assignedIDMap[assignedIdentity.Name] = &assignedIdentityToStore
 	c.mu.Unlock()
+	return nil
+}
+
+func (c *TestCrdClient) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error {
+	assignedIdentity.Status.Status = status
+	assignedIdentityToStore := *assignedIdentity //Make a copy to store in the map.
+	c.assignedIDMap[assignedIdentity.Name] = &assignedIdentityToStore
 	return nil
 }
 
@@ -421,8 +440,17 @@ func (c *TestCrdClient) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity
 	c.mu.Unlock()
 	return &assignedIDList, nil
 }
+
 func (c *Client) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error) {
 	return &[]aadpodid.AzureIdentity{}, nil
+}
+
+func (c *TestCrdClient) SetError(err error) {
+	c.err = &err
+}
+
+func (c *TestCrdClient) UnSetError() {
+	c.err = nil
 }
 
 /************************ NODE MOCK *************************************/
@@ -713,8 +741,8 @@ func TestSimpleMICClient(t *testing.T) {
 		t.Fatalf("list assigned failed")
 	}
 
-	if len(*listAssignedIDs) != 0 {
-		t.Fatalf("ID assigned")
+	if (*listAssignedIDs)[0].Status.Status != IdentityCreated {
+		t.Fatalf("expected status to be %s, got: %s", IdentityCreated, (*listAssignedIDs)[0].Status.Status)
 	}
 
 	/*
@@ -880,6 +908,14 @@ func TestMicAddDelVMSS(t *testing.T) {
 	if !evtRecorder.WaitForEvents(3) {
 		t.Fatalf("Timeout waiting for mic sync cycles")
 	}
+	listAssignedIDs, err := crdClient.ListAssignedIDs()
+	if err != nil {
+		glog.Error(err)
+		t.Errorf("list assigned failed")
+	}
+	if !(len(*listAssignedIDs) == 3) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 3, len(*listAssignedIDs))
+	}
 
 	if !cloudClient.CompareMSI("testvmss1", []string{"test-user-msi-resourceid"}) {
 		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss1"])
@@ -894,6 +930,14 @@ func TestMicAddDelVMSS(t *testing.T) {
 	if !evtRecorder.WaitForEvents(1) {
 		t.Fatal("Timeout waiting for mic sync cycles")
 	}
+	listAssignedIDs, err = crdClient.ListAssignedIDs()
+	if err != nil {
+		glog.Error(err)
+		t.Errorf("list assigned failed")
+	}
+	if !(len(*listAssignedIDs) == 2) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 2, len(*listAssignedIDs))
+	}
 
 	if !cloudClient.CompareMSI("testvmss1", []string{"test-user-msi-resourceid"}) {
 		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss1"])
@@ -903,9 +947,19 @@ func TestMicAddDelVMSS(t *testing.T) {
 	}
 
 	podClient.DeletePod("test-pod2", "default")
+
 	eventCh <- aadpodid.PodDeleted
+
 	if !evtRecorder.WaitForEvents(1) {
 		t.Fatal("Timeout waiting for mic sync cycles")
+	}
+	listAssignedIDs, err = crdClient.ListAssignedIDs()
+	if err != nil {
+		glog.Error(err)
+		t.Errorf("list assigned failed")
+	}
+	if !(len(*listAssignedIDs) == 1) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
 	}
 
 	if !cloudClient.CompareMSI("testvmss1", []string{}) {
@@ -913,6 +967,117 @@ func TestMicAddDelVMSS(t *testing.T) {
 	}
 	if !cloudClient.CompareMSI("testvmss2", []string{"test-user-msi-resourceid"}) {
 		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss2"])
+	}
+}
+
+func TestMICStateFlow(t *testing.T) {
+	eventCh := make(chan aadpodid.EventType, 100)
+	cloudClient := NewTestCloudClient(config.AzureConfig{})
+	crdClient := NewTestCrdClient(nil)
+	podClient := NewTestPodClient()
+	nodeClient := NewTestNodeClient()
+	var evtRecorder TestEventRecorder
+	evtRecorder.lastEvent = new(LastEvent)
+	evtRecorder.eventChannel = make(chan bool, 100)
+
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
+
+	// Add a pod, identity and binding.
+	crdClient.CreateID("test-id1", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
+	crdClient.CreateBinding("testbinding1", "test-id1", "test-select1")
+
+	nodeClient.AddNode("test-node1")
+	podClient.AddPod("test-pod1", "default", "test-node1", "test-select1")
+
+	eventCh <- aadpodid.PodCreated
+	defer micClient.testRunSync()(t)
+
+	if !evtRecorder.WaitForEvents(1) {
+		t.Fatalf("Timeout waiting for mic sync cycles")
+	}
+	listAssignedIDs, err := crdClient.ListAssignedIDs()
+	if err != nil {
+		glog.Error(err)
+		t.Errorf("list assigned failed")
+	}
+	if !(len(*listAssignedIDs) == 1) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
+	}
+	if !((*listAssignedIDs)[0].Status.Status == IdentityAssigned) {
+		t.Fatalf("expected status to be %s, got: %s", IdentityCreated, (*listAssignedIDs)[0].Status.Status)
+	}
+
+	// delete the pod, simulate failure in cloud calls on trying to un-assign identity from node
+	podClient.DeletePod("test-pod1", "default")
+	cloudClient.SetError(errors.New("error removing identity from node"))
+	cloudClient.testVMClient.identity = nil
+
+	eventCh <- aadpodid.PodDeleted
+	if !evtRecorder.WaitForEvents(1) {
+		t.Fatalf("Timeout waiting for mic sync cycles")
+	}
+	listAssignedIDs, err = crdClient.ListAssignedIDs()
+	if err != nil {
+		glog.Error(err)
+		t.Errorf("list assigned failed")
+	}
+	if !(len(*listAssignedIDs) == 1) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
+	}
+	if !((*listAssignedIDs)[0].Status.Status == IdentityAssigned) {
+		t.Fatalf("expected status to be %s, got: %s", IdentityCreated, (*listAssignedIDs)[0].Status.Status)
+	}
+
+	cloudClient.UnSetError()
+	crdClient.SetError(errors.New("error from crd client"))
+
+	// add new pod, this time the old assigned identity which is in Assigned state should be tried to delete
+	// simulate failure on kube api call to delete crd
+	crdClient.CreateID("test-id2", aadpodid.UserAssignedMSI, "test-user-msi-resourceid2", "test-user-msi-clientid2", nil, "", "", "")
+	crdClient.CreateBinding("testbinding2", "test-id2", "test-select2")
+
+	nodeClient.AddNode("test-node2")
+	podClient.AddPod("test-pod2", "default", "test-node2", "test-select2")
+
+	eventCh <- aadpodid.PodCreated
+	if !evtRecorder.WaitForEvents(2) {
+		t.Fatalf("Timeout waiting for mic sync cycles")
+	}
+	listAssignedIDs, err = crdClient.ListAssignedIDs()
+	if err != nil {
+		glog.Error(err)
+		t.Errorf("list assigned failed")
+	}
+	if !(len(*listAssignedIDs) == 2) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 2, len(*listAssignedIDs))
+	}
+	for _, assignedID := range *listAssignedIDs {
+		if assignedID.Spec.Pod == "test-pod1" {
+			if assignedID.Status.Status != IdentityUnassigned {
+				t.Fatalf("Expected status to be: %s. Got: %s", IdentityUnassigned, assignedID.Status.Status)
+			}
+		}
+		if assignedID.Spec.Pod == "test-pod2" {
+			if assignedID.Status.Status != IdentityAssigned {
+				t.Fatalf("Expected status to be: %s. Got: %s", IdentityAssigned, assignedID.Status.Status)
+			}
+		}
+	}
+	crdClient.UnSetError()
+
+	// delete pod2 and everything should be cleaned up now
+	podClient.DeletePod("test-pod2", "default")
+	eventCh <- aadpodid.PodDeleted
+	if !evtRecorder.WaitForEvents(2) {
+		t.Fatalf("Timeout waiting for mic sync cycles")
+	}
+	listAssignedIDs, err = crdClient.ListAssignedIDs()
+	if err != nil {
+		glog.Error(err)
+		t.Errorf("list assigned failed")
+	}
+	if !(len(*listAssignedIDs) == 0) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 0, len(*listAssignedIDs))
 	}
 }
 

@@ -9,8 +9,8 @@ import (
 func TestFilterIdentity(t *testing.T) {
 	idList := []string{}
 	idType := compute.ResourceIdentityTypeNone
-	if err := filterUserIdentity(&idType, &idList, "A"); err == nil || err != errNotFound {
-		t.Fatalf("expected error %q, got: %v", errNotFound, err)
+	if err := filterUserIdentity(&idType, &idList, "A"); err != nil {
+		t.Fatalf("expected nil error, got: %v", err)
 	}
 
 	idType = compute.ResourceIdentityTypeUserAssigned
