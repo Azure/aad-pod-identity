@@ -67,7 +67,7 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 		return nil, err
 	}
 
-	err = adal.AddToUserAgent(version.GetUserAgent("MIC"))
+	err = adal.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
 	if err != nil {
 		return nil, err
 	}

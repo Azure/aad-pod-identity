@@ -26,7 +26,7 @@ func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string
 		return nil, fmt.Errorf("Failed to acquire a token using the MSI VM extension. Error: %v", err)
 	}
 
-	err = adal.AddToUserAgent(version.GetUserAgent("NMI"))
+	err = adal.AddToUserAgent(version.GetUserAgent("NMI", version.NMIVersion))
 	if err != nil {
 		return nil, err
 	}

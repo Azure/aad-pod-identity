@@ -19,9 +19,9 @@ var NMIVersion string
 
 // GetUserAgent is used to get the user agent string which is then provided to adal
 // to use as the extended user agent header.
-// The format is: aad-pod-identity/<component, either NMI or MIC>/<Version of MIC>/<Version of NMI>/<Git commit>/<Build date>
-func GetUserAgent(component string) string {
-	return fmt.Sprintf("aad-pod-identity/%s/%s/%s/%s/%s", component, MICVersion, NMIVersion, GitCommit, BuildDate)
+// The format is: aad-pod-identity/<component - either NMI or MIC>/<Version of component>/<Git commit>/<Build date>
+func GetUserAgent(component, version string) string {
+	return fmt.Sprintf("aad-pod-identity/%s/%s/%s/%s", component, version, GitCommit, BuildDate)
 }
 
 // PrintVersionAndExit prints the version and exits
