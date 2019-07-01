@@ -10,6 +10,7 @@ import (
 	"time"
 
 	config "github.com/Azure/aad-pod-identity/pkg/config"
+	"github.com/Azure/aad-pod-identity/version"
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
@@ -65,6 +66,12 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 		glog.Errorf("Get cloud env error: %+v", err)
 		return nil, err
 	}
+
+	err = adal.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
+	if err != nil {
+		return nil, err
+	}
+
 	oauthConfig, err := adal.NewOAuthConfig(azureEnv.ActiveDirectoryEndpoint, azureConfig.TenantID)
 	if err != nil {
 		glog.Errorf("Create OAuth config error: %+v", err)

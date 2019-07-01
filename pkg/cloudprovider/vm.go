@@ -49,7 +49,7 @@ func (c *VMClient) CreateOrUpdate(rg string, nodeName string, vm compute.Virtual
 		return err
 	}
 
-	err = future.WaitForCompletion(ctx, c.client.Client)
+	err = future.WaitForCompletionRef(ctx, c.client.Client)
 	if err != nil {
 		glog.Error(err)
 		return err

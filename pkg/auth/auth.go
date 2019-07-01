@@ -3,6 +3,7 @@ package auth
 import (
 	"fmt"
 
+	"github.com/Azure/aad-pod-identity/version"
 	adal "github.com/Azure/go-autorest/autorest/adal"
 )
 
@@ -24,6 +25,12 @@ func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string
 	if err != nil {
 		return nil, fmt.Errorf("Failed to acquire a token using the MSI VM extension. Error: %v", err)
 	}
+
+	err = adal.AddToUserAgent(version.GetUserAgent("NMI", version.NMIVersion))
+	if err != nil {
+		return nil, err
+	}
+
 	// Evectively acqurie the token
 	err = spt.Refresh()
 	if err != nil {
