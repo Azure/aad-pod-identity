@@ -5,21 +5,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-type EventType int
-
-const (
-	PodCreated      EventType = 0
-	PodDeleted      EventType = 1
-	PodUpdated      EventType = 2
-	IdentityCreated EventType = 3
-	IdentityDeleted EventType = 4
-	IdentityUpdated EventType = 5
-	BindingCreated  EventType = 6
-	BindingDeleted  EventType = 7
-	BindingUpdated  EventType = 8
-	Exit            EventType = 9
-)
-
 const (
 	CRDGroup    = "aadpodidentity.k8s.io"
 	CRDVersion  = "v2" //TODO: does this need to be internal?
@@ -91,11 +76,11 @@ type AzureAssignedIdentityList struct {
 
 /*** AzureIdentity ***/
 //+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-type IdentityType int
+type IdentityType string
 
 const (
-	UserAssignedMSI  IdentityType = 0
-	ServicePrincipal IdentityType = 1
+	UserAssignedMSI  IdentityType = "UserAssignedMSI"
+	ServicePrincipal IdentityType = "ServicePrincipal"
 )
 
 type AzureIdentitySpec struct {

@@ -91,11 +91,11 @@ type AzureAssignedIdentityList struct {
 
 /*** AzureIdentity ***/
 //+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-type IdentityType int
+type IdentityType string
 
 const (
-	UserAssignedMSI  IdentityType = 0
-	ServicePrincipal IdentityType = 1
+	UserAssignedMSI  IdentityType = "UserAssignedMSI"
+	ServicePrincipal IdentityType = "ServicePrincipal"
 )
 
 type AzureIdentitySpec struct {
