@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	getPodListTries                 = 5
+	getPodListRetries               = 4
 	getPodListSleepTimeMilliseconds = 300
 )
 
@@ -88,7 +88,7 @@ func (c *KubeClient) GetPodName(podip string) (podns, poddname string, err error
 		return "", "", fmt.Errorf("podip is empty")
 	}
 
-	podList, err := c.getPodListWithTries(podip, getPodListTries, getPodListSleepTimeMilliseconds)
+	podList, err := c.getPodListRetry(podip, getPodListRetries, getPodListSleepTimeMilliseconds)
 
 	if err != nil {
 		return "", "", err
@@ -127,27 +127,27 @@ func (c *KubeClient) getPodList(podip string) (*v1.PodList, error) {
 	return podList, nil
 }
 
-func (c *KubeClient) getPodListWithTries(podip string, tries int, sleeptime time.Duration) (*v1.PodList, error) {
+func (c *KubeClient) getPodListRetry(podip string, retries int, sleeptime time.Duration) (*v1.PodList, error) {
 	var podList *v1.PodList
 	var err error
+	i := 0
 
-	for i := 0; i < tries; i++ {
+	for {
+		// Atleast run the getpodlist once.
 		podList, err = c.getPodList(podip)
-		if err != nil {
-			log.Warningf("List pod error: %+v. Retrying, attempt number: %d", err, i)
-			time.Sleep(sleeptime * time.Millisecond)
-			continue
-		} else {
+		if err == nil {
+			return podList, nil
+		}
+		if i >= retries {
 			break
 		}
+		i++
+		log.Warningf("List pod error: %+v. Retrying, attempt number: %d", err, i)
+		time.Sleep(sleeptime * time.Millisecond)
 	}
-	if err != nil {
-		return nil, err
-	}
-	if podList == nil {
-		return nil, fmt.Errorf("pod list nil")
-	}
-	return podList, nil
+	// We reach here only if there is an error and we have exhausted all retries.
+	// Return the last error
+	return nil, err
 }
 
 // GetLocalIP returns the non loopback local IP of the host
