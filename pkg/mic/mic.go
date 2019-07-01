@@ -698,14 +698,14 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 			removedBinding := delID.Spec.AzureBindingRef
 			isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
 			idExistsOnNode := c.checkIfMSIExistsOnNode(id, delID.Spec.NodeName, idList)
-			vmssGroups, err := getVMSSGroups(c.NodeClient, nodeRefs)
-			if err != nil {
-				glog.Error(err)
+			vmssGroups, getErr := getVMSSGroups(c.NodeClient, nodeRefs)
+			if getErr != nil {
+				glog.Error(getErr)
 				continue
 			}
-			inUse, err := c.checkIfInUse(delID, newAssignedIDs, vmssGroups)
-			if err != nil {
-				glog.Error(err)
+			inUse, checkErr := c.checkIfInUse(delID, newAssignedIDs, vmssGroups)
+			if checkErr != nil {
+				glog.Error(checkErr)
 				continue
 			}
 			// the identity still exists on node, which means removing the identity from the node failed
