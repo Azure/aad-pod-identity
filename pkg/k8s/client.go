@@ -113,15 +113,15 @@ func (c *KubeClient) getPodList(podip string) (*v1.PodList, error) {
 	// Confirm that we are able to cast properly.
 	podList, ok := listObject.(*v1.PodList)
 	if !ok {
-		return nil, fmt.Errorf("list object could not be converted to podllist")
+		return nil, fmt.Errorf("list object could not be converted to podlist")
 	}
 
 	if podList == nil {
-		return nil, fmt.Errorf("Podlist nil")
+		return nil, fmt.Errorf("podlist nil")
 	}
 
 	if len(podList.Items) == 0 {
-		return nil, fmt.Errorf("Pod List empty")
+		return nil, fmt.Errorf("pod List empty")
 	}
 
 	return podList, nil
