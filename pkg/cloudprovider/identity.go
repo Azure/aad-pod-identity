@@ -21,6 +21,7 @@ type IdentityHolder interface {
 type IdentityInfo interface {
 	AppendUserIdentity(id string) bool
 	RemoveUserIdentity(id string) error
+	GetUserIdentityList() []string
 }
 
 var (
@@ -35,7 +36,7 @@ func filterUserIdentity(idType *compute.ResourceIdentityType, idList *[]string, 
 	case compute.ResourceIdentityTypeUserAssigned,
 		compute.ResourceIdentityTypeSystemAssignedUserAssigned:
 	default:
-		return errNotFound
+		return nil
 	}
 
 	origLen := len(*idList)
@@ -78,10 +79,8 @@ func appendUserIdentity(idType *compute.ResourceIdentityType, idList *[]string, 
 	switch *idType {
 	case compute.ResourceIdentityTypeUserAssigned, compute.ResourceIdentityTypeSystemAssignedUserAssigned:
 		// check if this ID is already in the list
-		for _, id := range *idList {
-			if id == newID {
-				return false
-			}
+		if checkIfIDInList(*idList, newID) {
+			return false
 		}
 	case compute.ResourceIdentityTypeSystemAssigned:
 		*idType = compute.ResourceIdentityTypeSystemAssignedUserAssigned
@@ -91,4 +90,13 @@ func appendUserIdentity(idType *compute.ResourceIdentityType, idList *[]string, 
 
 	*idList = append(*idList, newID)
 	return true
+}
+
+func checkIfIDInList(idList []string, desiredID string) bool {
+	for _, id := range idList {
+		if id == desiredID {
+			return true
+		}
+	}
+	return false
 }

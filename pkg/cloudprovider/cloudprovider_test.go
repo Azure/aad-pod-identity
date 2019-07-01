@@ -118,6 +118,28 @@ func TestSimple(t *testing.T) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
+
+			// test the UpdateUserMSI interface
+			cloudClient.UpdateUserMSI([]string{"ID1", "ID2", "ID3"}, []string{"ID0again"}, node0)
+			testMSI = []string{"ID1", "ID2", "ID3"}
+			if !cloudClient.CompareMSI(node0, testMSI) {
+				cloudClient.PrintMSI(t)
+				t.Error("MSI mismatch")
+			}
+
+			cloudClient.UpdateUserMSI(nil, []string{"ID3"}, node3)
+			testMSI = []string{}
+			if !cloudClient.CompareMSI(node3, testMSI) {
+				cloudClient.PrintMSI(t)
+				t.Error("MSI mismatch")
+			}
+
+			cloudClient.UpdateUserMSI([]string{"ID3"}, nil, node4)
+			testMSI = []string{"ID4", "ID3"}
+			if !cloudClient.CompareMSI(node4, testMSI) {
+				cloudClient.PrintMSI(t)
+				t.Error("MSI mismatch")
+			}
 		})
 	}
 }

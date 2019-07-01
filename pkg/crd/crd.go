@@ -1,18 +1,21 @@
 package crd
 
 import (
+	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/golang/glog"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
-	"github.com/golang/glog"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 )
@@ -31,6 +34,7 @@ type ClientInt interface {
 	SyncCache(exit <-chan struct{})
 	RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
+	UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error
 	ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error)
 	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
 	ListIds() (res *[]aadpodid.AzureIdentity, err error)
@@ -190,16 +194,18 @@ func (c *Client) SyncCache(exit <-chan struct{}) {
 	}
 }
 
+// RemoveAssignedIdentity removes the assigned identity
 func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
-	glog.V(6).Infof("Deletion of id named: %s", assignedIdentity.Name)
+	glog.V(6).Infof("Deletion of assigned id named: %s", assignedIdentity.Name)
 	begin := time.Now()
 	err := c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Name(assignedIdentity.Name).Do().Error()
 	stats.Update(stats.AssignedIDDel, time.Since(begin))
 	return err
 }
 
+// CreateAssignedIdentity creates new assigned identity
 func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
-	glog.Infof("Got id %s to assign", assignedIdentity.Name)
+	glog.Infof("Got assigned id %s to assign", assignedIdentity.Name)
 	begin := time.Now()
 	// Create a new AzureAssignedIdentity which maps the relationship between
 	// id and pod
@@ -267,4 +273,36 @@ func (c *Client) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, e
 	}
 
 	return &matchedIds, nil
+}
+
+type patchStatusOps struct {
+	Op    string      `json:"op"`
+	Path  string      `json:"path"`
+	Value interface{} `json:"value"`
+}
+
+// UpdateAzureAssignedIdentityStatus updates the status field in AzureAssignedIdentity to indicate current status
+func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error {
+	glog.Infof("Updating assigned identity %s/%s status to %s", assignedIdentity.Namespace, assignedIdentity.Name, status)
+
+	ops := make([]patchStatusOps, 1)
+	ops[0].Op = "replace"
+	ops[0].Path = "/Status/status"
+	ops[0].Value = status
+
+	patchBytes, err := json.Marshal(ops)
+	if err != nil {
+		return err
+	}
+
+	err = c.rest.
+		Patch(types.JSONPatchType).
+		Namespace(assignedIdentity.Namespace).
+		Resource("azureassignedidentities").
+		Name(assignedIdentity.Name).
+		Body(patchBytes).
+		Do().
+		Error()
+
+	return err
 }

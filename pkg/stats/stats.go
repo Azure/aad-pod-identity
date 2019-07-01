@@ -28,6 +28,7 @@ const (
 	AssignedIDAdd        StatsType = "Assigned ID addition"
 	TotalIDDel           StatsType = "Total time to delete assigned IDs"
 	TotalIDAdd           StatsType = "Total time to add assigned IDs"
+	TotalCreateOrUpdate  StatsType = "Total time to assign or remove IDs"
 
 	EventRecord StatsType = "Event recording"
 )
@@ -77,8 +78,7 @@ func PrintSync() {
 		Print(FindAssignedIDCreate)
 		Print(FindAssignedIDDel)
 
-		Print(TotalIDAdd)
-		Print(TotalIDDel)
+		Print(TotalCreateOrUpdate)
 
 		Print(EventRecord)
 		Print(Total)
