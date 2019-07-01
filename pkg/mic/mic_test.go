@@ -1013,9 +1013,7 @@ func TestMICStateFlow(t *testing.T) {
 	cloudClient.testVMClient.identity = nil
 
 	eventCh <- aadpodid.PodDeleted
-	if !evtRecorder.WaitForEvents(1) {
-		t.Fatalf("Timeout waiting for mic sync cycles")
-	}
+
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
 		glog.Error(err)
@@ -1025,7 +1023,7 @@ func TestMICStateFlow(t *testing.T) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
 	}
 	if !((*listAssignedIDs)[0].Status.Status == IdentityAssigned) {
-		t.Fatalf("expected status to be %s, got: %s", IdentityCreated, (*listAssignedIDs)[0].Status.Status)
+		t.Fatalf("expected status to be %s, got: %s", IdentityAssigned, (*listAssignedIDs)[0].Status.Status)
 	}
 
 	cloudClient.UnSetError()
