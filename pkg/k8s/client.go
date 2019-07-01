@@ -117,11 +117,11 @@ func (c *KubeClient) getPodList(podip string) (*v1.PodList, error) {
 	}
 
 	if podList == nil {
-		return nil, fmt.Errorf("podlist nil")
+		return nil, fmt.Errorf("pod list nil")
 	}
 
 	if len(podList.Items) == 0 {
-		return nil, fmt.Errorf("pod List empty")
+		return nil, fmt.Errorf("pod list empty")
 	}
 
 	return podList, nil
