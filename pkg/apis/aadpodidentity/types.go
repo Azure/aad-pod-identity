@@ -1,4 +1,4 @@
-package v2
+package internal
 
 import (
 	api "k8s.io/api/core/v1"
@@ -22,7 +22,7 @@ const (
 
 const (
 	CRDGroup    = "aadpodidentity.k8s.io"
-	CRDVersion  = "v2"
+	CRDVersion  = "v2" //TODO: does this need to be internal?
 	CRDLabelKey = "aadpodidbinding"
 
 	BehaviorKey = "aadpodidentity.k8s.io/Behavior"
@@ -153,8 +153,8 @@ const (
 // Used to indicate the potential matches to look for between the pod/deployment
 // and the identities present..
 type AzureIdentityBindingSpec struct {
-	metav1.ObjectMeta	`json:"metadata,omitempty"`
-	AzureIdentity		string `json:"azureidentity"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	AzureIdentity     string `json:"azureidentity"`
 	Selector			string `json:"selector"`
 	LabelSelector		metav1.LabelSelector `json:"labelselector"`
 	// Weight is used to figure out which of the matching identities would be selected.

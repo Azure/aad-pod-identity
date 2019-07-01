@@ -4,7 +4,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v2"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	api "k8s.io/api/core/v1"
 )
 

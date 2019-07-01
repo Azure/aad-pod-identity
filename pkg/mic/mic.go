@@ -8,7 +8,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	"github.com/Azure/aad-pod-identity/version"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v2"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 
 	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	"github.com/Azure/aad-pod-identity/pkg/crd"
@@ -133,14 +133,18 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		if err != nil {
 			continue
 		}
-		idMap, err := c.convertIDListToMap(*listIDs)
+		currentAssignedIDs, err := c.CRDClient.ListAssignedIDs()
 		if err != nil {
-			glog.Error(err)
 			continue
 		}
 
-		currentAssignedIDs, err := c.CRDClient.ListAssignedIDs()
+		if (aadpodid.CRDVersion == "v1") {
+			listBindings, currentAssignedIDs, listIDs = aadpodid.ConvertV1ToInternal(listBindings, currentAssignedIDs, listIDs);
+		}
+		
+		idMap, err := c.convertIDListToMap(*listIDs)
 		if err != nil {
+			glog.Error(err)
 			continue
 		}
 		stats.Put(stats.System, time.Since(systemTime))
@@ -154,7 +158,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 		var totalPods = 0
 		for _, allBinding := range *listBindings {
-			listPods, err := c.PodClient.GetPods(&allBinding.Spec.Selector)
+			listPods, err := c.PodClient.GetPods(&allBinding.Spec.LabelSelector)
 			if err != nil {
 				continue
 			}

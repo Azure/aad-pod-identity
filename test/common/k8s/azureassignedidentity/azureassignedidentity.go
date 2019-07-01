@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	"github.com/Azure/aad-pod-identity/test/common/util"
 	"github.com/pkg/errors"
 )
