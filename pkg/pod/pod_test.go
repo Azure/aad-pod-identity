@@ -1,11 +1,16 @@
 package pod
 
 import (
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	"time"
+
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
+	"github.com/Azure/aad-pod-identity/pkg/stats"
 
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type TestPodClient struct {
@@ -14,6 +19,7 @@ type TestPodClient struct {
 
 func NewTestPodClient() *TestPodClient {
 	var pods []*corev1.Pod
+	var podInterface *corev1.PodInterface
 	return &TestPodClient{
 		pods: pods,
 	}
@@ -23,8 +29,19 @@ func (c TestPodClient) Start(exit <-chan struct{}) {
 	glog.Info("Start called from the test interface")
 }
 
-func (c TestPodClient) GetPods() (pods []*corev1.Pod, err error) {
+func (c TestPodClient) GetPods(labelSelector *metav1.LabelSelector) (pods []*corev1.Pod, err error) {
 	//TODO: Add label matching. For now we add only pods which we want to add.
+	selector, err := metav1.LabelSelectorAsSelector(labelSelector)
+	if err != nil {
+		return nil, err
+	}
+
+	listPods, err := c.PodWatcher.Lister().List(selector)
+	if err != nil {
+		return nil, err
+	}
+	stats.Put(stats.PodList, time.Since(begin))
+	return listPods, nil
 	return c.pods, nil
 }
 
