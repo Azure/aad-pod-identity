@@ -15,11 +15,12 @@ import (
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	crd "github.com/Azure/aad-pod-identity/pkg/crd"
+	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
-	getPodListTries                 = 5
+	getPodListRetries               = 4
 	getPodListSleepTimeMilliseconds = 300
 )
 
@@ -87,7 +88,7 @@ func (c *KubeClient) GetPodName(podip string) (podns, poddname string, err error
 		return "", "", fmt.Errorf("podip is empty")
 	}
 
-	podList, err := c.getPodListWithTries(podip, getPodListTries, getPodListSleepTimeMilliseconds)
+	podList, err := c.getPodListRetry(podip, getPodListRetries, getPodListSleepTimeMilliseconds)
 
 	if err != nil {
 		return "", "", err
@@ -100,19 +101,53 @@ func (c *KubeClient) GetPodName(podip string) (podns, poddname string, err error
 	return "", "", fmt.Errorf("match failed, ip:%s matching pods:%v", podip, podList)
 }
 
-func (c *KubeClient) getPodListWithTries(podip string, tries int, sleeptime time.Duration) (*v1.PodList, error) {
-	podList, err := c.PodListWatch.List(metav1.ListOptions{
+func (c *KubeClient) getPodList(podip string) (*v1.PodList, error) {
+	listObject, err := c.PodListWatch.List(metav1.ListOptions{
 		FieldSelector: "status.podIP==" + podip + phaseStatusFilter,
 	})
 
-	if err != nil || len(podList.(*v1.PodList).Items) == 0 {
-		if tries > 1 {
-			time.Sleep(sleeptime * time.Millisecond)
-			return c.getPodListWithTries(podip, tries-1, sleeptime)
-		}
+	if err != nil {
+		return nil, err
 	}
 
-	return podList.(*v1.PodList), err
+	// Confirm that we are able to cast properly.
+	podList, ok := listObject.(*v1.PodList)
+	if !ok {
+		return nil, fmt.Errorf("list object could not be converted to podlist")
+	}
+
+	if podList == nil {
+		return nil, fmt.Errorf("pod list nil")
+	}
+
+	if len(podList.Items) == 0 {
+		return nil, fmt.Errorf("pod list empty")
+	}
+
+	return podList, nil
+}
+
+func (c *KubeClient) getPodListRetry(podip string, retries int, sleeptime time.Duration) (*v1.PodList, error) {
+	var podList *v1.PodList
+	var err error
+	i := 0
+
+	for {
+		// Atleast run the getpodlist once.
+		podList, err = c.getPodList(podip)
+		if err == nil {
+			return podList, nil
+		}
+		if i >= retries {
+			break
+		}
+		i++
+		log.Warningf("List pod error: %+v. Retrying, attempt number: %d", err, i)
+		time.Sleep(sleeptime * time.Millisecond)
+	}
+	// We reach here only if there is an error and we have exhausted all retries.
+	// Return the last error
+	return nil, err
 }
 
 // GetLocalIP returns the non loopback local IP of the host
