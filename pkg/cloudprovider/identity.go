@@ -2,6 +2,7 @@ package cloudprovider
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
 )
@@ -65,7 +66,7 @@ func filter(ls *[]string, filter string) {
 	}
 
 	for i, v := range *ls {
-		if v == filter {
+		if strings.EqualFold(v, filter) {
 			copy((*ls)[i:], (*ls)[i+1:])
 			*ls = (*ls)[:len(*ls)-1]
 			return
@@ -94,7 +95,7 @@ func appendUserIdentity(idType *compute.ResourceIdentityType, idList *[]string, 
 
 func checkIfIDInList(idList []string, desiredID string) bool {
 	for _, id := range idList {
-		if id == desiredID {
+		if strings.EqualFold(id, desiredID) {
 			return true
 		}
 	}
