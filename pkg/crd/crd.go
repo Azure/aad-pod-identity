@@ -267,7 +267,7 @@ func (c *Client) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, e
 
 	var matchedIds []aadpodid.AzureIdentity
 	for _, v := range azAssignedIDList.(*aadpodid.AzureAssignedIdentityList).Items {
-		if v.Spec.Pod == podname && v.Spec.PodNamespace == podns {
+		if v.Spec.Pod == podname && v.Spec.PodNamespace == podns && v.Status.Status == "Assigned" {
 			matchedIds = append(matchedIds, *v.Spec.AzureIdentityRef)
 		}
 	}

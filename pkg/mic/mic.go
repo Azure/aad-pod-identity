@@ -43,13 +43,14 @@ type NodeGetter interface {
 // Client has the required pointers to talk to the api server
 // and interact with the CRD related datastructure.
 type Client struct {
-	CRDClient     crd.ClientInt
-	CloudClient   cloudprovider.ClientInt
-	PodClient     pod.ClientInt
-	EventRecorder record.EventRecorder
-	EventChannel  chan aadpodid.EventType
-	NodeClient    NodeGetter
-	IsNamespaced  bool
+	CRDClient         crd.ClientInt
+	CloudClient       cloudprovider.ClientInt
+	PodClient         pod.ClientInt
+	EventRecorder     record.EventRecorder
+	EventChannel      chan aadpodid.EventType
+	NodeClient        NodeGetter
+	IsNamespaced      bool
+	syncRetryInterval time.Duration
 
 	syncing int32 // protect against conucrrent sync's
 }
@@ -68,7 +69,7 @@ type trackUserAssignedMSIIds struct {
 }
 
 // NewMICClient returnes new mic client
-func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool) (*Client, error) {
+func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, syncRetryInterval time.Duration) (*Client, error) {
 	glog.Infof("Starting to create the pod identity client. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
 
 	clientSet := kubernetes.NewForConfigOrDie(config)
@@ -96,13 +97,14 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool) (*
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: aadpodid.CRDGroup})
 
 	return &Client{
-		CRDClient:     crdClient,
-		CloudClient:   cloudClient,
-		PodClient:     podClient,
-		EventRecorder: recorder,
-		EventChannel:  eventCh,
-		NodeClient:    &NodeClient{informer.Core().V1().Nodes()},
-		IsNamespaced:  isNamespaced,
+		CRDClient:         crdClient,
+		CloudClient:       cloudClient,
+		PodClient:         podClient,
+		EventRecorder:     recorder,
+		EventChannel:      eventCh,
+		NodeClient:        &NodeClient{informer.Core().V1().Nodes()},
+		IsNamespaced:      isNamespaced,
+		syncRetryInterval: syncRetryInterval,
 	}, nil
 }
 
@@ -152,6 +154,9 @@ func (c *Client) Sync(exit <-chan struct{}) {
 	}
 	defer c.setStopped()
 
+	ticker := time.NewTicker(c.syncRetryInterval)
+	defer ticker.Stop()
+
 	glog.Info("Sync thread started.")
 	var event aadpodid.EventType
 	for {
@@ -159,13 +164,16 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		case <-exit:
 			return
 		case event = <-c.EventChannel:
+			glog.V(6).Infof("Received event: %v", event)
+		case <-ticker.C:
+			glog.V(6).Infof("Running sync retry loop")
 		}
 
 		stats.Init()
 		// This is the only place where the AzureAssignedIdentity creation is initiated.
 		begin := time.Now()
 		workDone := false
-		glog.V(6).Infof("Received event: %v", event)
+
 		// List all pods in all namespaces
 		systemTime := time.Now()
 		listPods, err := c.PodClient.GetPods()

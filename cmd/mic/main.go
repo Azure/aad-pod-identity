@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/mic"
 	"github.com/Azure/aad-pod-identity/version"
@@ -12,10 +13,11 @@ import (
 )
 
 var (
-	kubeconfig      string
-	cloudconfig     string
-	forceNamespaced bool
-	versionInfo     bool
+	kubeconfig        string
+	cloudconfig       string
+	forceNamespaced   bool
+	versionInfo       bool
+	syncRetryInterval string
 )
 
 func main() {
@@ -24,6 +26,8 @@ func main() {
 	flag.StringVar(&cloudconfig, "cloudconfig", "", "Path to cloud config e.g. Azure.json file")
 	flag.BoolVar(&forceNamespaced, "forceNamespaced", false, "Forces namespaced identities, binding, and assignment")
 	flag.BoolVar(&versionInfo, "version", false, "Prints the version information")
+	flag.StringVar(&syncRetryInterval, "syncRetryInterval", "3600", "The interval in seconds at which sync loop should periodically check for errors and reconcile.")
+
 	flag.Parse()
 	if versionInfo {
 		version.PrintVersionAndExit()
@@ -43,7 +47,13 @@ func main() {
 	}
 
 	forceNamespaced = forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
-	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced)
+
+	syncRetryDuration, err := time.ParseDuration(syncRetryInterval)
+	if err != nil {
+		glog.Fatalf("Could not read syncRetryInterval. Error %+v", err)
+	}
+
+	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration*time.Second)
 	if err != nil {
 		glog.Fatalf("Could not get the MIC client: %+v", err)
 	}
