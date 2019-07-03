@@ -5,10 +5,7 @@ import (
 
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
-	// "k8s.io/apimachinery/pkg/labels"
-	// "k8s.io/apimachinery/pkg/selection"
-
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/internal"
 	"github.com/golang/glog"
 
 	corev1 "k8s.io/api/core/v1"

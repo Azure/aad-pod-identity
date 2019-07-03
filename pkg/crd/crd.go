@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"time"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
+	// aadpodidv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	// aadpodidv2 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v2"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/internal"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
 	"github.com/golang/glog"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/apimachinery/pkg/runtime"
+	runtime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/rest"
@@ -216,11 +218,17 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
 	begin := time.Now()
 
-	ret, err := c.BindingListWatch.List(v1.ListOptions{})
+	opts := v1.ListOptions{
+		FieldSelector: "apiVersion=aadpodidentity.k8s.io/v1",
+	}
+
+	ret, err := c.BindingListWatch.List(opts)
 	if err != nil {
 		glog.Error(err)
 		return nil, err
 	}
+
+	glog.Infof("Printing ret in ListBindings: %s", ret)
 
 	stats.Update(stats.BindingList, time.Since(begin))
 	return &ret.(*aadpodid.AzureIdentityBindingList).Items, nil

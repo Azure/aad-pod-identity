@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/internal"
 	"github.com/Azure/aad-pod-identity/pkg/config"
 
 	"github.com/golang/glog"

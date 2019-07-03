@@ -7,7 +7,7 @@ import (
 
 const (
 	CRDGroup    = "aadpodidentity.k8s.io"
-	CRDVersion  = "v2" //TODO: does this need to be internal?
+	CRDVersion  = "internal"
 	CRDLabelKey = "aadpodidbinding"
 
 	BehaviorKey = "aadpodidentity.k8s.io/Behavior"

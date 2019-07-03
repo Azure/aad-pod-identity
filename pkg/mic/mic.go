@@ -8,7 +8,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	"github.com/Azure/aad-pod-identity/version"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/internal"
 
 	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	"github.com/Azure/aad-pod-identity/pkg/crd"
@@ -138,9 +138,9 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			continue
 		}
 
-		if (aadpodid.CRDVersion == "v1") {
-			listBindings, currentAssignedIDs, listIDs = aadpodid.ConvertV1ToInternal(listBindings, currentAssignedIDs, listIDs);
-		}
+		// if (aadpodid.CRDVersion == "v1") {
+		// 	listBindings, currentAssignedIDs, listIDs = aadpodid.ConvertV1ToInternal(listBindings, currentAssignedIDs, listIDs);
+		// }
 		
 		idMap, err := c.convertIDListToMap(*listIDs)
 		if err != nil {

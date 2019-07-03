@@ -4,7 +4,7 @@ import (
 	"encoding/base64"
 	"testing"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/internal"
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/api/core/v1"

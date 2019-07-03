@@ -3,7 +3,7 @@ package pod
 import (
 	"time"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/internal"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
 	"github.com/golang/glog"
