@@ -39,7 +39,7 @@ func main() {
 	flag.StringVar(&leaderElectionCfg.ThisLeaderName, "leader-election-name", hostName, "leader name. default is 'hostname'")
 	flag.StringVar(&leaderElectionCfg.LeaderElectionNamespace, "leader-election-namespace", "default", "name space to create leader election objects. default is 'default' namesapce")
 	flag.StringVar(&leaderElectionCfg.LeaderElectionId, "leader-election-id", "aad-pod-identity-mic", "leader election id")
-	flag.DurationVar(&leaderElectionCfg.LeaderElectionTtl, "leader-election-ttl", time.Second*30, "leader election ttl")
+	flag.DurationVar(&leaderElectionCfg.LeaderElectionTtl, "leader-election-ttl", time.Second*15, "leader election ttl")
 
 	flag.Parse()
 	if versionInfo {
