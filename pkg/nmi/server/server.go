@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,8 +28,8 @@ import (
 const (
 	iptableUpdateTimeIntervalInSeconds = 60
 	localhost                          = "127.0.0.1"
-	listPodIDsRetryAttempts            = 10
-	listPodIDsRetryIntervalInSeconds   = 6
+	listPodIDsRetryAttempts            = 7
+	listPodIDsRetryIntervalInSeconds   = 5
 )
 
 // Server encapsulates all of the parameters necessary for starting up
@@ -171,7 +172,7 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 		return
 	}
 
-	podIDs, err := listPodIDsWithRetry(s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttempts)
+	podIDs, err := listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttempts)
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s", podns, podname)
 		logger.Errorf("%s, %+v", msg, err)
@@ -238,7 +239,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	podIDs, err := listPodIDsWithRetry(s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttempts)
+	podIDs, err := listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttempts)
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s", podns, podname)
 		logger.Errorf("%s, %+v", msg, err)
@@ -387,12 +388,12 @@ func handleTermination() {
 	os.Exit(exitCode)
 }
 
-func listPodIDsWithRetry(kubeClient k8s.Client, logger *log.Entry, podns, podname, rqClientID string, maxAttempts int) (*[]aadpodid.AzureIdentity, error) {
+func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log.Entry, podns, podname, rqClientID string, maxAttempts int) (*[]aadpodid.AzureIdentity, error) {
 	attempt := 0
 	var err error
 	var podIDs *[]aadpodid.AzureIdentity
 
-	for {
+	for attempt < maxAttempts {
 		podIDs, err = kubeClient.ListPodIds(podns, podname)
 		if err == nil && len(*podIDs) != 0 {
 			if len(rqClientID) == 0 {
@@ -407,13 +408,15 @@ func listPodIDsWithRetry(kubeClient k8s.Client, logger *log.Entry, podns, podnam
 			}
 		}
 
-		if attempt >= maxAttempts {
-			break
-		}
-
 		attempt++
+
+		select {
+		case <-time.After(listPodIDsRetryIntervalInSeconds * time.Second):
+		case <-ctx.Done():
+			err = ctx.Err()
+			return nil, err
+		}
 		logger.Warningf("failed to get assigned ids for pod:%s/%s, retrying attempt: %d", podns, podname, attempt)
-		time.Sleep(listPodIDsRetryIntervalInSeconds * time.Second)
 	}
 	return nil, fmt.Errorf("getting assigned identities for pod %s/%s failed after %d attempts. Error: %v", podns, podname, maxAttempts, err)
 }

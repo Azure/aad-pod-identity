@@ -111,7 +111,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		fmt.Println("\nTearing down the test environment...")
 
 		// Ensure a clean cluster after the end of each test
-		cmd := exec.Command("kubectl", "delete", "AzureIdentity,AzureIdentityBinding,AzureAssignedIdentity", "--all")
+		cmd := exec.Command("kubectl", "delete", "AzureIdentity,AzureIdentityBinding", "--all")
 		util.PrintCommand(cmd)
 		_, err := cmd.CombinedOutput()
 		Expect(err).NotTo(HaveOccurred())
@@ -627,7 +627,7 @@ func setUpIdentityAndDeployment(azureIdentityName, suffix, replicas string) {
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ok).To(Equal(true))
 
-	time.Sleep(30 * time.Second)
+	//time.Sleep(30 * time.Second)
 }
 
 // validateAzureAssignedIdentity will make sure a given AzureAssignedIdentity has the correct properties

@@ -26,7 +26,7 @@ func main() {
 	flag.StringVar(&cloudconfig, "cloudconfig", "", "Path to cloud config e.g. Azure.json file")
 	flag.BoolVar(&forceNamespaced, "forceNamespaced", false, "Forces namespaced identities, binding, and assignment")
 	flag.BoolVar(&versionInfo, "version", false, "Prints the version information")
-	flag.StringVar(&syncRetryInterval, "syncRetryInterval", "3600", "The interval in seconds at which sync loop should periodically check for errors and reconcile.")
+	flag.StringVar(&syncRetryInterval, "syncRetryInterval", "3600s", "The interval in seconds at which sync loop should periodically check for errors and reconcile.")
 
 	flag.Parse()
 	if versionInfo {
