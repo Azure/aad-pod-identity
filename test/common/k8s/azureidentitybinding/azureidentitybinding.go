@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"path"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/internal"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	"github.com/Azure/aad-pod-identity/test/common/util"
 	"github.com/pkg/errors"
 )

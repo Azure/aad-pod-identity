@@ -6,7 +6,7 @@ import (
 
 	// aadpodidv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	// aadpodidv2 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v2"
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/internal"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
 	"github.com/golang/glog"

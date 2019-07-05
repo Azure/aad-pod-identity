@@ -5,7 +5,7 @@ import (
 
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/internal"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	"github.com/golang/glog"
 
 	corev1 "k8s.io/api/core/v1"
@@ -78,11 +78,17 @@ func (c *Client) Start(exit <-chan struct{}) {
 
 func (c *Client) GetPods(labelSelector *metav1.LabelSelector) (pods []*corev1.Pod, err error) {
 	begin := time.Now()
+
+	// LabelSelector selects all pods if empty by design
+	if (labelSelector.Size() == 0) {
+		stats.Put(stats.PodList, time.Since(begin))
+		return make([]*corev1.Pod, 0), nil
+	}
+
 	selector, err := metav1.LabelSelectorAsSelector(labelSelector)
 	if err != nil {
 		return nil, err
 	}
-
 	listPods, err := c.PodWatcher.Lister().List(selector)
 	if err != nil {
 		return nil, err

@@ -1,7 +1,7 @@
 package k8s
 
 import (
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/internal"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	"k8s.io/api/core/v1"
 )
 

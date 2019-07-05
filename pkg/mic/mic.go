@@ -8,7 +8,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	"github.com/Azure/aad-pod-identity/version"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/internal"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 
 	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	"github.com/Azure/aad-pod-identity/pkg/crd"

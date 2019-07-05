@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/internal"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	"github.com/Azure/aad-pod-identity/pkg/config"
 
 	"github.com/golang/glog"
@@ -230,7 +230,7 @@ func (c TestPodClient) Start(exit <-chan struct{}) {
 	glog.Info("Start called from the test interface")
 }
 
-func (c TestPodClient) GetPods() (pods []*corev1.Pod, err error) {
+func (c TestPodClient) GetPods(labelSelector *v1.LabelSelector) (pods []*corev1.Pod, err error) {
 	//TODO: Add label matching. For now we add only pods which we want to add.
 	return c.pods, nil
 }
@@ -315,7 +315,7 @@ func (c *TestCrdClient) CreateBinding(bindingName string, idName string, selecto
 		},
 		Spec: aadpodid.AzureIdentityBindingSpec{
 			AzureIdentity: idName,
-			Selector: v1.LabelSelector{
+			LabelSelector: v1.LabelSelector{
 				MatchLabels: map[string]string{aadpodid.CRDLabelKey: selector},
 			},
 		},
@@ -661,14 +661,19 @@ func TestAddDelMICClient(t *testing.T) {
 	crdClient.CreateId("test-id2", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
 	crdClient.CreateBinding("testbinding2", "test-id2", "test-select2")
 
+	labelSelector := v1.LabelSelector{
+		MatchLabels: map[string]string{aadpodid.CRDLabelKey: "test-select2"},
+	}
+
 	nodeClient.AddNode("test-node2")
 	podClient.AddPod("test-pod2", "default", "test-node2", "test-select2")
-	podClient.GetPods()
+	podClient.GetPods(&labelSelector)
 
 	crdClient.CreateId("test-id4", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
 	crdClient.CreateBinding("testbinding4", "test-id4", "test-select4")
 	podClient.AddPod("test-pod4", "default", "test-node2", "test-select4")
-	podClient.GetPods()
+	labelSelector.MatchLabels[aadpodid.CRDLabelKey] = "test-select4"
+	podClient.GetPods(&labelSelector)
 
 	eventCh <- aadpodid.PodCreated
 	go micClient.Sync(exit)
@@ -698,7 +703,8 @@ func TestAddDelMICClient(t *testing.T) {
 	crdClient.CreateId("test-id3", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
 	crdClient.CreateBinding("testbinding3", "test-id3", "test-select3")
 	podClient.AddPod("test-pod3", "default", "test-node2", "test-select3")
-	podClient.GetPods()
+	labelSelector.MatchLabels[aadpodid.CRDLabelKey] = "test-select3"
+	podClient.GetPods(&labelSelector)
 
 	eventCh <- aadpodid.PodCreated
 	go micClient.Sync(exit)

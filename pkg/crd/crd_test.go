@@ -4,7 +4,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/internal"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	api "k8s.io/api/core/v1"
 )
 
@@ -53,7 +53,7 @@ func (c *TestCrdClient) CreateBinding(bindingName string, idName string, selecto
 		},
 		Spec: aadpodid.AzureIdentityBindingSpec{
 			AzureIdentity: idName,
-			Selector: v1.LabelSelector{
+			LabelSelector: v1.LabelSelector{
 				MatchLabels: map[string]string{aadpodid.CRDLabelKey: selector},
 			},
 		},

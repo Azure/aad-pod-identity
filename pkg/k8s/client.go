@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/internal"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	crd "github.com/Azure/aad-pod-identity/pkg/crd"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
