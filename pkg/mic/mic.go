@@ -37,7 +37,7 @@ type NodeGetter interface {
 	Start(<-chan struct{})
 }
 
-type leaderElectionConfig struct {
+type LeaderElectionConfig struct {
 	LeaderElectionNamespace string
 	LeaderElectionTtl       time.Duration
 	LeaderElectionId        string
@@ -58,7 +58,7 @@ type Client struct {
 
 	syncing       int32 // protect against conucrrent sync's
 	leaderElector *leaderelection.LeaderElector
-	*leaderElectionConfig
+	*LeaderElectionConfig
 }
 
 // ClientInt ...
@@ -75,7 +75,7 @@ type trackUserAssignedMSIIds struct {
 }
 
 // NewMICClient returnes new mic client
-func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, syncRetryInterval time.Duration) (*Client, error) {
+func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, syncRetryInterval time.Duration, leaderElectionConfig *LeaderElectionConfig) (*Client, error) {
 	glog.Infof("Starting to create the pod identity client. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
 
 	clientSet := kubernetes.NewForConfigOrDie(config)
@@ -112,8 +112,7 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 		IsNamespaced:      isNamespaced,
 		syncRetryInterval: syncRetryInterval,
 	}
-
-	leaderElector, err := c.NewLeaderElector(clientSet, recorder)
+	leaderElector, err := c.NewLeaderElector(clientSet, recorder, leaderElectionConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -124,14 +123,16 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 
 // Run - Initiates the leader election run call to find if its leader and run it
 func (c *Client) Run() {
+	glog.Infof("MIC Leader election initiated")
 	c.leaderElector.Run()
 }
 
 // NewLeaderElector - does the required leader election initialization
-func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder record.EventRecorder) (leaderElector *leaderelection.LeaderElector, err error) {
+func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder record.EventRecorder, leaderElectionConfig *LeaderElectionConfig) (leaderElector *leaderelection.LeaderElector, err error) {
+	c.LeaderElectionConfig = leaderElectionConfig
 	resourceLock, err := resourcelock.New(resourcelock.EndpointsResourceLock,
 		c.LeaderElectionNamespace,
-		c.LeaderElectionNamespace,
+		c.LeaderElectionId,
 		clientSet.CoreV1(),
 		resourcelock.ResourceLockConfig{
 			Identity:      c.ThisLeaderName,
