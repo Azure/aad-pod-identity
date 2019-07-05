@@ -1091,7 +1091,11 @@ func TestSyncRetryLoop(t *testing.T) {
 	evtRecorder.eventChannel = make(chan bool, 100)
 
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
-	micClient.syncRetryInterval = 10 * time.Second
+	syncRetryInterval, err := time.ParseDuration("10s")
+	if err != nil {
+		t.Errorf("error parsing duration: %v",err)
+	}
+	micClient.syncRetryInterval = syncRetryInterval
 
 	// Add a pod, identity and binding.
 	crdClient.CreateID("test-id1", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")

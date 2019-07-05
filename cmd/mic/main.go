@@ -53,7 +53,7 @@ func main() {
 		glog.Fatalf("Could not read syncRetryInterval. Error %+v", err)
 	}
 
-	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration*time.Second)
+	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration)
 	if err != nil {
 		glog.Fatalf("Could not get the MIC client: %+v", err)
 	}
