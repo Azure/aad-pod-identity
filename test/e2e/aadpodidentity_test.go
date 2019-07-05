@@ -626,8 +626,6 @@ func setUpIdentityAndDeployment(azureIdentityName, suffix, replicas string) {
 	ok, err = daemonset.WaitOnReady(nmiDaemonSet)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ok).To(Equal(true))
-
-	//time.Sleep(30 * time.Second)
 }
 
 // validateAzureAssignedIdentity will make sure a given AzureAssignedIdentity has the correct properties
