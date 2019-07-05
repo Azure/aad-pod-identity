@@ -2,6 +2,7 @@ package mic
 
 import (
 	"fmt"
+	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -20,6 +21,8 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/leaderelection"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
 )
 
@@ -34,6 +37,13 @@ type NodeGetter interface {
 	Start(<-chan struct{})
 }
 
+type leaderElectionConfig struct {
+	LeaderElectionNamespace string
+	LeaderElectionTtl       time.Duration
+	LeaderElectionId        string
+	ThisLeaderName          string
+}
+
 // Client has the required pointers to talk to the api server
 // and interact with the CRD related datastructure.
 type Client struct {
@@ -46,7 +56,9 @@ type Client struct {
 	IsNamespaced      bool
 	syncRetryInterval time.Duration
 
-	syncing int32 // protect against conucrrent sync's
+	syncing       int32 // protect against conucrrent sync's
+	leaderElector *leaderelection.LeaderElector
+	*leaderElectionConfig
 }
 
 // ClientInt ...
@@ -90,7 +102,7 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: clientSet.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: aadpodid.CRDGroup})
 
-	return &Client{
+	c := &Client{
 		CRDClient:         crdClient,
 		CloudClient:       cloudClient,
 		PodClient:         podClient,
@@ -99,7 +111,57 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 		NodeClient:        &NodeClient{informer.Core().V1().Nodes()},
 		IsNamespaced:      isNamespaced,
 		syncRetryInterval: syncRetryInterval,
-	}, nil
+	}
+
+	leaderElector, err := c.NewLeaderElector(clientSet, recorder)
+	if err != nil {
+		return nil, err
+	}
+	c.leaderElector = leaderElector
+
+	return c, nil
+}
+
+// Run - Initiates the leader election run call to find if its leader and run it
+func (c *Client) Run() {
+	c.leaderElector.Run()
+}
+
+// NewLeaderElector - does the required leader election initialization
+func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder record.EventRecorder) (leaderElector *leaderelection.LeaderElector, err error) {
+	resourceLock, err := resourcelock.New(resourcelock.EndpointsResourceLock,
+		c.LeaderElectionNamespace,
+		c.LeaderElectionNamespace,
+		clientSet.CoreV1(),
+		resourcelock.ResourceLockConfig{
+			Identity:      c.ThisLeaderName,
+			EventRecorder: recorder})
+	if err != nil {
+		glog.Errorf("Resource lock creation for leadeer election failed with error : %v", err)
+		return nil, err
+	}
+	config := leaderelection.LeaderElectionConfig{
+		LeaseDuration: c.LeaderElectionTtl,
+		RenewDeadline: c.LeaderElectionTtl / 2,
+		RetryPeriod:   c.LeaderElectionTtl / 4,
+		Callbacks: leaderelection.LeaderCallbacks{
+			OnStartedLeading: func(exit <-chan struct{}) {
+				c.Start(exit)
+			},
+			OnStoppedLeading: func() {
+				glog.Errorf("Lost Leader Lease")
+				glog.Flush()
+				os.Exit(1)
+			},
+		},
+		Lock: resourceLock,
+	}
+
+	leaderElector, err = leaderelection.NewLeaderElector(config)
+	if err != nil {
+		return nil, err
+	}
+	return leaderElector, nil
 }
 
 // Start ...

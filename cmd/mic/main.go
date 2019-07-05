@@ -52,9 +52,7 @@ func main() {
 	if err != nil {
 		glog.Fatalf("Could not get the MIC client: %+v", err)
 	}
-
-	exit := make(chan struct{})
-	micClient.Start(exit)
+	micClient.Run()
 	glog.Info("AAD Pod identity controller initialized!!")
 	//Infinite loop :-)
 	select {}
