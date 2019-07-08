@@ -26,8 +26,14 @@ const (
 	CRDLabelKey = "aadpodidbinding"
 
 	BehaviorKey = "aadpodidentity.k8s.io/Behavior"
-	// Namespaced Behavior
+	// BehaviorNamespaced ...
 	BehaviorNamespaced = "namespaced"
+	// AssignedIDCreated status indicates azure assigned identity is created
+	AssignedIDCreated = "Created"
+	// AssignedIDAssigned status indicates identity has been assigned to the node
+	AssignedIDAssigned = "Assigned"
+	// AssignedIDUnAssigned status indicates identity has been unassigned from the node
+	AssignedIDUnAssigned = "Unassigned"
 )
 
 /*** Global data structures ***/

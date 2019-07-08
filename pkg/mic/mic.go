@@ -26,12 +26,6 @@ import (
 const (
 	stopped = int32(0)
 	running = int32(1)
-	// IdentityCreated status indicates azure assigned identity is created
-	IdentityCreated = "Created"
-	// IdentityAssigned status indicates identity has been assigned to the node
-	IdentityAssigned = "Assigned"
-	// IdentityUnassigned status indicates identity has been unassigned from the node
-	IdentityUnassigned = "Unassigned"
 )
 
 // NodeGetter ...
@@ -363,7 +357,7 @@ func (c *Client) getListOfIdsToDelete(deleteList, newAssignedIDs []aadpodid.Azur
 		isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
 
 		// this case includes Assigned state and empty state to ensure backward compatability
-		if delID.Status.Status == IdentityAssigned || delID.Status.Status == "" {
+		if delID.Status.Status == aadpodid.AssignedIDAssigned || delID.Status.Status == "" {
 			if !inUse && isUserAssignedMSI {
 				c.appendToRemoveListForNode(id.Spec.ResourceID, delID.Spec.NodeName, nodeMap)
 			}
@@ -378,7 +372,7 @@ func (c *Client) getListOfIdsToAssign(addList []aadpodid.AzureAssignedIdentity, 
 		id := createID.Spec.AzureIdentityRef
 		isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
 
-		if createID.Status.Status == "" || createID.Status.Status == IdentityCreated {
+		if createID.Status.Status == "" || createID.Status.Status == aadpodid.AssignedIDCreated {
 			if isUserAssignedMSI {
 				c.appendToAddListForNode(id.Spec.ResourceID, createID.Spec.NodeName, nodeMap)
 			}
@@ -425,7 +419,7 @@ func (c *Client) getAzureAssignedIDsToCreate(old, new []aadpodid.AzureAssignedId
 				// if the old assigned id is in created state, then the identity assignment to the node
 				// is not done. Adding to the list will ensure we retry identity assignment to node for
 				// this assigned identity.
-				if oldAssignedID.Status.Status == IdentityCreated {
+				if oldAssignedID.Status.Status == aadpodid.AssignedIDCreated {
 					create = append(create, oldAssignedID)
 				}
 				break
@@ -649,7 +643,7 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 			// this is the state when the azure assigned identity is yet to be created
 			glog.V(5).Infof("Initiating assigned id creation for pod - %s, binding - %s", createID.Spec.Pod, binding.Name)
 
-			createID.Status.Status = IdentityCreated
+			createID.Status.Status = aadpodid.AssignedIDCreated
 			err := c.createAssignedIdentity(&createID)
 			if err != nil {
 				c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error",
@@ -694,8 +688,8 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 				fmt.Sprintf("Binding %s applied on node %s for pod %s", binding.Name, createID.Spec.NodeName, createID.Name))
 
 			// Identity is successfully assigned to node, so update the status of assigned identity to assigned
-			if updateErr := c.updateAssignedIdentityStatus(&createID, IdentityAssigned); updateErr != nil {
-				message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", createID.Name, IdentityAssigned, createID.Spec.Pod, updateErr.Error())
+			if updateErr := c.updateAssignedIdentityStatus(&createID, aadpodid.AssignedIDAssigned); updateErr != nil {
+				message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", createID.Name, aadpodid.AssignedIDAssigned, createID.Spec.Pod, updateErr.Error())
 				c.EventRecorder.Event(&createID, corev1.EventTypeWarning, "status update error", message)
 				glog.Error(message)
 			}
@@ -742,9 +736,9 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 	for _, createID := range nodeTrackList.assignedIDsToCreate {
 		binding := createID.Spec.AzureBindingRef
 		// update the status to assigned for assigned identity as identity was successfully assigned to node.
-		err = c.updateAssignedIdentityStatus(&createID, IdentityAssigned)
+		err = c.updateAssignedIdentityStatus(&createID, aadpodid.AssignedIDAssigned)
 		if err != nil {
-			message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", createID.Name, IdentityAssigned, createID.Spec.Pod, err.Error())
+			message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", createID.Name, aadpodid.AssignedIDAssigned, createID.Spec.Pod, err.Error())
 			c.EventRecorder.Event(&createID, corev1.EventTypeWarning, "status update error", message)
 			glog.Error(message)
 			continue
@@ -758,9 +752,9 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 
 		// update the status for the assigned identity to Unassigned as the identity has been successfully removed from node.
 		// this will ensure on next sync loop we only try to delete the assigned identity instead of doing everything.
-		err = c.updateAssignedIdentityStatus(&delID, IdentityUnassigned)
+		err = c.updateAssignedIdentityStatus(&delID, aadpodid.AssignedIDUnAssigned)
 		if err != nil {
-			message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", delID.Name, IdentityUnassigned, delID.Spec.Pod, err.Error())
+			message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", delID.Name, aadpodid.AssignedIDUnAssigned, delID.Spec.Pod, err.Error())
 			c.EventRecorder.Event(&delID, corev1.EventTypeWarning, "status update error", message)
 			glog.Error(message)
 			continue

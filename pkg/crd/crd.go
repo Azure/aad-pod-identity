@@ -38,7 +38,7 @@ type ClientInt interface {
 	ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error)
 	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
 	ListIds() (res *[]aadpodid.AzureIdentity, err error)
-	ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error)
+	ListPodIds(podns, podname string, assignedIDStates []string) (*[]aadpodid.AzureIdentity, error)
 }
 
 func NewCRDClientLite(config *rest.Config) (crdClient *Client, err error) {
@@ -258,7 +258,7 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 }
 
 //ListPodIds - given a pod with pod name space
-func (c *Client) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error) {
+func (c *Client) ListPodIds(podns, podname string, assignedIDStates []string) (*[]aadpodid.AzureIdentity, error) {
 	azAssignedIDList, err := c.AssignedIDListWatch.List(v1.ListOptions{})
 	if err != nil {
 		glog.Error(err)
@@ -267,8 +267,12 @@ func (c *Client) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, e
 
 	var matchedIds []aadpodid.AzureIdentity
 	for _, v := range azAssignedIDList.(*aadpodid.AzureAssignedIdentityList).Items {
-		if v.Spec.Pod == podname && v.Spec.PodNamespace == podns && v.Status.Status == "Assigned" {
-			matchedIds = append(matchedIds, *v.Spec.AzureIdentityRef)
+		if v.Spec.Pod == podname && v.Spec.PodNamespace == podns {
+			for _, desiredState := range assignedIDStates {
+				if v.Status.Status == desiredState {
+					matchedIds = append(matchedIds, *v.Spec.AzureIdentityRef)
+				}
+			}
 		}
 	}
 

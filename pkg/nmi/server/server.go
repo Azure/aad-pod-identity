@@ -45,6 +45,7 @@ type Server struct {
 	IsNamespaced                       bool
 }
 
+// NMIResponse is the response returned to caller
 type NMIResponse struct {
 	Token    adal.Token `json:"token"`
 	ClientID string     `json:"clientid"`
@@ -172,9 +173,19 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 		return
 	}
 
-	podIDs, err := listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttempts)
+	// this check will ensure assigned id exists with created/assigned state
+	// no error on this check means we can proceed with the second check to ensure assigned identity with assigned state exists
+	_, err := listPodIDsInCreatedStateWithRetries(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttempts)
 	if err != nil {
-		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s", podns, podname)
+		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in created state", podns, podname)
+		logger.Errorf("%s, %+v", msg, err)
+		http.Error(w, msg, http.StatusNotFound)
+		return
+	}
+	logger.Infof("found pod ids in created state, now looking for ids in assigned state for pod %s/%s", podns, podname)
+	podIDs, err := listPodIDsInAssignedStateWithRetries(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttempts)
+	if err != nil {
+		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
 		logger.Errorf("%s, %+v", msg, err)
 		http.Error(w, msg, http.StatusNotFound)
 		return
@@ -239,9 +250,20 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	podIDs, err := listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttempts)
+	// this check will ensure assigned id exists with created/assigned state
+	// no error on this check means we can proceed with the second check to ensure assigned identity with assigned state exists
+	_, err = listPodIDsInCreatedStateWithRetries(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttempts)
 	if err != nil {
-		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s", podns, podname)
+		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in created state", podns, podname)
+		logger.Errorf("%s, %+v", msg, err)
+		http.Error(w, msg, http.StatusNotFound)
+		return
+	}
+	logger.Infof("found pod ids in created state, now looking for ids in assigned state for pod %s/%s", podns, podname)
+
+	podIDs, err := listPodIDsInAssignedStateWithRetries(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttempts)
+	if err != nil {
+		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
 		logger.Errorf("%s, %+v", msg, err)
 		http.Error(w, msg, http.StatusNotFound)
 		return
@@ -388,13 +410,23 @@ func handleTermination() {
 	os.Exit(exitCode)
 }
 
-func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log.Entry, podns, podname, rqClientID string, maxAttempts int) (*[]aadpodid.AzureIdentity, error) {
+func listPodIDsInCreatedStateWithRetries(ctx context.Context, kubeClient k8s.Client, logger *log.Entry, podns, podname, rqClientID string, maxAttempts int) (*[]aadpodid.AzureIdentity, error) {
+	// created and assigned states are added to statesToCheck. This is to ensure if the call is made after the assigned identity is in assigned state
+	// for the pod, we shouldn't fail on the hard check for created state. Both states are accepted values for passing first check.
+	return listPodIDsWithRetry(ctx, kubeClient, logger, podns, podname, rqClientID, []string{aadpodid.AssignedIDCreated, aadpodid.AssignedIDAssigned}, maxAttempts)
+}
+
+func listPodIDsInAssignedStateWithRetries(ctx context.Context, kubeClient k8s.Client, logger *log.Entry, podns, podname, rqClientID string, maxAttempts int) (*[]aadpodid.AzureIdentity, error) {
+	return listPodIDsWithRetry(ctx, kubeClient, logger, podns, podname, rqClientID, []string{aadpodid.AssignedIDAssigned}, maxAttempts)
+}
+
+func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log.Entry, podns, podname, rqClientID string, statesToCheck []string, maxAttempts int) (*[]aadpodid.AzureIdentity, error) {
 	attempt := 0
 	var err error
 	var podIDs *[]aadpodid.AzureIdentity
 
 	for attempt < maxAttempts {
-		podIDs, err = kubeClient.ListPodIds(podns, podname)
+		podIDs, err = kubeClient.ListPodIds(podns, podname, statesToCheck)
 		if err == nil && len(*podIDs) != 0 {
 			if len(rqClientID) == 0 {
 				return podIDs, nil
@@ -416,7 +448,7 @@ func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log
 			err = ctx.Err()
 			return nil, err
 		}
-		logger.Warningf("failed to get assigned ids for pod:%s/%s, retrying attempt: %d", podns, podname, attempt)
+		logger.Warningf("failed to get assigned ids for pod:%s/%s in %v states, retrying attempt: %d", podns, podname, statesToCheck, attempt)
 	}
-	return nil, fmt.Errorf("getting assigned identities for pod %s/%s failed after %d attempts. Error: %v", podns, podname, maxAttempts, err)
+	return nil, fmt.Errorf("getting assigned identities for pod %s/%s in %v states failed after %d attempts. Error: %v", podns, podname, statesToCheck, maxAttempts, err)
 }
