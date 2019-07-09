@@ -23,7 +23,7 @@ func (c *FakeClient) GetPodName(podip string) (podns, podname string, err error)
 }
 
 // ListPodIds for pod
-func (c *FakeClient) ListPodIds(podns, podname string, assignedIDState []string) (*[]aadpodid.AzureIdentity, error) {
+func (c *FakeClient) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
 	return nil, nil
 }
 

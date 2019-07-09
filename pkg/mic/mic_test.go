@@ -441,8 +441,8 @@ func (c *TestCrdClient) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity
 	return &assignedIDList, nil
 }
 
-func (c *Client) ListPodIds(podns, podname string, assignedIDStates []string) (*[]aadpodid.AzureIdentity, error) {
-	return &[]aadpodid.AzureIdentity{}, nil
+func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
+	return map[string][]aadpodid.AzureIdentity{}, nil
 }
 
 func (c *TestCrdClient) SetError(err error) {
