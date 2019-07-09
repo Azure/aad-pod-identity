@@ -408,7 +408,7 @@ func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log
 				}
 			}
 			if len(idStateMap[aadpodid.AssignedIDCreated]) == 0 && attempt >= maxAttemptsPerCheck {
-				break
+				return nil, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts. Error: %v", podns, podname, maxAttemptsPerCheck, err)
 			}
 		}
 		attempt++
@@ -421,5 +421,5 @@ func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log
 		}
 		logger.Warningf("failed to get assigned ids for pod:%s/%s in ASSIGNED state, retrying attempt: %d", podns, podname, attempt)
 	}
-	return nil, fmt.Errorf("getting assigned identities for pod %s/%s in ASSIGNED state failed after %d attempts. Error: %v", podns, podname, maxAttemptsPerCheck, err)
+	return nil, fmt.Errorf("getting assigned identities for pod %s/%s in ASSIGNED state failed after %d attempts. Error: %v", podns, podname, 2*maxAttemptsPerCheck, err)
 }
