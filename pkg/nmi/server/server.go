@@ -390,17 +390,32 @@ func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log
 	var err error
 	var idStateMap map[string][]aadpodid.AzureIdentity
 
-	// this loop will run to ensure we have assigned identities before we return. If there are no assigned identities in created state by the time loop reaches maxAttemptsPerCheck,
-	// then we return an error. If we get an assigned identity within maxAttemptsPerCheck, then we allow the loop to continue until 2*maxAttemptsPerCheck to find assigned identity in assigned state.
+	// this loop will run to ensure we have assigned identities before we return. If there are no assigned identities in created state within 30s, then we return an error.
+	// If we get an assigned identity in created state within 30s, then loop will continue for another 30s to find assigned identity in assigned state.
 	for attempt < 2*maxAttemptsPerCheck {
 		idStateMap, err = kubeClient.ListPodIds(podns, podname)
 		if err == nil {
-			if len(idStateMap[aadpodid.AssignedIDAssigned]) != 0 {
-				if len(rqClientID) == 0 {
+			if len(rqClientID) == 0 {
+				// check to ensure backward compatability with assignedIDs that have no state
+				if len(idStateMap[""]) != 0 {
+					logger.Warningf("found assignedIDs with no state for pod:%s/%s. AssignedIDs created with old version of mic.", podns, podname)
+					return idStateMap[""], nil
+				}
+				if len(idStateMap[aadpodid.AssignedIDAssigned]) != 0 {
 					return idStateMap[aadpodid.AssignedIDAssigned], nil
 				}
-				// if client id exists in request, we need to ensure the identity with this client
-				// exists and is in Assigned state
+			}
+
+			// if client id exists in request, we need to ensure the identity with this client
+			// exists and is in Assigned state
+			if len(rqClientID) != 0 {
+				// check to ensure backward compatability with assignedIDs that have no state
+				for _, podID := range idStateMap[""] {
+					if strings.EqualFold(rqClientID, podID.Spec.ClientID) {
+						logger.Warningf("found assignedIDs with no state for pod:%s/%s. AssignedIDs created with old version of mic.", podns, podname)
+						return idStateMap[""], nil
+					}
+				}
 				for _, podID := range idStateMap[aadpodid.AssignedIDAssigned] {
 					if strings.EqualFold(rqClientID, podID.Spec.ClientID) {
 						return idStateMap[aadpodid.AssignedIDAssigned], nil

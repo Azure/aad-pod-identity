@@ -160,7 +160,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		case event = <-c.EventChannel:
 			glog.V(6).Infof("Received event: %v", event)
 		case <-ticker.C:
-			glog.V(6).Infof("Running sync retry loop")
+			glog.V(6).Infof("Running periodic sync loop")
 		}
 
 		stats.Init()

@@ -85,6 +85,8 @@ metadata:
   name: nmi
   namespace: {{.Namespace}}
 spec:
+  updateStrategy:
+    type: RollingUpdate
   template:
     metadata:
       labels:

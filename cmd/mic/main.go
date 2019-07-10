@@ -17,7 +17,7 @@ var (
 	cloudconfig       string
 	forceNamespaced   bool
 	versionInfo       bool
-	syncRetryInterval string
+	syncRetryDuration time.Duration
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 	flag.StringVar(&cloudconfig, "cloudconfig", "", "Path to cloud config e.g. Azure.json file")
 	flag.BoolVar(&forceNamespaced, "forceNamespaced", false, "Forces namespaced identities, binding, and assignment")
 	flag.BoolVar(&versionInfo, "version", false, "Prints the version information")
-	flag.StringVar(&syncRetryInterval, "syncRetryInterval", "3600s", "The interval in seconds at which sync loop should periodically check for errors and reconcile.")
+	flag.DurationVar(&syncRetryDuration, "syncRetryDuration", 3600*time.Second, "The interval in seconds at which sync loop should periodically check for errors and reconcile.")
 
 	flag.Parse()
 	if versionInfo {
@@ -47,11 +47,6 @@ func main() {
 	}
 
 	forceNamespaced = forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
-
-	syncRetryDuration, err := time.ParseDuration(syncRetryInterval)
-	if err != nil {
-		glog.Fatalf("Could not read syncRetryInterval. Error %+v", err)
-	}
 
 	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration)
 	if err != nil {
