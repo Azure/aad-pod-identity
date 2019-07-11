@@ -7,7 +7,7 @@ import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -37,5 +37,5 @@ func TestGetTokenForMatchingIDBySP(t *testing.T) {
 	}
 	podIDs := []aadpodid.AzureIdentity{podID}
 	logger := log.WithError(nil)
-	getTokenForMatchingID(kubeClient, logger, podID.Spec.ClientID, "https://management.azure.com/", &podIDs)
+	getTokenForMatchingID(kubeClient, logger, podID.Spec.ClientID, "https://management.azure.com/", podIDs)
 }

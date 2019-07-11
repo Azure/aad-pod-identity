@@ -39,7 +39,7 @@ type Client interface {
 	// GetPodName return the matching azure identity or nil
 	GetPodName(podip string) (podns, podname string, err error)
 	// ListPodIds pod matching azure identity or nil
-	ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error)
+	ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error)
 	// GetSecret returns secret the secretRef represents
 	GetSecret(secretRef *v1.SecretReference) (*v1.Secret, error)
 }
@@ -168,7 +168,7 @@ func GetLocalIP() (string, error) {
 }
 
 // ListPodIds lists matching ids for pod or error
-func (c *KubeClient) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error) {
+func (c *KubeClient) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
 	return c.CrdClient.ListPodIds(podns, podname)
 }
 

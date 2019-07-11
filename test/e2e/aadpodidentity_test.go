@@ -52,7 +52,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	cfg = *c
 
-	setupInfra()
+	setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion)
 })
 
 var _ = AfterSuite(func() {
@@ -111,7 +111,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		fmt.Println("\nTearing down the test environment...")
 
 		// Ensure a clean cluster after the end of each test
-		cmd := exec.Command("kubectl", "delete", "AzureIdentity,AzureIdentityBinding,AzureAssignedIdentity", "--all")
+		cmd := exec.Command("kubectl", "delete", "AzureIdentity,AzureIdentityBinding", "--all")
 		util.PrintCommand(cmd)
 		_, err := cmd.CombinedOutput()
 		Expect(err).NotTo(HaveOccurred())
@@ -482,7 +482,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		}
 
 		// reset the infra to previous state
-		setupInfra()
+		setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion)
 	})
 
 	It("should not alter the system assigned identity after creating and deleting pod identity", func() {
@@ -556,12 +556,47 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 			}
 		}
 	})
+
+	It("should be backward compatible with old and new version of mic and nmi", func() {
+		// Uninstall CRDs and delete MIC and NMI
+		err := deploy.Delete("default", templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+
+		ok, err := pod.WaitOnDeletion("nmi")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		// setup mic and nmi with old releases
+		setupInfra("mcr.microsoft.com/k8s/aad-pod-identity", "1.4", "1.3")
+
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
+
+		ok, err = azureassignedidentity.WaitOnLengthMatched(1)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		// update the infra to use latest mic and nmi images
+		setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion)
+
+		ok, err = daemonset.WaitOnReady(nmiDaemonSet)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		ok, err = waitForIPTableRulesToExist("busybox")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+
+		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity)
+	})
 })
 
 // setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
-func setupInfra() {
+func setupInfra(registry, nmiVersion, micVersion string) {
 	// Install CRDs and deploy MIC and NMI
-	err := infra.CreateInfra("default", cfg.Registry, cfg.NMIVersion, cfg.MICVersion, templateOutputPath)
+	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath)
 
 	Expect(err).NotTo(HaveOccurred())
 
@@ -626,8 +661,6 @@ func setUpIdentityAndDeployment(azureIdentityName, suffix, replicas string) {
 	ok, err = daemonset.WaitOnReady(nmiDaemonSet)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ok).To(Equal(true))
-
-	time.Sleep(30 * time.Second)
 }
 
 // validateAzureAssignedIdentity will make sure a given AzureAssignedIdentity has the correct properties
