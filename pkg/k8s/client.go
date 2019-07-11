@@ -104,8 +104,7 @@ func (c *KubeClient) GetPodInfo(podip string) (podns, poddname, rsName string, e
 	}
 	numMatching := len(podList.Items)
 	if numMatching == 1 {
-		rsName := c.getReplicasetName(podList.Items[0])
-		return podList.Items[0].Namespace, podList.Items[0].Name, rsName, nil
+		return podList.Items[0].Namespace, podList.Items[0].Name, c.getReplicasetName(podList.Items[0]), nil
 	}
 
 	return "", "", "", fmt.Errorf("match failed, ip:%s matching pods:%v", podip, podList)
