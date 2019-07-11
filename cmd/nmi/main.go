@@ -27,6 +27,7 @@ var (
 	nodename                           = pflag.String("node", "", "node name")
 	ipTableUpdateTimeIntervalInSeconds = pflag.Int("ipt-update-interval-sec", defaultIPTableUpdateTimeIntervalInSeconds, "update interval of iptables")
 	forceNamespaced                    = pflag.Bool("forceNamespaced", false, "Forces mic to namespace identities, binding, and assignment")
+	micNamespace                       = pflag.String("MICNamespace", "default", "MIC namespace to short circuit MIC token requests")
 )
 
 func main() {
@@ -43,7 +44,7 @@ func main() {
 		log.Fatalf("%+v", err)
 	}
 	*forceNamespaced = *forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
-	s := server.NewServer(*forceNamespaced)
+	s := server.NewServer(*forceNamespaced, *micNamespace)
 	s.KubeClient = client
 	s.MetadataIP = *metadataIP
 	s.MetadataPort = *metadataPort

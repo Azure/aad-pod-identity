@@ -44,6 +44,7 @@ type Server struct {
 	NodeName                           string
 	IPTableUpdateTimeIntervalInSeconds int
 	IsNamespaced                       bool
+	MICNamespace                       string
 }
 
 // NMIResponse is the response returned to caller
@@ -53,9 +54,10 @@ type NMIResponse struct {
 }
 
 // NewServer will create a new Server with default values.
-func NewServer(isNamespaced bool) *Server {
+func NewServer(isNamespaced bool, micNamespace string) *Server {
 	return &Server{
 		IsNamespaced: isNamespaced,
+		MICNamespace: micNamespace,
 	}
 }
 
@@ -217,6 +219,35 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 	w.Write(response)
 }
 
+func (s *Server) isMIC(podNS, rsName string) bool {
+	micRegEx := regexp.MustCompile(`^mic-*`)
+	if strings.EqualFold(podNS, s.MICNamespace) && micRegEx.MatchString(rsName) {
+		return true
+	}
+	return false
+}
+
+func (s *Server) getMICToken(logger *log.Entry, rqClientID, rqResource string) ([]byte, int, error) {
+	var token *adal.Token
+	var err error
+	// ClientID is empty, so we are going to use System assigned MSI
+	if rqClientID == "" {
+		token, err = auth.GetServicePrincipalTokenFromMSI(rqResource)
+	} else { // User assigned identity usage.
+		token, err = auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(rqClientID, rqResource)
+	}
+	if err != nil {
+		logger.Errorf("Failed to get service principal token. Error: %+v", err)
+		return nil, http.StatusForbidden, err
+	}
+	response, err := json.Marshal(*token)
+	if err != nil {
+		logger.Errorf("Failed to unmarshal service principal token. Error: %+v", err)
+		return nil, http.StatusInternalServerError, err
+	}
+	return response, 0, nil
+}
+
 // msiHandler uses the remote address to identify the pod ip and uses it
 // to find a matching client id, and then returns the token sourced through
 // AAD using adal
@@ -232,35 +263,19 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		http.Error(w, msg, http.StatusInternalServerError)
 		return
 	}
-	podns, podname, deployment, err := s.KubeClient.GetPodInfo(podIP)
+	podns, podname, rsName, err := s.KubeClient.GetPodInfo(podIP)
 	if err != nil {
 		logger.Errorf("missing podname for podip:%s, %+v", podIP, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// TODO: make it generic for whitelisting of applications
-	micRegEx := regexp.MustCompile(`^mic-*`)
-	micMatch := micRegEx.MatchString(deployment)
-
 	// If its mic, then just directly get the token and pass back.
-	if micMatch {
-		var token *adal.Token
-		// UserAssignedIdentity clientID is empty, so we are going to use system assigned MSI
-		if rqClientID == "" {
-			token, err = auth.GetServicePrincipalTokenFromMSI(rqResource)
-		} else { // User assigned identity usage.
-			token, err = auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(rqClientID, rqResource)
-		}
+	if s.isMIC(rsName, podns) {
+		response, errorCode, err := s.getMICToken(logger, rqClientID, rqResource)
 		if err != nil {
-			logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
-			http.Error(w, err.Error(), http.StatusForbidden)
-			return
-		}
-		response, err := json.Marshal(*token)
-		if err != nil {
-			logger.Errorf("failed to marshal service principal token for pod:%s/%s, %+v", podns, podname, err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			logger.Errorf("failed to get service principal token for pod:%s/%s.  Error code: %d. Error: %+v", podns, podname, errorCode, err)
+			http.Error(w, err.Error(), errorCode)
 			return
 		}
 		w.Write(response)

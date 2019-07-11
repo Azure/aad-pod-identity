@@ -36,8 +36,8 @@ func getPodPhaseFilter() string {
 
 // Client api client
 type Client interface {
-	// GetPodInfo returns the pod name, namespace & deployment for a given pod ip
-	GetPodInfo(podip string) (podns, podname, deployment string, err error)
+	// GetPodInfo returns the pod name, namespace & replica set name for a given pod ip
+	GetPodInfo(podip string) (podns, podname, rsName string, err error)
 	// ListPodIds pod matching azure identity or nil
 	ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error)
 	// GetSecret returns secret the secretRef represents
@@ -82,8 +82,17 @@ func NewKubeClient() (Client, error) {
 	return kubeClient, nil
 }
 
+func (c *KubeClient) getReplicasetName(pod v1.Pod) string {
+	for _, owner := range pod.OwnerReferences {
+		if strings.EqualFold(owner.Kind, "ReplicaSet") {
+			return owner.Name
+		}
+	}
+	return ""
+}
+
 // GetPodInfo get pod ns,name from apiserver
-func (c *KubeClient) GetPodInfo(podip string) (podns, poddname, deployment string, err error) {
+func (c *KubeClient) GetPodInfo(podip string) (podns, poddname, rsName string, err error) {
 	if podip == "" {
 		return "", "", "", fmt.Errorf("podip is empty")
 	}
@@ -95,12 +104,8 @@ func (c *KubeClient) GetPodInfo(podip string) (podns, poddname, deployment strin
 	}
 	numMatching := len(podList.Items)
 	if numMatching == 1 {
-		// TODO: Filter out the deployment owner references.
-		deployment := ""
-		if podList.Items[0].OwnerReferences[0].Kind == "ReplicaSet" {
-			deployment = podList.Items[0].OwnerReferences[0].Name
-		}
-		return podList.Items[0].Namespace, podList.Items[0].Name, deployment, nil
+		rsName := c.getReplicasetName(podList.Items[0])
+		return podList.Items[0].Namespace, podList.Items[0].Name, rsName, nil
 	}
 
 	return "", "", "", fmt.Errorf("match failed, ip:%s matching pods:%v", podip, podList)
