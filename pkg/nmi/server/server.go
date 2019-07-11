@@ -243,10 +243,6 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	micRegEx := regexp.MustCompile(`^mic-*`)
 	micMatch := micRegEx.MatchString(deployment)
 
-	// Request id and request resource extraction are common steps required for
-	// requests from mic as well as other applications.
-	rqClientID, rqResource := parseRequestClientIDAndResource(r)
-
 	// If its mic, then just directly get the token and pass back.
 	if micMatch {
 		var token *adal.Token

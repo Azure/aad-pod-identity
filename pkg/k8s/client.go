@@ -88,7 +88,7 @@ func (c *KubeClient) GetPodInfo(podip string) (podns, poddname, deployment strin
 		return "", "", "", fmt.Errorf("podip is empty")
 	}
 
-	podList, err := c.getPodListRetry(podip, getPodListRetries, getPodListSleepTimeMilliseconds)
+	podList, err := c.getPodListWithTries(podip, getPodListRetries, getPodListSleepTimeMilliseconds)
 
 	if err != nil {
 		return "", "", "", err
