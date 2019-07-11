@@ -83,10 +83,10 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 
 	var spt *adal.ServicePrincipalToken
 	if azureConfig.UseManagedIdentityExtension {
-		// MSI endpoing is required for both types of MSI - system assigned and user assigned.
+		// MSI endpoint is required for both types of MSI - system assigned and user assigned.
 		msiEndpoint, err := adal.GetMSIVMEndpoint()
 		if err != nil {
-			glog.Errorf("Failed to get msiEndpoint: %+v", err)
+			glog.Errorf("Failed to get MSI endpoint. Error: %+v", err)
 			return nil, err
 		}
 		// UserAssignedIdentityID is empty, so we are going to use system assigned MSI

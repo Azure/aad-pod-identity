@@ -23,7 +23,7 @@ func GetServicePrincipalTokenFromMSI(resource string) (*adal.Token, error) {
 	if err != nil {
 		return nil, fmt.Errorf("Failed to acquire a token for MSI. Error: %v", err)
 	}
-	// Evectively acqurie the token
+	// Effectively acquire the token
 	err = spt.Refresh()
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string
 		return nil, err
 	}
 
-	// Evectively acqurie the token
+	// Effectively acquire the token
 	err = spt.Refresh()
 	if err != nil {
 		return nil, err
