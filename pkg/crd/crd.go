@@ -38,7 +38,7 @@ type ClientInt interface {
 	ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error)
 	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
 	ListIds() (res *[]aadpodid.AzureIdentity, err error)
-	ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error)
+	ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error)
 }
 
 func NewCRDClientLite(config *rest.Config) (crdClient *Client, err error) {
@@ -257,22 +257,22 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 	return &ret.(*aadpodid.AzureIdentityList).Items, nil
 }
 
-//ListPodIds - given a pod with pod name space
-func (c *Client) ListPodIds(podns, podname string) (*[]aadpodid.AzureIdentity, error) {
+// ListPodIds - given a pod with pod name space
+// returns a map with list of azure identities in each state
+func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
 	azAssignedIDList, err := c.AssignedIDListWatch.List(v1.ListOptions{})
 	if err != nil {
 		glog.Error(err)
 		return nil, err
 	}
 
-	var matchedIds []aadpodid.AzureIdentity
+	idStateMap := make(map[string][]aadpodid.AzureIdentity)
 	for _, v := range azAssignedIDList.(*aadpodid.AzureAssignedIdentityList).Items {
 		if v.Spec.Pod == podname && v.Spec.PodNamespace == podns {
-			matchedIds = append(matchedIds, *v.Spec.AzureIdentityRef)
+			idStateMap[v.Status.Status] = append(idStateMap[v.Status.Status], *v.Spec.AzureIdentityRef)
 		}
 	}
-
-	return &matchedIds, nil
+	return idStateMap, nil
 }
 
 type patchStatusOps struct {
