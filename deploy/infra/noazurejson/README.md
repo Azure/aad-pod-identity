@@ -2,7 +2,7 @@
 
 ## The why
 
-Goal: To enable user to use a separate service pricipal (aad-pod-identity admin service principal) other than the cluster service princial and to move away from `/etc/kubernetes/azure.json`.
+Goal: To enable user to use a separate service principal (aad-pod-identity admin service principal) other than the cluster service princial and to move away from `/etc/kubernetes/azure.json`.
 
 Users now have the option to deploy aad-pod-identity with a separate service principal which is together with its secret and other configurations stored in a Kubernetes secret object.
 
@@ -34,17 +34,19 @@ az role assignment create --role "Managed Identity Operator" --assignee <sp_id> 
 
 The `aadpodidentity-admin-secret` contains the following fields:
 
-- Cloud: `<base64-encoded-cloud>`
-- SubscriptionID: `<base64-encoded-subscription-id>`
-- ResourceGroup: `<base64-encoded-resource-group>`
-- VMType: `<base64-encoded-vm-type>`
-- TenantID: `<base64-encoded-tenant-id>`
-- ClientID: `<base64-encoded-client-id>`
-- ClientSecret: `<base64-encoded-client-secret>`
+* Cloud: `<base64-encoded-cloud>`
+  * 'Cloud' should be chosen from the following case-insensitive values: `AzurePublicCloud`, `AzureUSGovernmentCloud`, `AzureChinaCloud`, `AzureGermanCloud` (values taken from [here](https://raw.githubusercontent.com/Azure/go-autorest/master/autorest/azure/environments.go)).
+* SubscriptionID: `<base64-encoded-subscription-id>`
+* ResourceGroup: `<base64-encoded-resource-group>`
+  * 'ResourceGroup' is the node resource group where the actual virtual machines or virtual machine scale set resides. 
+* VMType: `<base64-encoded-vm-type>`
+  * 'VMType' is optional and can be one of these values: `standard` for normal virtual machine nodes, and `vmss` for cluster deployed with a virtual machine scale set.
+* TenantID: `<base64-encoded-tenant-id>`
+* ClientID: `<base64-encoded-client-id>`
+* ClientSecret: `<base64-encoded-client-secret>`
+  * 'TenantID', 'ClientID' and 'ClientSecret' are service principal's `tenant`, `appId`, `password` respectively.
 
 > Use `echo -n 'secret-content' | base64` to create a base64 encoded string.
-
-'Cloud' should be chosen from the following case-insensitive values: `AzurePublicCloud`, `AzureUSGovernmentCloud`, `AzureChinaCloud`, `AzureGermanCloud` (values taken from [here](https://raw.githubusercontent.com/Azure/go-autorest/master/autorest/azure/environments.go)). 'ResourceGroup' is the node resource group where the actual virtual machines or virtual machine scale set resides. 'VMType' is optional and can be one of these values: `standard` for normal virtual machine nodes, and `vmss` for cluster deployed with a virtual machine scale set. 'TenantID', 'ClientID' and 'ClientSecret' are service principal's `tenant`, `appId`, `password` respectively.
 
 Fill out those secret values in the /deploy/infra/noazurejson/deployment.yaml or /deploy/infra/noazurejson/deployment-rbac.yaml before executing `kubectl create -f ./deploy/infra/noazurejson/deployment.yaml` or `kubectl create -f ./deploy/infra/noazurejson/deployment-rbac.yaml`.
 
