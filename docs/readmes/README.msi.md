@@ -18,24 +18,24 @@ and also operations on the user assigned identity.
 
 After the cluster is created to perform the following steps to obtain the principal id:
 for VMAs:
-`az vm identity show -g <resource group> -n <vm name> -o yaml`
+```az vm identity show -g <resource group> -n <vm name> -o yaml```
 for VMSS:
-`az vmss identity show -g <resource group>  -n <vmss scalset name> -o yaml`
+```az vmss identity show -g <resource group>  -n <vmss scalset name> -o yaml```
 
 The type in the output of the above command will identify the system assigned or user assigned MSI. Please record the corresponding
 principal id.
 
 For creating a role assignment to authorize assignment/removal of user assigned identities on VMS/VMSS, run the following command:
-`az role assignment create --role "Contributor" --assignee <principal id from az vm/vmss identity command>  --scope /subscriptions/<sub id>/resourcegroups/<resource group name>`
+```az role assignment create --role "Contributor" --assignee <principal id from az vm/vmss identity command>  --scope /subscriptions/<sub id>/resourcegroups/<resource group name>```
 
 Now to ensure that the operations are allowed on individual identity, perform the following for every identity in use:
-`az role assignment create --role "Managed Identity Operator" --assignee <principal id from az vm/vmss identity command>  --scope /subscriptions/<subscription id>/resourcegroups/<resource group name>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<identity name>`
+```az role assignment create --role "Managed Identity Operator" --assignee <principal id from az vm/vmss identity command>  --scope /subscriptions/<subscription id>/resourcegroups/<resource group name>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<identity name>```
 
 
 ## Authentication method
 In case the azure.json is used, the following keys indicates whether the cluster is configured with system assigned or user assigned identity:
-`UseManagedIdentityExtension` shows that MSI is to be used. If `UserAssignedIdentityID` is set, then the user assigned identity is used, otherwise
+```UseManagedIdentityExtension``` shows that MSI is to be used. If ```UserAssignedIdentityID``` is set, then the user assigned identity is used, otherwise
 system assigned identity is used for authentication.
 
 In case where the azure.json is not used and the environment variables are used, the following variables are used to setup the configuration:
-`USE_MSI` is to setup MSI. If the `USER_ASSIGNED_MSI_CLIENTID` is used then user assigned identity is used, otherwise system assigned identity is used.
+```USE_MSI``` is to setup MSI. If the ```USER_ASSIGNED_MSI_CLIENTID``` is used then user assigned identity is used, otherwise system assigned identity is used.
