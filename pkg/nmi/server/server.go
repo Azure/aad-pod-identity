@@ -240,6 +240,7 @@ func (s *Server) getMICToken(logger *log.Entry, rqClientID, rqResource string) (
 	}
 	if err != nil {
 		logger.Errorf("Failed to get service principal token. Error: %+v", err)
+		// TODO: return the right status code based on the error we got from adal.
 		return nil, http.StatusForbidden, err
 	}
 	response, err := json.Marshal(*token)
