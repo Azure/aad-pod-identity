@@ -31,16 +31,20 @@ The type in the output of the above command will identify the system assigned or
 principal id.
 
 For creating a role assignment to authorize assignment/removal of user assigned identities on VMS/VMSS, run the following command:
-```az role assignment create --role "Contributor" --assignee <principal id from az vm/vmss identity command>  --scope /subscriptions/<sub id>/resourcegroups/<resource group name>```
+```bash
+az role assignment create --role "Contributor" --assignee <principal id from az vm/vmss identity command>  --scope /subscriptions/<sub id>/resourcegroups/<resource group name>
+```
 
 Now to ensure that the operations are allowed on individual identity, perform the following for every identity in use:
-```az role assignment create --role "Managed Identity Operator" --assignee <principal id from az vm/vmss identity command>  --scope /subscriptions/<subscription id>/resourcegroups/<resource group name>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<identity name>```
+```bash
+az role assignment create --role "Managed Identity Operator" --assignee <principal id from az vm/vmss identity command>  --scope /subscriptions/<subscription id>/resourcegroups/<resource group name>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<identity name>
+```
 
 
 ## Authentication method
 In case the azure.json is used, the following keys indicates whether the cluster is configured with system assigned or user assigned identity:
-```UseManagedIdentityExtension``` shows that MSI is to be used. If ```UserAssignedIdentityID``` is set, then the user assigned identity is used, otherwise
-system assigned identity is used for authentication.
+```bash UseManagedIdentityExtension``` shows that MSI is to be used. If ```bash UserAssignedIdentityID``` is set, then the user assigned
+identity is used, otherwise system assigned identity is used for authentication.
 
 In case where the azure.json is not used and the environment variables are used, the following variables are used to setup the configuration:
 ```USE_MSI``` is to setup MSI. If the ```USER_ASSIGNED_MSI_CLIENTID``` is used then user assigned identity is used, otherwise system assigned identity is used.
