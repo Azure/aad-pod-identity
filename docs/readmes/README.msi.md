@@ -43,7 +43,7 @@ az role assignment create --role "Managed Identity Operator" --assignee <princip
 
 ## Authentication method
 In case the azure.json is used, the following keys indicates whether the cluster is configured with system assigned or user assigned identity:
-```bash UseManagedIdentityExtension``` shows that MSI is to be used. If ```bash UserAssignedIdentityID``` is set, then the user assigned
+```UseManagedIdentityExtension``` shows that MSI is to be used. If ```UserAssignedIdentityID``` is set, then the user assigned
 identity is used, otherwise system assigned identity is used for authentication.
 
 In case where the azure.json is not used and the environment variables are used, the following variables are used to setup the configuration:
