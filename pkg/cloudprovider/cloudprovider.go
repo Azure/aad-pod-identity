@@ -91,12 +91,14 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 		}
 		// UserAssignedIdentityID is empty, so we are going to use system assigned MSI
 		if azureConfig.UserAssignedIdentityID == "" {
+			glog.Infof("MIC using system assigned identity for authentication.")
 			spt, err = adal.NewServicePrincipalTokenFromMSI(msiEndpoint, azureEnv.ResourceManagerEndpoint)
 			if err != nil {
 				glog.Errorf("Get token from system assigned MSI error: %+v", err)
 				return nil, err
 			}
 		} else { // User assigned identity usage.
+			glog.Infof("MIC using user assigned identity: %s for authentication.", azureConfig.UserAssignedIdentityID)
 			spt, err = adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(msiEndpoint, azureEnv.ResourceManagerEndpoint, azureConfig.UserAssignedIdentityID)
 			if err != nil {
 				glog.Errorf("Get token from user assigned MSI error: %+v", err)
@@ -194,6 +196,7 @@ func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs []string, removeUserAssigne
 		requiresUpdate = requiresUpdate || addedToList
 	}
 	if requiresUpdate {
+		glog.Infof("Updating user assigned MSIs on %s", node.Name)
 		timeStarted := time.Now()
 		if err := updateFunc(); err != nil {
 			return err

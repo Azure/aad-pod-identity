@@ -232,8 +232,10 @@ func (s *Server) getMICToken(logger *log.Entry, rqClientID, rqResource string) (
 	var err error
 	// ClientID is empty, so we are going to use System assigned MSI
 	if rqClientID == "" {
+		logger.Infof("Fetching MIC token for system assigned MSI")
 		token, err = auth.GetServicePrincipalTokenFromMSI(rqResource)
 	} else { // User assigned identity usage.
+		logger.Infof("Fetching MIC token for user assigned MSI for id: %s", rqResource)
 		token, err = auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(rqClientID, rqResource)
 	}
 	if err != nil {
@@ -271,7 +273,8 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	}
 
 	// If its mic, then just directly get the token and pass back.
-	if s.isMIC(rsName, podns) {
+	if s.isMIC(podns, rsName) {
+		logger.Infof("MIC pod token handling")
 		response, errorCode, err := s.getMICToken(logger, rqClientID, rqResource)
 		if err != nil {
 			logger.Errorf("failed to get service principal token for pod:%s/%s.  Error code: %d. Error: %+v", podns, podname, errorCode, err)
