@@ -49,7 +49,7 @@ func (c *VMClient) CreateOrUpdate(rg string, nodeName string, vm compute.Virtual
 		return err
 	}
 
-	err = future.WaitForCompletion(ctx, c.client.Client)
+	err = future.WaitForCompletionRef(ctx, c.client.Client)
 	if err != nil {
 		glog.Error(err)
 		return err
@@ -100,7 +100,9 @@ func (i *vmIdentityInfo) RemoveUserIdentity(id string) error {
 	if err := filterUserIdentity(&i.info.Type, i.info.IdentityIds, id); err != nil {
 		return err
 	}
-	if i.info.Type == compute.ResourceIdentityTypeNone {
+	// If we have either no identity assigned or have the system assigned identity only, then we need to set the
+	// IdentityIds list as nil.
+	if i.info.Type == compute.ResourceIdentityTypeNone || i.info.Type == compute.ResourceIdentityTypeSystemAssigned {
 		i.info.IdentityIds = nil
 	}
 	return nil
@@ -112,4 +114,8 @@ func (i *vmIdentityInfo) AppendUserIdentity(id string) bool {
 		i.info.IdentityIds = &ids
 	}
 	return appendUserIdentity(&i.info.Type, i.info.IdentityIds, id)
+}
+
+func (i *vmIdentityInfo) GetUserIdentityList() []string {
+	return *i.info.IdentityIds
 }

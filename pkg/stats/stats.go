@@ -28,12 +28,13 @@ const (
 	AssignedIDAdd        StatsType = "Assigned ID addition"
 	TotalIDDel           StatsType = "Total time to delete assigned IDs"
 	TotalIDAdd           StatsType = "Total time to add assigned IDs"
+	TotalCreateOrUpdate  StatsType = "Total time to assign or remove IDs"
 
 	EventRecord StatsType = "Event recording"
 )
 
 func Init() {
-	GlobalStats = make(map[StatsType]time.Duration, 0)
+	GlobalStats = make(map[StatsType]time.Duration)
 }
 
 func Put(key StatsType, val time.Duration) {
@@ -77,8 +78,7 @@ func PrintSync() {
 		Print(FindAssignedIDCreate)
 		Print(FindAssignedIDDel)
 
-		Print(TotalIDAdd)
-		Print(TotalIDDel)
+		Print(TotalCreateOrUpdate)
 
 		Print(EventRecord)
 		Print(Total)

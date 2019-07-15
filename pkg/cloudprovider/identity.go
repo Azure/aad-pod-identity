@@ -2,6 +2,7 @@ package cloudprovider
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
 )
@@ -21,6 +22,7 @@ type IdentityHolder interface {
 type IdentityInfo interface {
 	AppendUserIdentity(id string) bool
 	RemoveUserIdentity(id string) error
+	GetUserIdentityList() []string
 }
 
 var (
@@ -35,7 +37,7 @@ func filterUserIdentity(idType *compute.ResourceIdentityType, idList *[]string, 
 	case compute.ResourceIdentityTypeUserAssigned,
 		compute.ResourceIdentityTypeSystemAssignedUserAssigned:
 	default:
-		return errNotFound
+		return nil
 	}
 
 	origLen := len(*idList)
@@ -64,7 +66,7 @@ func filter(ls *[]string, filter string) {
 	}
 
 	for i, v := range *ls {
-		if v == filter {
+		if strings.EqualFold(v, filter) {
 			copy((*ls)[i:], (*ls)[i+1:])
 			*ls = (*ls)[:len(*ls)-1]
 			return
@@ -78,10 +80,8 @@ func appendUserIdentity(idType *compute.ResourceIdentityType, idList *[]string, 
 	switch *idType {
 	case compute.ResourceIdentityTypeUserAssigned, compute.ResourceIdentityTypeSystemAssignedUserAssigned:
 		// check if this ID is already in the list
-		for _, id := range *idList {
-			if id == newID {
-				return false
-			}
+		if checkIfIDInList(*idList, newID) {
+			return false
 		}
 	case compute.ResourceIdentityTypeSystemAssigned:
 		*idType = compute.ResourceIdentityTypeSystemAssignedUserAssigned
@@ -91,4 +91,13 @@ func appendUserIdentity(idType *compute.ResourceIdentityType, idList *[]string, 
 
 	*idList = append(*idList, newID)
 	return true
+}
+
+func checkIfIDInList(idList []string, desiredID string) bool {
+	for _, id := range idList {
+		if strings.EqualFold(id, desiredID) {
+			return true
+		}
+	}
+	return false
 }

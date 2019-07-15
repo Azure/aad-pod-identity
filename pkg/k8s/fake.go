@@ -2,7 +2,7 @@ package k8s
 
 import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 // FakeClient implements Interface
@@ -23,7 +23,7 @@ func (c *FakeClient) GetPodName(podip string) (podns, podname string, err error)
 }
 
 // ListPodIds for pod
-func (c *FakeClient) ListPodIds(podns string, podname string) (*[]aadpodid.AzureIdentity, error) {
+func (c *FakeClient) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
 	return nil, nil
 }
 

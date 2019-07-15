@@ -3,12 +3,12 @@ package auth
 import (
 	"fmt"
 
+	"github.com/Azure/aad-pod-identity/version"
 	adal "github.com/Azure/go-autorest/autorest/adal"
 )
 
 const (
 	activeDirectoryEndpoint = "https://login.microsoftonline.com/"
-	resourceManagerEndpoint = "https://management.azure.com/"
 )
 
 // GetServicePrincipalTokenFromMSIWithUserAssignedID return the token for the assigned user
@@ -25,6 +25,12 @@ func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string
 	if err != nil {
 		return nil, fmt.Errorf("Failed to acquire a token using the MSI VM extension. Error: %v", err)
 	}
+
+	err = adal.AddToUserAgent(version.GetUserAgent("NMI", version.NMIVersion))
+	if err != nil {
+		return nil, err
+	}
+
 	// Evectively acqurie the token
 	err = spt.Refresh()
 	if err != nil {
@@ -36,7 +42,7 @@ func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string
 }
 
 // GetServicePrincipalToken return the token for the assigned user
-func GetServicePrincipalToken(tenantID, clientID, secret string) (*adal.Token, error) {
+func GetServicePrincipalToken(tenantID, clientID, secret, resource string) (*adal.Token, error) {
 	oauthConfig, err := adal.NewOAuthConfig(activeDirectoryEndpoint, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("creating the OAuth config: %v", err)
@@ -45,7 +51,7 @@ func GetServicePrincipalToken(tenantID, clientID, secret string) (*adal.Token, e
 		*oauthConfig,
 		clientID,
 		secret,
-		resourceManagerEndpoint,
+		resource,
 	)
 	if err != nil {
 		return nil, err

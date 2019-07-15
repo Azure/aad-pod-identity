@@ -9,8 +9,8 @@ import (
 func TestFilterIdentity(t *testing.T) {
 	idList := []string{}
 	idType := compute.ResourceIdentityTypeNone
-	if err := filterUserIdentity(&idType, &idList, "A"); err == nil || err != errNotFound {
-		t.Fatalf("expected error %q, got: %v", errNotFound, err)
+	if err := filterUserIdentity(&idType, &idList, "A"); err != nil {
+		t.Fatalf("expected nil error, got: %v", err)
 	}
 
 	idType = compute.ResourceIdentityTypeUserAssigned
@@ -115,6 +115,27 @@ func TestAppendUserIdentity(t *testing.T) {
 	append = appendUserIdentity(&idType, &idList, "A")
 	if !append {
 		t.Fatalf("Expecting the id to be not present. But present returned by Append.")
+	}
+	checkIDList(t, expect, idList)
+	if idType != compute.ResourceIdentityTypeUserAssigned {
+		t.Fatalf("expected type %s, got: %s", compute.ResourceIdentityTypeUserAssigned, idType)
+	}
+
+	// test case sensitivity
+	idList = []string{}
+	expect = []string{"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/devcluster/providers/Microsoft.ManagedIdentity/userAssignedIdentities/keyvault-identity"}
+	append = appendUserIdentity(&idType, &idList, "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/devcluster/providers/Microsoft.ManagedIdentity/userAssignedIdentities/keyvault-identity")
+	if !append {
+		t.Fatalf("Expecting the id to be not present. But present returned by Append.")
+	}
+	checkIDList(t, expect, idList)
+	if idType != compute.ResourceIdentityTypeUserAssigned {
+		t.Fatalf("expected type %s, got: %s", compute.ResourceIdentityTypeUserAssigned, idType)
+	}
+	// append same id with non camel case resourcegroups
+	append = appendUserIdentity(&idType, &idList, "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/devcluster/providers/Microsoft.ManagedIdentity/userAssignedIdentities/keyvault-identity")
+	if append {
+		t.Fatalf("Expecting the id to be present. But not present returned by Append.")
 	}
 	checkIDList(t, expect, idList)
 	if idType != compute.ResourceIdentityTypeUserAssigned {

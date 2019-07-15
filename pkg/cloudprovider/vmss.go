@@ -55,7 +55,7 @@ func (c *VMSSClient) CreateOrUpdate(rg string, vmssName string, vm compute.Virtu
 		return err
 	}
 
-	err = future.WaitForCompletion(ctx, c.client.Client)
+	err = future.WaitForCompletionRef(ctx, c.client.Client)
 	if err != nil {
 		glog.Error(err)
 		return err
@@ -120,4 +120,8 @@ func (i *vmssIdentityInfo) AppendUserIdentity(id string) bool {
 		i.info.IdentityIds = &ids
 	}
 	return appendUserIdentity(&i.info.Type, i.info.IdentityIds, id)
+}
+
+func (i *vmssIdentityInfo) GetUserIdentityList() []string {
+	return *i.info.IdentityIds
 }

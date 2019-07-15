@@ -46,10 +46,32 @@ func GetByPrefix(prefix string) (aadpodid.AzureAssignedIdentity, error) {
 	return aadpodid.AzureAssignedIdentity{}, errors.Errorf("No AzureAssignedIdentity has a name prefix with '%s'", prefix)
 }
 
+// GetAllByPrefix will return all AzureAssignedIdentity with matched prefix
+func GetAllByPrefix(prefix string) ([]aadpodid.AzureAssignedIdentity, error) {
+	var aaidList []aadpodid.AzureAssignedIdentity
+	list, err := GetAll()
+	if err != nil {
+		return aaidList, err
+	}
+
+	for _, azureAssignedIdentity := range list.Items {
+		if strings.HasPrefix(azureAssignedIdentity.ObjectMeta.Name, prefix) {
+			aaidList = append(aaidList, azureAssignedIdentity)
+		}
+	}
+
+	if len(aaidList) < 1 {
+		err = errors.Errorf("No AzureAssignedIdentity has a name prefix with '%s'", prefix)
+	}
+
+	return aaidList, err
+}
+
 // WaitOnLengthMatched will block until the number of Azure Assigned Identity matches the target
 func WaitOnLengthMatched(target int) (bool, error) {
 	successChannel, errorChannel := make(chan bool, 1), make(chan error)
-	duration, sleep := 70*time.Second, 10*time.Second
+	// defining ~2 mins as an acceptable timeframe for ids to be assigned to node
+	duration, sleep := 120*time.Second, 10*time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 
