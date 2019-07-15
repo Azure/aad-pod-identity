@@ -9,7 +9,7 @@ MIC can authenticate using the following options:
 2. System assigned MSI
 3. User assigned MSI
 
-The rest of the README describes the prerequisite role assignments to be performed and how to configure MIC to use system assigned/user assigned MSI.
+The rest of the README describes the prerequisite role assignments to be performed for using MSI and how to configure MIC to use system assigned/user assigned MSI.
 
 ## Pre-requisites - role assignments
 MIC is responsible for performing operations such as assigning user assigned identity to the underlying vm or vmss which makes up the
