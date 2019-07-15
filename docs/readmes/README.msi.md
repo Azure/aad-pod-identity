@@ -18,9 +18,14 @@ and also operations on the user assigned identity.
 
 After the cluster is created to perform the following steps to obtain the principal id:
 for VMAs:
-```az vm identity show -g <resource group> -n <vm name> -o yaml```
+
+```bash
+az vm identity show -g <resource group> -n <vm name> -o yaml
+```
 for VMSS:
-```az vmss identity show -g <resource group>  -n <vmss scalset name> -o yaml```
+```bash
+az vmss identity show -g <resource group>  -n <vmss scalset name> -o yaml
+```
 
 The type in the output of the above command will identify the system assigned or user assigned MSI. Please record the corresponding
 principal id.
