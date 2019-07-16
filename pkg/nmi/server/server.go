@@ -29,8 +29,9 @@ import (
 const (
 	iptableUpdateTimeIntervalInSeconds = 60
 	localhost                          = "127.0.0.1"
-	listPodIDsRetryAttempts            = 5
-	listPodIDsRetryIntervalInSeconds   = 6
+	listPodIDsRetryAttemptsForCreated  = 9
+	listPodIDsRetryAttemptsForAssigned = 3
+	listPodIDsRetryIntervalInSeconds   = 5
 )
 
 // Server encapsulates all of the parameters necessary for starting up
@@ -174,7 +175,7 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 		http.Error(w, "missing 'podname' and 'podns' from request header", http.StatusBadRequest)
 		return
 	}
-	podIDs, identityInCreatedStateFound, err := listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttempts)
+	podIDs, identityInCreatedStateFound, err := listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttemptsForCreated, listPodIDsRetryAttemptsForAssigned)
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
 		logger.Errorf("%s, %+v", msg, err)
@@ -298,7 +299,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	podIDs, identityInCreatedStateFound, err := listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttempts)
+	podIDs, identityInCreatedStateFound, err := listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttemptsForCreated, listPodIDsRetryAttemptsForAssigned)
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
 		logger.Errorf("%s, %+v", msg, err)
@@ -460,14 +461,14 @@ func handleTermination() {
 }
 
 // listPodIDsWithRetry returns a list of matched identities in Assigned state, boolean indicating if at least an identity was found in Created state and error if any
-func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log.Entry, podns, podname, rqClientID string, maxAttemptsPerCheck int) ([]aadpodid.AzureIdentity, bool, error) {
+func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log.Entry, podns, podname, rqClientID string, maxAttemptsForCreated, maxAttemptsForAssigned int) ([]aadpodid.AzureIdentity, bool, error) {
 	attempt := 0
 	var err error
 	var idStateMap map[string][]aadpodid.AzureIdentity
 
-	// this loop will run to ensure we have assigned identities before we return. If there are no assigned identities in created state within 30s, then we return an error.
-	// If we get an assigned identity in created state within 30s, then loop will continue for another 30s to find assigned identity in assigned state.
-	for attempt < 2*maxAttemptsPerCheck {
+	// this loop will run to ensure we have assigned identities before we return. If there are no assigned identities in created state within 45s (9 retries * 5s wait) then we return an error.
+	// If we get an assigned identity in created state within 45s, then loop will continue for another 15s to find assigned identity in assigned state.
+	for attempt < maxAttemptsForCreated+maxAttemptsForAssigned {
 		idStateMap, err = kubeClient.ListPodIds(podns, podname)
 		if err == nil {
 			if len(rqClientID) == 0 {
@@ -499,9 +500,9 @@ func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log
 					}
 				}
 			}
-			if len(idStateMap[aadpodid.AssignedIDCreated]) == 0 && attempt >= maxAttemptsPerCheck {
+			if len(idStateMap[aadpodid.AssignedIDCreated]) == 0 && attempt >= maxAttemptsForCreated {
 				return nil, false, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts, retry duration [%d]s. Error: %v",
-					podns, podname, maxAttemptsPerCheck, listPodIDsRetryIntervalInSeconds, err)
+					podns, podname, maxAttemptsForCreated, listPodIDsRetryIntervalInSeconds, err)
 			}
 		}
 		attempt++
@@ -515,5 +516,5 @@ func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log
 		logger.Warningf("failed to get assigned ids for pod:%s/%s in ASSIGNED state, retrying attempt: %d", podns, podname, attempt)
 	}
 	return nil, true, fmt.Errorf("getting assigned identities for pod %s/%s in ASSIGNED state failed after %d attempts, retry duration [%d]s. Error: %v",
-		podns, podname, 2*maxAttemptsPerCheck, listPodIDsRetryIntervalInSeconds, err)
+		podns, podname, maxAttemptsForCreated+maxAttemptsForAssigned, listPodIDsRetryIntervalInSeconds, err)
 }
