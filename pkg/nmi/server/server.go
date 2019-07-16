@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strings"
@@ -43,6 +44,7 @@ type Server struct {
 	NodeName                           string
 	IPTableUpdateTimeIntervalInSeconds int
 	IsNamespaced                       bool
+	MICNamespace                       string
 }
 
 // NMIResponse is the response returned to caller
@@ -52,9 +54,10 @@ type NMIResponse struct {
 }
 
 // NewServer will create a new Server with default values.
-func NewServer(isNamespaced bool) *Server {
+func NewServer(isNamespaced bool, micNamespace string) *Server {
 	return &Server{
 		IsNamespaced: isNamespaced,
+		MICNamespace: micNamespace,
 	}
 }
 
@@ -216,6 +219,38 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 	w.Write(response)
 }
 
+func (s *Server) isMIC(podNS, rsName string) bool {
+	micRegEx := regexp.MustCompile(`^mic-*`)
+	if strings.EqualFold(podNS, s.MICNamespace) && micRegEx.MatchString(rsName) {
+		return true
+	}
+	return false
+}
+
+func (s *Server) getMICToken(logger *log.Entry, rqClientID, rqResource string) ([]byte, int, error) {
+	var token *adal.Token
+	var err error
+	// ClientID is empty, so we are going to use System assigned MSI
+	if rqClientID == "" {
+		logger.Infof("Fetching MIC token for system assigned MSI")
+		token, err = auth.GetServicePrincipalTokenFromMSI(rqResource)
+	} else { // User assigned identity usage.
+		logger.Infof("Fetching MIC token for user assigned MSI for id: %s", rqResource)
+		token, err = auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(rqClientID, rqResource)
+	}
+	if err != nil {
+		logger.Errorf("Failed to get service principal token. Error: %+v", err)
+		// TODO: return the right status code based on the error we got from adal.
+		return nil, http.StatusForbidden, err
+	}
+	response, err := json.Marshal(*token)
+	if err != nil {
+		logger.Errorf("Failed to marshal service principal token. Error: %+v", err)
+		return nil, http.StatusInternalServerError, err
+	}
+	return response, http.StatusOK, nil
+}
+
 // msiHandler uses the remote address to identify the pod ip and uses it
 // to find a matching client id, and then returns the token sourced through
 // AAD using adal
@@ -231,12 +266,26 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		http.Error(w, msg, http.StatusInternalServerError)
 		return
 	}
-	podns, podname, err := s.KubeClient.GetPodName(podIP)
+	podns, podname, rsName, err := s.KubeClient.GetPodInfo(podIP)
 	if err != nil {
 		logger.Errorf("missing podname for podip:%s, %+v", podIP, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// If its mic, then just directly get the token and pass back.
+	if s.isMIC(podns, rsName) {
+		logger.Infof("MIC pod token handling")
+		response, errorCode, err := s.getMICToken(logger, rqClientID, rqResource)
+		if err != nil {
+			logger.Errorf("failed to get service principal token for pod:%s/%s.  Error code: %d. Error: %+v", podns, podname, errorCode, err)
+			http.Error(w, err.Error(), errorCode)
+			return
+		}
+		w.Write(response)
+		return
+	}
+
 	podIDs, err := listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttempts)
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
@@ -244,6 +293,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		http.Error(w, msg, http.StatusNotFound)
 		return
 	}
+
 	token, _, err := getTokenForMatchingID(s.KubeClient, logger, rqClientID, rqResource, podIDs)
 	if err != nil {
 		logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)

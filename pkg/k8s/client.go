@@ -36,8 +36,8 @@ func getPodPhaseFilter() string {
 
 // Client api client
 type Client interface {
-	// GetPodName return the matching azure identity or nil
-	GetPodName(podip string) (podns, podname string, err error)
+	// GetPodInfo returns the pod name, namespace & replica set name for a given pod ip
+	GetPodInfo(podip string) (podns, podname, rsName string, err error)
 	// ListPodIds pod matching azure identity or nil
 	ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error)
 	// GetSecret returns secret the secretRef represents
@@ -82,23 +82,32 @@ func NewKubeClient() (Client, error) {
 	return kubeClient, nil
 }
 
-// GetPodName get pod ns,name from apiserver
-func (c *KubeClient) GetPodName(podip string) (podns, poddname string, err error) {
+func (c *KubeClient) getReplicasetName(pod v1.Pod) string {
+	for _, owner := range pod.OwnerReferences {
+		if strings.EqualFold(owner.Kind, "ReplicaSet") {
+			return owner.Name
+		}
+	}
+	return ""
+}
+
+// GetPodInfo get pod ns,name from apiserver
+func (c *KubeClient) GetPodInfo(podip string) (podns, poddname, rsName string, err error) {
 	if podip == "" {
-		return "", "", fmt.Errorf("podip is empty")
+		return "", "", "", fmt.Errorf("podip is empty")
 	}
 
 	podList, err := c.getPodListRetry(podip, getPodListRetries, getPodListSleepTimeMilliseconds)
 
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 	numMatching := len(podList.Items)
 	if numMatching == 1 {
-		return podList.Items[0].Namespace, podList.Items[0].Name, nil
+		return podList.Items[0].Namespace, podList.Items[0].Name, c.getReplicasetName(podList.Items[0]), nil
 	}
 
-	return "", "", fmt.Errorf("match failed, ip:%s matching pods:%v", podip, podList)
+	return "", "", "", fmt.Errorf("match failed, ip:%s matching pods:%v", podip, podList)
 }
 
 func (c *KubeClient) getPodList(podip string) (*v1.PodList, error) {

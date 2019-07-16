@@ -17,9 +17,9 @@ func NewFakeClient() (Client, error) {
 	return fakeClient, nil
 }
 
-// GetPodName returns fake pod name
-func (c *FakeClient) GetPodName(podip string) (podns, podname string, err error) {
-	return "ns", "podname", nil
+// GetPodInfo returns fake pod name, namespace and replicaset
+func (c *FakeClient) GetPodInfo(podip string) (podns, podname, rsName string, err error) {
+	return "ns", "podname", "rsName", nil
 }
 
 // ListPodIds for pod

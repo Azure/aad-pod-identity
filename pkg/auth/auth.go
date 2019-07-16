@@ -11,6 +11,28 @@ const (
 	activeDirectoryEndpoint = "https://login.microsoftonline.com/"
 )
 
+// GetServicePrincipalTokenFromMSI return the token for the assigned user
+func GetServicePrincipalTokenFromMSI(resource string) (*adal.Token, error) {
+	// Get the MSI endpoint accoriding with the OS (Linux/Windows)
+	msiEndpoint, err := adal.GetMSIVMEndpoint()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get the MSI endpoint. Error: %v", err)
+	}
+	// Set up the configuration of the service principal
+	spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, resource)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to acquire a token for MSI. Error: %v", err)
+	}
+	// Effectively acquire the token
+	err = spt.Refresh()
+	if err != nil {
+		return nil, err
+	}
+	token := spt.Token()
+
+	return &token, nil
+}
+
 // GetServicePrincipalTokenFromMSIWithUserAssignedID return the token for the assigned user
 func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string) (*adal.Token, error) {
 	// Get the MSI endpoint accoriding with the OS (Linux/Windows)
@@ -31,7 +53,7 @@ func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string
 		return nil, err
 	}
 
-	// Evectively acqurie the token
+	// Effectively acquire the token
 	err = spt.Refresh()
 	if err != nil {
 		return nil, err

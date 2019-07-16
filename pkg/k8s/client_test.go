@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"fmt"
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
@@ -103,3 +104,24 @@ func TestPodListRetries(t *testing.T) {
 	}
 }
 */
+
+func TestGetReplicaSet(t *testing.T) {
+	pod := &v1.Pod{}
+	rsIndex := 1
+	for i := 0; i < 3; i++ {
+		owner := metav1.OwnerReference{}
+		owner.Name = "test" + fmt.Sprintf("%d", i)
+		if i == rsIndex {
+			owner.Kind = "ReplicaSet"
+		} else {
+			owner.Kind = "Kind" + fmt.Sprintf("%d", i)
+		}
+		pod.OwnerReferences = append(pod.OwnerReferences, owner)
+	}
+
+	c := &KubeClient{}
+	rsName := c.getReplicasetName(*pod)
+	if rsName != "test1" {
+		t.Fatalf("Expected rsName: test1. Got: %s", rsName)
+	}
+}
