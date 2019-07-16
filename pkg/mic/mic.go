@@ -37,11 +37,12 @@ type NodeGetter interface {
 	Start(<-chan struct{})
 }
 
+// LeaderElectionConfig - used to keep track of leader election config.
 type LeaderElectionConfig struct {
-	LeaderElectionNamespace string
-	LeaderElectionTtl       time.Duration
-	LeaderElectionId        string
-	ThisLeaderName          string
+	Namespace    string
+	Duration     time.Duration
+	ID           string
+	ResourceName string
 }
 
 // Client has the required pointers to talk to the api server
@@ -131,20 +132,20 @@ func (c *Client) Run() {
 func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder record.EventRecorder, leaderElectionConfig *LeaderElectionConfig) (leaderElector *leaderelection.LeaderElector, err error) {
 	c.LeaderElectionConfig = leaderElectionConfig
 	resourceLock, err := resourcelock.New(resourcelock.EndpointsResourceLock,
-		c.LeaderElectionNamespace,
-		c.LeaderElectionId,
+		c.Namespace,
+		c.ID,
 		clientSet.CoreV1(),
 		resourcelock.ResourceLockConfig{
-			Identity:      c.ThisLeaderName,
+			Identity:      c.ResourceName,
 			EventRecorder: recorder})
 	if err != nil {
 		glog.Errorf("Resource lock creation for leadeer election failed with error : %v", err)
 		return nil, err
 	}
 	config := leaderelection.LeaderElectionConfig{
-		LeaseDuration: c.LeaderElectionTtl,
-		RenewDeadline: c.LeaderElectionTtl / 2,
-		RetryPeriod:   c.LeaderElectionTtl / 4,
+		LeaseDuration: c.Duration,
+		RenewDeadline: c.Duration / 2,
+		RetryPeriod:   c.Duration / 4,
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: func(exit <-chan struct{}) {
 				c.Start(exit)

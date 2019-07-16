@@ -25,9 +25,7 @@ func main() {
 	defer glog.Flush()
 	hostName, err := os.Hostname()
 	if err != nil {
-		glog.Errorf("Get hostname failure.")
-		glog.Flush()
-		os.Exit(1)
+		glog.Fatalf("Get hostname failure.")
 	}
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "Path to the kube config")
 	flag.StringVar(&cloudconfig, "cloudconfig", "", "Path to cloud config e.g. Azure.json file")
@@ -36,10 +34,10 @@ func main() {
 	flag.DurationVar(&syncRetryDuration, "syncRetryDuration", 3600*time.Second, "The interval in seconds at which sync loop should periodically check for errors and reconcile.")
 
 	// Leader election parameters
-	flag.StringVar(&leaderElectionCfg.ThisLeaderName, "leader-election-name", hostName, "leader name. default is 'hostname'")
-	flag.StringVar(&leaderElectionCfg.LeaderElectionNamespace, "leader-election-namespace", "default", "name space to create leader election objects. default is 'default' namesapce")
-	flag.StringVar(&leaderElectionCfg.LeaderElectionId, "leader-election-id", "aad-pod-identity-mic", "leader election id")
-	flag.DurationVar(&leaderElectionCfg.LeaderElectionTtl, "leader-election-ttl", time.Second*15, "leader election ttl")
+	flag.StringVar(&leaderElectionCfg.ResourceName, "leader-election-name", hostName, "leader name. default is 'hostname'")
+	flag.StringVar(&leaderElectionCfg.Namespace, "leader-election-namespace", "default", "name space to create leader election objects. default is 'default' namesapce")
+	flag.StringVar(&leaderElectionCfg.ID, "leader-election-id", "aad-pod-identity-mic", "leader election id")
+	flag.DurationVar(&leaderElectionCfg.Duration, "leader-election-duration", time.Second*15, "leader election duration")
 
 	flag.Parse()
 	if versionInfo {
@@ -61,11 +59,11 @@ func main() {
 
 	forceNamespaced = forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
 
-	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration)
-	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, &leaderElectionCfg)
+	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration, &leaderElectionCfg)
 	if err != nil {
 		glog.Fatalf("Could not get the MIC client: %+v", err)
 	}
+	// Starts the leader election loop
 	micClient.Run()
 	glog.Info("AAD Pod identity controller initialized!!")
 	//Infinite loop :-)
