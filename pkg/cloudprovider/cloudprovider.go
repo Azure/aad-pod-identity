@@ -61,7 +61,7 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 		azureConfig.ResourceGroupName = os.Getenv("RESOURCE_GROUP")
 		azureConfig.VMType = os.Getenv("VM_TYPE")
 		azureConfig.UseManagedIdentityExtension = strings.EqualFold(os.Getenv("USE_MSI"), "True")
-		azureConfig.UserAssignedIdentityID = os.Getenv("USER_ASSIGNED_MSI_CLIENTID")
+		azureConfig.UserAssignedIdentityID = os.Getenv("USER_ASSIGNED_MSI_CLIENT_ID")
 	}
 
 	azureEnv, err := azure.EnvironmentFromName(azureConfig.Cloud)

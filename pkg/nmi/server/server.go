@@ -245,10 +245,10 @@ func (s *Server) getMICToken(logger *log.Entry, rqClientID, rqResource string) (
 	}
 	response, err := json.Marshal(*token)
 	if err != nil {
-		logger.Errorf("Failed to unmarshal service principal token. Error: %+v", err)
+		logger.Errorf("Failed to marshal service principal token. Error: %+v", err)
 		return nil, http.StatusInternalServerError, err
 	}
-	return response, 0, nil
+	return response, http.StatusOK, nil
 }
 
 // msiHandler uses the remote address to identify the pod ip and uses it
