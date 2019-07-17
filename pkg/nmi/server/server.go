@@ -29,8 +29,9 @@ import (
 const (
 	iptableUpdateTimeIntervalInSeconds = 60
 	localhost                          = "127.0.0.1"
-	listPodIDsRetryAttempts            = 5
-	listPodIDsRetryIntervalInSeconds   = 6
+	listPodIDsRetryAttemptsForCreated  = 9
+	listPodIDsRetryAttemptsForAssigned = 3
+	listPodIDsRetryIntervalInSeconds   = 5
 )
 
 // Server encapsulates all of the parameters necessary for starting up
@@ -174,11 +175,11 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 		http.Error(w, "missing 'podname' and 'podns' from request header", http.StatusBadRequest)
 		return
 	}
-	podIDs, err := listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttempts)
+	podIDs, identityInCreatedStateFound, err := listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttemptsForCreated, listPodIDsRetryAttemptsForAssigned)
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
 		logger.Errorf("%s, %+v", msg, err)
-		http.Error(w, msg, http.StatusNotFound)
+		http.Error(w, msg, getErrorResponeStatusCode(identityInCreatedStateFound))
 		return
 	}
 
@@ -286,11 +287,11 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	podIDs, err := listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttempts)
+	podIDs, identityInCreatedStateFound, err := listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttemptsForCreated, listPodIDsRetryAttemptsForAssigned)
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
 		logger.Errorf("%s, %+v", msg, err)
-		http.Error(w, msg, http.StatusNotFound)
+		http.Error(w, msg, getErrorResponeStatusCode(identityInCreatedStateFound))
 		return
 	}
 
@@ -435,45 +436,58 @@ func handleTermination() {
 	os.Exit(exitCode)
 }
 
-func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log.Entry, podns, podname, rqClientID string, maxAttemptsPerCheck int) ([]aadpodid.AzureIdentity, error) {
+// listPodIDsWithRetry returns a list of matched identities in Assigned state, boolean indicating if at least an identity was found in Created state and error if any
+func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log.Entry, podns, podname, rqClientID string, maxAttemptsForCreated, maxAttemptsForAssigned int) ([]aadpodid.AzureIdentity, bool, error) {
 	attempt := 0
 	var err error
 	var idStateMap map[string][]aadpodid.AzureIdentity
 
-	// this loop will run to ensure we have assigned identities before we return. If there are no assigned identities in created state within 30s, then we return an error.
-	// If we get an assigned identity in created state within 30s, then loop will continue for another 30s to find assigned identity in assigned state.
-	for attempt < 2*maxAttemptsPerCheck {
+	// this loop will run to ensure we have assigned identities before we return. If there are no assigned identities in created state within 45s (9 retries * 5s wait) then we return an error.
+	// If we get an assigned identity in created state within 45s, then loop will continue for another 15s to find assigned identity in assigned state.
+	for attempt < maxAttemptsForCreated+maxAttemptsForAssigned {
 		idStateMap, err = kubeClient.ListPodIds(podns, podname)
 		if err == nil {
 			if len(rqClientID) == 0 {
 				// check to ensure backward compatability with assignedIDs that have no state
+				// assigned identites created with old version of mic will not contain a state. So first we check to see if an assigned identity with
+				// no state exists that matches req client id.
 				if len(idStateMap[""]) != 0 {
 					logger.Warningf("found assignedIDs with no state for pod:%s/%s. AssignedIDs created with old version of mic.", podns, podname)
-					return idStateMap[""], nil
+					return idStateMap[""], true, nil
 				}
 				if len(idStateMap[aadpodid.AssignedIDAssigned]) != 0 {
-					return idStateMap[aadpodid.AssignedIDAssigned], nil
+					return idStateMap[aadpodid.AssignedIDAssigned], true, nil
 				}
-			}
-
-			// if client id exists in request, we need to ensure the identity with this client
-			// exists and is in Assigned state
-			if len(rqClientID) != 0 {
+				if len(idStateMap[aadpodid.AssignedIDCreated]) == 0 && attempt >= maxAttemptsForCreated {
+					return nil, false, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts, retry duration [%d]s. Error: %v",
+						podns, podname, maxAttemptsForCreated, listPodIDsRetryIntervalInSeconds, err)
+				}
+			} else {
+				// if client id exists in request, we need to ensure the identity with this client
+				// exists and is in Assigned state
 				// check to ensure backward compatability with assignedIDs that have no state
 				for _, podID := range idStateMap[""] {
 					if strings.EqualFold(rqClientID, podID.Spec.ClientID) {
 						logger.Warningf("found assignedIDs with no state for pod:%s/%s. AssignedIDs created with old version of mic.", podns, podname)
-						return idStateMap[""], nil
+						return idStateMap[""], true, nil
 					}
 				}
 				for _, podID := range idStateMap[aadpodid.AssignedIDAssigned] {
 					if strings.EqualFold(rqClientID, podID.Spec.ClientID) {
-						return idStateMap[aadpodid.AssignedIDAssigned], nil
+						return idStateMap[aadpodid.AssignedIDAssigned], true, nil
 					}
 				}
-			}
-			if len(idStateMap[aadpodid.AssignedIDCreated]) == 0 && attempt >= maxAttemptsPerCheck {
-				return nil, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts. Error: %v", podns, podname, maxAttemptsPerCheck, err)
+				var foundMatch bool
+				for _, podID := range idStateMap[aadpodid.AssignedIDCreated] {
+					if strings.EqualFold(rqClientID, podID.Spec.ClientID) {
+						foundMatch = true
+						break
+					}
+				}
+				if !foundMatch && attempt >= maxAttemptsForCreated {
+					return nil, false, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts, retry duration [%d]s. Error: %v",
+						podns, podname, maxAttemptsForCreated, listPodIDsRetryIntervalInSeconds, err)
+				}
 			}
 		}
 		attempt++
@@ -482,9 +496,23 @@ func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log
 		case <-time.After(listPodIDsRetryIntervalInSeconds * time.Second):
 		case <-ctx.Done():
 			err = ctx.Err()
-			return nil, err
+			return nil, true, err
 		}
 		logger.Warningf("failed to get assigned ids for pod:%s/%s in ASSIGNED state, retrying attempt: %d", podns, podname, attempt)
 	}
-	return nil, fmt.Errorf("getting assigned identities for pod %s/%s in ASSIGNED state failed after %d attempts. Error: %v", podns, podname, 2*maxAttemptsPerCheck, err)
+	return nil, true, fmt.Errorf("getting assigned identities for pod %s/%s in ASSIGNED state failed after %d attempts, retry duration [%d]s. Error: %v",
+		podns, podname, maxAttemptsForCreated+maxAttemptsForAssigned, listPodIDsRetryIntervalInSeconds, err)
+}
+
+func getErrorResponeStatusCode(identityFound bool) int {
+	// if at least an identity was found in created state then we return 404 which is a retriable error code
+	// in the go-autorest library. If the identity is in CREATED state then the identity is being processed in
+	// this sync cycle and should move to ASSIGNED state soon.
+	if identityFound {
+		return http.StatusNotFound
+	}
+	// if no identity in at least CREATED state was found, then it means the identity creation is not part of the
+	// current ongoing sync cycle. So we return 403 which a non-retriable error code so we give mic enough time to
+	// finish current sync cycle and process identity in the next sync cycle.
+	return http.StatusForbidden
 }
