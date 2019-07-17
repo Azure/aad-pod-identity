@@ -16,11 +16,17 @@ type List struct {
 // Node is used to parse data from 'kubectl get pods'
 type Node struct {
 	Metadata `json:"metadata"`
+	Spec     Spec `json:"spec"`
 }
 
 // Metadata holds information about a pod
 type Metadata struct {
 	Name string `json:"name"`
+}
+
+// Spec holds the node spec
+type Spec struct {
+	ProviderID string `json:"providerID"`
 }
 
 // GetAll will return a list of pods on a Kubernetes cluster
@@ -38,6 +44,22 @@ func GetAll() (*List, error) {
 	}
 
 	return &list, nil
+}
+
+// Get gets a node
+func Get(name string) (*Node, error) {
+	cmd := exec.Command("kubectl", "get", "node", "-ojson", name)
+	util.PrintCommand(cmd)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to get nodes from the Kubernetes cluster: %s", string(out))
+	}
+
+	var n Node
+	if err := json.Unmarshal(out, &n); err != nil {
+		return nil, errors.Wrap(err, "error unmarshalling node")
+	}
+	return &n, nil
 }
 
 // Uncordon will uncordon a given node

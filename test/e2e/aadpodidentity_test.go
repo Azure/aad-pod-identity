@@ -94,16 +94,10 @@ var _ = AfterSuite(func() {
 		}
 
 		// Delete all user assigned identities
-		userAssignedIdentities, err := azure.GetUserAssignedIdentities(cfg.ResourceGroup, n.Name)
+		m, err := getResourceManager(&n)
 		Expect(err).NotTo(HaveOccurred())
-		for resourceID := range *userAssignedIdentities {
-			s := strings.Split(resourceID, "/")
-			identityName := s[len(s)-1]
-			azure.RemoveUserAssignedIdentityFromVM(cfg.ResourceGroup, n.Name, identityName)
-		}
-
-		// Remove system assigned identity from all VM
-		azure.RemoveSystemAssignedIdentityFromVM(cfg.ResourceGroup, n.Name)
+		err = m.RemoveAllIdentities()
+		Expect(err).NotTo(HaveOccurred())
 	}
 })
 
@@ -354,14 +348,20 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(nodeName).NotTo(Equal(""))
 
-		userAssignedIdentities, err := azure.GetUserAssignedIdentities(cfg.ResourceGroup, nodeName)
+		n, err := node.Get(nodeName)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(len(*userAssignedIdentities)).To(Equal(2))
+
+		rm, err := getResourceManager(n)
+		Expect(err).NotTo(HaveOccurred())
+
+		userAssignedIdentities, err := rm.GetUserAssignedIdentities()
+		Expect(err).NotTo(HaveOccurred())
+		Expect(len(userAssignedIdentities)).To(Equal(2))
 
 		// Check if both VM identity and pod identity exist in the node
-		_, ok := (*userAssignedIdentities)[clusterIdentityResource]
+		_, ok := (userAssignedIdentities)[clusterIdentityResource]
 		Expect(ok).To(Equal(true))
-		_, ok = (*userAssignedIdentities)[keyvaultIdentityResource]
+		_, ok = (userAssignedIdentities)[keyvaultIdentityResource]
 		Expect(ok).To(Equal(true))
 
 		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidator)
@@ -379,11 +379,11 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
-		userAssignedIdentities, err = azure.GetUserAssignedIdentities(cfg.ResourceGroup, nodeName)
+		userAssignedIdentities, err = rm.GetUserAssignedIdentities()
 		Expect(err).NotTo(HaveOccurred())
-		Expect(len(*userAssignedIdentities)).To(Equal(1))
+		Expect(len(userAssignedIdentities)).To(Equal(1))
 
-		_, ok = (*userAssignedIdentities)[clusterIdentityResource]
+		_, ok = (userAssignedIdentities)[clusterIdentityResource]
 		Expect(ok).To(Equal(true))
 
 		removeUserAssignedIdentityFromCluster(nodeList, clusterIdentity)
@@ -503,8 +503,13 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(nodeName).NotTo(Equal(""))
 
+		n, err := node.Get(nodeName)
+		Expect(err).NotTo(HaveOccurred())
+		nm, err := getResourceManager(n)
+		Expect(err).NotTo(HaveOccurred())
+
 		// Get the principalID and tenantID of the system assigned identity for verification later
-		principalIDBefore, tenantIDBefore, err := azure.GetSystemAssignedIdentity(cfg.ResourceGroup, nodeName)
+		principalIDBefore, tenantIDBefore, err := nm.GetSystemAssignedIdentity()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(principalIDBefore).NotTo(Equal(""))
 		Expect(tenantIDBefore).NotTo(Equal(""))
@@ -519,7 +524,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(ok).To(Equal(true))
 
 		// Ensure that the identity is unchanged
-		principalIDAfter, tenantIDAfter, err := azure.GetSystemAssignedIdentity(cfg.ResourceGroup, nodeName)
+		principalIDAfter, tenantIDAfter, err := nm.GetSystemAssignedIdentity()
 		Expect(err).NotTo(HaveOccurred())
 		Expect(principalIDAfter).NotTo(Equal(""))
 		Expect(tenantIDAfter).NotTo(Equal(""))
@@ -766,20 +771,17 @@ func validateAzureAssignedIdentity(azureAssignedIdentity aadpodid.AzureAssignedI
 	Expect(azureAssignedIdentity.Spec.AzureIdentityRef.ObjectMeta.Name).To(Equal(identityName))
 	Expect(azureAssignedIdentity.Spec.AzureIdentityRef.ObjectMeta.Namespace).To(Equal("default"))
 
-	var err error
-	var cmdOutput []byte
-
 	if strings.HasPrefix(identityName, keyvaultIdentity) {
-		cmdOutput, err = validateUserAssignedIdentityOnPod(podName, identityClientID)
+		cmdOutput, err := validateUserAssignedIdentityOnPod(podName, identityClientID)
+		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
 	} else if strings.HasPrefix(identityName, clusterIdentity) {
-		cmdOutput, err = validateClusterWideUserAssignedIdentity(podName, identityClientID)
+		cmdOutput, err := validateClusterWideUserAssignedIdentity(podName, identityClientID)
+		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
 	} else {
-		err = errors.Errorf("Invalid identity name: %s", identityName)
+		err := errors.Errorf("Invalid identity name: %s", identityName)
+		Expect(err).NotTo(HaveOccurred())
 	}
-	if err != nil {
-		fmt.Printf("%s\n", cmdOutput)
-	}
-	Expect(err).NotTo(HaveOccurred())
+
 	fmt.Printf("# %s validated!\n", identityName)
 }
 
@@ -835,7 +837,12 @@ func enableUserAssignedIdentityOnCluster(nodeList *node.List, azureIdentityName 
 		if strings.Contains(n.Name, "master") {
 			continue
 		}
-		err := azure.EnableUserAssignedIdentityOnVM(cfg.ResourceGroup, n.Name, clusterIdentity)
+
+		// TODO: this should be optimized for vmss
+		m, err := getResourceManager(&n)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = m.EnableUserAssignedIdentity(clusterIdentity)
 		Expect(err).NotTo(HaveOccurred())
 	}
 }
@@ -846,7 +853,12 @@ func removeUserAssignedIdentityFromCluster(nodeList *node.List, azureIdentityNam
 		if strings.Contains(n.Name, "master") {
 			continue
 		}
-		err := azure.RemoveUserAssignedIdentityFromVM(cfg.ResourceGroup, n.Name, clusterIdentity)
+
+		// TODO: this should be optimized for vmss
+		m, err := getResourceManager(&n)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = m.RemoveUserAssignedIdentity(clusterIdentity)
 		Expect(err).NotTo(HaveOccurred())
 	}
 }
@@ -857,7 +869,12 @@ func enableSystemAssignedIdentityOnCluster(nodeList *node.List) {
 		if strings.Contains(n.Name, "master") {
 			continue
 		}
-		err := azure.EnableSystemAssignedIdentityOnVM(cfg.ResourceGroup, n.Name)
+
+		// TODO: this should be optimized for vmss
+		m, err := getResourceManager(&n)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = m.EnableSystemAssignedIdentity()
 		Expect(err).NotTo(HaveOccurred())
 	}
 }
@@ -868,7 +885,12 @@ func removeSystemAssignedIdentityOnCluster(nodeList *node.List) {
 		if strings.Contains(n.Name, "master") {
 			continue
 		}
-		err := azure.RemoveSystemAssignedIdentityFromVM(cfg.ResourceGroup, n.Name)
+
+		// TODO: this should be optimized for vmss
+		nm, err := getResourceManager(&n)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = nm.RemoveSystemAssignedIdentity()
 		Expect(err).NotTo(HaveOccurred())
 	}
 }
@@ -923,4 +945,141 @@ func waitForIPTableRulesToExist(prefix string) (bool, error) {
 			return success, nil
 		}
 	}
+}
+
+func getResourceManager(n *node.Node) (resourceManager, error) {
+	r, err := cloudprovider.ParseResourceID(n.Spec.ProviderID)
+	if err != nil {
+		return nil, err
+	}
+
+	switch r.ResourceType {
+	case cloudprovider.VMResourceType:
+		return vmManager(r), nil
+	case cloudprovider.VMSSResourceType:
+		return vmssManager(r), nil
+	default:
+		panic("unknown resource type: %s" + r.ResourceType)
+	}
+}
+
+type resourceManager interface {
+	GetUserAssignedIdentities() (map[string]azure.UserAssignedIdentity, error)
+	GetSystemAssignedIdentity() (string, string, error)
+	RemoveAllIdentities() error
+	RemoveUserAssignedIdentity(id string) error
+	RemoveSystemAssignedIdentity() error
+	EnableSystemAssignedIdentity() error
+	EnableUserAssignedIdentity(id string) error
+}
+
+type vmManager azure.Resource
+
+func (m vmManager) GetUserAssignedIdentities() (map[string]azure.UserAssignedIdentity, error) {
+	return azure.GetVMUserAssignedIdentities(m.ResourceGroup, m.ResourceName)
+}
+
+func (m vmManager) GetSystemAssignedIdentity() (string, string, error) {
+	return azure.GetVMSystemAssignedIdentity(m.ResourceGroup, m.ResourceName)
+}
+
+func (m vmManager) RemoveUserAssignedIdentity(id string) error {
+	return azure.RemoveUserAssignedIdentityFromVM(m.ResourceGroup, m.ResourceName, id)
+}
+
+func (m vmManager) RemoveSystemAssignedIdentity() error {
+	return azure.RemoveSystemAssignedIdentityFromVM(m.ResourceGroup, m.ResourceName)
+}
+
+type errList []error
+
+func (ls errList) Error() string {
+	var buf strings.Builder
+
+	for i, err := range ls {
+		s := err.Error()
+		if i < len(ls)-1 {
+			s += "\n"
+		}
+		buf.WriteString(s)
+	}
+	return buf.String()
+}
+
+func (m vmManager) RemoveAllIdentities() error {
+	uIDs, err := m.GetUserAssignedIdentities()
+	if err != nil {
+		return err
+	}
+
+	var errs errList
+
+	for resourceID := range uIDs {
+		s := strings.Split(resourceID, "/")
+		id := s[len(s)-1]
+		err := m.RemoveUserAssignedIdentity(id)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if err := m.RemoveSystemAssignedIdentity(); err != nil {
+		errs = append(errs, err)
+	}
+	return errs
+}
+
+func (m vmManager) EnableSystemAssignedIdentity() error {
+	return azure.EnableSystemAssignedIdentityOnVM(m.ResourceGroup, m.ResourceName)
+}
+
+func (m vmManager) EnableUserAssignedIdentity(id string) error {
+	return azure.EnableUserAssignedIdentityOnVM(m.ResourceGroup, m.ResourceName, id)
+}
+
+type vmssManager azure.Resource
+
+func (m vmssManager) GetUserAssignedIdentities() (map[string]azure.UserAssignedIdentity, error) {
+	return azure.GetVMSSUserAssignedIdentities(m.ResourceGroup, m.ResourceName)
+}
+
+func (m vmssManager) GetSystemAssignedIdentity() (string, string, error) {
+	return azure.GetVMSSSystemAssignedIdentity(m.ResourceGroup, m.ResourceName)
+}
+
+func (m vmssManager) RemoveUserAssignedIdentity(id string) error {
+	return azure.RemoveUserAssignedIdentityFromVMSS(m.ResourceGroup, m.ResourceName, id)
+}
+
+func (m vmssManager) RemoveSystemAssignedIdentity() error {
+	return azure.RemoveSystemAssignedIdentityFromVMSS(m.ResourceGroup, m.ResourceName)
+}
+
+func (m vmssManager) RemoveAllIdentities() error {
+	uIDs, err := m.GetUserAssignedIdentities()
+	if err != nil {
+		return err
+	}
+
+	var errs errList
+
+	for resourceID := range uIDs {
+		s := strings.Split(resourceID, "/")
+		id := s[len(s)-1]
+		err := m.RemoveUserAssignedIdentity(id)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if err := m.RemoveSystemAssignedIdentity(); err != nil {
+		errs = append(errs, err)
+	}
+	return errs
+}
+
+func (m vmssManager) EnableSystemAssignedIdentity() error {
+	return azure.EnableSystemAssignedIdentityOnVMSS(m.ResourceGroup, m.ResourceName)
+}
+
+func (m vmssManager) EnableUserAssignedIdentity(id string) error {
+	return azure.EnableUserAssignedIdentityOnVMSS(m.ResourceGroup, m.ResourceName, id)
 }

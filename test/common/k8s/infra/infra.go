@@ -89,9 +89,9 @@ func CreateIdentityValidator(subscriptionID, resourceGroup, templateOutputPath s
 
 	cmd := exec.Command("kubectl", "apply", "-f", deployFilePath)
 	util.PrintCommand(cmd)
-	_, err = cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return errors.Wrap(err, "Failed to deploy AzureIdentityBinding to the Kubernetes cluster")
+		return errors.Wrapf(err, "Failed to deploy AzureIdentityBinding to the Kubernetes cluster: %s", out)
 	}
 
 	return nil

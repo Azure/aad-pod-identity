@@ -43,9 +43,9 @@ type Status struct {
 func Delete(name, templateOutputPath string) error {
 	cmd := exec.Command("kubectl", "delete", "-f", path.Join(templateOutputPath, name+"-deployment.yaml"), "--now", "--ignore-not-found")
 	util.PrintCommand(cmd)
-	_, err := cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return errors.Wrapf(err, "Failed to delete %v from the Kubernetes cluster", name)
+		return errors.Wrapf(err, "Failed to delete %v from the Kubernetes cluster: %s", name, out)
 	}
 
 	return nil
