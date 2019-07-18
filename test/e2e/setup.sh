@@ -13,11 +13,19 @@ set -euo pipefail
 
 role_assignment_retry() {
     set +e
+    local retval=0
     for i in {0..10}; do
-        eval $*
-        [ $? -eq 0 ] && break || sleep 6
+        out=$(eval $* 2>&1)
+        retval=$?
+        [[ "${out}" == *"already exists"* ]] && retval=0
+        [ $retval -eq 0 ] && break
+        sleep 6
     done
     set -e
+    if [ $retval -ne  0 ]; then
+      >&2 echo "role assignment failed"
+      return 1
+    fi
 }
 
 # Create a keyvault
