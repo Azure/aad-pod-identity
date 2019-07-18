@@ -1,6 +1,9 @@
 FROM golang:1.11 AS build
 ENV GO111MODULE=on
 WORKDIR /go/src/github.com/Azure/aad-pod-identity
+COPY go.mod go.mod
+COPY go.sum go.sum
+RUN go mod download
 COPY . ./
 ARG NMI_VERSION=0.0.0-dev
 ARG MIC_VERSION=0.0.0-dev
