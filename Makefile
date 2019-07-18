@@ -35,7 +35,7 @@ else
 endif
 
 GO_BUILD_OPTIONS := --tags "netgo osusergo"  -ldflags "-s -X $(NMI_VERSION_VAR)=$(NMI_VERSION) -X $(MIC_VERSION_VAR)=$(MIC_VERSION) -X $(GIT_VAR)=$(GIT_HASH) -X $(BUILD_DATE_VAR)=$(BUILD_DATE) -extldflags '-static'"
-E2E_TEST_OPTIONS := -count=1 -v -timeout 24h -ginkgo.failFast 
+E2E_TEST_OPTIONS := -count=1 -v -timeout 24h -ginkgo.failFast $(E2E_TEST_OPTIONS_EXTRA)
 
 # useful for other docker repos
 REGISTRY_NAME ?= upstreamk8sci
