@@ -39,10 +39,10 @@ type NodeGetter interface {
 
 // LeaderElectionConfig - used to keep track of leader election config.
 type LeaderElectionConfig struct {
-	Namespace    string
-	Duration     time.Duration
-	ID           string
-	ResourceName string
+	Namespace string
+	Name      string
+	Duration  time.Duration
+	Instance  string
 }
 
 // Client has the required pointers to talk to the api server
@@ -115,6 +115,7 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 	}
 	leaderElector, err := c.NewLeaderElector(clientSet, recorder, leaderElectionConfig)
 	if err != nil {
+		glog.Errorf("New leader elector failure. Error: %+v", err)
 		return nil, err
 	}
 	c.leaderElector = leaderElector
@@ -133,13 +134,13 @@ func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder reco
 	c.LeaderElectionConfig = leaderElectionConfig
 	resourceLock, err := resourcelock.New(resourcelock.EndpointsResourceLock,
 		c.Namespace,
-		c.ID,
+		c.Name,
 		clientSet.CoreV1(),
 		resourcelock.ResourceLockConfig{
-			Identity:      c.ResourceName,
+			Identity:      c.Instance,
 			EventRecorder: recorder})
 	if err != nil {
-		glog.Errorf("Resource lock creation for leadeer election failed with error : %v", err)
+		glog.Errorf("Resource lock creation for leader election failed with error : %v", err)
 		return nil, err
 	}
 	config := leaderelection.LeaderElectionConfig{
@@ -151,7 +152,7 @@ func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder reco
 				c.Start(exit)
 			},
 			OnStoppedLeading: func() {
-				glog.Errorf("Lost Leader Lease")
+				glog.Errorf("Lost leader lease")
 				glog.Flush()
 				os.Exit(1)
 			},

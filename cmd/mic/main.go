@@ -25,7 +25,7 @@ func main() {
 	defer glog.Flush()
 	hostName, err := os.Hostname()
 	if err != nil {
-		glog.Fatalf("Get hostname failure.")
+		glog.Fatalf("Get hostname failure. Error: %+v", err)
 	}
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "Path to the kube config")
 	flag.StringVar(&cloudconfig, "cloudconfig", "", "Path to cloud config e.g. Azure.json file")
@@ -34,9 +34,9 @@ func main() {
 	flag.DurationVar(&syncRetryDuration, "syncRetryDuration", 3600*time.Second, "The interval in seconds at which sync loop should periodically check for errors and reconcile.")
 
 	// Leader election parameters
-	flag.StringVar(&leaderElectionCfg.ResourceName, "leader-election-name", hostName, "leader name. default is 'hostname'")
-	flag.StringVar(&leaderElectionCfg.Namespace, "leader-election-namespace", "default", "name space to create leader election objects. default is 'default' namesapce")
-	flag.StringVar(&leaderElectionCfg.ID, "leader-election-id", "aad-pod-identity-mic", "leader election id")
+	flag.StringVar(&leaderElectionCfg.Instance, "leader-election-instance", hostName, "leader election instance name. default is 'hostname'")
+	flag.StringVar(&leaderElectionCfg.Namespace, "leader-election-namespace", "default", "namespace to create leader election objects")
+	flag.StringVar(&leaderElectionCfg.Name, "leader-election-name", "aad-pod-identity-mic", "leader election name")
 	flag.DurationVar(&leaderElectionCfg.Duration, "leader-election-duration", time.Second*15, "leader election duration")
 
 	flag.Parse()
