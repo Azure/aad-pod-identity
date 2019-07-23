@@ -14,6 +14,9 @@ spec:
         app: identity-validator
         aadpodidbinding: {{.IdentityBinding}}
     spec:
+      {{ if ne .NodeName "" -}}
+      nodeName: {{.NodeName}}
+      {{- end }}
       containers:
       - name: {{.Name}}
         image: {{.Registry}}/identityvalidator:{{.IdentityValidatorVersion}}

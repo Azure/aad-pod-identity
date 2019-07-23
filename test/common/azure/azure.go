@@ -1,6 +1,7 @@
 package azure
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,8 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/pkg/errors"
 )
+
+type Resource = azure.Resource
 
 // UserAssignedIdentity is used to parse user assigned identity data from 'az vm identity show'
 type UserAssignedIdentity struct {
@@ -192,9 +196,21 @@ func StopKubelet(resourceGroup, vmName string) error {
 func EnableUserAssignedIdentityOnVM(resourceGroup, vmName, identityName string) error {
 	fmt.Printf("# Assigning user assigned identity '%s' to %s...\n", identityName, vmName)
 	cmd := exec.Command("az", "vm", "identity", "assign", "-g", resourceGroup, "-n", vmName, "--identities", identityName)
-	_, err := cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return errors.Wrap(err, "Failed to assign user assigned identity to VM")
+		return errors.Wrapf(err, "Failed to assign user assigned identity to VM: %s", string(out))
+	}
+
+	return nil
+}
+
+// EnableUserAssignedIdentityOnVMSS will enable a user assigned identity to a VM
+func EnableUserAssignedIdentityOnVMSS(resourceGroup, vmName, identityName string) error {
+	fmt.Printf("# Assigning user assigned identity '%s' to %s...\n", identityName, vmName)
+	cmd := exec.Command("az", "vmss", "identity", "assign", "-g", resourceGroup, "-n", vmName, "--identities", identityName)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrapf(err, "Failed to assign user assigned identity to VM: %s", string(out))
 	}
 
 	return nil
@@ -213,15 +229,63 @@ func EnableSystemAssignedIdentityOnVM(resourceGroup, vmName string) error {
 	return nil
 }
 
-// GetUserAssignedIdentities will return the list of user assigned identity in a given VM
-func GetUserAssignedIdentities(resourceGroup, vmName string) (*map[string]UserAssignedIdentity, error) {
+// EnableSystemAssignedIdentityOnVMSS will enable a system assigned identity to a VM
+func EnableSystemAssignedIdentityOnVMSS(resourceGroup, vmName string) error {
+	fmt.Printf("# Assigning system assigned identity to %s...\n", vmName)
+	cmd := exec.Command("az", "vmss", "identity", "assign", "-g", resourceGroup, "-n", vmName)
+	cmdOutput, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Printf("%s\n", cmdOutput)
+		return errors.Wrap(err, "Failed to enable identity to VM")
+	}
+
+	return nil
+}
+
+func UserIdentityAssignedToVMSS(resourceGroup, vmssName, identityName string) (bool, error) {
+	cmd := exec.Command("az", "vmss", "identity", "show", "-o", "json", "-g", resourceGroup, "-n", vmssName)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return false, errors.Wrapf(err, "Failed to get user assigned identity from VMSS %q: %s", vmssName, out)
+	}
+
+	out = bytes.TrimSpace(out)
+	if len(out) == 0 {
+		return false, nil
+	}
+
+	var id VMIdentity
+	if err := json.Unmarshal(out, &id); err != nil {
+		return false, errors.Wrap(err, "error unmarshaling json")
+	}
+	if id.Type == "SystemAssigned" {
+		return false, nil
+	}
+
+	var userAssignedIdentities map[string]UserAssignedIdentity
+	if err := json.Unmarshal(*id.UserAssignedIdentities, &userAssignedIdentities); err != nil {
+		return false, errors.Wrap(err, "failed to unmarshall json for user assigned identities")
+	}
+
+	for rID := range userAssignedIdentities {
+		s := strings.Split(rID, "/")
+		if s[len(s)-1] == identityName {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+// GetVMUserAssignedIdentities will return the list of user assigned identity in a given VM
+func GetVMUserAssignedIdentities(resourceGroup, vmName string) (map[string]UserAssignedIdentity, error) {
 	// Sleep for 30 seconds to allow potential changes to propagate to Azure
 	time.Sleep(time.Second * 30)
 
 	cmd := exec.Command("az", "vm", "identity", "show", "-g", resourceGroup, "-n", vmName)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to get user assigned identity from VM")
+		return nil, errors.Wrapf(err, "Failed to get user assigned identity from VM: %s", string(out))
 	}
 
 	var vmIdentity VMIdentity
@@ -229,18 +293,48 @@ func GetUserAssignedIdentities(resourceGroup, vmName string) (*map[string]UserAs
 
 	// Return an empty userAssignedIdentities if out slice is empty
 	if len(out) == 0 {
-		return &userAssignedIdentities, nil
+		return userAssignedIdentities, nil
 	} else if err := json.Unmarshal(out, &vmIdentity); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshall json")
 	}
 
 	if vmIdentity.Type == "SystemAssigned" {
-		return &userAssignedIdentities, nil
+		return userAssignedIdentities, nil
+	} else if err := json.Unmarshal(*vmIdentity.UserAssignedIdentities, userAssignedIdentities); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshall json")
+	}
+
+	return userAssignedIdentities, nil
+}
+
+// GetVMSSUserAssignedIdentities will return the list of user assigned identity in a given VM
+func GetVMSSUserAssignedIdentities(resourceGroup, name string) (map[string]UserAssignedIdentity, error) {
+	// Sleep for 30 seconds to allow potential changes to propagate to Azure
+	time.Sleep(time.Second * 30)
+
+	cmd := exec.Command("az", "vmss", "identity", "show", "-g", resourceGroup, "-n", name)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to get user assigned identity from VMSS: %s", string(out))
+	}
+
+	var vmIdentity VMIdentity
+	var userAssignedIdentities map[string]UserAssignedIdentity
+
+	// Return an empty userAssignedIdentities if out slice is empty
+	if len(out) == 0 {
+		return userAssignedIdentities, nil
+	} else if err := json.Unmarshal(out, &vmIdentity); err != nil {
+		return nil, errors.Wrap(err, "Failed to unmarshall json")
+	}
+
+	if vmIdentity.Type == "SystemAssigned" {
+		return userAssignedIdentities, nil
 	} else if err := json.Unmarshal(*vmIdentity.UserAssignedIdentities, &userAssignedIdentities); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshall json")
 	}
 
-	return &userAssignedIdentities, nil
+	return userAssignedIdentities, nil
 }
 
 // RemoveUserAssignedIdentityFromVM will remove a user assigned identity to a VM
@@ -255,12 +349,44 @@ func RemoveUserAssignedIdentityFromVM(resourceGroup, vmName, identityName string
 	return nil
 }
 
-// GetSystemAssignedIdentity will return the principal ID and tenant ID of a system assigned identity
-func GetSystemAssignedIdentity(resourceGroup, vmName string) (string, string, error) {
+// RemoveUserAssignedIdentityFromVMSS will remove a user assigned identity to a VMSS
+func RemoveUserAssignedIdentityFromVMSS(resourceGroup, vmName, identityName string) error {
+	fmt.Printf("# Removing identity '%s' from %s...\n", identityName, vmName)
+	cmd := exec.Command("az", "vmss", "identity", "remove", "-g", resourceGroup, "-n", vmName, "--identities", identityName)
+	_, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrap(err, "Failed to remove user assigned identity to VMSS")
+	}
+
+	return nil
+}
+
+// GetVMSystemAssignedIdentity will return the principal ID and tenant ID of a system assigned identity
+func GetVMSystemAssignedIdentity(resourceGroup, vmName string) (string, string, error) {
 	cmd := exec.Command("az", "vm", "identity", "show", "-g", resourceGroup, "-n", vmName)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", "", errors.Wrap(err, "Failed to get system assigned identity from VM")
+	}
+
+	var systemAssignedIdentity VMIdentity
+	if err := json.Unmarshal(out, &systemAssignedIdentity); err != nil {
+		return "", "", errors.Wrap(err, "Failed to unmarshall json")
+	}
+
+	if strings.Contains(systemAssignedIdentity.Type, "SystemAssigned") {
+		return systemAssignedIdentity.PrincipalID, systemAssignedIdentity.TenantID, nil
+	}
+
+	return "", "", nil
+}
+
+// GetVMSSSystemAssignedIdentity will return the principal ID and tenant ID of a system assigned identity
+func GetVMSSSystemAssignedIdentity(resourceGroup, name string) (string, string, error) {
+	cmd := exec.Command("az", "vmss", "identity", "show", "-g", resourceGroup, "-n", name)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", "", errors.Wrap(err, "Failed to get system assigned identity from VMSS")
 	}
 
 	var systemAssignedIdentity VMIdentity
@@ -283,6 +409,19 @@ func RemoveSystemAssignedIdentityFromVM(resourceGroup, vmName string) error {
 	if err != nil {
 		fmt.Printf("%s\n", cmdOutput)
 		return errors.Wrap(err, "Failed to remove system assigned identity to VM")
+	}
+
+	return nil
+}
+
+// RemoveSystemAssignedIdentityFromVMSS will remove the system assigned identity to a VMSS
+func RemoveSystemAssignedIdentityFromVMSS(resourceGroup, name string) error {
+	fmt.Printf("# Removing system assigned identity from %s...\n", name)
+	cmd := exec.Command("az", "vmss", "identity", "remove", "-g", resourceGroup, "-n", name)
+	cmdOutput, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Printf("%s\n", cmdOutput)
+		return errors.Wrap(err, "Failed to remove system assigned identity to VMSS")
 	}
 
 	return nil

@@ -59,43 +59,39 @@ func CreateInfra(namespace, registry, nmiVersion, micVersion, templateOutputPath
 	return nil
 }
 
+// TemplateData is the data passed to the deployment template
+type IdentityValidatorTemplateData struct {
+	Name                     string
+	IdentityBinding          string
+	Registry                 string
+	IdentityValidatorVersion string
+	NodeName                 string
+	Replicas                 string
+}
+
 // CreateIdentityValidator will create an identity validator deployment on a Kubernetes cluster
-func CreateIdentityValidator(subscriptionID, resourceGroup, registryName, deploymentName, identityBinding, identityValidatorVersion, templateOutputPath, replicas string) error {
+func CreateIdentityValidator(subscriptionID, resourceGroup, templateOutputPath string, deployTmplData IdentityValidatorTemplateData) error {
 	t, err := template.New("deployment.yaml").ParseFiles(path.Join("template", "deployment.yaml"))
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse deployment.yaml")
 	}
 
-	deployFilePath := path.Join(templateOutputPath, deploymentName+"-deployment.yaml")
+	deployFilePath := path.Join(templateOutputPath, deployTmplData.Name+"-deployment.yaml")
 	deployFile, err := os.Create(deployFilePath)
 	if err != nil {
 		return errors.Wrap(err, "Failed to create a deployment file from deployment.yaml")
 	}
 	defer deployFile.Close()
 
-	// Go template parameters to be translated in test/e2e/template/deployment.yaml
-	deployData := struct {
-		Name                     string
-		IdentityBinding          string
-		Registry                 string
-		IdentityValidatorVersion string
-		Replicas                 string
-	}{
-		deploymentName,
-		identityBinding,
-		registryName,
-		identityValidatorVersion,
-		replicas,
-	}
-	if err := t.Execute(deployFile, deployData); err != nil {
+	if err := t.Execute(deployFile, deployTmplData); err != nil {
 		return errors.Wrap(err, "Failed to create a deployment file from deployment.yaml")
 	}
 
 	cmd := exec.Command("kubectl", "apply", "-f", deployFilePath)
 	util.PrintCommand(cmd)
-	_, err = cmd.CombinedOutput()
+	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return errors.Wrap(err, "Failed to deploy AzureIdentityBinding to the Kubernetes cluster")
+		return errors.Wrapf(err, "Failed to deploy AzureIdentityBinding to the Kubernetes cluster: %s", out)
 	}
 
 	return nil
