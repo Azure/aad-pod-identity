@@ -2,9 +2,11 @@ package main
 
 import (
 	"os"
+	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
+	"github.com/Azure/aad-pod-identity/pkg/probes"
 	"github.com/Azure/aad-pod-identity/version"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
@@ -28,9 +30,11 @@ var (
 	ipTableUpdateTimeIntervalInSeconds = pflag.Int("ipt-update-interval-sec", defaultIPTableUpdateTimeIntervalInSeconds, "update interval of iptables")
 	forceNamespaced                    = pflag.Bool("forceNamespaced", false, "Forces mic to namespace identities, binding, and assignment")
 	micNamespace                       = pflag.String("MICNamespace", "default", "MIC namespace to short circuit MIC token requests")
+	httpProbePort                      = pflag.String("http-probe-port", "8080", "Http health and liveness probe port")
 )
 
 func main() {
+	startTime := time.Now()
 	pflag.Parse()
 	if *versionInfo {
 		version.PrintVersionAndExit()
@@ -52,6 +56,10 @@ func main() {
 	s.HostIP = *hostIP
 	s.NodeName = *nodename
 	s.IPTableUpdateTimeIntervalInSeconds = *ipTableUpdateTimeIntervalInSeconds
+
+	// Health probe will always report success once its started.
+	// NMI instance will report ready only once the iptable rules are set
+	probes.InitAndStart(*httpProbePort, startTime, &s.Initialized)
 
 	if err := s.Run(); err != nil {
 		log.Fatalf("%s", err)

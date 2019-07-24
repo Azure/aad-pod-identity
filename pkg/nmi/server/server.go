@@ -46,6 +46,7 @@ type Server struct {
 	IPTableUpdateTimeIntervalInSeconds int
 	IsNamespaced                       bool
 	MICNamespace                       string
+	Initialized                        bool
 }
 
 // NMIResponse is the response returned to caller
@@ -100,6 +101,7 @@ loop:
 
 		case <-ticker.C:
 			log.Infof("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, s.MetadataIP, s.MetadataPort, s.NMIPort)
+			s.Initialized = true
 			if err := iptables.AddCustomChain(s.MetadataIP, s.MetadataPort, s.HostIP, s.NMIPort); err != nil {
 				log.Fatalf("%s", err)
 			}
