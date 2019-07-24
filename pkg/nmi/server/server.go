@@ -179,7 +179,7 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
 		logger.Errorf("%s, %+v", msg, err)
-		http.Error(w, msg, getErrorResponeStatusCode(identityInCreatedStateFound))
+		http.Error(w, msg, getErrorResponseStatusCode(identityInCreatedStateFound))
 		return
 	}
 
@@ -291,7 +291,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
 		logger.Errorf("%s, %+v", msg, err)
-		http.Error(w, msg, getErrorResponeStatusCode(identityInCreatedStateFound))
+		http.Error(w, msg, getErrorResponseStatusCode(identityInCreatedStateFound))
 		return
 	}
 
@@ -504,7 +504,7 @@ func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log
 		podns, podname, maxAttemptsForCreated+maxAttemptsForAssigned, listPodIDsRetryIntervalInSeconds, err)
 }
 
-func getErrorResponeStatusCode(identityFound bool) int {
+func getErrorResponseStatusCode(identityFound bool) int {
 	// if at least an identity was found in created state then we return 404 which is a retriable error code
 	// in the go-autorest library. If the identity is in CREATED state then the identity is being processed in
 	// this sync cycle and should move to ASSIGNED state soon.

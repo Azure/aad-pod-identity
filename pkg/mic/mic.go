@@ -234,7 +234,6 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		}
 
 		// one final createorupdate to each node in the map
-		// TODO: parallelize this process
 		c.updateNodeAndDeps(newAssignedIDs, nodeMap, nodeRefs)
 
 		if workDone {
@@ -668,6 +667,7 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 
 	err = c.CloudClient.UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs, node)
 	if err != nil {
+		glog.Errorf("Updating msi's on node %s, add [%d], del [%d] failed with error %v", nodeName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete), err)
 		idList, getErr := c.getUserMSIListForNode(node)
 		if getErr != nil {
 			glog.Errorf("Getting list of msi's from node %s resulted in error %v", nodeName, getErr)

@@ -996,6 +996,7 @@ func TestMICStateFlow(t *testing.T) {
 	if !evtRecorder.WaitForEvents(1) {
 		t.Fatalf("Timeout waiting for mic sync cycles")
 	}
+
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
 		glog.Error(err)
@@ -1010,10 +1011,14 @@ func TestMICStateFlow(t *testing.T) {
 
 	// delete the pod, simulate failure in cloud calls on trying to un-assign identity from node
 	podClient.DeletePod("test-pod1", "default")
+	// SetError sets error in crd client only for remove assigned identity
 	cloudClient.SetError(errors.New("error removing identity from node"))
-	cloudClient.testVMClient.identity = nil
+	cloudClient.testVMClient.identity = &compute.VirtualMachineIdentity{IdentityIds: &[]string{"test-user-msi-resourceid"}}
 
 	eventCh <- aadpodid.PodDeleted
+	if !evtRecorder.WaitForEvents(1) {
+		t.Fatalf("Timeout waiting for mic sync cycles")
+	}
 
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
