@@ -81,6 +81,18 @@ spec:
         volumeMounts:
         - mountPath: /run/xtables.lock
           name: iptableslock
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -116,6 +128,18 @@ spec:
           - name: k8s-azure-file
             mountPath: /etc/kubernetes/azure.json
             readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
       volumes:
       - name: kubeconfig
         hostPath:
