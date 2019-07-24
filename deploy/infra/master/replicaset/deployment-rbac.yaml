@@ -103,7 +103,7 @@ spec:
         name: iptableslock
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.4"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.5-rc1"
         imagePullPolicy: Always
         args:
           - "--host-ip=$(HOST_IP)"
@@ -150,7 +150,7 @@ rules:
   verbs: ["create", "patch"]
 - apiGroups: [""]
   resources: ["endpoints"]
-  verbs: ["create", "get", "list", "watch", "update", "patch"]
+  verbs: ["create", "get","update"]
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureidentitybindings", "azureidentities"]
   verbs: ["get", "list", "watch", "post"]
@@ -191,7 +191,7 @@ spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.3"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.5-rc1"
         imagePullPolicy: Always
         args:
           - "--cloudconfig=/etc/kubernetes/azure.json"

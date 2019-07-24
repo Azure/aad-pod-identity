@@ -142,7 +142,7 @@ rules:
   verbs: ["create", "patch"]
 - apiGroups: [""]
   resources: ["endpoints"]
-  verbs: ["create", "get", "list", "watch", "update", "patch"]
+  verbs: [ "create", "get", "update"]
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureidentitybindings", "azureidentities"]
   verbs: ["get", "list", "watch", "post"]
