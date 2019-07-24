@@ -18,15 +18,26 @@ var (
 	forceNamespaced   bool
 	versionInfo       bool
 	syncRetryDuration time.Duration
+	leaderElectionCfg mic.LeaderElectionConfig
 )
 
 func main() {
 	defer glog.Flush()
+	hostName, err := os.Hostname()
+	if err != nil {
+		glog.Fatalf("Get hostname failure. Error: %+v", err)
+	}
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "Path to the kube config")
 	flag.StringVar(&cloudconfig, "cloudconfig", "", "Path to cloud config e.g. Azure.json file")
 	flag.BoolVar(&forceNamespaced, "forceNamespaced", false, "Forces namespaced identities, binding, and assignment")
 	flag.BoolVar(&versionInfo, "version", false, "Prints the version information")
 	flag.DurationVar(&syncRetryDuration, "syncRetryDuration", 3600*time.Second, "The interval in seconds at which sync loop should periodically check for errors and reconcile.")
+
+	// Leader election parameters
+	flag.StringVar(&leaderElectionCfg.Instance, "leader-election-instance", hostName, "leader election instance name. default is 'hostname'")
+	flag.StringVar(&leaderElectionCfg.Namespace, "leader-election-namespace", "default", "namespace to create leader election objects")
+	flag.StringVar(&leaderElectionCfg.Name, "leader-election-name", "aad-pod-identity-mic", "leader election name")
+	flag.DurationVar(&leaderElectionCfg.Duration, "leader-election-duration", time.Second*15, "leader election duration")
 
 	flag.Parse()
 	if versionInfo {
@@ -48,13 +59,12 @@ func main() {
 
 	forceNamespaced = forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
 
-	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration)
+	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration, &leaderElectionCfg)
 	if err != nil {
 		glog.Fatalf("Could not get the MIC client: %+v", err)
 	}
-
-	exit := make(chan struct{})
-	micClient.Start(exit)
+	// Starts the leader election loop
+	micClient.Run()
 	glog.Info("AAD Pod identity controller initialized!!")
 	//Infinite loop :-)
 	select {}
