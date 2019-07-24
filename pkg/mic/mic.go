@@ -55,6 +55,7 @@ type Client struct {
 	EventChannel      chan aadpodid.EventType
 	NodeClient        NodeGetter
 	IsNamespaced      bool
+	SyncLoopStarted   bool
 	syncRetryInterval time.Duration
 
 	syncing       int32 // protect against conucrrent sync's
@@ -217,6 +218,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 	defer ticker.Stop()
 
 	glog.Info("Sync thread started.")
+	c.SyncLoopStarted = true
 	var event aadpodid.EventType
 	for {
 		select {

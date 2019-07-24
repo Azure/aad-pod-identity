@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/mic"
+	"github.com/Azure/aad-pod-identity/pkg/probes"
 	"github.com/Azure/aad-pod-identity/version"
 	"github.com/golang/glog"
 	"k8s.io/client-go/rest"
@@ -19,10 +20,12 @@ var (
 	versionInfo       bool
 	syncRetryDuration time.Duration
 	leaderElectionCfg mic.LeaderElectionConfig
+	httpProbePort     string
 )
 
 func main() {
 	defer glog.Flush()
+	startTime := time.Now()
 	hostName, err := os.Hostname()
 	if err != nil {
 		glog.Fatalf("Get hostname failure. Error: %+v", err)
@@ -38,6 +41,9 @@ func main() {
 	flag.StringVar(&leaderElectionCfg.Namespace, "leader-election-namespace", "default", "namespace to create leader election objects")
 	flag.StringVar(&leaderElectionCfg.Name, "leader-election-name", "aad-pod-identity-mic", "leader election name")
 	flag.DurationVar(&leaderElectionCfg.Duration, "leader-election-duration", time.Second*15, "leader election duration")
+
+	//Probe port
+	flag.StringVar(&httpProbePort, "http-probe-port", "8080", "http health and ready probe port")
 
 	flag.Parse()
 	if versionInfo {
@@ -63,6 +69,12 @@ func main() {
 	if err != nil {
 		glog.Fatalf("Could not get the MIC client: %+v", err)
 	}
+
+	// Health probe will always report success once its started.
+	// MIC instance will report ready only once its elected the leader
+	// and starts the sync loop.
+	probes.InitAndStart(httpProbePort, startTime, &micClient.SyncLoopStarted)
+
 	// Starts the leader election loop
 	micClient.Run()
 	glog.Info("AAD Pod identity controller initialized!!")
