@@ -626,7 +626,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		}
 
 		if vmssID == "" {
-			fmt.Println("skipping test since no there is no vmss with more than 1 node")
+			fmt.Println("skipping test since there is no vmss with more than 1 node")
 			return
 		}
 
@@ -726,7 +726,7 @@ func setUpIdentityAndDeployment(azureIdentityName, suffix, replicas string, tmpl
 	Expect(err).NotTo(HaveOccurred())
 
 	data := infra.IdentityValidatorTemplateData{
-		Name:                     identityValidator,
+		Name:                     identityValidatorName,
 		IdentityBinding:          azureIdentityName,
 		Registry:                 cfg.Registry,
 		IdentityValidatorVersion: cfg.IdentityValidatorVersion,

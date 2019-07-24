@@ -627,12 +627,16 @@ func (c *Client) updateAssignedIdentityStatus(assignedID *aadpodid.AzureAssigned
 }
 
 func (c *Client) updateNodeAndDeps(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds, nodeRefs map[string]bool) {
+	var wg sync.WaitGroup
 	for nodeName, nodeTrackList := range nodeMap {
-		c.updateUserMSI(newAssignedIDs, nodeName, nodeTrackList, nodeRefs)
+		wg.Add(1)
+		go c.updateUserMSI(newAssignedIDs, nodeName, nodeTrackList, nodeRefs, &wg)
 	}
+	wg.Wait()
 }
 
-func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeName string, nodeTrackList trackUserAssignedMSIIds, nodeRefs map[string]bool) {
+func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeName string, nodeTrackList trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
+	defer wg.Done()
 	beginAdding := time.Now()
 	glog.V(5).Infof("Processing node %s", nodeName)
 

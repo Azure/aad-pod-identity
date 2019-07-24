@@ -300,7 +300,7 @@ func GetVMUserAssignedIdentities(resourceGroup, vmName string) (map[string]UserA
 
 	if vmIdentity.Type == "SystemAssigned" {
 		return userAssignedIdentities, nil
-	} else if err := json.Unmarshal(*vmIdentity.UserAssignedIdentities, userAssignedIdentities); err != nil {
+	} else if err := json.Unmarshal(*vmIdentity.UserAssignedIdentities, &userAssignedIdentities); err != nil {
 		return nil, errors.Wrap(err, "Failed to unmarshall json")
 	}
 
