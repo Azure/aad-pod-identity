@@ -55,6 +55,7 @@ type Client struct {
 	EventChannel      chan aadpodid.EventType
 	NodeClient        NodeGetter
 	IsNamespaced      bool
+	SyncLoopStarted   bool
 	syncRetryInterval time.Duration
 
 	syncing       int32 // protect against conucrrent sync's
@@ -125,7 +126,7 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 
 // Run - Initiates the leader election run call to find if its leader and run it
 func (c *Client) Run() {
-	glog.Infof("MIC Leader election initiated")
+	glog.Infof("Initiating MIC Leader election")
 	c.leaderElector.Run()
 }
 
@@ -217,6 +218,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 	defer ticker.Stop()
 
 	glog.Info("Sync thread started.")
+	c.SyncLoopStarted = true
 	var event aadpodid.EventType
 	for {
 		select {

@@ -46,6 +46,7 @@ type Server struct {
 	IPTableUpdateTimeIntervalInSeconds int
 	IsNamespaced                       bool
 	MICNamespace                       string
+	Initialized                        bool
 }
 
 // NMIResponse is the response returned to caller
@@ -80,6 +81,17 @@ func (s *Server) Run() error {
 	return nil
 }
 
+func (s *Server) updateIPTableRulesInternal() {
+	log.Infof("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, s.MetadataIP, s.MetadataPort, s.NMIPort)
+
+	if err := iptables.AddCustomChain(s.MetadataIP, s.MetadataPort, s.HostIP, s.NMIPort); err != nil {
+		log.Fatalf("%s", err)
+	}
+	if err := iptables.LogCustomChain(); err != nil {
+		log.Fatalf("%s", err)
+	}
+}
+
 // updateIPTableRules ensures the correct iptable rules are set
 // such that metadata requests are received by nmi assigned port
 // NOT originating from HostIP destined to metadata endpoint are
@@ -91,6 +103,11 @@ func (s *Server) updateIPTableRules() {
 	ticker := time.NewTicker(time.Second * time.Duration(s.IPTableUpdateTimeIntervalInSeconds))
 	defer ticker.Stop()
 
+	// Run once before the waiting on ticker for the rules to take effect
+	// immediately.
+	s.updateIPTableRulesInternal()
+	s.Initialized = true
+
 loop:
 	for {
 		select {
@@ -99,13 +116,7 @@ loop:
 			break loop
 
 		case <-ticker.C:
-			log.Infof("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, s.MetadataIP, s.MetadataPort, s.NMIPort)
-			if err := iptables.AddCustomChain(s.MetadataIP, s.MetadataPort, s.HostIP, s.NMIPort); err != nil {
-				log.Fatalf("%s", err)
-			}
-			if err := iptables.LogCustomChain(); err != nil {
-				log.Fatalf("%s", err)
-			}
+			s.updateIPTableRulesInternal()
 		}
 	}
 }

@@ -2,6 +2,7 @@ package aadpodidentity
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
@@ -24,6 +25,8 @@ import (
 	"github.com/Azure/aad-pod-identity/test/common/util"
 	"github.com/Azure/aad-pod-identity/test/e2e/config"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
+	rl "k8s.io/client-go/tools/leaderelection/resourcelock"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -39,6 +42,8 @@ const (
 var (
 	cfg                config.Config
 	templateOutputPath = path.Join("template", "_output")
+	testIndex          = 0
+	noCleanup          = false
 )
 
 var _ = BeforeSuite(func() {
@@ -52,12 +57,15 @@ var _ = BeforeSuite(func() {
 	c, err := config.ParseConfig()
 	Expect(err).NotTo(HaveOccurred())
 	cfg = *c
-
 	setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion)
 })
 
 var _ = AfterSuite(func() {
 	fmt.Println("\nTearing down the test suite environment...")
+	if noCleanup {
+		fmt.Println("Test failed. No cleanup performed")
+		return
+	}
 
 	// Uninstall CRDs and delete MIC and NMI
 	err := deploy.Delete("default", templateOutputPath)
@@ -102,9 +110,18 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
+	BeforeEach(func() {
+		testIndex++
+		fmt.Printf("\n\n[%d] %s\n", testIndex, CurrentGinkgoTestDescription().TestText)
+	})
+
 	AfterEach(func() {
 		fmt.Println("\nTearing down the test environment...")
-
+		if CurrentGinkgoTestDescription().Failed {
+			noCleanup = true
+			fmt.Println("Test failed. No cleanup performed")
+			return
+		}
 		// Ensure a clean cluster after the end of each test
 		cmd := exec.Command("kubectl", "delete", "AzureIdentity,AzureIdentityBinding", "--all")
 		util.PrintCommand(cmd)
@@ -573,7 +590,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(ok).To(Equal(true))
 
 		// setup mic and nmi with old releases
-		setupInfra("mcr.microsoft.com/k8s/aad-pod-identity", "1.4", "1.3")
+		setupInfraOld("mcr.microsoft.com/k8s/aad-pod-identity", "1.4", "1.3")
 
 		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
@@ -667,15 +684,68 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(exists).To(Equal(true))
 	})
+
+	It("liveness probe test", func() {
+		pods, err := pod.GetAllNameByPrefix("mic")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(pods).NotTo(BeNil())
+
+		leader, err := getMICLeader()
+		Expect(err).NotTo(HaveOccurred())
+		fmt.Printf("MIC leader: %s\n", leader)
+
+		for _, p := range pods {
+			// Leader MIC will show as active and other as Not Active
+			if strings.EqualFold(p, leader) {
+				checkHealthProbe(p, "Active")
+			} else {
+				checkHealthProbe(p, "Not Active")
+			}
+		}
+
+		pods, err = pod.GetAllNameByPrefix("nmi")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(pods).NotTo(BeNil())
+		for _, p := range pods {
+			checkHealthProbe(p, "Active")
+		}
+	})
 })
 
-// setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
-func setupInfra(registry, nmiVersion, micVersion string) {
-	// Install CRDs and deploy MIC and NMI
-	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath)
-
+func getMICLeader() (string, error) {
+	cmd := exec.Command("kubectl", "get", "endpoints", "aad-pod-identity-mic", "-o", "json")
+	output, err := cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred())
 
+	ep := &corev1.Endpoints{}
+	if err := json.Unmarshal(output, &ep); err != nil {
+		return "", errors.Wrap(err, "Failed to unmarshall json")
+	}
+
+	leRecordStr := ep.Annotations["control-plane.alpha.kubernetes.io/leader"]
+	if leRecordStr == "" {
+		return "", fmt.Errorf("Leader election record empty ")
+	}
+
+	leRecord := &rl.LeaderElectionRecord{}
+	if err := json.Unmarshal([]byte(leRecordStr), leRecord); err != nil {
+		return "", errors.Wrapf(err, "Could not unmarshall: %s. Error: %+v", leRecordStr, err)
+	}
+	return leRecord.HolderIdentity, nil
+}
+
+func checkProbe(p string, endpoint string) string {
+	output, err := pod.RunCommandInPod("exec", p, "--", "wget", "http://127.0.0.1:8080/"+endpoint, "-q", "-O", "-")
+	Expect(err).NotTo(HaveOccurred())
+	fmt.Printf("Output: %s\n", output)
+	return output
+}
+
+func checkHealthProbe(p string, state string) {
+	Expect(strings.EqualFold(state, checkProbe(p, "healthz"))).To(BeTrue())
+}
+
+func checkInfra() {
 	ok, err := daemonset.WaitOnReady(nmiDaemonSet)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ok).To(Equal(true))
@@ -706,6 +776,22 @@ func setupInfra(registry, nmiVersion, micVersion string) {
 	ok, err = waitForIPTableRulesToExist("busybox")
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ok).To(Equal(true))
+}
+
+// setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
+func setupInfraOld(registry, nmiVersion, micVersion string) {
+	// Install CRDs and deploy MIC and NMI
+	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, true)
+	Expect(err).NotTo(HaveOccurred())
+	checkInfra()
+}
+
+// setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
+func setupInfra(registry, nmiVersion, micVersion string) {
+	// Install CRDs and deploy MIC and NMI
+	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, false)
+	Expect(err).NotTo(HaveOccurred())
+	checkInfra()
 }
 
 // setUpIdentityAndDeployment will deploy AzureIdentity, AzureIdentityBinding, and an identity validator

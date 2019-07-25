@@ -11,8 +11,14 @@ import (
 )
 
 // CreateInfra will deploy all the infrastructure components (nmi and mic) on a Kubernetes cluster
-func CreateInfra(namespace, registry, nmiVersion, micVersion, templateOutputPath string) error {
-	t, err := template.New("deployment-rbac.yaml").ParseFiles(path.Join("template", "deployment-rbac.yaml"))
+func CreateInfra(namespace, registry, nmiVersion, micVersion, templateOutputPath string, old bool) error {
+	var err error
+	var t *template.Template
+	if !old {
+		t, err = template.New("deployment-rbac.yaml").ParseFiles(path.Join("template", "deployment-rbac.yaml"))
+	} else {
+		t, err = template.New("deployment-rbac-old.yaml").ParseFiles(path.Join("template", "deployment-rbac-old.yaml"))
+	}
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse deployment-rbac.yaml")
 	}
@@ -20,7 +26,7 @@ func CreateInfra(namespace, registry, nmiVersion, micVersion, templateOutputPath
 	deployFilePath := path.Join(templateOutputPath, namespace+"-deployment.yaml")
 	deployFile, err := os.Create(deployFilePath)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create a deployment file from deployment-rbac.yaml")
+		return errors.Wrap(err, "Failed to create a deployment file")
 	}
 	defer deployFile.Close()
 
