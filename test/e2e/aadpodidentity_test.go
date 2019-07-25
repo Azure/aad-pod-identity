@@ -2,6 +2,7 @@ package aadpodidentity
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
@@ -24,6 +25,8 @@ import (
 	"github.com/Azure/aad-pod-identity/test/common/util"
 	"github.com/Azure/aad-pod-identity/test/e2e/config"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
+	rl "k8s.io/client-go/tools/leaderelection/resourcelock"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -667,7 +670,73 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(exists).To(Equal(true))
 	})
+
+	It("readiness and liveness probe test", func() {
+
+		pods, err := pod.GetAllNameByPrefix("mic")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(pods).NotTo(BeNil())
+
+		leader, err := getMICLeader()
+		Expect(err).NotTo(HaveOccurred())
+		fmt.Printf("MIC leader: %s\n", leader)
+
+		for _, p := range pods {
+			checkHealthProbe(p, "")
+			// Leader MIC will show as active and other as Not Active
+			if strings.EqualFold(p, leader) {
+				checkReadinessProbe(p, "Active")
+			} else {
+				checkReadinessProbe(p, "Not Active")
+			}
+		}
+
+		pods, err = pod.GetAllNameByPrefix("nmi")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(pods).NotTo(BeNil())
+		for _, p := range pods {
+			checkHealthProbe(p, "")
+			checkReadinessProbe(p, "Active")
+		}
+	})
 })
+
+func getMICLeader() (string, error) {
+	cmd := exec.Command("kubectl", "get", "endpoints", "aad-pod-identity-mic", "-o", "json")
+	output, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+
+	ep := &corev1.Endpoints{}
+	if err := json.Unmarshal(output, &ep); err != nil {
+		return "", errors.Wrap(err, "Failed to unmarshall json")
+	}
+
+	leRecordStr := ep.Annotations["control-plane.alpha.kubernetes.io/leader"]
+	if leRecordStr == "" {
+		return "", fmt.Errorf("Leader election record empty ")
+	}
+
+	leRecord := &rl.LeaderElectionRecord{}
+	if err := json.Unmarshal([]byte(leRecordStr), leRecord); err != nil {
+		return "", errors.Wrapf(err, "Could not unmarshall: %s. Error: %+v", leRecordStr, err)
+	}
+	return leRecord.HolderIdentity, nil
+}
+
+func checkProbe(p string, endpoint string) string {
+	output, err := pod.RunCommandInPod("exec", p, "--", "wget", "http://127.0.0.1:8080/"+endpoint, "-q", "-O", "-")
+	Expect(err).NotTo(HaveOccurred())
+	fmt.Printf("Output: %s\n", output)
+	return output
+}
+
+func checkHealthProbe(p string, state string) {
+	Expect(checkProbe(p, "healthz")).To(BeEmpty())
+}
+
+func checkReadinessProbe(p string, state string) {
+	Expect(strings.EqualFold(state, checkProbe(p, "ready"))).To(BeTrue())
+}
 
 // setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
 func setupInfra(registry, nmiVersion, micVersion string) {
