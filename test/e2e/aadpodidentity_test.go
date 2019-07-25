@@ -685,8 +685,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(exists).To(Equal(true))
 	})
 
-	It("readiness and liveness probe test", func() {
-
+	It("liveness probe test", func() {
 		pods, err := pod.GetAllNameByPrefix("mic")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(pods).NotTo(BeNil())
@@ -696,12 +695,11 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		fmt.Printf("MIC leader: %s\n", leader)
 
 		for _, p := range pods {
-			checkHealthProbe(p, "")
 			// Leader MIC will show as active and other as Not Active
 			if strings.EqualFold(p, leader) {
-				checkReadinessProbe(p, "Active")
+				checkHealthProbe(p, "Active")
 			} else {
-				checkReadinessProbe(p, "Not Active")
+				checkHealthProbe(p, "Not Active")
 			}
 		}
 
@@ -709,8 +707,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(pods).NotTo(BeNil())
 		for _, p := range pods {
-			checkHealthProbe(p, "")
-			checkReadinessProbe(p, "Active")
+			checkHealthProbe(p, "Active")
 		}
 	})
 })
@@ -745,11 +742,7 @@ func checkProbe(p string, endpoint string) string {
 }
 
 func checkHealthProbe(p string, state string) {
-	Expect(checkProbe(p, "healthz")).To(BeEmpty())
-}
-
-func checkReadinessProbe(p string, state string) {
-	Expect(strings.EqualFold(state, checkProbe(p, "ready"))).To(BeTrue())
+	Expect(strings.EqualFold(state, checkProbe(p, "healthz"))).To(BeTrue())
 }
 
 func checkInfra() {
