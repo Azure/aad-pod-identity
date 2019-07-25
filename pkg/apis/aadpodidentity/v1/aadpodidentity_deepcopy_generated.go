@@ -395,7 +395,13 @@ func (in *AzurePodIdentityExceptionList) DeepCopyObject() runtime.Object {
 func (in *AzurePodIdentityExceptionSpec) DeepCopyInto(out *AzurePodIdentityExceptionSpec) {
 	*out = *in
 	in.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
-	in.LabelSelector.DeepCopyInto(&out.LabelSelector)
+	if in.PodLabels != nil {
+		in, out := &in.PodLabels, &out.PodLabels
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	return
 }
 

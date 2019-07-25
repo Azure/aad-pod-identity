@@ -218,7 +218,7 @@ type AzureAssignedIdentityStatus struct {
 // proxy the request and send response back without any validation.
 type AzurePodIdentityExceptionSpec struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-	LabelSelector     metav1.LabelSelector `json:"labelselector"`
+	PodLabels         map[string]string `json:"podLabels"`
 }
 
 // AzurePodIdentityExceptionStatus ...

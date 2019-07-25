@@ -446,7 +446,7 @@ func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureI
 }
 
 // ListPodIdentityExceptions ...
-func (c *Client) ListPodIdentityExceptions() (*[]aadpodid.AzurePodIdentityException, error) {
+func (c *Client) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodIdentityException, error) {
 	return nil, nil
 }
 

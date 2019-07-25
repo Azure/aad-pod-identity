@@ -42,7 +42,7 @@ type ClientInt interface {
 	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
 	ListIds() (res *[]aadpodid.AzureIdentity, err error)
 	ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error)
-	ListPodIdentityExceptions() (res *[]aadpodid.AzurePodIdentityException, err error)
+	ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error)
 }
 
 // NewCRDClientLite ...
@@ -194,7 +194,13 @@ func newAssignedIDListWatch(r *rest.RESTClient) *cache.ListWatch {
 }
 
 func newPodIdentityExceptionListWatch(r *rest.RESTClient) *cache.ListWatch {
-	return cache.NewListWatchFromClient(r, aadpodid.AzureIdentityExceptionResource, v1.NamespaceAll, fields.Everything())
+	optionsModifier := func(options *v1.ListOptions) {}
+	return cache.NewFilteredListWatchFromClient(
+		r,
+		aadpodid.AzureIdentityExceptionResource,
+		v1.NamespaceAll,
+		optionsModifier,
+	)
 }
 
 // Start ...
@@ -278,9 +284,11 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 }
 
 // ListPodIdentityExceptions returns list of azurepodidentityexceptions
-func (c *Client) ListPodIdentityExceptions() (res *[]aadpodid.AzurePodIdentityException, err error) {
+func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error) {
 	begin := time.Now()
-	ret, err := c.PodIdentityExceptionListWatch.List(v1.ListOptions{})
+	ret, err := c.PodIdentityExceptionListWatch.List(v1.ListOptions{
+		FieldSelector: "metadata.namespace=" + ns,
+	})
 	if err != nil {
 		glog.Error(err)
 		return nil, err

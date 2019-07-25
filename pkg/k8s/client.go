@@ -43,7 +43,7 @@ type Client interface {
 	// GetSecret returns secret the secretRef represents
 	GetSecret(secretRef *v1.SecretReference) (*v1.Secret, error)
 	// ListPodIdentityExceptions returns list of azurepodidentityexceptions
-	ListPodIdentityExceptions() (*[]aadpodid.AzurePodIdentityException, error)
+	ListPodIdentityExceptions(namespace string) (*[]aadpodid.AzurePodIdentityException, error)
 }
 
 // KubeClient k8s client
@@ -185,8 +185,8 @@ func (c *KubeClient) ListPodIds(podns, podname string) (map[string][]aadpodid.Az
 }
 
 // ListPodIdentityExceptions lists azurepodidentityexceptions
-func (c *KubeClient) ListPodIdentityExceptions() (*[]aadpodid.AzurePodIdentityException, error) {
-	return c.CrdClient.ListPodIdentityExceptions()
+func (c *KubeClient) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodIdentityException, error) {
+	return c.CrdClient.ListPodIdentityExceptions(ns)
 }
 
 // GetSecret returns secret the secretRef represents
