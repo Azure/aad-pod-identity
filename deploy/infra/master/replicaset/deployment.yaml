@@ -87,12 +87,6 @@ spec:
             port: 8080
           initialDelaySeconds: 10
           periodSeconds: 5
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 8080
-          initialDelaySeconds: 10
-          periodSeconds: 5
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -131,12 +125,6 @@ spec:
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8080
-          initialDelaySeconds: 10
-          periodSeconds: 5
-        readinessProbe:
-          httpGet:
-            path: /ready
             port: 8080
           initialDelaySeconds: 10
           periodSeconds: 5

@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
@@ -34,7 +33,6 @@ var (
 )
 
 func main() {
-	startTime := time.Now()
 	pflag.Parse()
 	if *versionInfo {
 		version.PrintVersionAndExit()
@@ -57,9 +55,9 @@ func main() {
 	s.NodeName = *nodename
 	s.IPTableUpdateTimeIntervalInSeconds = *ipTableUpdateTimeIntervalInSeconds
 
-	// Health probe will always report success once its started.
-	// NMI instance will report ready only once the iptable rules are set
-	probes.InitAndStart(*httpProbePort, startTime, &s.Initialized)
+	// Health probe will always report success once its started. The contents
+	// will report "Active" once the iptables rules are set
+	probes.InitAndStart(*httpProbePort, &s.Initialized)
 
 	if err := s.Run(); err != nil {
 		log.Fatalf("%s", err)

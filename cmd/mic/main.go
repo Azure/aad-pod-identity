@@ -25,7 +25,6 @@ var (
 
 func main() {
 	defer glog.Flush()
-	startTime := time.Now()
 	hostName, err := os.Hostname()
 	if err != nil {
 		glog.Fatalf("Get hostname failure. Error: %+v", err)
@@ -71,9 +70,9 @@ func main() {
 	}
 
 	// Health probe will always report success once its started.
-	// MIC instance will report ready only once its elected the leader
+	// MIC instance will report the contents as "Active" only once its elected the leader
 	// and starts the sync loop.
-	probes.InitAndStart(httpProbePort, startTime, &micClient.SyncLoopStarted)
+	probes.InitAndStart(httpProbePort, &micClient.SyncLoopStarted)
 
 	// Starts the leader election loop
 	micClient.Run()

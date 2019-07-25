@@ -103,7 +103,7 @@ spec:
         name: iptableslock
       containers:
       - name: nmi
-        image: "testle5.azurecr.io/nmi:le"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.5-rc1"
         imagePullPolicy: Always
         args:
           - "--host-ip=$(HOST_IP)"
@@ -128,12 +128,6 @@ spec:
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8080
-          initialDelaySeconds: 10
-          periodSeconds: 5
-        readinessProbe:
-          httpGet:
-            path: /ready
             port: 8080
           initialDelaySeconds: 10
           periodSeconds: 5
@@ -203,7 +197,7 @@ spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
-        image: "testle5.azurecr.io/mic:le"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.5-rc1"
         imagePullPolicy: Always
         args:
           - "--cloudconfig=/etc/kubernetes/azure.json"
@@ -215,12 +209,6 @@ spec:
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8080
-          initialDelaySeconds: 10
-          periodSeconds: 5
-        readinessProbe:
-          httpGet:
-            path: /ready
             port: 8080
           initialDelaySeconds: 10
           periodSeconds: 5
