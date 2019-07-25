@@ -103,7 +103,7 @@ func (s *Server) updateIPTableRules() {
 	ticker := time.NewTicker(time.Second * time.Duration(s.IPTableUpdateTimeIntervalInSeconds))
 	defer ticker.Stop()
 
-	// Run once before the waiting on ticket for the rules to take effect
+	// Run once before the waiting on ticker for the rules to take effect
 	// immediately.
 	s.updateIPTableRulesInternal()
 	s.Initialized = true

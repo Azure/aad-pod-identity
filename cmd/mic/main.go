@@ -42,7 +42,7 @@ func main() {
 	flag.DurationVar(&leaderElectionCfg.Duration, "leader-election-duration", time.Second*15, "leader election duration")
 
 	//Probe port
-	flag.StringVar(&httpProbePort, "http-probe-port", "8080", "http health and ready probe port")
+	flag.StringVar(&httpProbePort, "http-probe-port", "8080", "http liveliness probe port")
 
 	flag.Parse()
 	if versionInfo {
