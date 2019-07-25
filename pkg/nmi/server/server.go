@@ -231,6 +231,33 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 	w.Write(response)
 }
 
+// msiResponse marshals in a format that matches the underlying
+// metadata endpoint more closely. This increases compatibility
+// with callers built on older versions of adal client libraries.
+type msiResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+
+	ExpiresIn string `json:"expires_in"`
+	ExpiresOn string `json:"expires_on"`
+	NotBefore string `json:"not_before"`
+
+	Resource string `json:"resource"`
+	Type     string `json:"token_type"`
+}
+
+func newMSIResponse(token adal.Token) msiResponse {
+	return msiResponse{
+		AccessToken:  token.AccessToken,
+		RefreshToken: token.RefreshToken,
+		ExpiresIn:    token.ExpiresIn.String(),
+		ExpiresOn:    token.ExpiresOn.String(),
+		NotBefore:    token.NotBefore.String(),
+		Resource:     token.Resource,
+		Type:         token.Type,
+	}
+}
+
 func (s *Server) isMIC(podNS, rsName string) bool {
 	micRegEx := regexp.MustCompile(`^mic-*`)
 	if strings.EqualFold(podNS, s.MICNamespace) && micRegEx.MatchString(rsName) {
@@ -255,7 +282,7 @@ func (s *Server) getMICToken(logger *log.Entry, rqClientID, rqResource string) (
 		// TODO: return the right status code based on the error we got from adal.
 		return nil, http.StatusForbidden, err
 	}
-	response, err := json.Marshal(*token)
+	response, err := json.Marshal(newMSIResponse(*token))
 	if err != nil {
 		logger.Errorf("Failed to marshal service principal token. Error: %+v", err)
 		return nil, http.StatusInternalServerError, err
@@ -312,7 +339,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
-	response, err := json.Marshal(*token)
+	response, err := json.Marshal(newMSIResponse(*token))
 	if err != nil {
 		logger.Errorf("failed to marshal service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
