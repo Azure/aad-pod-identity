@@ -111,7 +111,10 @@ func newRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
 		&aadpodid.AzureIdentityBinding{},
 		&aadpodid.AzureIdentityBindingList{},
 		&aadpodid.AzureAssignedIdentity{},
-		&aadpodid.AzureAssignedIdentityList{})
+		&aadpodid.AzureAssignedIdentityList{},
+		&aadpodid.AzurePodIdentityException{},
+		&aadpodid.AzurePodIdentityExceptionList{},
+	)
 	crdconfig.NegotiatedSerializer = serializer.DirectCodecFactory{
 		CodecFactory: serializer.NewCodecFactory(s)}
 
@@ -191,7 +194,7 @@ func newAssignedIDListWatch(r *rest.RESTClient) *cache.ListWatch {
 }
 
 func newPodIdentityExceptionListWatch(r *rest.RESTClient) *cache.ListWatch {
-	return cache.NewListWatchFromClient(r, aadpodid.AzureIdentityExecptionResource, v1.NamespaceAll, fields.Everything())
+	return cache.NewListWatchFromClient(r, aadpodid.AzureIdentityExceptionResource, v1.NamespaceAll, fields.Everything())
 }
 
 // Start ...

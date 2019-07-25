@@ -173,7 +173,7 @@ const (
 	AzureIDResource                = "azureidentities"
 	AzureIDBindingResource         = "azureidentitybindings"
 	AzureAssignedIDResource        = "azureassignedidentities"
-	AzureIdentityExecptionResource = "azurepodidentityexceptions"
+	AzureIdentityExceptionResource = "azurepodidentityexceptions"
 )
 
 // AzureIdentityBindingSpec matches the pod with the Identity.
@@ -218,9 +218,7 @@ type AzureAssignedIdentityStatus struct {
 // proxy the request and send response back without any validation.
 type AzurePodIdentityExceptionSpec struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	Selector      string               `json:"selector"`
-	LabelSelector metav1.LabelSelector `json:"labelselector"`
+	LabelSelector     metav1.LabelSelector `json:"labelselector"`
 }
 
 // AzurePodIdentityExceptionStatus ...
