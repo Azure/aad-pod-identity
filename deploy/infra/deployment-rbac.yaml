@@ -41,6 +41,19 @@ spec:
     plural: azureidentities
   scope: Namespaced
 ---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: azurepodidentityexceptions.aadpodidentity.k8s.io
+spec:
+  group: aadpodidentity.k8s.io
+  version: v1
+  names:
+    kind: AzurePodIdentityException
+    singular: azurepodidentityexception
+    plural: azurepodidentityexceptions
+  scope: Namespaced
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -103,10 +116,9 @@ spec:
         name: iptableslock
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.4"
+        image: "aramase/nmi:wl"
         imagePullPolicy: Always
         args:
-          - nmi
           - "--host-ip=$(HOST_IP)"
           - "--node=$(NODE_NAME)"
         env:
@@ -188,10 +200,9 @@ spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.3"
+        image: "aramase/mic:wl"
         imagePullPolicy: Always
         args:
-          - mic
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
         volumeMounts:

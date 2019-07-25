@@ -305,12 +305,20 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		http.Error(w, msg, http.StatusInternalServerError)
 		return
 	}
-	podns, podname, rsName, err := s.KubeClient.GetPodInfo(podIP)
+	podns, podname, rsName, selectors, err := s.KubeClient.GetPodInfo(podIP)
 	if err != nil {
 		logger.Errorf("missing podname for podip:%s, %+v", podIP, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	exceptionList, err := s.KubeClient.ListPodIdentityExceptions()
+	if err != nil {
+		logger.Errorf("getting list of azurepodidentityexceptions failed with error: %+v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fmt.Println("SELECTORS ", selectors.MatchLabels)
+	fmt.Println("EXCEPTION LIST ", exceptionList)
 
 	// If its mic, then just directly get the token and pass back.
 	if s.isMIC(podns, rsName) {
