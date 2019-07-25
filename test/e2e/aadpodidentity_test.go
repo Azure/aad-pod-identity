@@ -42,6 +42,8 @@ const (
 var (
 	cfg                config.Config
 	templateOutputPath = path.Join("template", "_output")
+	testIndex          = 0
+	noCleanup          = false
 )
 
 var _ = BeforeSuite(func() {
@@ -55,12 +57,15 @@ var _ = BeforeSuite(func() {
 	c, err := config.ParseConfig()
 	Expect(err).NotTo(HaveOccurred())
 	cfg = *c
-
 	setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion)
 })
 
 var _ = AfterSuite(func() {
 	fmt.Println("\nTearing down the test suite environment...")
+	if noCleanup {
+		fmt.Println("Test failed. No cleanup performed")
+		return
+	}
 
 	// Uninstall CRDs and delete MIC and NMI
 	err := deploy.Delete("default", templateOutputPath)
@@ -105,9 +110,18 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
+	BeforeEach(func() {
+		testIndex++
+		fmt.Printf("\n\n%d) %s\n", testIndex, CurrentGinkgoTestDescription().TestText)
+	})
+
 	AfterEach(func() {
 		fmt.Println("\nTearing down the test environment...")
-
+		if CurrentGinkgoTestDescription().Failed {
+			noCleanup = true
+			fmt.Println("Test failed. No cleanup performed")
+			return
+		}
 		// Ensure a clean cluster after the end of each test
 		cmd := exec.Command("kubectl", "delete", "AzureIdentity,AzureIdentityBinding", "--all")
 		util.PrintCommand(cmd)
@@ -576,7 +590,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(ok).To(Equal(true))
 
 		// setup mic and nmi with old releases
-		setupInfra("mcr.microsoft.com/k8s/aad-pod-identity", "1.4", "1.3")
+		setupInfraOld("mcr.microsoft.com/k8s/aad-pod-identity", "1.4", "1.3")
 
 		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
@@ -738,13 +752,7 @@ func checkReadinessProbe(p string, state string) {
 	Expect(strings.EqualFold(state, checkProbe(p, "ready"))).To(BeTrue())
 }
 
-// setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
-func setupInfra(registry, nmiVersion, micVersion string) {
-	// Install CRDs and deploy MIC and NMI
-	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath)
-
-	Expect(err).NotTo(HaveOccurred())
-
+func checkInfra() {
 	ok, err := daemonset.WaitOnReady(nmiDaemonSet)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ok).To(Equal(true))
@@ -775,6 +783,22 @@ func setupInfra(registry, nmiVersion, micVersion string) {
 	ok, err = waitForIPTableRulesToExist("busybox")
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ok).To(Equal(true))
+}
+
+// setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
+func setupInfraOld(registry, nmiVersion, micVersion string) {
+	// Install CRDs and deploy MIC and NMI
+	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, true)
+	Expect(err).NotTo(HaveOccurred())
+	checkInfra()
+}
+
+// setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
+func setupInfra(registry, nmiVersion, micVersion string) {
+	// Install CRDs and deploy MIC and NMI
+	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, false)
+	Expect(err).NotTo(HaveOccurred())
+	checkInfra()
 }
 
 // setUpIdentityAndDeployment will deploy AzureIdentity, AzureIdentityBinding, and an identity validator
