@@ -112,7 +112,7 @@ var _ = AfterSuite(func() {
 var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	BeforeEach(func() {
 		testIndex++
-		fmt.Printf("\n\n%d) %s\n", testIndex, CurrentGinkgoTestDescription().TestText)
+		fmt.Printf("\n\n[%d] %s\n", testIndex, CurrentGinkgoTestDescription().TestText)
 	})
 
 	AfterEach(func() {
