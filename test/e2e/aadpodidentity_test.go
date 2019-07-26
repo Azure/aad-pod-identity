@@ -114,7 +114,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	AfterEach(func() {
 		fmt.Println("\nTearing down the test environment...")
 		if CurrentGinkgoTestDescription().Failed {
-			fmt.Printf("Test failed. Collecting diagnostics information.")
+			fmt.Printf("Test failed. Collecting debugging information.")
 			collectDebuggingInfo()
 			return
 		}
@@ -724,8 +724,7 @@ func collectPods(dir string) {
 	logFile := path.Join(dir, "pods")
 	cmd := exec.Command("bash", "-c", "kubectl get pods > "+logFile)
 	util.PrintCommand(cmd)
-	output, err := cmd.CombinedOutput()
-	fmt.Printf("%+v: error: %+v", string(output), err)
+	_, err := cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred())
 }
 
@@ -745,7 +744,7 @@ func collectLeEndpoint(dir string) {
 	Expect(err).NotTo(HaveOccurred())
 }
 
-func collectDebuggignInfo() {
+func collectDebuggingInfo() {
 	tNow := time.Now()
 	logDirName := path.Join(logsPath, tNow.Format(time.RFC3339))
 	err := os.MkdirAll(logDirName, os.ModePerm)
