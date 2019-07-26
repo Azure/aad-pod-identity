@@ -42,8 +42,8 @@ const (
 var (
 	cfg                config.Config
 	templateOutputPath = path.Join("template", "_output")
+	logsPath           = path.Join("_output", "logs")
 	testIndex          = 0
-	noCleanup          = false
 )
 
 var _ = BeforeSuite(func() {
@@ -62,10 +62,6 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	fmt.Println("\nTearing down the test suite environment...")
-	if noCleanup {
-		fmt.Println("Test failed. No cleanup performed")
-		return
-	}
 
 	// Uninstall CRDs and delete MIC and NMI
 	err := deploy.Delete("default", templateOutputPath)
@@ -118,9 +114,8 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	AfterEach(func() {
 		fmt.Println("\nTearing down the test environment...")
 		if CurrentGinkgoTestDescription().Failed {
-			noCleanup = true
-			fmt.Println("Test failed. No cleanup performed")
-			return
+			fmt.Printf("Test failed. Collecting debugging information.")
+			collectDebuggingInfo()
 		}
 		// Ensure a clean cluster after the end of each test
 		cmd := exec.Command("kubectl", "delete", "AzureIdentity,AzureIdentityBinding", "--all")
@@ -711,6 +706,68 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		}
 	})
 })
+
+func collectLogs(podName, dir string) {
+	pods, err := pod.GetAllNameByPrefix(podName)
+	Expect(err).NotTo(HaveOccurred())
+	for _, p := range pods {
+		logFile := path.Join(dir, p)
+		cmd := exec.Command("bash", "-c", "kubectl logs "+p+" > "+logFile)
+		util.PrintCommand(cmd)
+		_, err := cmd.Output()
+		Expect(err).NotTo(HaveOccurred())
+	}
+}
+
+func collectPods(dir string) {
+	logFile := path.Join(dir, "pods")
+	cmd := exec.Command("bash", "-c", "kubectl get pods -o wide > "+logFile)
+	util.PrintCommand(cmd)
+	_, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+}
+
+func collectEvents(dir string) {
+	logFile := path.Join(dir, "events")
+	cmd := exec.Command("bash", "-c", "kubectl get  events --sort-by='.metadata.creationTimestamp' >"+logFile)
+	util.PrintCommand(cmd)
+	_, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+}
+
+func collectLeEndpoint(dir string) {
+	logFile := path.Join(dir, "leEndpoint")
+	cmd := exec.Command("bash", "-c", "kubectl get endpoints aad-pod-identity-mic -o yaml >"+logFile)
+	util.PrintCommand(cmd)
+	_, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+}
+
+func collectDebuggingInfo() {
+	tNow := time.Now()
+	logDirName := path.Join(logsPath, tNow.Format(time.RFC3339))
+	err := os.MkdirAll(logDirName, os.ModePerm)
+	Expect(err).NotTo(HaveOccurred())
+
+	infoFile := path.Join(logDirName, "info")
+	fd, err := os.Create(infoFile)
+	Expect(err).NotTo(HaveOccurred())
+
+	fd.WriteString("Test name: " + CurrentGinkgoTestDescription().TestText + "\n")
+	fd.WriteString("Collecting diagnostics at: " + tNow.Format(time.UnixDate))
+	fd.Sync()
+	fd.Close()
+
+	collectPods(logDirName)
+	collectEvents(logDirName)
+	collectLeEndpoint(logDirName)
+
+	collectLogs("mic", logDirName)
+	collectLogs("nmi", logDirName)
+	collectLogs("identityvalidator", logDirName)
+	collectLogs("busybox", logDirName)
+
+}
 
 func getMICLeader() (string, error) {
 	cmd := exec.Command("kubectl", "get", "endpoints", "aad-pod-identity-mic", "-o", "json")
