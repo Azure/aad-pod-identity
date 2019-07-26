@@ -267,16 +267,15 @@ func (s *Server) isMIC(podNS, rsName string) bool {
 	return false
 }
 
-func (s *Server) getMICToken(logger *log.Entry, rqClientID, rqResource string) ([]byte, int, error) {
-	fmt.Printf("random")
+func (s *Server) gotTokenForExceptedPod(logger *log.Entry, rqClientID, rqResource string) ([]byte, int, error) {
 	var token *adal.Token
 	var err error
 	// ClientID is empty, so we are going to use System assigned MSI
 	if rqClientID == "" {
-		logger.Infof("Fetching MIC token for system assigned MSI")
+		logger.Infof("Fetching token for system assigned MSI")
 		token, err = auth.GetServicePrincipalTokenFromMSI(rqResource)
 	} else { // User assigned identity usage.
-		logger.Infof("Fetching MIC token for user assigned MSI for id: %s", rqResource)
+		logger.Infof("Fetching token for user assigned MSI for id: %s", rqResource)
 		token, err = auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(rqClientID, rqResource)
 	}
 	if err != nil {
@@ -323,7 +322,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	// If its mic, then just directly get the token and pass back.
 	if pod.IsPodExcepted(selectors.MatchLabels, exceptionList) || s.isMIC(podns, rsName) {
 		logger.Infof("Exception pod %s/%s token handling", podns, podname)
-		response, errorCode, err := s.getMICToken(logger, rqClientID, rqResource)
+		response, errorCode, err := s.gotTokenForExceptedPod(logger, rqClientID, rqResource)
 		if err != nil {
 			logger.Errorf("failed to get service principal token for pod:%s/%s.  Error code: %d. Error: %+v", podns, podname, errorCode, err)
 			http.Error(w, err.Error(), errorCode)
