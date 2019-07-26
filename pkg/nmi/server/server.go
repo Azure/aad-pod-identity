@@ -17,12 +17,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Azure/go-autorest/autorest/adal"
-
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
+	"github.com/Azure/aad-pod-identity/pkg/pod"
+	"github.com/Azure/go-autorest/autorest/adal"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -267,6 +268,7 @@ func (s *Server) isMIC(podNS, rsName string) bool {
 }
 
 func (s *Server) getMICToken(logger *log.Entry, rqClientID, rqResource string) ([]byte, int, error) {
+	fmt.Printf("random")
 	var token *adal.Token
 	var err error
 	// ClientID is empty, so we are going to use System assigned MSI
@@ -319,7 +321,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	}
 
 	// If its mic, then just directly get the token and pass back.
-	if (exceptionList != nil && len(*exceptionList) > 0 && podLabelInExceptionList(selectors.MatchLabels, *exceptionList)) || s.isMIC(podns, rsName) {
+	if pod.IsPodExcepted(selectors.MatchLabels, exceptionList) || s.isMIC(podns, rsName) {
 		logger.Infof("Exception pod %s/%s token handling", podns, podname)
 		response, errorCode, err := s.getMICToken(logger, rqClientID, rqResource)
 		if err != nil {
@@ -559,18 +561,4 @@ func getErrorResponseStatusCode(identityFound bool) int {
 	// current ongoing sync cycle. So we return 403 which a non-retriable error code so we give mic enough time to
 	// finish current sync cycle and process identity in the next sync cycle.
 	return http.StatusForbidden
-}
-
-// podLabelInExceptionList checks if the labels defined in azurepodidentityexception match label defined in pods
-func podLabelInExceptionList(podLabels map[string]string, exceptionList []aadpodid.AzurePodIdentityException) bool {
-	for _, podIdentityException := range exceptionList {
-		for exceptionLabelKey := range podIdentityException.Spec.PodLabels {
-			if val, ok := podLabels[exceptionLabelKey]; ok {
-				if strings.EqualFold(val, podLabels[exceptionLabelKey]) {
-					return true
-				}
-			}
-		}
-	}
-	return false
 }

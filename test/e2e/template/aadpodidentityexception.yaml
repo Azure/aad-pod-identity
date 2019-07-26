@@ -1,0 +1,9 @@
+apiVersion: "aadpodidentity.k8s.io/v1"
+kind: AzurePodIdentityException
+metadata:
+  name: {{.Name}}-exception
+spec:
+  PodLabels:
+  {{- range $key, $value := $.PodLabels }}
+    {{ $key }}: {{ $value -}}
+  {{ end }}

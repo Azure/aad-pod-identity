@@ -1,6 +1,7 @@
 package pod
 
 import (
+	"strings"
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/stats"
@@ -72,12 +73,14 @@ func (c *Client) syncCache(exit <-chan struct{}) {
 	glog.Infof("Pod cache synchronized. Took %s", time.Since(cacheSyncStarted).String())
 }
 
+// Start ...
 func (c *Client) Start(exit <-chan struct{}) {
 	go c.PodWatcher.Informer().Run(exit)
 	c.syncCache(exit)
 	glog.Info("Pod watcher started !!")
 }
 
+// GetPods returns list of all pods
 func (c *Client) GetPods() (pods []*corev1.Pod, err error) {
 	begin := time.Now()
 	crdReq, err := labels.NewRequirement(aadpodid.CRDLabelKey, selection.Exists, nil)
@@ -87,10 +90,28 @@ func (c *Client) GetPods() (pods []*corev1.Pod, err error) {
 	}
 	crdSelector := labels.NewSelector().Add(*crdReq)
 	listPods, err := c.PodWatcher.Lister().List(crdSelector)
-	//ClientSet.CoreV1().Pods("").List(v1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 	stats.Put(stats.PodList, time.Since(begin))
 	return listPods, nil
+}
+
+// IsPodExcepted returns true if pod label is part of exception crd
+func IsPodExcepted(podLabels map[string]string, exceptionList *[]aadpodid.AzurePodIdentityException) bool {
+	return exceptionList != nil && len(*exceptionList) > 0 && labelInExceptionList(podLabels, *exceptionList)
+}
+
+// labelInExceptionList checks if the labels defined in azurepodidentityexception match label defined in pods
+func labelInExceptionList(podLabels map[string]string, exceptionList []aadpodid.AzurePodIdentityException) bool {
+	for _, podIdentityException := range exceptionList {
+		for exceptionLabelKey := range podIdentityException.Spec.PodLabels {
+			if val, ok := podLabels[exceptionLabelKey]; ok {
+				if strings.EqualFold(val, podLabels[exceptionLabelKey]) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

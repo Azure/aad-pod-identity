@@ -372,7 +372,9 @@ func (c *TestCrdClient) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureA
 func (c *TestCrdClient) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error {
 	assignedIdentity.Status.Status = status
 	assignedIdentityToStore := *assignedIdentity //Make a copy to store in the map.
+	c.mu.Lock()
 	c.assignedIDMap[assignedIdentity.Name] = &assignedIdentityToStore
+	c.mu.Unlock()
 	return nil
 }
 
