@@ -116,7 +116,6 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		if CurrentGinkgoTestDescription().Failed {
 			fmt.Printf("Test failed. Collecting debugging information.")
 			collectDebuggingInfo()
-			return
 		}
 		// Ensure a clean cluster after the end of each test
 		cmd := exec.Command("kubectl", "delete", "AzureIdentity,AzureIdentityBinding", "--all")
@@ -722,7 +721,7 @@ func collectLogs(podName, dir string) {
 
 func collectPods(dir string) {
 	logFile := path.Join(dir, "pods")
-	cmd := exec.Command("bash", "-c", "kubectl get pods > "+logFile)
+	cmd := exec.Command("bash", "-c", "kubectl get pods -o wide > "+logFile)
 	util.PrintCommand(cmd)
 	_, err := cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred())
@@ -755,7 +754,7 @@ func collectDebuggingInfo() {
 	Expect(err).NotTo(HaveOccurred())
 
 	fd.WriteString("Test name: " + CurrentGinkgoTestDescription().TestText + "\n")
-	fd.WriteString("Collecting diagnosics at: " + tNow.Format(time.UnixDate))
+	fd.WriteString("Collecting diagnostics at: " + tNow.Format(time.UnixDate))
 	fd.Sync()
 	fd.Close()
 
