@@ -17,12 +17,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Azure/go-autorest/autorest/adal"
-
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
+	"github.com/Azure/aad-pod-identity/pkg/pod"
+	"github.com/Azure/go-autorest/autorest/adal"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -266,15 +267,15 @@ func (s *Server) isMIC(podNS, rsName string) bool {
 	return false
 }
 
-func (s *Server) getMICToken(logger *log.Entry, rqClientID, rqResource string) ([]byte, int, error) {
+func (s *Server) getTokenForExceptedPod(logger *log.Entry, rqClientID, rqResource string) ([]byte, int, error) {
 	var token *adal.Token
 	var err error
 	// ClientID is empty, so we are going to use System assigned MSI
 	if rqClientID == "" {
-		logger.Infof("Fetching MIC token for system assigned MSI")
+		logger.Infof("Fetching token for system assigned MSI")
 		token, err = auth.GetServicePrincipalTokenFromMSI(rqResource)
 	} else { // User assigned identity usage.
-		logger.Infof("Fetching MIC token for user assigned MSI for id: %s", rqResource)
+		logger.Infof("Fetching token for user assigned MSI for id: %s", rqResource)
 		token, err = auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(rqClientID, rqResource)
 	}
 	if err != nil {
@@ -305,17 +306,23 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		http.Error(w, msg, http.StatusInternalServerError)
 		return
 	}
-	podns, podname, rsName, err := s.KubeClient.GetPodInfo(podIP)
+	podns, podname, rsName, selectors, err := s.KubeClient.GetPodInfo(podIP)
 	if err != nil {
 		logger.Errorf("missing podname for podip:%s, %+v", podIP, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	exceptionList, err := s.KubeClient.ListPodIdentityExceptions(podns)
+	if err != nil {
+		logger.Errorf("getting list of azurepodidentityexceptions failed with error: %+v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	// If its mic, then just directly get the token and pass back.
-	if s.isMIC(podns, rsName) {
-		logger.Infof("MIC pod token handling")
-		response, errorCode, err := s.getMICToken(logger, rqClientID, rqResource)
+	if pod.IsPodExcepted(selectors.MatchLabels, exceptionList) || s.isMIC(podns, rsName) {
+		logger.Infof("Exception pod %s/%s token handling", podns, podname)
+		response, errorCode, err := s.getTokenForExceptedPod(logger, rqClientID, rqResource)
 		if err != nil {
 			logger.Errorf("failed to get service principal token for pod:%s/%s.  Error code: %d. Error: %+v", podns, podname, errorCode, err)
 			http.Error(w, err.Error(), errorCode)

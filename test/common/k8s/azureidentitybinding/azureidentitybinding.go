@@ -13,7 +13,7 @@ import (
 )
 
 // Create will create an Azure Identity Binding on a Kubernetes cluster
-func Create(name, templateOutputPath string) error {
+func Create(name, selector, templateOutputPath string) error {
 	t, err := template.New("aadpodidentitybinding.yaml").ParseFiles(path.Join("template", "aadpodidentitybinding.yaml"))
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse aadpodidentitybinding.yaml")
@@ -28,9 +28,11 @@ func Create(name, templateOutputPath string) error {
 
 	// Go template parameters to be translated in test/e2e/template/aadpodidentitybinding.yaml
 	deployData := struct {
-		Name string
+		Name     string
+		Selector string
 	}{
 		name,
+		selector,
 	}
 	if err := t.Execute(deployFile, deployData); err != nil {
 		return errors.Wrap(err, "Failed to create a deployment file from aadpodidentitybinding.yaml")

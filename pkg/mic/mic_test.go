@@ -372,7 +372,9 @@ func (c *TestCrdClient) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureA
 func (c *TestCrdClient) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error {
 	assignedIdentity.Status.Status = status
 	assignedIdentityToStore := *assignedIdentity //Make a copy to store in the map.
+	c.mu.Lock()
 	c.assignedIDMap[assignedIdentity.Name] = &assignedIdentityToStore
+	c.mu.Unlock()
 	return nil
 }
 
@@ -443,6 +445,11 @@ func (c *TestCrdClient) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity
 
 func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
 	return map[string][]aadpodid.AzureIdentity{}, nil
+}
+
+// ListPodIdentityExceptions ...
+func (c *Client) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodIdentityException, error) {
+	return nil, nil
 }
 
 func (c *TestCrdClient) SetError(err error) {

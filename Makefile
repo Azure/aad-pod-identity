@@ -91,7 +91,7 @@ build: clean build-nmi build-mic build-demo build-identity-validator
 
 .PHONY: deepcopy-gen
 deepcopy-gen:
-	deepcopy-gen -i ./pkg/apis/aadpodidentity/v1/ -o ../../../ -O aadpodidentity_deepcopy_generated -p aadpodidentity
+	deepcopy-gen -i ./pkg/apis/aadpodidentity/v1/ -o . -O aadpodidentity_deepcopy_generated -p aadpodidentity
 
 .PHONY: image-nmi
 image-nmi:

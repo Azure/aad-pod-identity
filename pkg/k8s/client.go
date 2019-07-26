@@ -37,11 +37,13 @@ func getPodPhaseFilter() string {
 // Client api client
 type Client interface {
 	// GetPodInfo returns the pod name, namespace & replica set name for a given pod ip
-	GetPodInfo(podip string) (podns, podname, rsName string, err error)
+	GetPodInfo(podip string) (podns, podname, rsName string, selectors *metav1.LabelSelector, err error)
 	// ListPodIds pod matching azure identity or nil
 	ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error)
 	// GetSecret returns secret the secretRef represents
 	GetSecret(secretRef *v1.SecretReference) (*v1.Secret, error)
+	// ListPodIdentityExceptions returns list of azurepodidentityexceptions
+	ListPodIdentityExceptions(namespace string) (*[]aadpodid.AzurePodIdentityException, error)
 }
 
 // KubeClient k8s client
@@ -92,22 +94,23 @@ func (c *KubeClient) getReplicasetName(pod v1.Pod) string {
 }
 
 // GetPodInfo get pod ns,name from apiserver
-func (c *KubeClient) GetPodInfo(podip string) (podns, poddname, rsName string, err error) {
+func (c *KubeClient) GetPodInfo(podip string) (podns, poddname, rsName string, labels *metav1.LabelSelector, err error) {
 	if podip == "" {
-		return "", "", "", fmt.Errorf("podip is empty")
+		return "", "", "", nil, fmt.Errorf("podip is empty")
 	}
 
 	podList, err := c.getPodListRetry(podip, getPodListRetries, getPodListSleepTimeMilliseconds)
 
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", nil, err
 	}
 	numMatching := len(podList.Items)
 	if numMatching == 1 {
-		return podList.Items[0].Namespace, podList.Items[0].Name, c.getReplicasetName(podList.Items[0]), nil
+		return podList.Items[0].Namespace, podList.Items[0].Name, c.getReplicasetName(podList.Items[0]), &metav1.LabelSelector{
+			MatchLabels: podList.Items[0].Labels}, nil
 	}
 
-	return "", "", "", fmt.Errorf("match failed, ip:%s matching pods:%v", podip, podList)
+	return "", "", "", nil, fmt.Errorf("match failed, ip:%s matching pods:%v", podip, podList)
 }
 
 func (c *KubeClient) getPodList(podip string) (*v1.PodList, error) {
@@ -179,6 +182,11 @@ func GetLocalIP() (string, error) {
 // ListPodIds lists matching ids for pod or error
 func (c *KubeClient) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
 	return c.CrdClient.ListPodIds(podns, podname)
+}
+
+// ListPodIdentityExceptions lists azurepodidentityexceptions
+func (c *KubeClient) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodIdentityException, error) {
+	return c.CrdClient.ListPodIdentityExceptions(ns)
 }
 
 // GetSecret returns secret the secretRef represents

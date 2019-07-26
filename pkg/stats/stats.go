@@ -17,6 +17,7 @@ const (
 	PodList              StatsType = "Pod listing"
 	BindingList          StatsType = "Binding listing"
 	IDList               StatsType = "ID listing"
+	ExceptionList        StatsType = "Pod Identity Exception listing"
 	AssignedIDList       StatsType = "Assigned ID listing"
 	CloudGet             StatsType = "Cloud provider get"
 	CloudPut             StatsType = "Cloud provider put"
