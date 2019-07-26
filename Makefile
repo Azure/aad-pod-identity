@@ -141,7 +141,7 @@ e2e:
 
 .PHONY: unit-test
 unit-test:
-	go test -count=1 $(shell go list ./... | grep -v /test/e2e) -v
+	go test -race -count=1 $(shell go list ./... | grep -v /test/e2e) -v
 
 .PHONY: validate-version
 validate-version: validate-version-NMI validate-version-MIC validate-version-IDENTITY_VALIDATOR validate-version-DEMO

@@ -40,11 +40,15 @@ type TestVMClient struct {
 }
 
 func (c *TestVMClient) SetError(err error) {
+	c.mu.Lock()
 	c.err = &err
+	c.mu.Unlock()
 }
 
 func (c *TestVMClient) UnSetError() {
+	c.mu.Lock()
 	c.err = nil
+	c.mu.Unlock()
 }
 
 func (c *TestVMClient) Get(rgName string, nodeName string) (ret compute.VirtualMachine, err error) {
@@ -372,7 +376,9 @@ func (c *TestCrdClient) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureA
 func (c *TestCrdClient) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error {
 	assignedIdentity.Status.Status = status
 	assignedIdentityToStore := *assignedIdentity //Make a copy to store in the map.
+	c.mu.Lock()
 	c.assignedIDMap[assignedIdentity.Name] = &assignedIdentityToStore
+	c.mu.Unlock()
 	return nil
 }
 
