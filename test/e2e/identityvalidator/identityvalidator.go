@@ -67,6 +67,8 @@ func main() {
 
 // testClusterWideUserAssignedIdentity will verify whether cluster-wide user assigned identity is working properly
 func testClusterWideUserAssignedIdentity(logger *log.Entry, msiEndpoint, subscriptionID, resourceGroup, identityClientID string) error {
+	os.Setenv("AZURE_CLIENT_ID", identityClientID)
+	defer os.Unsetenv("AZURE_CLIENT_ID")
 	token, err := adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(msiEndpoint, azure.PublicCloud.ResourceManagerEndpoint, identityClientID)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to get service principal token from user assigned identity")
@@ -85,6 +87,8 @@ func testClusterWideUserAssignedIdentity(logger *log.Entry, msiEndpoint, subscri
 
 // testUserAssignedIdentityOnPod will verify whether a pod identity is working properly
 func testUserAssignedIdentityOnPod(logger *log.Entry, msiEndpoint, identityClientID, keyvaultName, keyvaultSecretName, keyvaultSecretVersion string) error {
+	os.Setenv("AZURE_CLIENT_ID", identityClientID)
+	defer os.Unsetenv("AZURE_CLIENT_ID")
 	keyClient := keyvault.New()
 	authorizer, err := auth.NewAuthorizerFromEnvironment()
 	if err == nil {

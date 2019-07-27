@@ -451,6 +451,11 @@ func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureI
 	return map[string][]aadpodid.AzureIdentity{}, nil
 }
 
+// ListPodIdentityExceptions ...
+func (c *Client) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodIdentityException, error) {
+	return nil, nil
+}
+
 func (c *TestCrdClient) SetError(err error) {
 	c.err = &err
 }

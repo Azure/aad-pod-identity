@@ -17,6 +17,7 @@ import (
 	"github.com/Azure/aad-pod-identity/test/common/k8s/azureassignedidentity"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/azureidentity"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/azureidentitybinding"
+	"github.com/Azure/aad-pod-identity/test/common/k8s/azurepodidentityexception"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/daemonset"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/deploy"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/infra"
@@ -680,7 +681,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(exists).To(Equal(true))
 	})
 
-	It("liveness probe test", func() {
+	It("should pass liveness probe test", func() {
 		pods, err := pod.GetAllNameByPrefix("mic")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(pods).NotTo(BeNil())
@@ -704,6 +705,81 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		for _, p := range pods {
 			checkHealthProbe(p, "Active")
 		}
+	})
+
+	It("should pass validation by bypassing nmi using azurepodidentityexception crd", func() {
+		// Assign user assigned identity to every node
+		nodeList, err := node.GetAll()
+		Expect(err).NotTo(HaveOccurred())
+
+		enableUserAssignedIdentityOnCluster(nodeList, keyvaultIdentity)
+
+		err = azurepodidentityexception.Create(identityValidator, templateOutputPath, map[string]string{"app": "identity-validator"})
+		Expect(err).NotTo(HaveOccurred())
+
+		data := infra.IdentityValidatorTemplateData{
+			Name:                     identityValidator,
+			IdentityBinding:          "random",
+			Registry:                 cfg.Registry,
+			IdentityValidatorVersion: cfg.IdentityValidatorVersion,
+			Replicas:                 "1",
+		}
+
+		err = infra.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, templateOutputPath, data)
+		Expect(err).NotTo(HaveOccurred())
+
+		ok, err := deploy.WaitOnReady(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		ok, err = azureassignedidentity.WaitOnLengthMatched(0)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		podName, err := pod.GetNameByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(podName).NotTo(Equal(""))
+
+		identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, keyvaultIdentity)
+		Expect(err).NotTo(HaveOccurred())
+
+		cmdOutput, err := validateUserAssignedIdentityOnPod(podName, identityClientID)
+		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
+	})
+
+	It("should pass identity validation with correct identity and fail with wrong identity", func() {
+		// This test is to ensure when 2 identities for the pod exist, the
+		// correct identity is used based on the client id in the request.
+		// keyvault-identity has the right permissions to get and list secret
+		// keyvault-identity-5 only has permission to list and should fail to get secret.
+
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
+
+		err := azureidentity.CreateOnCluster(cfg.SubscriptionID, cfg.ResourceGroup, fmt.Sprintf("%s-%d", keyvaultIdentity, 5), templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = azureidentitybinding.Create(fmt.Sprintf("%s-%d", keyvaultIdentity, 5), keyvaultIdentity, templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+
+		ok, err := azureassignedidentity.WaitOnLengthMatched(2)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		podName, err := pod.GetNameByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(podName).NotTo(Equal(""))
+
+		identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, fmt.Sprintf("%s-%d", keyvaultIdentity, 5))
+		Expect(err).NotTo(HaveOccurred())
+
+		cmdOutput, err := validateUserAssignedIdentityOnPod(podName, identityClientID)
+		Expect(errors.Wrap(err, string(cmdOutput))).To(HaveOccurred())
+
+		identityClientID, err = azure.GetIdentityClientID(cfg.ResourceGroup, keyvaultIdentity)
+		Expect(err).NotTo(HaveOccurred())
+
+		cmdOutput, err = validateUserAssignedIdentityOnPod(podName, identityClientID)
+		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
 	})
 })
 
@@ -865,7 +941,7 @@ func setUpIdentityAndDeployment(azureIdentityName, suffix, replicas string, tmpl
 	err := azureidentity.CreateOnCluster(cfg.SubscriptionID, cfg.ResourceGroup, azureIdentityName, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = azureidentitybinding.Create(azureIdentityName, templateOutputPath)
+	err = azureidentitybinding.Create(azureIdentityName, azureIdentityName, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
 	data := infra.IdentityValidatorTemplateData{
@@ -975,7 +1051,7 @@ func validateClusterWideUserAssignedIdentity(podName, identityClientID string) (
 }
 
 // enableUserAssignedIdentityOnCluster will assign an azure identity to all the worker nodes in a cluster
-func enableUserAssignedIdentityOnCluster(nodeList *node.List, azureIdentityName string) {
+func enableUserAssignedIdentityOnCluster(nodeList *node.List, identityName string) {
 	for _, n := range nodeList.Nodes {
 		if strings.Contains(n.Name, "master") {
 			continue
@@ -985,13 +1061,13 @@ func enableUserAssignedIdentityOnCluster(nodeList *node.List, azureIdentityName 
 		m, err := getResourceManager(&n)
 		Expect(err).NotTo(HaveOccurred())
 
-		err = m.EnableUserAssignedIdentity(clusterIdentity)
+		err = m.EnableUserAssignedIdentity(identityName)
 		Expect(err).NotTo(HaveOccurred())
 	}
 }
 
 // removeUserAssignedIdentityFromCluster will remove an azure identity from all the worker nodes in a cluster
-func removeUserAssignedIdentityFromCluster(nodeList *node.List, azureIdentityName string) {
+func removeUserAssignedIdentityFromCluster(nodeList *node.List, identityName string) {
 	for _, n := range nodeList.Nodes {
 		if strings.Contains(n.Name, "master") {
 			continue
@@ -1001,7 +1077,7 @@ func removeUserAssignedIdentityFromCluster(nodeList *node.List, azureIdentityNam
 		m, err := getResourceManager(&n)
 		Expect(err).NotTo(HaveOccurred())
 
-		err = m.RemoveUserAssignedIdentity(clusterIdentity)
+		err = m.RemoveUserAssignedIdentity(identityName)
 		Expect(err).NotTo(HaveOccurred())
 	}
 }

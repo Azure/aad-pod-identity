@@ -41,6 +41,19 @@ spec:
     plural: azureidentities
   scope: Namespaced
 ---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: azurepodidentityexceptions.aadpodidentity.k8s.io
+spec:
+  group: aadpodidentity.k8s.io
+  version: v1
+  names:
+    kind: AzurePodIdentityException
+    singular: azurepodidentityexception
+    plural: azurepodidentityexceptions
+  scope: Namespaced
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -53,7 +66,7 @@ rules:
   resources: ["pods"]
   verbs: ["get", "list"]
 - apiGroups: ["aadpodidentity.k8s.io"]
-  resources: ["azureidentitybindings", "azureidentities"]
+  resources: ["azureidentitybindings", "azureidentities", "azurepodidentityexceptions"]
   verbs: ["get", "list"]
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureassignedidentities"]

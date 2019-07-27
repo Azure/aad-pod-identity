@@ -20,15 +20,18 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
+// Client represents all the watchers and informers
 type Client struct {
-	rest                *rest.RESTClient
-	BindingListWatch    *cache.ListWatch
-	BindingInformer     cache.SharedInformer
-	IDListWatch         *cache.ListWatch
-	IDInformer          cache.SharedInformer
-	AssignedIDListWatch *cache.ListWatch
+	rest                          *rest.RESTClient
+	BindingListWatch              *cache.ListWatch
+	BindingInformer               cache.SharedInformer
+	IDListWatch                   *cache.ListWatch
+	IDInformer                    cache.SharedInformer
+	AssignedIDListWatch           *cache.ListWatch
+	PodIdentityExceptionListWatch *cache.ListWatch
 }
 
+// ClientInt ...
 type ClientInt interface {
 	Start(exit <-chan struct{})
 	SyncCache(exit <-chan struct{})
@@ -39,8 +42,10 @@ type ClientInt interface {
 	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
 	ListIds() (res *[]aadpodid.AzureIdentity, err error)
 	ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error)
+	ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error)
 }
 
+// NewCRDClientLite ...
 func NewCRDClientLite(config *rest.Config) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
@@ -49,13 +54,16 @@ func NewCRDClientLite(config *rest.Config) (crdClient *Client, err error) {
 	}
 
 	assignedIDListWatch := newAssignedIDListWatch(restClient)
+	podIdentityExceptionListWatch := newPodIdentityExceptionListWatch(restClient)
 
 	return &Client{
-		AssignedIDListWatch: assignedIDListWatch,
-		rest:                restClient,
+		AssignedIDListWatch:           assignedIDListWatch,
+		PodIdentityExceptionListWatch: podIdentityExceptionListWatch,
+		rest:                          restClient,
 	}, nil
 }
 
+// NewCRDClient returns a new crd client and error if any
 func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
@@ -103,7 +111,10 @@ func newRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
 		&aadpodid.AzureIdentityBinding{},
 		&aadpodid.AzureIdentityBindingList{},
 		&aadpodid.AzureAssignedIdentity{},
-		&aadpodid.AzureAssignedIdentityList{})
+		&aadpodid.AzureAssignedIdentityList{},
+		&aadpodid.AzurePodIdentityException{},
+		&aadpodid.AzurePodIdentityExceptionList{},
+	)
 	crdconfig.NegotiatedSerializer = serializer.DirectCodecFactory{
 		CodecFactory: serializer.NewCodecFactory(s)}
 
@@ -182,12 +193,24 @@ func newAssignedIDListWatch(r *rest.RESTClient) *cache.ListWatch {
 	return cache.NewListWatchFromClient(r, aadpodid.AzureAssignedIDResource, v1.NamespaceAll, fields.Everything())
 }
 
+func newPodIdentityExceptionListWatch(r *rest.RESTClient) *cache.ListWatch {
+	optionsModifier := func(options *v1.ListOptions) {}
+	return cache.NewFilteredListWatchFromClient(
+		r,
+		aadpodid.AzureIdentityExceptionResource,
+		v1.NamespaceAll,
+		optionsModifier,
+	)
+}
+
+// Start ...
 func (c *Client) Start(exit <-chan struct{}) {
 	go c.BindingInformer.Run(exit)
 	go c.IDInformer.Run(exit)
 	glog.Info("CRD watchers started")
 }
 
+// SyncCache synchronizes cache
 func (c *Client) SyncCache(exit <-chan struct{}) {
 	if !cache.WaitForCacheSync(exit) {
 		panic("Cache could not be synchronized")
@@ -223,6 +246,7 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	return nil
 }
 
+// ListBindings returns a list of azureidentitybindings
 func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
 	begin := time.Now()
 
@@ -235,6 +259,7 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 	return &ret.(*aadpodid.AzureIdentityBindingList).Items, nil
 }
 
+// ListAssignedIDs returns a list of azureassignedidentities
 func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
 	begin := time.Now()
 	ret, err := c.AssignedIDListWatch.List(v1.ListOptions{})
@@ -246,6 +271,7 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 	return &ret.(*aadpodid.AzureAssignedIdentityList).Items, nil
 }
 
+// ListIds returns a list of azureidentities
 func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 	begin := time.Now()
 	ret, err := c.IDListWatch.List(v1.ListOptions{})
@@ -255,6 +281,20 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 	}
 	stats.Update(stats.IDList, time.Since(begin))
 	return &ret.(*aadpodid.AzureIdentityList).Items, nil
+}
+
+// ListPodIdentityExceptions returns list of azurepodidentityexceptions
+func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error) {
+	begin := time.Now()
+	ret, err := c.PodIdentityExceptionListWatch.List(v1.ListOptions{
+		FieldSelector: "metadata.namespace=" + ns,
+	})
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	}
+	stats.Update(stats.ExceptionList, time.Since(begin))
+	return &ret.(*aadpodid.AzurePodIdentityExceptionList).Items, nil
 }
 
 // ListPodIds - given a pod with pod name space

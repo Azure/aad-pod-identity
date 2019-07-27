@@ -61,3 +61,13 @@ for i in {0..4}; do
     # The following command might need a couple of retries to succeed
     role_assignment_retry "az role assignment create --role Reader --assignee "$IDENTITY_PRINCIPAL_ID" --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$KEYVAULT_NAME""
 done
+
+# Create identity with not enough permissions to test failure path
+echo 'Creating a keyvault-identity-5 and assign only list policy...'
+az identity create -g "$RESOURCE_GROUP" -n keyvault-identity-5
+IDENTITY_CLIENT_ID=$(az identity show -g "$RESOURCE_GROUP" -n keyvault-identity-5  --query 'clientId' -otsv)
+IDENTITY_PRINCIPAL_ID=$(az identity show -g "$RESOURCE_GROUP" -n keyvault-identity-5 --query 'principalId' -otsv)
+az role assignment create --role 'Managed Identity Operator' --assignee "$AZURE_CLIENT_ID" --scope "/subscriptions/$SUBSCRIPTION_ID/resourcegroups/$RESOURCE_GROUP/providers/Microsoft.ManagedIdentity/userAssignedIdentities/keyvault-identity-5" || true
+az keyvault set-policy -n "$KEYVAULT_NAME" --secret-permissions list --spn "$IDENTITY_CLIENT_ID" || true
+# The following command might need a couple of retries to succeed
+role_assignment_retry "az role assignment create --role Reader --assignee "$IDENTITY_PRINCIPAL_ID" --scope "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP/providers/Microsoft.KeyVault/vaults/$KEYVAULT_NAME""
