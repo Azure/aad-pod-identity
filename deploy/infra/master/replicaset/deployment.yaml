@@ -35,6 +35,19 @@ spec:
     plural: azureidentities
   scope: Namespaced
 ---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: azurepodidentityexceptions.aadpodidentity.k8s.io
+spec:
+  group: aadpodidentity.k8s.io
+  version: v1
+  names:
+    kind: AzurePodIdentityException
+    singular: azurepodidentityexception
+    plural: azurepodidentityexceptions
+  scope: Namespaced
+---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
@@ -59,7 +72,7 @@ spec:
         name: iptableslock
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.5-rc1"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.5-rc2"
         imagePullPolicy: Always
         args:
           - "--host-ip=$(HOST_IP)"
@@ -106,7 +119,7 @@ spec:
     spec:
       containers:
       - name: mic
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.5-rc1"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.5-rc2"
         imagePullPolicy: Always
         args:
           - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"
