@@ -40,11 +40,15 @@ type TestVMClient struct {
 }
 
 func (c *TestVMClient) SetError(err error) {
+	c.mu.Lock()
 	c.err = &err
+	c.mu.Unlock()
 }
 
 func (c *TestVMClient) UnSetError() {
+	c.mu.Lock()
 	c.err = nil
+	c.mu.Unlock()
 }
 
 func (c *TestVMClient) Get(rgName string, nodeName string) (ret compute.VirtualMachine, err error) {

@@ -58,7 +58,9 @@ type Client struct {
 	SyncLoopStarted   bool
 	syncRetryInterval time.Duration
 
-	syncing       int32 // protect against conucrrent sync's
+	syncing    int32 // protect against conucrrent sync's
+	statsMutex sync.Mutex
+
 	leaderElector *leaderelection.LeaderElector
 	*LeaderElectionConfig
 }
@@ -842,5 +844,7 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 		c.EventRecorder.Event(removedBinding, corev1.EventTypeNormal, "binding removed",
 			fmt.Sprintf("Binding %s removed from node %s for pod %s", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod))
 	}
+	c.statsMutex.Lock()
 	stats.Put(stats.TotalCreateOrUpdate, time.Since(beginAdding))
+	c.statsMutex.Unlock()
 }
