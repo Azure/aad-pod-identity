@@ -320,7 +320,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	}
 
 	// If its mic, then just directly get the token and pass back.
-	if pod.IsPodExcepted(selectors.MatchLabels, exceptionList) || s.isMIC(podns, rsName) {
+	if pod.IsPodExcepted(selectors.MatchLabels, *exceptionList) || s.isMIC(podns, rsName) {
 		logger.Infof("Exception pod %s/%s token handling", podns, podname)
 		response, errorCode, err := s.getTokenForExceptedPod(logger, rqClientID, rqResource)
 		if err != nil {

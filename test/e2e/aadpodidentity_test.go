@@ -708,42 +708,94 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should pass validation by bypassing nmi using azurepodidentityexception crd", func() {
+		// Creates 2 pods with labels defined in AzurePodIdentityException
+		// Creates 1 pod that needs to go through pod-identity
+		// Validates the mixed scenario works as expected.
+
 		// Assign user assigned identity to every node
 		nodeList, err := node.GetAll()
 		Expect(err).NotTo(HaveOccurred())
 
-		enableUserAssignedIdentityOnCluster(nodeList, keyvaultIdentity)
+		enableUserAssignedIdentityOnCluster(nodeList, fmt.Sprintf("%s-%d", keyvaultIdentity, 1))
+		enableUserAssignedIdentityOnCluster(nodeList, fmt.Sprintf("%s-%d", keyvaultIdentity, 2))
 
-		err = azurepodidentityexception.Create(identityValidator, templateOutputPath, map[string]string{"app": "identity-validator"})
+		enableSystemAssignedIdentityOnCluster(nodeList)
+
+		err = azurepodidentityexception.Create(fmt.Sprintf("%s-%d", identityValidator, 1), templateOutputPath, map[string]string{"thispod": "shouldexcept"})
+		Expect(err).NotTo(HaveOccurred())
+
+		err = azurepodidentityexception.Create(fmt.Sprintf("%s-%d", identityValidator, 2), templateOutputPath, map[string]string{"thispod": "alsoshouldexcept"})
 		Expect(err).NotTo(HaveOccurred())
 
 		data := infra.IdentityValidatorTemplateData{
-			Name:                     identityValidator,
+			Name:                     fmt.Sprintf("%s-%d", identityValidator, 1),
 			IdentityBinding:          "random",
 			Registry:                 cfg.Registry,
 			IdentityValidatorVersion: cfg.IdentityValidatorVersion,
 			Replicas:                 "1",
+			DeploymentLabels:         map[string]string{"thispod": "shouldexcept"},
 		}
 
 		err = infra.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, templateOutputPath, data)
 		Expect(err).NotTo(HaveOccurred())
 
-		ok, err := deploy.WaitOnReady(identityValidator)
+		data = infra.IdentityValidatorTemplateData{
+			Name:                     fmt.Sprintf("%s-%d", identityValidator, 2),
+			IdentityBinding:          "random",
+			Registry:                 cfg.Registry,
+			IdentityValidatorVersion: cfg.IdentityValidatorVersion,
+			Replicas:                 "1",
+			DeploymentLabels:         map[string]string{"thispod": "alsoshouldexcept"},
+		}
+
+		err = infra.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, templateOutputPath, data)
+		Expect(err).NotTo(HaveOccurred())
+
+		ok, err := deploy.WaitOnReady(fmt.Sprintf("%s-%d", identityValidator, 1))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
-		ok, err = azureassignedidentity.WaitOnLengthMatched(0)
+		ok, err = deploy.WaitOnReady(fmt.Sprintf("%s-%d", identityValidator, 2))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
-		podName, err := pod.GetNameByPrefix(identityValidator)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(podName).NotTo(Equal(""))
+		setUpIdentityAndDeployment(keyvaultIdentity, "0", "1")
 
-		identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, keyvaultIdentity)
+		ok, err = azureassignedidentity.WaitOnLengthMatched(1)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		// This pod should go through the nmi as it has the aadpodidbinding label and doesn't contain exception crd
+		podName0, err := pod.GetNameByPrefix(fmt.Sprintf("%s-%d", identityValidator, 0))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(podName0).NotTo(Equal(""))
+
+		identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, fmt.Sprintf("%s-%d", keyvaultIdentity, 0))
 		Expect(err).NotTo(HaveOccurred())
 
-		cmdOutput, err := validateUserAssignedIdentityOnPod(podName, identityClientID)
+		cmdOutput, err := validateUserAssignedIdentityOnPod(podName0, identityClientID)
+		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
+
+		// Pod1 and Pod2 have labels matching labels defined in exception crds. So NMI should proxy the request as is
+		// and send the token back without any validation.
+		podName1, err := pod.GetNameByPrefix(fmt.Sprintf("%s-%d", identityValidator, 1))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(podName1).NotTo(Equal(""))
+
+		identityClientID, err = azure.GetIdentityClientID(cfg.ResourceGroup, fmt.Sprintf("%s-%d", keyvaultIdentity, 1))
+		Expect(err).NotTo(HaveOccurred())
+
+		cmdOutput, err = validateUserAssignedIdentityOnPod(podName1, identityClientID)
+		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
+
+		podName2, err := pod.GetNameByPrefix(fmt.Sprintf("%s-%d", identityValidator, 2))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(podName2).NotTo(Equal(""))
+
+		identityClientID, err = azure.GetIdentityClientID(cfg.ResourceGroup, fmt.Sprintf("%s-%d", keyvaultIdentity, 2))
+		Expect(err).NotTo(HaveOccurred())
+
+		cmdOutput, err = validateUserAssignedIdentityOnPod(podName2, identityClientID)
 		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
 	})
 
