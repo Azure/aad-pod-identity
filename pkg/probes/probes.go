@@ -3,7 +3,7 @@ package probes
 import (
 	"net/http"
 
-	"github.com/golang/glog"
+	log "github.com/Azure/aad-pod-identity/pkg/logger"
 )
 
 // InitHealthProbe - sets up a health probe which responds with success (200 - OK) once its initialized.
@@ -21,25 +21,26 @@ func InitHealthProbe(condition *bool) {
 	})
 }
 
-func startAsync(port string) {
+func startAsync(port string, log log.Logger) {
 	err := http.ListenAndServe(":"+port, nil)
 	if err != nil {
-		glog.Fatalf("Http listen and serve error: %+v", err)
+		log.Errorf("Http listen and serve error: %+v", err)
+		panic(err)
 	} else {
-		glog.V(1).Infof("Http listen and serve started !")
+		log.Info("Http listen and serve started !")
 	}
 }
 
 //Start - Starts the required http server to start the probe to respond.
-func Start(port string) {
-	go startAsync(port)
+func Start(port string, log log.Logger) {
+	go startAsync(port, log)
 }
 
 // InitAndStart - Initialize the default probes and starts the http listening port.
-func InitAndStart(port string, condition *bool) {
+func InitAndStart(port string, condition *bool, log log.Logger) {
 	InitHealthProbe(condition)
-	glog.V(1).Infof("Initialized health probe")
+	log.Info("Initialized health probe")
 	// start the probe.
-	Start(port)
-	glog.Infof("Initialized and started health probe")
+	Start(port, log)
+	log.Info("Started health probe")
 }

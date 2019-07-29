@@ -72,7 +72,7 @@ func main() {
 	// Health probe will always report success once its started.
 	// MIC instance will report the contents as "Active" only once its elected the leader
 	// and starts the sync loop.
-	probes.InitAndStart(httpProbePort, &micClient.SyncLoopStarted)
+	probes.InitAndStart(httpProbePort, &micClient.SyncLoopStarted, &mic.Log{})
 
 	// Starts the leader election loop
 	micClient.Run()

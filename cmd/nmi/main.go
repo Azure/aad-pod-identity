@@ -57,7 +57,7 @@ func main() {
 
 	// Health probe will always report success once its started. The contents
 	// will report "Active" once the iptables rules are set
-	probes.InitAndStart(*httpProbePort, &s.Initialized)
+	probes.InitAndStart(*httpProbePort, &s.Initialized, &server.Log{})
 
 	if err := s.Run(); err != nil {
 		log.Fatalf("%s", err)
