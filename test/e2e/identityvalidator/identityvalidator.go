@@ -87,8 +87,12 @@ func testClusterWideUserAssignedIdentity(logger *log.Entry, msiEndpoint, subscri
 
 // testUserAssignedIdentityOnPod will verify whether a pod identity is working properly
 func testUserAssignedIdentityOnPod(logger *log.Entry, msiEndpoint, identityClientID, keyvaultName, keyvaultSecretName, keyvaultSecretVersion string) error {
+	// When new authorizer is created, azure-sdk-for-go  tries to create dataplane authorizer using MSI. It checks the AZURE_CLIENT_ID to get the client id
+	// for the user assigned identity. If client id not found, then NewServicePrincipalTokenFromMSI is invoked instead of using the actual
+	// user assigned identity. Setting this env var ensures we validate GetSecret using the desired user assigned identity.
 	os.Setenv("AZURE_CLIENT_ID", identityClientID)
 	defer os.Unsetenv("AZURE_CLIENT_ID")
+
 	keyClient := keyvault.New()
 	authorizer, err := auth.NewAuthorizerFromEnvironment()
 	if err == nil {

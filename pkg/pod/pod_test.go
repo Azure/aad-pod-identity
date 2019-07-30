@@ -1,11 +1,13 @@
 package pod
 
 import (
+	"testing"
+
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type TestPodClient struct {
@@ -57,5 +59,62 @@ func (c *TestPodClient) DeletePod(podName string, podNs string) {
 	}
 	if changed {
 		c.pods = newPods
+	}
+}
+
+func TestIsPodExcepted(t *testing.T) {
+	cases := []struct {
+		podLabels        map[string]string
+		exceptionList    []aadpodid.AzurePodIdentityException
+		shouldBeExcepted bool
+	}{
+		{
+			podLabels:        map[string]string{"foo": "bar"},
+			exceptionList:    nil,
+			shouldBeExcepted: false,
+		},
+		{
+			podLabels: map[string]string{"foo": "except"},
+			exceptionList: []aadpodid.AzurePodIdentityException{
+				{
+					ObjectMeta: v1.ObjectMeta{
+						Name: "exception1",
+					},
+					Spec: aadpodid.AzurePodIdentityExceptionSpec{
+						PodLabels: map[string]string{"foo": "notexcept"},
+					},
+				},
+			},
+			shouldBeExcepted: false,
+		},
+		{
+			podLabels: map[string]string{"foo": "except"},
+			exceptionList: []aadpodid.AzurePodIdentityException{
+				{
+					ObjectMeta: v1.ObjectMeta{
+						Name: "exception1",
+					},
+					Spec: aadpodid.AzurePodIdentityExceptionSpec{
+						PodLabels: map[string]string{"foo": "notexcept"},
+					},
+				},
+				{
+					ObjectMeta: v1.ObjectMeta{
+						Name: "exception2",
+					},
+					Spec: aadpodid.AzurePodIdentityExceptionSpec{
+						PodLabels: map[string]string{"foo": "except"},
+					},
+				},
+			},
+			shouldBeExcepted: true,
+		},
+	}
+
+	for _, tc := range cases {
+		isExcepted := IsPodExcepted(tc.podLabels, tc.exceptionList)
+		if isExcepted != tc.shouldBeExcepted {
+			t.Fatalf("expected: %v, got %v", tc.shouldBeExcepted, isExcepted)
+		}
 	}
 }

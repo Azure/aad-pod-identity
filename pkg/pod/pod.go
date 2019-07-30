@@ -98,16 +98,16 @@ func (c *Client) GetPods() (pods []*corev1.Pod, err error) {
 }
 
 // IsPodExcepted returns true if pod label is part of exception crd
-func IsPodExcepted(podLabels map[string]string, exceptionList *[]aadpodid.AzurePodIdentityException) bool {
-	return exceptionList != nil && len(*exceptionList) > 0 && labelInExceptionList(podLabels, *exceptionList)
+func IsPodExcepted(podLabels map[string]string, exceptionList []aadpodid.AzurePodIdentityException) bool {
+	return len(exceptionList) > 0 && labelInExceptionList(podLabels, exceptionList)
 }
 
 // labelInExceptionList checks if the labels defined in azurepodidentityexception match label defined in pods
 func labelInExceptionList(podLabels map[string]string, exceptionList []aadpodid.AzurePodIdentityException) bool {
-	for _, podIdentityException := range exceptionList {
-		for exceptionLabelKey := range podIdentityException.Spec.PodLabels {
+	for _, exception := range exceptionList {
+		for exceptionLabelKey, exceptionLabelValue := range exception.Spec.PodLabels {
 			if val, ok := podLabels[exceptionLabelKey]; ok {
-				if strings.EqualFold(val, podLabels[exceptionLabelKey]) {
+				if strings.EqualFold(val, exceptionLabelValue) {
 					return true
 				}
 			}
