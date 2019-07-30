@@ -113,6 +113,10 @@ func (i *vmssIdentityInfo) RemoveUserIdentity(id string) error {
 	if i.info.Type == compute.ResourceIdentityTypeNone || i.info.Type == compute.ResourceIdentityTypeSystemAssigned {
 		i.info.IdentityIds = nil
 	}
+	// if the identityids is nil and identity type is not set, then set it to ResourceIdentityTypeNone
+	if i.info.IdentityIds == nil && i.info.Type == "" {
+		i.info.Type = compute.ResourceIdentityTypeNone
+	}
 	return nil
 }
 

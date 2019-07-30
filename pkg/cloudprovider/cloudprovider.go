@@ -113,7 +113,7 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 			azureEnv.ResourceManagerEndpoint,
 		)
 		if err != nil {
-			glog.Errorf("Get service principle token error: %+v", err)
+			glog.Errorf("Get service principal token error: %+v", err)
 			return nil, err
 		}
 	}
