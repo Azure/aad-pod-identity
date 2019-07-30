@@ -58,6 +58,7 @@ var _ = BeforeSuite(func() {
 	c, err := config.ParseConfig()
 	Expect(err).NotTo(HaveOccurred())
 	cfg = *c
+	fmt.Printf("System MSI enabled: %v\n", cfg.SystemMSICluster)
 	setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion)
 })
 
@@ -500,6 +501,9 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should not alter the system assigned identity after creating and deleting pod identity", func() {
+		if cfg.SystemMSICluster {
+			Skip("Test running on system assigned MSI cluster. Skip specific system MSI tests")
+		}
 		// Assign system assigned identity to every node
 		nodeList, err := node.GetAll()
 		Expect(err).NotTo(HaveOccurred())
@@ -547,14 +551,14 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		removeSystemAssignedIdentityOnCluster(nodeList)
 	})
 
-	It("should create azureassignedidentities for 40 pods within ~2mins", func() {
+	It("should create azureassignedidentities for 40 pods within ~2mins 30seconds", func() {
 		// setup all the 40 pods in a loop to ensure mic handles
 		// scale out efficiently
 		for i := 0; i < 5; i++ {
 			setUpIdentityAndDeployment(keyvaultIdentity, fmt.Sprintf("%d", i), "8")
 		}
 
-		// WaitOnLengthMatched waits for 2 mins, so this will ensure we are performant at high scale
+		// WaitOnLengthMatched waits for 2 mins 30 seconds, so this will ensure we are performant at high scale
 		ok, err := azureassignedidentity.WaitOnLengthMatched(40)
 		Expect(ok).To(Equal(true))
 		Expect(err).NotTo(HaveOccurred())
@@ -1293,8 +1297,10 @@ func (m vmManager) RemoveAllIdentities() error {
 			errs = append(errs, err)
 		}
 	}
-	if err := m.RemoveSystemAssignedIdentity(); err != nil {
-		errs = append(errs, err)
+	if !cfg.SystemMSICluster {
+		if err := m.RemoveSystemAssignedIdentity(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 	return errs
 }
@@ -1341,8 +1347,10 @@ func (m vmssManager) RemoveAllIdentities() error {
 			errs = append(errs, err)
 		}
 	}
-	if err := m.RemoveSystemAssignedIdentity(); err != nil {
-		errs = append(errs, err)
+	if !cfg.SystemMSICluster {
+		if err := m.RemoveSystemAssignedIdentity(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 	return errs
 }
