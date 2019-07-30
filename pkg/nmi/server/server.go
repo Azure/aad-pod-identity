@@ -30,8 +30,8 @@ import (
 const (
 	iptableUpdateTimeIntervalInSeconds = 60
 	localhost                          = "127.0.0.1"
-	listPodIDsRetryAttemptsForCreated  = 9
-	listPodIDsRetryAttemptsForAssigned = 3
+	listPodIDsRetryAttemptsForCreated  = 16
+	listPodIDsRetryAttemptsForAssigned = 4
 	listPodIDsRetryIntervalInSeconds   = 5
 )
 
@@ -487,8 +487,9 @@ func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log
 	var err error
 	var idStateMap map[string][]aadpodid.AzureIdentity
 
-	// this loop will run to ensure we have assigned identities before we return. If there are no assigned identities in created state within 45s (9 retries * 5s wait) then we return an error.
-	// If we get an assigned identity in created state within 45s, then loop will continue for another 15s to find assigned identity in assigned state.
+	// this loop will run to ensure we have assigned identities before we return. If there are no assigned identities in created state within 80s (16 retries * 5s wait) then we return an error.
+	// If we get an assigned identity in created state within 80s, then loop will continue until 100s to find assigned identity in assigned state.
+	// Retry interval for CREATED state is set to 80s because avg time for identity to be assigned to the node is 35-37s.
 	for attempt < maxAttemptsForCreated+maxAttemptsForAssigned {
 		idStateMap, err = kubeClient.ListPodIds(podns, podname)
 		if err == nil {
