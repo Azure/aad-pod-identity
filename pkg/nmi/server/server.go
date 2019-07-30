@@ -355,20 +355,6 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	w.Write(response)
 }
 
-// Log - this struct abstracts the logging libraries into single interface.
-type Log struct {
-}
-
-// Info - log the messages to be info
-func (l Log) Info(msg string) {
-	log.Info(msg)
-}
-
-// Errorf - log the messages to be error messages and formatted.
-func (l Log) Errorf(format string, args ...interface{}) {
-	log.Errorf(format, &args)
-}
-
 func getTokenForMatchingID(kubeClient k8s.Client, logger *log.Entry, rqClientID string, rqResource string, podIDs []aadpodid.AzureIdentity) (token *adal.Token, clientID string, err error) {
 	rqHasClientID := len(rqClientID) != 0
 	for _, v := range podIDs {
