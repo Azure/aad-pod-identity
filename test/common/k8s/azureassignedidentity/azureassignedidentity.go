@@ -70,8 +70,8 @@ func GetAllByPrefix(prefix string) ([]aadpodid.AzureAssignedIdentity, error) {
 // WaitOnLengthMatched will block until the number of Azure Assigned Identity matches the target
 func WaitOnLengthMatched(target int) (bool, error) {
 	successChannel, errorChannel := make(chan bool, 1), make(chan error)
-	// defining ~2 mins as an acceptable timeframe for ids to be assigned to node
-	duration, sleep := 120*time.Second, 10*time.Second
+	// defining ~2 mins 30 seconds as an acceptable timeframe for ids to be assigned to node
+	duration, sleep := 150*time.Second, 10*time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 
