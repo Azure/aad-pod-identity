@@ -355,7 +355,7 @@ func RemoveUserAssignedIdentityFromVMSS(resourceGroup, vmName, identityName stri
 	cmd := exec.Command("az", "vmss", "identity", "remove", "-g", resourceGroup, "-n", vmName, "--identities", identityName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		// If the failure is because there is no identity assigned(which can happen in case of VMSS with system assigneed identity)
+		// If the failure is because there is no identity assigned(which can happen in case of VMSS with system assigned identity)
 		// then we can ignore that error since its a legitimate situation.
 		// TODO: The full fledged fix for this would be ensure that the VMSS removal never gets called twice. Keeping that as TODO for now.
 		if strings.Contains(string(output), "are not associated with") {
