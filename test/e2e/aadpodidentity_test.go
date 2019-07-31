@@ -116,7 +116,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	AfterEach(func() {
 		fmt.Println("\nTearing down the test environment...")
 		if CurrentGinkgoTestDescription().Failed {
-			fmt.Printf("Test failed. Collecting debugging information.")
+			fmt.Println("Test failed. Collecting debugging information.")
 			collectDebuggingInfo()
 		}
 		// Ensure a clean cluster after the end of each test
@@ -581,6 +581,9 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should be backward compatible with old and new version of mic and nmi", func() {
+		if cfg.SystemMSICluster {
+			Skip("Test running on system assigned MSI cluster. Skip backward compat tests since old versions did not support system MSI clusters")
+		}
 		// Uninstall CRDs and delete MIC and NMI
 		err := deploy.Delete("default", templateOutputPath)
 		Expect(err).NotTo(HaveOccurred())
@@ -723,7 +726,11 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		enableUserAssignedIdentityOnCluster(nodeList, fmt.Sprintf("%s-%d", keyvaultIdentity, 1))
 		enableUserAssignedIdentityOnCluster(nodeList, fmt.Sprintf("%s-%d", keyvaultIdentity, 2))
 
-		enableSystemAssignedIdentityOnCluster(nodeList)
+		// If we have system assigned MSI cluster, the identity validator check for generating system
+		// assigned MSI token will work without adding system assigned identity explicitly.
+		if !cfg.SystemMSICluster {
+			enableSystemAssignedIdentityOnCluster(nodeList)
+		}
 
 		err = azurepodidentityexception.Create(fmt.Sprintf("%s-%d", identityValidator, 1), templateOutputPath, map[string]string{"thispod": "shouldexcept"})
 		Expect(err).NotTo(HaveOccurred())
@@ -875,6 +882,20 @@ func collectLeEndpoint(dir string) {
 	Expect(err).NotTo(HaveOccurred())
 }
 
+func collectAadpodidentityInfoInternal(dir, crdName string) {
+	logFile := path.Join(dir, crdName)
+	cmd := exec.Command("bash", "-c", "kubectl get "+crdName+" -o yaml >"+logFile)
+	util.PrintCommand(cmd)
+	_, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+}
+
+func collectAadpodidentityInfo(dir string) {
+	collectAadpodidentityInfoInternal(dir, "azureidentities")
+	collectAadpodidentityInfoInternal(dir, "azureidentitybindings")
+	collectAadpodidentityInfoInternal(dir, "azureassignedidentities")
+}
+
 func collectDebuggingInfo() {
 	tNow := time.Now()
 	logDirName := path.Join(logsPath, tNow.Format(time.RFC3339))
@@ -893,7 +914,7 @@ func collectDebuggingInfo() {
 	collectPods(logDirName)
 	collectEvents(logDirName)
 	collectLeEndpoint(logDirName)
-
+	collectAadpodidentityInfo(logDirName)
 	collectLogs("mic", logDirName)
 	collectLogs("nmi", logDirName)
 	collectLogs("identityvalidator", logDirName)
