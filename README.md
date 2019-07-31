@@ -188,6 +188,35 @@ If the Azure identity is in the same resource group as your AKS cluster nodes, y
 az role assignment create --role "Managed Identity Operator" --assignee <sp id> --scope <full id of the managed identity>
 ```
 
+### Disable aad-pod-identity for a specific pod/application
+
+NMI pods modify the nodes' iptables to intercept calls to Azure Instance Metadata endpoint. This means any request that's made to the Metadata endpoint will be intercepted by NMI even if the pod doesn't use aad-pod-identity. `AzurePodIdentityException` CRD can be configured to inform aad-pod-identity that any requests to metadata endpoint originating from a pod that matches labels defined in CRD should be proxied without any processing in NMI. NMI will proxy the request to the metdata endpoint and return the token back as is without any validation.
+
+1. Create the `AzurePodIdentityException` with the same label that will be defined in the pod -
+
+```yaml
+apiVersion: "aadpodidentity.k8s.io/v1"
+kind: AzurePodIdentityException
+metadata:
+  name: test-exception
+spec:
+  PodLabels:
+    foo: bar
+    app: custom
+``` 
+
+Save this Kubernetes manifest to a file named `aadpodidentityexception.yml`. Replace the PodLabels with a list of desired values and then create the resource on the cluster:
+
+```shell
+kubectl apply -f aadpodidentityexception.yml
+```
+
+2. When creating application pods that will not be using aad-pod-identity for calls to Azure Instance Metadata endpoint, include at least one of the labels in `spec.template.metadata.labels`.
+
+**NOTE**
+- `AzurePodIdentityException` is per namespace. This means if the same label needs to be used in multiple namespaces to except pods, a CRD resource needs to be created in each namespace.
+- All the labels defined in the exception CRD doesn't need to be defined in the deployment/pod spec. A single match is enough for the pod to be excepted.
+
 ### Uninstall Notes
 
 The NMI pods modify the nodes' [iptables] to intercept calls to Azure Instance Metadata endpoint. This allows NMI to insert identities assigned to a pod before executing the request on behalf of the caller.
