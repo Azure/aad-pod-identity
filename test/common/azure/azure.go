@@ -341,9 +341,9 @@ func GetVMSSUserAssignedIdentities(resourceGroup, name string) (map[string]UserA
 func RemoveUserAssignedIdentityFromVM(resourceGroup, vmName, identityName string) error {
 	fmt.Printf("# Removing identity '%s' from %s...\n", identityName, vmName)
 	cmd := exec.Command("az", "vm", "identity", "remove", "-g", resourceGroup, "-n", vmName, "--identities", identityName)
-	_, err := cmd.CombinedOutput()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return errors.Wrap(err, "Failed to remove user assigned identity to VM")
+		return errors.Wrap(err, "Failed to remove user assigned identity to VM. Error output: "+string(output))
 	}
 
 	return nil
@@ -353,9 +353,16 @@ func RemoveUserAssignedIdentityFromVM(resourceGroup, vmName, identityName string
 func RemoveUserAssignedIdentityFromVMSS(resourceGroup, vmName, identityName string) error {
 	fmt.Printf("# Removing identity '%s' from %s...\n", identityName, vmName)
 	cmd := exec.Command("az", "vmss", "identity", "remove", "-g", resourceGroup, "-n", vmName, "--identities", identityName)
-	_, err := cmd.CombinedOutput()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return errors.Wrap(err, "Failed to remove user assigned identity to VMSS")
+		// If the failure is because there is no identity assigned(which can happen in case of VMSS with system assigned identity)
+		// then we can ignore that error since its a legitimate situation.
+		// TODO: The full fledged fix for this would be ensure that the VMSS removal never gets called twice. Keeping that as TODO for now.
+		if strings.Contains(string(output), "are not associated with") {
+			fmt.Printf("Warning: the cluster identity: %s was not associated with %s.\n", identityName, vmName)
+			return nil
+		}
+		return errors.Wrap(err, "Failed to remove user assigned identity to VMSS. Error output: "+string(output))
 	}
 
 	return nil
