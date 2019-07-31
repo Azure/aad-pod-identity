@@ -28,11 +28,7 @@ import (
 )
 
 const (
-	iptableUpdateTimeIntervalInSeconds = 60
-	localhost                          = "127.0.0.1"
-	listPodIDsRetryAttemptsForCreated  = 9
-	listPodIDsRetryAttemptsForAssigned = 3
-	listPodIDsRetryIntervalInSeconds   = 5
+	localhost = "127.0.0.1"
 )
 
 // Server encapsulates all of the parameters necessary for starting up
@@ -48,6 +44,10 @@ type Server struct {
 	IsNamespaced                       bool
 	MICNamespace                       string
 	Initialized                        bool
+
+	ListPodIDsRetryAttemptsForCreated  int
+	ListPodIDsRetryAttemptsForAssigned int
+	ListPodIDsRetryIntervalInSeconds   int
 }
 
 // NMIResponse is the response returned to caller
@@ -187,7 +187,7 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 		http.Error(w, "missing 'podname' and 'podns' from request header", http.StatusBadRequest)
 		return
 	}
-	podIDs, identityInCreatedStateFound, err := listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttemptsForCreated, listPodIDsRetryAttemptsForAssigned)
+	podIDs, identityInCreatedStateFound, err := s.listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID)
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
 		logger.Errorf("%s, %+v", msg, err)
@@ -332,7 +332,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	podIDs, identityInCreatedStateFound, err := listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID, listPodIDsRetryAttemptsForCreated, listPodIDsRetryAttemptsForAssigned)
+	podIDs, identityInCreatedStateFound, err := s.listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID)
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
 		logger.Errorf("%s, %+v", msg, err)
@@ -482,14 +482,15 @@ func handleTermination() {
 }
 
 // listPodIDsWithRetry returns a list of matched identities in Assigned state, boolean indicating if at least an identity was found in Created state and error if any
-func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log.Entry, podns, podname, rqClientID string, maxAttemptsForCreated, maxAttemptsForAssigned int) ([]aadpodid.AzureIdentity, bool, error) {
+func (s *Server) listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log.Entry, podns, podname, rqClientID string) ([]aadpodid.AzureIdentity, bool, error) {
 	attempt := 0
 	var err error
 	var idStateMap map[string][]aadpodid.AzureIdentity
 
-	// this loop will run to ensure we have assigned identities before we return. If there are no assigned identities in created state within 45s (9 retries * 5s wait) then we return an error.
-	// If we get an assigned identity in created state within 45s, then loop will continue for another 15s to find assigned identity in assigned state.
-	for attempt < maxAttemptsForCreated+maxAttemptsForAssigned {
+	// this loop will run to ensure we have assigned identities before we return. If there are no assigned identities in created state within 80s (16 retries * 5s wait) then we return an error.
+	// If we get an assigned identity in created state within 80s, then loop will continue until 100s to find assigned identity in assigned state.
+	// Retry interval for CREATED state is set to 80s because avg time for identity to be assigned to the node is 35-37s.
+	for attempt < s.ListPodIDsRetryAttemptsForCreated+s.ListPodIDsRetryAttemptsForAssigned {
 		idStateMap, err = kubeClient.ListPodIds(podns, podname)
 		if err == nil {
 			if len(rqClientID) == 0 {
@@ -503,9 +504,9 @@ func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log
 				if len(idStateMap[aadpodid.AssignedIDAssigned]) != 0 {
 					return idStateMap[aadpodid.AssignedIDAssigned], true, nil
 				}
-				if len(idStateMap[aadpodid.AssignedIDCreated]) == 0 && attempt >= maxAttemptsForCreated {
+				if len(idStateMap[aadpodid.AssignedIDCreated]) == 0 && attempt >= s.ListPodIDsRetryAttemptsForCreated {
 					return nil, false, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts, retry duration [%d]s. Error: %v",
-						podns, podname, maxAttemptsForCreated, listPodIDsRetryIntervalInSeconds, err)
+						podns, podname, s.ListPodIDsRetryAttemptsForCreated, s.ListPodIDsRetryIntervalInSeconds, err)
 				}
 			} else {
 				// if client id exists in request, we need to ensure the identity with this client
@@ -529,16 +530,16 @@ func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log
 						break
 					}
 				}
-				if !foundMatch && attempt >= maxAttemptsForCreated {
+				if !foundMatch && attempt >= s.ListPodIDsRetryAttemptsForCreated {
 					return nil, false, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts, retry duration [%d]s. Error: %v",
-						podns, podname, maxAttemptsForCreated, listPodIDsRetryIntervalInSeconds, err)
+						podns, podname, s.ListPodIDsRetryAttemptsForCreated, s.ListPodIDsRetryIntervalInSeconds, err)
 				}
 			}
 		}
 		attempt++
 
 		select {
-		case <-time.After(listPodIDsRetryIntervalInSeconds * time.Second):
+		case <-time.After(time.Duration(s.ListPodIDsRetryIntervalInSeconds) * time.Second):
 		case <-ctx.Done():
 			err = ctx.Err()
 			return nil, true, err
@@ -546,7 +547,7 @@ func listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log
 		logger.Warningf("failed to get assigned ids for pod:%s/%s in ASSIGNED state, retrying attempt: %d", podns, podname, attempt)
 	}
 	return nil, true, fmt.Errorf("getting assigned identities for pod %s/%s in ASSIGNED state failed after %d attempts, retry duration [%d]s. Error: %v",
-		podns, podname, maxAttemptsForCreated+maxAttemptsForAssigned, listPodIDsRetryIntervalInSeconds, err)
+		podns, podname, s.ListPodIDsRetryAttemptsForCreated+s.ListPodIDsRetryAttemptsForAssigned, s.ListPodIDsRetryIntervalInSeconds, err)
 }
 
 func getErrorResponseStatusCode(identityFound bool) int {
