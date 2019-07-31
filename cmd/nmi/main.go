@@ -16,6 +16,9 @@ const (
 	defaultMetadataPort                       = "80"
 	defaultNmiPort                            = "2579"
 	defaultIPTableUpdateTimeIntervalInSeconds = 60
+	defaultlistPodIDsRetryAttemptsForCreated  = 16
+	defaultlistPodIDsRetryAttemptsForAssigned = 4
+	defaultlistPodIDsRetryIntervalInSeconds   = 5
 )
 
 var (
@@ -30,6 +33,9 @@ var (
 	forceNamespaced                    = pflag.Bool("forceNamespaced", false, "Forces mic to namespace identities, binding, and assignment")
 	micNamespace                       = pflag.String("MICNamespace", "default", "MIC namespace to short circuit MIC token requests")
 	httpProbePort                      = pflag.String("http-probe-port", "8080", "Http health and liveness probe port")
+	retryAttemptsForCreated            = pflag.Int("retry-attempts-for-created", defaultlistPodIDsRetryAttemptsForCreated, "Number of retries in NMI to find assigned identity in CREATED state")
+	retryAttemptsForAssigned           = pflag.Int("retry-attempts-for-assigned", defaultlistPodIDsRetryAttemptsForAssigned, "Number of retries in NMI to find assigned identity in ASSIGNED state")
+	findIdentityRetryIntervalInSeconds = pflag.Int("find-identity-retry-interval", defaultlistPodIDsRetryIntervalInSeconds, "Retry interval to find assigned identities in seconds")
 )
 
 func main() {
@@ -54,6 +60,9 @@ func main() {
 	s.HostIP = *hostIP
 	s.NodeName = *nodename
 	s.IPTableUpdateTimeIntervalInSeconds = *ipTableUpdateTimeIntervalInSeconds
+	s.ListPodIDsRetryAttemptsForCreated = *retryAttemptsForCreated
+	s.ListPodIDsRetryAttemptsForAssigned = *retryAttemptsForAssigned
+	s.ListPodIDsRetryIntervalInSeconds = *findIdentityRetryIntervalInSeconds
 
 	// Health probe will always report success once its started. The contents
 	// will report "Active" once the iptables rules are set
