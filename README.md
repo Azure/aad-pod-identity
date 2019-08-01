@@ -15,6 +15,7 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 * [Getting Started](#getting-started)
 * [Demo](#demo)
 * [Components](#components)
+* [Disable aad-pod-identity for a specific pod/application](docs/readmes/pod-identity-exception.md)
 * [What To Do Next?](#what-to-do-next)
 * [Code of Conduct](#code-of-conduct)
 

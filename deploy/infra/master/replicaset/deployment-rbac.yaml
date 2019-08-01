@@ -206,6 +206,7 @@ spec:
     metadata:
       labels:
         component: mic
+        app: mic
     spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
