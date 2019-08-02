@@ -343,6 +343,10 @@ func RemoveUserAssignedIdentityFromVM(resourceGroup, vmName, identityName string
 	cmd := exec.Command("az", "vm", "identity", "remove", "-g", resourceGroup, "-n", vmName, "--identities", identityName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
+		if strings.Contains(string(output), "are not associated with") {
+			fmt.Printf("Warning: the cluster identity: %s was not associated with %s.\n", identityName, vmName)
+			return nil
+		}
 		return errors.Wrap(err, "Failed to remove user assigned identity to VM. Error output: "+string(output))
 	}
 

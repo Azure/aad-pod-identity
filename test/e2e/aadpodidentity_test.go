@@ -646,7 +646,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		}
 
 		if vmssID == "" {
-			fmt.Println("skipping test since there is no vmss with more than 1 node")
+			Skip("Skipping test since there is no vmss with more than 1 node")
 			return
 		}
 
@@ -808,6 +808,12 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		cmdOutput, err = validateUserAssignedIdentityOnPod(podName2, identityClientID)
 		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
+
+		removeUserAssignedIdentityFromCluster(nodeList, fmt.Sprintf("%s-%d", keyvaultIdentity, 1))
+		removeUserAssignedIdentityFromCluster(nodeList, fmt.Sprintf("%s-%d", keyvaultIdentity, 2))
+		if !cfg.SystemMSICluster {
+			removeSystemAssignedIdentityOnCluster(nodeList)
+		}
 	})
 
 	It("should pass identity validation with correct identity and fail with wrong identity", func() {
@@ -843,6 +849,29 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		cmdOutput, err = validateUserAssignedIdentityOnPod(podName, identityClientID)
 		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
+	})
+
+	It("should delete assigned identity when identity no longer exists on underlying node", func() {
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
+
+		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+
+		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity)
+
+		nodeList, err := node.GetAll()
+		Expect(err).NotTo(HaveOccurred())
+		// remove the assigned identity manually from the underlying node
+		removeUserAssignedIdentityFromCluster(nodeList, keyvaultIdentity)
+
+		waitForDeployDeletion(identityValidator)
+		ok, err = azureassignedidentity.WaitOnLengthMatched(0)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
 	})
 })
 
