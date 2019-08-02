@@ -646,7 +646,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		}
 
 		if vmssID == "" {
-			fmt.Println("skipping test since there is no vmss with more than 1 node")
+			Skip("Skipping test since there is no vmss with more than 1 node")
 			return
 		}
 
@@ -808,6 +808,12 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		cmdOutput, err = validateUserAssignedIdentityOnPod(podName2, identityClientID)
 		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
+
+		removeUserAssignedIdentityFromCluster(nodeList, fmt.Sprintf("%s-%d", keyvaultIdentity, 1))
+		removeUserAssignedIdentityFromCluster(nodeList, fmt.Sprintf("%s-%d", keyvaultIdentity, 2))
+		if !cfg.SystemMSICluster {
+			removeSystemAssignedIdentityOnCluster(nodeList)
+		}
 	})
 
 	It("should pass identity validation with correct identity and fail with wrong identity", func() {

@@ -706,7 +706,7 @@ func (c *Client) updateNodeAndDeps(newAssignedIDs []aadpodid.AzureAssignedIdenti
 func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeName string, nodeTrackList trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 	beginAdding := time.Now()
-	glog.V(5).Infof("Processing node %s", nodeName)
+	glog.V(5).Infof("Processing node %s, add [%d], del [%d]", nodeName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete))
 
 	for _, createID := range nodeTrackList.assignedIDsToCreate {
 		if createID.Status.Status == "" {
@@ -730,16 +730,16 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 
 	node, err := c.NodeClient.Get(nodeName)
 	if err != nil {
-		glog.Errorf("Lookup of node %s resulted in error %v", nodeName, err)
+		glog.Errorf("Lookup of identities on node %s resulted in error %v", nodeName, err)
 		return
 	}
 
 	err = c.CloudClient.UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs, node)
 	if err != nil {
-		glog.Errorf("Updating msi's on node %s, add [%d], del [%d] failed with error %v", nodeName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete), err)
+		glog.Errorf("Updating msis on node %s, add [%d], del [%d] failed with error %v", nodeName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete), err)
 		idList, getErr := c.getUserMSIListForNode(node)
 		if getErr != nil {
-			glog.Errorf("Getting list of msi's from node %s resulted in error %v", nodeName, getErr)
+			glog.Errorf("Getting list of msis from node %s resulted in error %v", nodeName, getErr)
 			return
 		}
 
@@ -759,6 +759,8 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 			// the identity was successfully assigned to the node
 			c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding applied",
 				fmt.Sprintf("Binding %s applied on node %s for pod %s", binding.Name, createID.Spec.NodeName, createID.Name))
+
+			glog.Infof("Updating msis on node %s failed, but identity %s has successfully been assigned to node", nodeName, binding.Name)
 
 			// Identity is successfully assigned to node, so update the status of assigned identity to assigned
 			if updateErr := c.updateAssignedIdentityStatus(&createID, aadpodid.AssignedIDAssigned); updateErr != nil {
@@ -790,6 +792,9 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 				glog.Error(message)
 				continue
 			}
+
+			glog.Infof("Updating msis on node %s failed, but identity %s has successfully been removed from node", nodeName, removedBinding.Name)
+
 			// remove assigned identity crd from cluster as the identity has successfully been removed from the node
 			err = c.removeAssignedIdentity(&delID)
 			if err != nil {
