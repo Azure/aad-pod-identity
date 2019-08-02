@@ -11,7 +11,7 @@ ARG DEMO_VERSION=0.0.0-dev
 ARG IDENTITY_VALIDATOR_VERSION=0.0.0-dev
 RUN make build
 
-FROM alpine:3.8 AS base
+FROM alpine:3.10.1 AS base
 RUN apk add --no-cache \
     ca-certificates \
     iptables \
