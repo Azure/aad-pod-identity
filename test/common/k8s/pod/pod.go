@@ -164,3 +164,14 @@ func WaitOnDeletion(prefix string) (bool, error) {
 		}
 	}
 }
+
+func StopPod(podName string) error {
+	cmd := exec.Command("kubectl", "delete", "pod", podName)
+	util.PrintCommand(cmd)
+	_, err := cmd.CombinedOutput()
+
+	if err != nil {
+		errors.Wrap(err, fmt.Sprintf("Pod stop command failed with error: %+v", err))
+	}
+	return nil
+}
