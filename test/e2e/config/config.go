@@ -10,10 +10,10 @@ type Config struct {
 	KeyvaultName             string `envconfig:"KEYVAULT_NAME"`
 	KeyvaultSecretName       string `envconfig:"KEYVAULT_SECRET_NAME"`
 	KeyvaultSecretVersion    string `envconfig:"KEYVAULT_SECRET_VERSION"`
-	MICVersion               string `envconfig:"MIC_VERSION" default:"1.3"`
-	NMIVersion               string `envconfig:"NMI_VERSION" default:"1.4"`
+	MICVersion               string `envconfig:"MIC_VERSION" default:"1.5"`
+	NMIVersion               string `envconfig:"NMI_VERSION" default:"1.5"`
 	Registry                 string `envconfig:"REGISTRY" default:"mcr.microsoft.com/k8s/aad-pod-identity"`
-	IdentityValidatorVersion string `envconfig:"IDENTITY_VALIDATOR_VERSION" default:"1.4"`
+	IdentityValidatorVersion string `envconfig:"IDENTITY_VALIDATOR_VERSION" default:"1.5"`
 	SystemMSICluster         bool   `envconfig:"SYSTEM_MSI_CLUSTER" default:false`
 }
 
