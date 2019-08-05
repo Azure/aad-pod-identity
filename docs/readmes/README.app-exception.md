@@ -1,4 +1,5 @@
-### Disable aad-pod-identity for a specific pod/application
+# Disable aad-pod-identity for a specific pod/application
+> Available from 1.5 release
 
 NMI pods modify the nodes' iptables to intercept calls to Azure Instance Metadata endpoint. This means any request that's made to the Metadata endpoint will be intercepted by NMI even if the pod doesn't use aad-pod-identity. `AzurePodIdentityException` CRD can be configured to inform aad-pod-identity that any requests to metadata endpoint originating from a pod that matches labels defined in CRD should be proxied without any processing in NMI. NMI will proxy the request to the metdata endpoint and return the token back as is without any validation.
 
@@ -13,7 +14,7 @@ spec:
   PodLabels:
     foo: bar
     app: custom
-``` 
+```
 
 Use the [sample template](examples/azurepodidentityexception.yaml), replace the PodLabels with a list of desired values and then create the resource on the cluster:
 
