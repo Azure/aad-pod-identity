@@ -1,3 +1,5 @@
+> **NOTE** These charts are deprecated. Starting with release 1.5 charts will be available in [helm/charts](https://github.com/helm/charts) once the [PR](https://github.com/helm/charts/pull/15306) is merged.
+
 # Helm chart for Azure Active Directory Pod Identity
 A simple [helm](https://helm.sh/) chart for setting up the components needed to use [Azure Active Directory Pod Identity](https://github.com/Azure/aad-pod-identity) in Kubernetes.
 
