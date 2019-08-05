@@ -877,20 +877,20 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 	It("should pass multiple identity validating test even when MIC is failing over", func() {
 		// Two go routines - one which keeps assigning identities by means of identity validator assignment.
-		iterations := 10
+		iterations := 2
 		var wg sync.WaitGroup
 		wg.Add(2)
 
 		go func(iterations int) {
 			defer wg.Done()
-			runValidatorTest(iterations)
-			fmt.Printf("Validator tests completed %d iterations\n", iterations)
+			runMICDisrupt(iterations)
+			fmt.Printf("Disrupting MIC completed %d iterations\n", iterations)
 		}(iterations)
 
 		go func(iterations int) {
 			defer wg.Done()
-			runMICDisrupt(iterations)
-			fmt.Printf("Disrupting MIC completed %d iterations\n", iterations)
+			runValidatorTest(iterations)
+			fmt.Printf("Validator tests completed %d iterations\n", iterations)
 		}(iterations)
 
 		wg.Wait()
@@ -945,12 +945,16 @@ func runValidatorTest(iterations int) {
 
 func runMICDisrupt(iterations int) {
 	defer GinkgoRecover()
+	delay := time.Second * 60
 	for i := 0; i < iterations; i++ {
+		fmt.Printf("Starting MIC disruptor. Iteration: %d\n", i)
 		leader, err := getMICLeader()
 		Expect(err).NotTo(HaveOccurred())
 		fmt.Printf("MIC leader: %s\n", leader)
 		Expect(pod.StopPod(leader)).NotTo(HaveOccurred())
 		waitForLeaderChange(leader)
+		// Wait for some time for MIC to go through some iterations.
+		time.Sleep(delay)
 	}
 	fmt.Printf("Completing disrupting MIC %d times.\n", iterations)
 }
@@ -964,6 +968,7 @@ func waitForLeaderChange(checkLeader string) {
 		currentLeader, err := getMICLeader()
 		Expect(err).NotTo(HaveOccurred())
 		if !strings.EqualFold(currentLeader, checkLeader) {
+			fmt.Printf("Leader changed from %s to %s\n", checkLeader, currentLeader)
 			return
 		}
 		time.Sleep(sleepTime)
@@ -1239,6 +1244,7 @@ func validateUserAssignedIdentityOnPod(podName, identityClientID string) ([]byte
 		"--keyvault-name", cfg.KeyvaultName,
 		"--keyvault-secret-name", cfg.KeyvaultSecretName,
 		"--keyvault-secret-version", cfg.KeyvaultSecretVersion)
+	util.PrintCommand(cmd)
 	return cmd.CombinedOutput()
 }
 
@@ -1250,6 +1256,7 @@ func validateClusterWideUserAssignedIdentity(podName, identityClientID string) (
 		"--subscription-id", cfg.SubscriptionID,
 		"--resource-group", cfg.ResourceGroup,
 		"--identity-client-id", identityClientID)
+	util.PrintCommand(cmd)
 	return cmd.CombinedOutput()
 }
 
