@@ -165,13 +165,14 @@ func WaitOnDeletion(prefix string) (bool, error) {
 	}
 }
 
-func StopPod(podName string) error {
+// DeletePod - Delete a pod of given name using kubectl
+func DeletePod(podName string) error {
 	cmd := exec.Command("kubectl", "delete", "pod", podName)
 	util.PrintCommand(cmd)
 	_, err := cmd.CombinedOutput()
 
 	if err != nil {
-		errors.Wrap(err, fmt.Sprintf("Pod stop command failed with error: %+v", err))
+		errors.Wrap(err, "Pod delete command failed with error")
 	}
 	return nil
 }

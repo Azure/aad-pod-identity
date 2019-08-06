@@ -900,7 +900,6 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 func runValidatorTest(iterations int) {
 	defer GinkgoRecover()
-	fmt.Println("Starting identity validator. Iteration: 0")
 	replicas := "1"
 	data := infra.IdentityValidatorTemplateData{
 		Name:                     identityValidator,
@@ -951,7 +950,7 @@ func runMICDisrupt(iterations int) {
 		leader, err := getMICLeader()
 		Expect(err).NotTo(HaveOccurred())
 		fmt.Printf("MIC leader: %s\n", leader)
-		Expect(pod.StopPod(leader)).NotTo(HaveOccurred())
+		Expect(pod.DeletePod(leader)).NotTo(HaveOccurred())
 		waitForLeaderChange(leader)
 		// Wait for some time for MIC to go through some iterations.
 		time.Sleep(delay)
