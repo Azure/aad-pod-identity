@@ -101,6 +101,8 @@ metadata:
   name: nmi
   namespace: default
 spec:
+  updateStrategy:
+    type: RollingUpdate
   template:
     metadata:
       labels:
