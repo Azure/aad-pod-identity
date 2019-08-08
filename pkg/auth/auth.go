@@ -48,11 +48,6 @@ func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string
 		return nil, fmt.Errorf("Failed to acquire a token using the MSI VM extension. Error: %v", err)
 	}
 
-	err = adal.AddToUserAgent(version.GetUserAgent("NMI", version.NMIVersion))
-	if err != nil {
-		return nil, err
-	}
-
 	// Effectively acquire the token
 	err = spt.Refresh()
 	if err != nil {
@@ -86,4 +81,12 @@ func GetServicePrincipalToken(tenantID, clientID, secret, resource string) (*ada
 	token := spt.Token()
 
 	return &token, nil
+}
+
+func init() {
+	err := adal.AddToUserAgent(version.GetUserAgent("NMI", version.NMIVersion))
+	if err != nil {
+		// shouldn't fail ever
+		panic(err)
+	}
 }
