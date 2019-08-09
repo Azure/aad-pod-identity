@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
@@ -873,7 +874,106 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 	})
+
+	It("should pass multiple identity validating test even when MIC is failing over", func() {
+		// Two go routines - one which keeps assigning identities by means of identity validator assignment.
+		iterations := 2
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		go func(iterations int) {
+			defer wg.Done()
+			runMICDisrupt(iterations)
+			fmt.Printf("Disrupting MIC completed %d iterations\n", iterations)
+		}(iterations)
+
+		go func(iterations int) {
+			defer wg.Done()
+			runValidatorTest(iterations)
+			fmt.Printf("Validator tests completed %d iterations\n", iterations)
+		}(iterations)
+
+		wg.Wait()
+		fmt.Printf("Done with running validator test and disrupting MIC")
+	})
 })
+
+func runValidatorTest(iterations int) {
+	defer GinkgoRecover()
+	replicas := "1"
+	data := infra.IdentityValidatorTemplateData{
+		Name:                     identityValidator,
+		IdentityBinding:          keyvaultIdentity,
+		Registry:                 cfg.Registry,
+		IdentityValidatorVersion: cfg.IdentityValidatorVersion,
+		Replicas:                 replicas,
+	}
+	var err error
+
+	for i := 0; i < iterations; i++ {
+		fmt.Printf("Starting identity validator. Iteration: %d\n", i)
+
+		if i == 0 {
+			// Initial creation of identity, binding and identityvalidator pod.
+			setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
+		} else { // After the initial one only create and delete the identity validator.
+			err = infra.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, templateOutputPath, data)
+			Expect(err).NotTo(HaveOccurred())
+		}
+
+		ok, err := deploy.WaitOnReady(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		ok, err = azureassignedidentity.WaitOnLengthMatched(1)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity)
+
+		deleteAllIdentityValidator()
+
+		ok, err = azureassignedidentity.WaitOnLengthMatched(0)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+	}
+	fmt.Printf("Completing %d validation checks\n", iterations)
+}
+
+func runMICDisrupt(iterations int) {
+	defer GinkgoRecover()
+	delay := time.Second * 60
+	for i := 0; i < iterations; i++ {
+		fmt.Printf("Starting MIC disruptor. Iteration: %d\n", i)
+		leader, err := getMICLeader()
+		Expect(err).NotTo(HaveOccurred())
+		fmt.Printf("MIC leader: %s\n", leader)
+		Expect(pod.DeletePod(leader)).NotTo(HaveOccurred())
+		waitForLeaderChange(leader)
+		// Wait for some time for MIC to go through some iterations.
+		time.Sleep(delay)
+	}
+	fmt.Printf("Completing disrupting MIC %d times.\n", iterations)
+}
+
+func waitForLeaderChange(checkLeader string) {
+	// Total 60 seconds for leader change.
+	retries := 12
+	sleepTime := time.Second * 5
+
+	for i := 0; i < retries; i++ {
+		currentLeader, err := getMICLeader()
+		Expect(err).NotTo(HaveOccurred())
+		if !strings.EqualFold(currentLeader, checkLeader) {
+			fmt.Printf("Leader changed from %s to %s\n", checkLeader, currentLeader)
+			return
+		}
+		time.Sleep(sleepTime)
+	}
+	Expect(false).Should(Equal(true), "Leader change did not happen in 60 seconds")
+}
 
 func collectLogs(podName, dir string) {
 	pods, err := pod.GetAllNameByPrefix(podName)
@@ -948,7 +1048,6 @@ func collectDebuggingInfo() {
 	collectLogs("nmi", logDirName)
 	collectLogs("identityvalidator", logDirName)
 	collectLogs("busybox", logDirName)
-
 }
 
 func getMICLeader() (string, error) {
@@ -956,12 +1055,14 @@ func getMICLeader() (string, error) {
 	output, err := cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred())
 
+	const leAnnotation = "control-plane.alpha.kubernetes.io/leader"
+
 	ep := &corev1.Endpoints{}
 	if err := json.Unmarshal(output, &ep); err != nil {
 		return "", errors.Wrap(err, "Failed to unmarshall json")
 	}
 
-	leRecordStr := ep.Annotations["control-plane.alpha.kubernetes.io/leader"]
+	leRecordStr := ep.Annotations[leAnnotation]
 	if leRecordStr == "" {
 		return "", fmt.Errorf("Leader election record empty ")
 	}
@@ -1142,6 +1243,7 @@ func validateUserAssignedIdentityOnPod(podName, identityClientID string) ([]byte
 		"--keyvault-name", cfg.KeyvaultName,
 		"--keyvault-secret-name", cfg.KeyvaultSecretName,
 		"--keyvault-secret-version", cfg.KeyvaultSecretVersion)
+	util.PrintCommand(cmd)
 	return cmd.CombinedOutput()
 }
 
@@ -1153,6 +1255,7 @@ func validateClusterWideUserAssignedIdentity(podName, identityClientID string) (
 		"--subscription-id", cfg.SubscriptionID,
 		"--resource-group", cfg.ResourceGroup,
 		"--identity-client-id", identityClientID)
+	util.PrintCommand(cmd)
 	return cmd.CombinedOutput()
 }
 
