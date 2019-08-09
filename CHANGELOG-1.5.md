@@ -1,3 +1,13 @@
+# v1.5.1
+
+### Bug Fixes
+
+- Append NMI version to the `User-Agent` for adal only once ([#333](https://github.com/Azure/aad-pod-identity/pull/333))
+
+### Other Improvements
+
+- Change 'updateStrategy' for nmi DaemonSet to `RollingUpdate` ([#334](https://github.com/Azure/aad-pod-identity/pull/334))
+
 # v1.5
 
 ### Features
