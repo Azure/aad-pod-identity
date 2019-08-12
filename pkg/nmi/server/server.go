@@ -52,8 +52,8 @@ type Server struct {
 
 // NMIResponse is the response returned to caller
 type NMIResponse struct {
-	Token    adal.Token `json:"token"`
-	ClientID string     `json:"clientid"`
+	Token    msiResponse `json:"token"`
+	ClientID string      `json:"clientid"`
 }
 
 // NewServer will create a new Server with default values.
@@ -220,7 +220,7 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 		return
 	}
 	nmiResp := NMIResponse{
-		Token:    *token,
+		Token:    newMSIResponse(*token),
 		ClientID: clientID,
 	}
 	response, err := json.Marshal(nmiResp)
