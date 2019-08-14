@@ -31,7 +31,7 @@ func TestGetTokenForMatchingIDBySP(t *testing.T) {
 		Spec: aadpodid.AzureIdentitySpec{
 			Type:           aadpodid.ServicePrincipal,
 			TenantID:       "tid",
-			ClientID:       "cid",
+			ClientID:       "aabc0000-a83v-9h4m-000j-2c0a66b0c1f9",
 			ClientPassword: secretRef,
 		},
 	}
