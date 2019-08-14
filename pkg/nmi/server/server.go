@@ -363,17 +363,16 @@ func getTokenForMatchingID(kubeClient k8s.Client, logger *log.Entry, rqClientID 
 			logger.Warningf("clientid mismatch, requested:%s available:%s", rqClientID, clientID)
 			continue
 		}
-		r, _ := regexp.Compile("^(\\S{4})(\\S|\\s)*(\\S{4})$")
 
 		idType := v.Spec.Type
 		switch idType {
 		case aadpodid.UserAssignedMSI:
-			logger.Infof("matched identityType:%v clientid:%s resource:%s", idType, r.ReplaceAllString(clientID, "$1##### REDACTED #####$3"), rqResource)
+			logger.Infof("matched identityType:%v clientid:%s resource:%s", idType, redactClientID(clientID), rqResource)
 			token, err := auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, rqResource)
 			return token, clientID, err
 		case aadpodid.ServicePrincipal:
 			tenantid := v.Spec.TenantID
-			logger.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantid, r.ReplaceAllString(clientID, "$1##### REDACTED #####$3"), rqResource)
+			logger.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantid, redactClientID(clientID), rqResource)
 			secret, err := kubeClient.GetSecret(&v.Spec.ClientPassword)
 			if err != nil {
 				return nil, clientID, err
