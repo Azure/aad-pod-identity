@@ -1,3 +1,9 @@
+# v1.5.2
+
+### Bug Fixes
+
+- Fix the token backward compat in host based token fetching ([#337](https://github.com/Azure/aad-pod-identity/pull/337))
+
 # v1.5.1
 
 ### Bug Fixes
