@@ -187,7 +187,6 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 		http.Error(w, "missing 'podname' and 'podns' from request header", http.StatusBadRequest)
 		return
 	}
-	logger.Infof("Recieved token request from %s/%s on host handler", podns, podname)
 
 	podIDs, identityInCreatedStateFound, err := s.listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID)
 	if err != nil {
@@ -314,7 +313,6 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	logger.Infof("Recieved token request from %s/%s", podns, podname)
 
 	exceptionList, err := s.KubeClient.ListPodIdentityExceptions(podns)
 	if err != nil {

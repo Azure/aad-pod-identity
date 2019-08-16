@@ -270,6 +270,8 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 		return nil, err
 	}
 
+	// TODO (aramase) need to remove this if check and instead just get the identities using pager
+	// This if else logic currently exists to keep the changes minimal.
 	if _, ok := ret.(*aadpodid.AzureAssignedIdentityList); !ok {
 		// since there is an error trying to cast, we will do the
 		// alternate logic of creating a new pager, casting each individual obj and create a manual list
@@ -311,10 +313,13 @@ func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodI
 func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
 	azAssignedIDList, err := c.AssignedIDListWatch.List(v1.ListOptions{})
 	if err != nil {
+		glog.Error(err)
 		return nil, err
 	}
 
 	var ret []aadpodid.AzureAssignedIdentity
+	// TODO (aramase) need to remove this if check and instead just get the identities using pager
+	// This if else logic currently exists to keep the changes minimal.
 	if _, ok := azAssignedIDList.(*aadpodid.AzureAssignedIdentityList); !ok {
 		// since there is an error trying to cast, we will do the
 		// alternate logic of creating a new pager, casting each individual obj and create a manual list
