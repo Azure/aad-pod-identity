@@ -1,12 +1,14 @@
 package stats
 
 import (
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
 )
 
 var GlobalStats map[StatsType]time.Duration
+var Mutex *sync.RWMutex
 
 type StatsType string
 
@@ -36,16 +38,21 @@ const (
 
 func Init() {
 	GlobalStats = make(map[StatsType]time.Duration)
+	Mutex = &sync.RWMutex{}
 }
 
 func Put(key StatsType, val time.Duration) {
 	if GlobalStats != nil {
+		Mutex.Lock()
+		defer Mutex.Unlock()
 		GlobalStats[key] = val
 	}
 }
 
 func Get(key StatsType) time.Duration {
 	if GlobalStats != nil {
+		Mutex.RLock()
+		defer Mutex.RUnlock()
 		return GlobalStats[key]
 	}
 	return 0
@@ -53,11 +60,15 @@ func Get(key StatsType) time.Duration {
 
 func Update(key StatsType, val time.Duration) {
 	if GlobalStats != nil {
+		Mutex.Lock()
+		defer Mutex.Unlock()
 		GlobalStats[key] = GlobalStats[key] + val
 	}
 }
 
 func Print(key StatsType) {
+	Mutex.RLock()
+	defer Mutex.RUnlock()
 	glog.Infof("%s: %s", key, GlobalStats[key])
 }
 
@@ -88,6 +99,8 @@ func PrintSync() {
 }
 
 func GetAll() map[StatsType]time.Duration {
+	Mutex.RLock()
+	defer Mutex.RUnlock()
 	return GlobalStats
 }
 
