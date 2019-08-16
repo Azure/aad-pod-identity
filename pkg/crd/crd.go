@@ -10,6 +10,7 @@ import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -262,11 +263,21 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 // ListAssignedIDs returns a list of azureassignedidentities
 func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
 	begin := time.Now()
+
 	ret, err := c.AssignedIDListWatch.List(v1.ListOptions{})
 	if err != nil {
 		glog.Error(err)
 		return nil, err
 	}
+
+	// TODO (aramase) need to remove this if check and instead just get the identities using pager
+	// This if else logic currently exists to keep the changes minimal.
+	if _, ok := ret.(*aadpodid.AzureAssignedIdentityList); !ok {
+		// since there is an error trying to cast, we will do the
+		// alternate logic of creating a new pager, casting each individual obj and create a manual list
+		return c.getAssignedIdentitiesWithPager()
+	}
+
 	stats.Update(stats.AssignedIDList, time.Since(begin))
 	return &ret.(*aadpodid.AzureAssignedIdentityList).Items, nil
 }
@@ -306,8 +317,23 @@ func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureI
 		return nil, err
 	}
 
+	var ret []aadpodid.AzureAssignedIdentity
+	// TODO (aramase) need to remove this if check and instead just get the identities using pager
+	// This if else logic currently exists to keep the changes minimal.
+	if _, ok := azAssignedIDList.(*aadpodid.AzureAssignedIdentityList); !ok {
+		// since there is an error trying to cast, we will do the
+		// alternate logic of creating a new pager, casting each individual obj and create a manual list
+		assignedIDs, err := c.getAssignedIdentitiesWithPager()
+		if err != nil {
+			return nil, err
+		}
+		ret = *assignedIDs
+	} else {
+		ret = azAssignedIDList.(*aadpodid.AzureAssignedIdentityList).Items
+	}
+
 	idStateMap := make(map[string][]aadpodid.AzureIdentity)
-	for _, v := range azAssignedIDList.(*aadpodid.AzureAssignedIdentityList).Items {
+	for _, v := range ret {
 		if v.Spec.Pod == podname && v.Spec.PodNamespace == podns {
 			idStateMap[v.Status.Status] = append(idStateMap[v.Status.Status], *v.Spec.AzureIdentityRef)
 		}
@@ -345,4 +371,28 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 		Error()
 
 	return err
+}
+
+func (c *Client) getAssignedIdentitiesWithPager() (res *[]aadpodid.AzureAssignedIdentity, err error) {
+	listFunc := func(opts v1.ListOptions) (runtime.Object, error) {
+		return c.AssignedIDListWatch.List(v1.ListOptions{})
+	}
+
+	obj, err := listFunc(v1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	assignedIDs := make([]aadpodid.AzureAssignedIdentity, 0)
+	if err = meta.EachListItem(obj, func(obj runtime.Object) error {
+		tmp, ok := obj.(*aadpodid.AzureAssignedIdentity)
+		if !ok {
+			return fmt.Errorf("expected type *v1.AzureAssignedIdentity, got type %T", tmp)
+		}
+		assignedIDs = append(assignedIDs, *tmp)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return &assignedIDs, nil
 }
