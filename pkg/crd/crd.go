@@ -267,7 +267,7 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 	ret, err := c.AssignedIDListWatch.List(v1.ListOptions{})
 	if err != nil {
 		glog.Error(err)
-		return
+		return nil, err
 	}
 
 	if _, ok := ret.(*aadpodid.AzureAssignedIdentityList); !ok {
