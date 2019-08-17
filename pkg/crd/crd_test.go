@@ -77,26 +77,26 @@ func (c *TestCrdClient) CreateID(idName string, t aadpodid.IdentityType, rID str
 	c.idMap[idName] = id
 }
 
-func (c *TestCrdClient) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
+func (c *TestCrdClient) ListIds() (res []aadpodid.AzureIdentity, err error) {
 	idList := make([]aadpodid.AzureIdentity, 0)
 	for _, v := range c.idMap {
 		idList = append(idList, *v)
 	}
-	return &idList, nil
+	return idList, nil
 }
 
-func (c *TestCrdClient) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
+func (c *TestCrdClient) ListBindings() (res []aadpodid.AzureIdentityBinding, err error) {
 	bindingList := make([]aadpodid.AzureIdentityBinding, 0)
 	for _, v := range c.bindingMap {
 		bindingList = append(bindingList, *v)
 	}
-	return &bindingList, nil
+	return bindingList, nil
 }
 
-func (c *TestCrdClient) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
+func (c *TestCrdClient) ListAssignedIDs() (res []aadpodid.AzureAssignedIdentity, err error) {
 	assignedIDList := make([]aadpodid.AzureAssignedIdentity, 0)
 	for _, v := range c.assignedIDMap {
 		assignedIDList = append(assignedIDList, *v)
 	}
-	return &assignedIDList, nil
+	return assignedIDList, nil
 }

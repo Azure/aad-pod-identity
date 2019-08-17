@@ -39,11 +39,11 @@ type ClientInt interface {
 	RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error
-	ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error)
-	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
-	ListIds() (res *[]aadpodid.AzureIdentity, err error)
+	ListBindings() (res []aadpodid.AzureIdentityBinding, err error)
+	ListAssignedIDs() (res []aadpodid.AzureAssignedIdentity, err error)
+	ListIds() (res []aadpodid.AzureIdentity, err error)
 	ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error)
-	ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error)
+	ListPodIdentityExceptions(ns string) (res []aadpodid.AzurePodIdentityException, err error)
 }
 
 // NewCRDClientLite ...
@@ -248,7 +248,7 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 }
 
 // ListBindings returns a list of azureidentitybindings
-func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
+func (c *Client) ListBindings() (res []aadpodid.AzureIdentityBinding, err error) {
 	begin := time.Now()
 
 	ret, err := c.BindingListWatch.List(v1.ListOptions{})
@@ -257,11 +257,11 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 		return nil, err
 	}
 	stats.Update(stats.BindingList, time.Since(begin))
-	return &ret.(*aadpodid.AzureIdentityBindingList).Items, nil
+	return ret.(*aadpodid.AzureIdentityBindingList).Items, nil
 }
 
 // ListAssignedIDs returns a list of azureassignedidentities
-func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
+func (c *Client) ListAssignedIDs() (res []aadpodid.AzureAssignedIdentity, err error) {
 	begin := time.Now()
 
 	ret, err := c.AssignedIDListWatch.List(v1.ListOptions{})
@@ -279,11 +279,11 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 	}
 
 	stats.Update(stats.AssignedIDList, time.Since(begin))
-	return &ret.(*aadpodid.AzureAssignedIdentityList).Items, nil
+	return ret.(*aadpodid.AzureAssignedIdentityList).Items, nil
 }
 
 // ListIds returns a list of azureidentities
-func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
+func (c *Client) ListIds() (res []aadpodid.AzureIdentity, err error) {
 	begin := time.Now()
 	ret, err := c.IDListWatch.List(v1.ListOptions{})
 	if err != nil {
@@ -291,11 +291,11 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 		return nil, err
 	}
 	stats.Update(stats.IDList, time.Since(begin))
-	return &ret.(*aadpodid.AzureIdentityList).Items, nil
+	return ret.(*aadpodid.AzureIdentityList).Items, nil
 }
 
 // ListPodIdentityExceptions returns list of azurepodidentityexceptions
-func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error) {
+func (c *Client) ListPodIdentityExceptions(ns string) (res []aadpodid.AzurePodIdentityException, err error) {
 	begin := time.Now()
 	ret, err := c.PodIdentityExceptionListWatch.List(v1.ListOptions{
 		FieldSelector: "metadata.namespace=" + ns,
@@ -305,7 +305,7 @@ func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodI
 		return nil, err
 	}
 	stats.Update(stats.ExceptionList, time.Since(begin))
-	return &ret.(*aadpodid.AzurePodIdentityExceptionList).Items, nil
+	return ret.(*aadpodid.AzurePodIdentityExceptionList).Items, nil
 }
 
 // ListPodIds - given a pod with pod name space
@@ -327,7 +327,7 @@ func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureI
 		if err != nil {
 			return nil, err
 		}
-		ret = *assignedIDs
+		ret = assignedIDs
 	} else {
 		ret = azAssignedIDList.(*aadpodid.AzureAssignedIdentityList).Items
 	}
@@ -373,7 +373,7 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 	return err
 }
 
-func (c *Client) getAssignedIdentitiesWithPager() (res *[]aadpodid.AzureAssignedIdentity, err error) {
+func (c *Client) getAssignedIdentitiesWithPager() (res []aadpodid.AzureAssignedIdentity, err error) {
 	listFunc := func(opts v1.ListOptions) (runtime.Object, error) {
 		return c.AssignedIDListWatch.List(v1.ListOptions{})
 	}
@@ -394,5 +394,5 @@ func (c *Client) getAssignedIdentitiesWithPager() (res *[]aadpodid.AzureAssigned
 	}); err != nil {
 		return nil, err
 	}
-	return &assignedIDs, nil
+	return assignedIDs, nil
 }

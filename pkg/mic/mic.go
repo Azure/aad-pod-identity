@@ -252,7 +252,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		if err != nil {
 			continue
 		}
-		idMap, err := c.convertIDListToMap(*listIDs)
+		idMap, err := c.convertIDListToMap(listIDs)
 		if err != nil {
 			glog.Error(err)
 			continue
@@ -274,12 +274,12 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 		// Extract add list and delete list based on existing assigned ids in the system (currentAssignedIDs).
 		// and the ones we have arrived at in the volatile list (newAssignedIDs).
-		addList, err := c.getAzureAssignedIDsToCreate(*currentAssignedIDs, newAssignedIDs)
+		addList, err := c.getAzureAssignedIDsToCreate(currentAssignedIDs, newAssignedIDs)
 		if err != nil {
 			glog.Error(err)
 			continue
 		}
-		deleteList, err := c.getAzureAssignedIDsToDelete(currentAssignedIDs, &newAssignedIDs)
+		deleteList, err := c.getAzureAssignedIDsToDelete(currentAssignedIDs, newAssignedIDs)
 		if err != nil {
 			glog.Error(err)
 			continue
@@ -293,37 +293,29 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 		// process the delete and add list
 		// determine the list of identities that need to updated, create a node to identity list mapping for add and delete
-		if deleteList != nil && len(*deleteList) > 0 {
+		if len(deleteList) > 0 {
 			workDone = true
-			c.getListOfIdsToDelete(*deleteList, newAssignedIDs, nodeMap, nodeRefs)
+			c.getListOfIdsToDelete(deleteList, newAssignedIDs, nodeMap, nodeRefs)
 		}
-		if addList != nil && len(*addList) > 0 {
+		if len(addList) > 0 {
 			workDone = true
-			c.getListOfIdsToAssign(*addList, nodeMap)
+			c.getListOfIdsToAssign(addList, nodeMap)
 		}
 
 		// one final createorupdate to each node in the map
 		c.updateNodeAndDeps(newAssignedIDs, nodeMap, nodeRefs)
 
 		if workDone {
-			idsFound := 0
-			bindingsFound := 0
-			if listIDs != nil {
-				idsFound = len(*listIDs)
-			}
-			if listBindings != nil {
-				bindingsFound = len(*listBindings)
-			}
-			glog.Infof("Found %d pods, %d ids, %d bindings", len(listPods), idsFound, bindingsFound)
+			glog.Infof("Found %d pods, %d ids, %d bindings", len(listPods), len(listIDs), len(listBindings))
 			stats.Put(stats.Total, time.Since(begin))
 			stats.PrintSync()
 		}
 	}
 }
 
-func (c *Client) convertAssignedIDListToMap(addList, deleteList *[]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
+func (c *Client) convertAssignedIDListToMap(addList, deleteList []aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
 	if addList != nil {
-		for _, createID := range *addList {
+		for _, createID := range addList {
 			if trackList, ok := nodeMap[createID.Spec.NodeName]; ok {
 				trackList.assignedIDsToCreate = append(trackList.assignedIDsToCreate, createID)
 				nodeMap[createID.Spec.NodeName] = trackList
@@ -333,7 +325,7 @@ func (c *Client) convertAssignedIDListToMap(addList, deleteList *[]aadpodid.Azur
 		}
 	}
 	if deleteList != nil {
-		for _, delID := range *deleteList {
+		for _, delID := range deleteList {
 			if trackList, ok := nodeMap[delID.Spec.NodeName]; ok {
 				trackList.assignedIDsToDelete = append(trackList.assignedIDsToDelete, delID)
 				nodeMap[delID.Spec.NodeName] = trackList
@@ -345,7 +337,7 @@ func (c *Client) convertAssignedIDListToMap(addList, deleteList *[]aadpodid.Azur
 }
 
 func (c *Client) createDesiredAssignedIdentityList(
-	listPods []*corev1.Pod, listBindings *[]aadpodid.AzureIdentityBinding, idMap map[string]aadpodid.AzureIdentity) ([]aadpodid.AzureAssignedIdentity, map[string]bool, error) {
+	listPods []*corev1.Pod, listBindings []aadpodid.AzureIdentityBinding, idMap map[string]aadpodid.AzureIdentity) ([]aadpodid.AzureAssignedIdentity, map[string]bool, error) {
 	//For each pod, check what bindings are matching. For each binding create volatile azure assigned identity.
 	//Compare this list with the current list of azure assigned identities.
 	//For any new assigned identities found in this volatile list, create assigned identity and assign user assigned msis.
@@ -366,7 +358,7 @@ func (c *Client) createDesiredAssignedIdentityList(
 			continue
 		}
 		var matchedBindings []aadpodid.AzureIdentityBinding
-		for _, allBinding := range *listBindings {
+		for _, allBinding := range listBindings {
 			if allBinding.Spec.Selector == crdPodLabelVal {
 				glog.V(5).Infof("Found binding match for pod %s/%s with binding %s", pod.Namespace, pod.Name, allBinding.Name)
 				matchedBindings = append(matchedBindings, allBinding)
@@ -464,10 +456,10 @@ func (c *Client) matchAssignedID(x *aadpodid.AzureAssignedIdentity, y *aadpodid.
 	return false, nil
 }
 
-func (c *Client) getAzureAssignedIDsToCreate(old, new []aadpodid.AzureAssignedIdentity) (*[]aadpodid.AzureAssignedIdentity, error) {
+func (c *Client) getAzureAssignedIDsToCreate(old, new []aadpodid.AzureAssignedIdentity) ([]aadpodid.AzureAssignedIdentity, error) {
 	// everything in new needs to be created
 	if old == nil || len(old) == 0 {
-		return &new, nil
+		return new, nil
 	}
 
 	create := make([]aadpodid.AzureAssignedIdentity, 0)
@@ -501,16 +493,16 @@ func (c *Client) getAzureAssignedIDsToCreate(old, new []aadpodid.AzureAssignedId
 		}
 	}
 	stats.Put(stats.FindAssignedIDCreate, time.Since(begin))
-	return &create, nil
+	return create, nil
 }
 
-func (c *Client) getAzureAssignedIDsToDelete(old *[]aadpodid.AzureAssignedIdentity, new *[]aadpodid.AzureAssignedIdentity) (*[]aadpodid.AzureAssignedIdentity, error) {
+func (c *Client) getAzureAssignedIDsToDelete(old []aadpodid.AzureAssignedIdentity, new []aadpodid.AzureAssignedIdentity) ([]aadpodid.AzureAssignedIdentity, error) {
 	// nothing to delete
-	if old == nil || len(*old) == 0 {
+	if len(old) == 0 {
 		return nil, nil
 	}
 	// delete everything as nothing in new
-	if new == nil || len(*new) == 0 {
+	if len(new) == 0 {
 		return old, nil
 	}
 
@@ -519,9 +511,9 @@ func (c *Client) getAzureAssignedIDsToDelete(old *[]aadpodid.AzureAssignedIdenti
 	idMatch := false
 
 	begin := time.Now()
-	for _, oldAssignedID := range *old {
+	for _, oldAssignedID := range old {
 		idMatch = false
-		for _, newAssignedID := range *new {
+		for _, newAssignedID := range new {
 			idMatch, err = c.matchAssignedID(&newAssignedID, &oldAssignedID)
 			if err != nil {
 				glog.Error(err)
@@ -540,7 +532,7 @@ func (c *Client) getAzureAssignedIDsToDelete(old *[]aadpodid.AzureAssignedIdenti
 		}
 	}
 	stats.Put(stats.FindAssignedIDDel, time.Since(begin))
-	return &delete, nil
+	return delete, nil
 }
 
 func (c *Client) makeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpodid.AzureIdentityBinding, podName, podNameSpace, nodeName string) (res *aadpodid.AzureAssignedIdentity, err error) {

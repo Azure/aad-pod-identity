@@ -417,34 +417,34 @@ func (c *TestCrdClient) CreateID(idName string, t aadpodid.IdentityType, rID str
 	c.mu.Unlock()
 }
 
-func (c *TestCrdClient) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
+func (c *TestCrdClient) ListIds() (res []aadpodid.AzureIdentity, err error) {
 	idList := make([]aadpodid.AzureIdentity, 0)
 	c.mu.Lock()
 	for _, v := range c.idMap {
 		idList = append(idList, *v)
 	}
 	c.mu.Unlock()
-	return &idList, nil
+	return idList, nil
 }
 
-func (c *TestCrdClient) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
+func (c *TestCrdClient) ListBindings() (res []aadpodid.AzureIdentityBinding, err error) {
 	bindingList := make([]aadpodid.AzureIdentityBinding, 0)
 	c.mu.Lock()
 	for _, v := range c.bindingMap {
 		bindingList = append(bindingList, *v)
 	}
 	c.mu.Unlock()
-	return &bindingList, nil
+	return bindingList, nil
 }
 
-func (c *TestCrdClient) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
+func (c *TestCrdClient) ListAssignedIDs() (res []aadpodid.AzureAssignedIdentity, err error) {
 	assignedIDList := make([]aadpodid.AzureAssignedIdentity, 0)
 	c.mu.Lock()
 	for _, v := range c.assignedIDMap {
 		assignedIDList = append(assignedIDList, *v)
 	}
 	c.mu.Unlock()
-	return &assignedIDList, nil
+	return assignedIDList, nil
 }
 
 func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
@@ -452,7 +452,7 @@ func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureI
 }
 
 // ListPodIdentityExceptions ...
-func (c *Client) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodIdentityException, error) {
+func (c *Client) ListPodIdentityExceptions(ns string) ([]aadpodid.AzurePodIdentityException, error) {
 	return nil, nil
 }
 
@@ -691,7 +691,7 @@ func TestSimpleMICClient(t *testing.T) {
 	}
 
 	if listAssignedIDs != nil {
-		for _, assignedID := range *listAssignedIDs {
+		for _, assignedID := range listAssignedIDs {
 			if assignedID.Spec.Pod == "test-pod" && assignedID.Spec.PodNamespace == "default" && assignedID.Spec.NodeName == "test-node" &&
 				assignedID.Spec.AzureBindingRef.Name == "testbinding" && assignedID.Spec.AzureIdentityRef.Name == "test-id" {
 				testPass = true
@@ -725,7 +725,7 @@ func TestSimpleMICClient(t *testing.T) {
 		t.Fatalf("list assigned failed")
 	}
 
-	if len(*listAssignedIDs) != 0 {
+	if len(listAssignedIDs) != 0 {
 		t.Fatalf("Assigned id not deleted")
 	}
 
@@ -753,8 +753,8 @@ func TestSimpleMICClient(t *testing.T) {
 		t.Fatalf("list assigned failed")
 	}
 
-	if (*listAssignedIDs)[0].Status.Status != aadpodid.AssignedIDCreated {
-		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDCreated, (*listAssignedIDs)[0].Status.Status)
+	if (listAssignedIDs)[0].Status.Status != aadpodid.AssignedIDCreated {
+		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDCreated, (listAssignedIDs)[0].Status.Status)
 	}
 
 	/*
@@ -828,7 +828,7 @@ func TestAddDelMICClient(t *testing.T) {
 		t.Fatalf("error from list assigned ids")
 	}
 	expectedLen := 2
-	gotLen := len(*listAssignedIDs)
+	gotLen := len(listAssignedIDs)
 
 	//One id should be left around. Rest should be removed
 	if gotLen != expectedLen {
@@ -864,13 +864,13 @@ func TestAddDelMICClient(t *testing.T) {
 	}
 
 	expectedLen = 1
-	gotLen = len(*listAssignedIDs)
+	gotLen = len(listAssignedIDs)
 	//One id should be left around. Rest should be removed
 	if gotLen != expectedLen {
 		glog.Errorf("Expected len: %d. Got: %d", expectedLen, gotLen)
 		t.Fatalf("Add and delete id at same time mismatch")
 	} else {
-		gotID := (*listAssignedIDs)[0].Name
+		gotID := (listAssignedIDs)[0].Name
 		expectedID := "test-pod3-default-test-id3"
 		if gotID != expectedID {
 			glog.Errorf("Expected %s. Got: %s", expectedID, gotID)
@@ -925,8 +925,8 @@ func TestMicAddDelVMSS(t *testing.T) {
 		glog.Error(err)
 		t.Errorf("list assigned failed")
 	}
-	if !(len(*listAssignedIDs) == 3) {
-		t.Fatalf("expected assigned identities len: %d, got: %d", 3, len(*listAssignedIDs))
+	if !(len(listAssignedIDs) == 3) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 3, len(listAssignedIDs))
 	}
 
 	if !cloudClient.CompareMSI("testvmss1", []string{"test-user-msi-resourceid"}) {
@@ -947,8 +947,8 @@ func TestMicAddDelVMSS(t *testing.T) {
 		glog.Error(err)
 		t.Errorf("list assigned failed")
 	}
-	if !(len(*listAssignedIDs) == 2) {
-		t.Fatalf("expected assigned identities len: %d, got: %d", 2, len(*listAssignedIDs))
+	if !(len(listAssignedIDs) == 2) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 2, len(listAssignedIDs))
 	}
 
 	if !cloudClient.CompareMSI("testvmss1", []string{"test-user-msi-resourceid"}) {
@@ -970,8 +970,8 @@ func TestMicAddDelVMSS(t *testing.T) {
 		glog.Error(err)
 		t.Errorf("list assigned failed")
 	}
-	if !(len(*listAssignedIDs) == 1) {
-		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
+	if !(len(listAssignedIDs) == 1) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(listAssignedIDs))
 	}
 
 	if !cloudClient.CompareMSI("testvmss1", []string{}) {
@@ -1013,11 +1013,11 @@ func TestMICStateFlow(t *testing.T) {
 		glog.Error(err)
 		t.Errorf("list assigned failed")
 	}
-	if !(len(*listAssignedIDs) == 1) {
-		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
+	if !(len(listAssignedIDs) == 1) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(listAssignedIDs))
 	}
-	if !((*listAssignedIDs)[0].Status.Status == aadpodid.AssignedIDAssigned) {
-		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (*listAssignedIDs)[0].Status.Status)
+	if !((listAssignedIDs)[0].Status.Status == aadpodid.AssignedIDAssigned) {
+		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (listAssignedIDs)[0].Status.Status)
 	}
 
 	// delete the pod, simulate failure in cloud calls on trying to un-assign identity from node
@@ -1036,11 +1036,11 @@ func TestMICStateFlow(t *testing.T) {
 		glog.Error(err)
 		t.Errorf("list assigned failed")
 	}
-	if !(len(*listAssignedIDs) == 1) {
-		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
+	if !(len(listAssignedIDs) == 1) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(listAssignedIDs))
 	}
-	if !((*listAssignedIDs)[0].Status.Status == aadpodid.AssignedIDAssigned) {
-		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (*listAssignedIDs)[0].Status.Status)
+	if !((listAssignedIDs)[0].Status.Status == aadpodid.AssignedIDAssigned) {
+		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (listAssignedIDs)[0].Status.Status)
 	}
 
 	cloudClient.UnSetError()
@@ -1063,10 +1063,10 @@ func TestMICStateFlow(t *testing.T) {
 		glog.Error(err)
 		t.Errorf("list assigned failed")
 	}
-	if !(len(*listAssignedIDs) == 2) {
-		t.Fatalf("expected assigned identities len: %d, got: %d", 2, len(*listAssignedIDs))
+	if !(len(listAssignedIDs) == 2) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 2, len(listAssignedIDs))
 	}
-	for _, assignedID := range *listAssignedIDs {
+	for _, assignedID := range listAssignedIDs {
 		if assignedID.Spec.Pod == "test-pod1" {
 			if assignedID.Status.Status != aadpodid.AssignedIDUnAssigned {
 				t.Fatalf("Expected status to be: %s. Got: %s", aadpodid.AssignedIDUnAssigned, assignedID.Status.Status)
@@ -1091,8 +1091,8 @@ func TestMICStateFlow(t *testing.T) {
 		glog.Error(err)
 		t.Errorf("list assigned failed")
 	}
-	if !(len(*listAssignedIDs) == 0) {
-		t.Fatalf("expected assigned identities len: %d, got: %d", 0, len(*listAssignedIDs))
+	if !(len(listAssignedIDs) == 0) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 0, len(listAssignedIDs))
 	}
 }
 
@@ -1131,11 +1131,11 @@ func TestSyncRetryLoop(t *testing.T) {
 		glog.Error(err)
 		t.Errorf("list assigned failed")
 	}
-	if !(len(*listAssignedIDs) == 1) {
-		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
+	if !(len(listAssignedIDs) == 1) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(listAssignedIDs))
 	}
-	if !((*listAssignedIDs)[0].Status.Status == aadpodid.AssignedIDAssigned) {
-		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (*listAssignedIDs)[0].Status.Status)
+	if !((listAssignedIDs)[0].Status.Status == aadpodid.AssignedIDAssigned) {
+		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (listAssignedIDs)[0].Status.Status)
 	}
 
 	// delete the pod, simulate failure in cloud calls on trying to un-assign identity from node
@@ -1153,11 +1153,11 @@ func TestSyncRetryLoop(t *testing.T) {
 		glog.Error(err)
 		t.Errorf("list assigned failed")
 	}
-	if !(len(*listAssignedIDs) == 1) {
-		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
+	if !(len(listAssignedIDs) == 1) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(listAssignedIDs))
 	}
-	if !((*listAssignedIDs)[0].Status.Status == aadpodid.AssignedIDAssigned) {
-		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (*listAssignedIDs)[0].Status.Status)
+	if !((listAssignedIDs)[0].Status.Status == aadpodid.AssignedIDAssigned) {
+		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (listAssignedIDs)[0].Status.Status)
 	}
 	cloudClient.UnSetError()
 
@@ -1170,8 +1170,8 @@ func TestSyncRetryLoop(t *testing.T) {
 		glog.Error(err)
 		t.Errorf("list assigned failed")
 	}
-	if !(len(*listAssignedIDs) == 0) {
-		t.Fatalf("expected assigned identities len: %d, got: %d", 0, len(*listAssignedIDs))
+	if !(len(listAssignedIDs) == 0) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 0, len(listAssignedIDs))
 	}
 }
 

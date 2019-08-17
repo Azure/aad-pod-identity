@@ -29,7 +29,7 @@ func (c *FakeClient) ListPodIds(podns, podname string) (map[string][]aadpodid.Az
 }
 
 // ListPodIdentityExceptions ...
-func (c *FakeClient) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodIdentityException, error) {
+func (c *FakeClient) ListPodIdentityExceptions(ns string) ([]aadpodid.AzurePodIdentityException, error) {
 	return nil, nil
 }
 
