@@ -915,6 +915,25 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity)
+    })
+	
+	It("should pass the identity format validation via gatekeeper constraint", func() {
+
+		// setup the required infra
+		setupIdentityFormatValidationInfra()
+
+		// cleanup the infra craeted for this specific test
+		// uninstall the identity format constraint ,identity format template,Gatekeeper in sequence
+		defer cleanupIdentityFormatValidationInfra()
+
+		cmd := exec.Command("kubectl", "apply", "-f", "template/aadpodidentity_test_invalid.yaml")
+		_, err := cmd.CombinedOutput()
+		// this should fail given the constraint on the resourceId format
+		Expect(err).To(HaveOccurred())
+
+		cmd = exec.Command("kubectl", "apply", "-f", "template/aadpodidentity_test_valid.yaml")
+		_, err = cmd.CombinedOutput()
+		Expect(err).NotTo(HaveOccurred())
 	})
 })
 
@@ -1409,6 +1428,43 @@ func getResourceManager(n *node.Node) (resourceManager, error) {
 	default:
 		panic("unknown resource type: %s" + r.ResourceType)
 	}
+}
+
+// setupIdentityFormatValidationInfra install Gatekeeper, format template and constraints
+func setupIdentityFormatValidationInfra() {
+	// install Gatekeeper policy controller
+	err := infra.InstallGatekeeper()
+	Expect(err).NotTo(HaveOccurred())
+
+	// install identity format template
+	cmd := exec.Command("kubectl", "apply", "-f", "../../validation/gatekeeper/azureidentityformat_template.yaml")
+	util.PrintCommand(cmd)
+	_, err = cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+
+	// install identity format constraint
+	cmd = exec.Command("kubectl", "apply", "-f", "../../validation/gatekeeper/azureidentityformat_constraint.yaml")
+	util.PrintCommand(cmd)
+	_, err = cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+}
+
+// cleanupIdentityFormatValidationInfra delete Gatekeeper, format template and constraints
+func cleanupIdentityFormatValidationInfra() {
+
+	// uninstall identity format constraint
+	cmd := exec.Command("kubectl", "delete", "-f", "../../validation/gatekeeper/azureidentityformat_constraint.yaml")
+	_, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+
+	// uninstall identity format template
+	cmd = exec.Command("kubectl", "delete", "-f", "../../validation/gatekeeper/azureidentityformat_template.yaml")
+	_, err = cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+
+	// uninstall Gatekeeper policy controller
+	err = infra.UninstallGatekeeper()
+	Expect(err).NotTo(HaveOccurred())
 }
 
 type resourceManager interface {
