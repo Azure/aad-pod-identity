@@ -26,10 +26,11 @@ export KEYVAULT_SECRET_NAME='...'
 
 # The version of the secret inserted into the keyvault
 export KEYVAULT_SECRET_VERSION='...'
-
+```
 
 Optionally, to use custom images:
 
+```bash
 # The registry where to get the images from. Defaults to `mcr.microsoft.com/k8s/aad-pod-identity`.
 export REGISTRY='...'
 
@@ -44,7 +45,12 @@ export IDENTITY_VALIDATOR_VERSION='...'
 
 ```
 
-At the same time, the tests utilizes two user assigned identities, `keyvault-identity` (have read access to the keyvault that you create) and `cluster-identity` (have read access to the resource group level). You can create necessary Azure resources and roles with the bash script [`setup.sh`](./setup.sh) (Note that reader assignment in the script might need a few attempts to succeed).
+If you are using system asssigned identity cluster, please set the following variable:
+```bash
+export SYSTEM_MSI_CLUSTER=true
+```
+
+The tests utilizes two user assigned identities - `keyvault-identity` (have read access to the keyvault that you create) and `cluster-identity` (have read access to the resource group level). You can create necessary Azure resources and roles with the bash script [`setup.sh`](./setup.sh) (Note that reader assignment in the script might need a few attempts to succeed).
 
 Finally, to start the E2E tests, execute the following commands:
 
