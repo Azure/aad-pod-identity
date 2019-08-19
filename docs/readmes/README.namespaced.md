@@ -1,5 +1,5 @@
 # Match Pods in the Namespace
-> Available from (1.3.0-mic-1.4.0-nmi release)[https://github.com/Azure/aad-pod-identity/releases/tag/1.3.0-mic-1.4.0-nmi]
+> Available from [1.3.0-mic-1.4.0-nmi release](https://github.com/Azure/aad-pod-identity/releases/tag/1.3.0-mic-1.4.0-nmi)
 
 By default, AAD Pod Identity matches pods to identities across namespaces. To match only pods in the namespace containing `AzureIdentity`, use one of these techniques:
 

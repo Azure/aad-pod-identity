@@ -90,7 +90,7 @@ Finally, save your changes to the file, then create the `AzureIdentity` resource
 kubectl apply -f aadpodidentity.yaml
 ```
 
-For matching pods in namespace, please refer to README (here)[docs/readmes/README.namespaced.md]
+For matching pods in namespace, please refer to README [here](docs/readmes/README.namespaced.md).
 
 ### 5. Install the Azure Identity Binding
 
