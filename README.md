@@ -238,6 +238,11 @@ Specifically, when a pod is scheduled, the MIC assigns an identity to the underl
 
 The authorization request to fetch a Service Principal Token from an MSI endpoint is sent to a standard Instance Metadata endpoint which is redirected to the NMI pod. The redirection is accomplished by adding rules to redirect POD CIDR traffic with metadata endpoint IP on port 80 to the NMI endpoint. The NMI server identifies the pod based on the remote address of the request and then queries Kubernetes (through MIC) for a matching Azure identity. NMI then makes an Azure Active Directory Authentication Library ([ADAL]) request to get the token for the client id and returns it as a response. If the request had client id as part of the query, it is validated against the admin-configured client id.
 
+Here is an example cURL command that will fetch an Azure KeyVault token from within a pod identified by an AAD-Pod-Identity selector:
+```bash
+curl http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net
+```
+
 Similarly, a host can make an authorization request to fetch Service Principal Token for a resource directly from the NMI host endpoint (http://127.0.0.1:2579/host/token/). The request must include the pod namespace `podns` and the pod name `podname` in the request header and the resource endpoint of the resource requesting the token. The NMI server identifies the pod based on the `podns` and `podname` in the request header and then queries k8s (through MIC) for a matching azure identity. Then NMI makes an ADAL request to get a token for the resource in the request, returning the `token` and the `clientid` as a response.
 
 Here is an example cURL command:
