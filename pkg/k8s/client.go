@@ -8,6 +8,8 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/informers"
+	clientv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
@@ -16,6 +18,7 @@ import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	crd "github.com/Azure/aad-pod-identity/pkg/crd"
 	"github.com/Azure/aad-pod-identity/version"
+	"github.com/golang/glog"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -24,16 +27,6 @@ const (
 	getPodListRetries               = 4
 	getPodListSleepTimeMilliseconds = 300
 )
-
-var (
-	// We only want to allow pod-identity with Pending or Running phase status
-	ignorePodPhaseStatuses = []string{"Succeeded", "Failed", "Unknown", "Completed", "CrashLoopBackOff"}
-	phaseStatusFilter      = getPodPhaseFilter()
-)
-
-func getPodPhaseFilter() string {
-	return ",status.phase!=" + strings.Join(ignorePodPhaseStatuses, ",status.phase!=")
-}
 
 // Client api client
 type Client interface {
@@ -52,9 +45,8 @@ type KubeClient struct {
 	// Main Kubernetes client
 	ClientSet kubernetes.Interface
 	// Crd client used to access our CRD resources.
-	CrdClient *crd.Client
-	//PodListWatch is used to list the pods from cache
-	PodListWatch *cache.ListWatch
+	CrdClient   *crd.Client
+	PodInformer clientv1.PodInformer
 }
 
 // NewKubeClient new kubernetes api client
@@ -74,14 +66,18 @@ func NewKubeClient() (Client, error) {
 	}
 
 	optionsModifier := func(options *metav1.ListOptions) {}
-	podListWatch := cache.NewFilteredListWatchFromClient(
+
+	informer := informers.NewSharedInformerFactory(clientset, 30*time.Second)
+	podInformer := informer.Core().V1().Pods()
+
+	cache.NewFilteredListWatchFromClient(
 		clientset.CoreV1().RESTClient(),
 		"pods",
 		v1.NamespaceAll,
 		optionsModifier,
 	)
 
-	kubeClient := &KubeClient{CrdClient: crdclient, ClientSet: clientset, PodListWatch: podListWatch}
+	kubeClient := &KubeClient{CrdClient: crdclient, ClientSet: clientset, PodInformer: podInformer}
 
 	return kubeClient, nil
 }
@@ -106,43 +102,41 @@ func (c *KubeClient) GetPodInfo(podip string) (podns, poddname, rsName string, l
 	if err != nil {
 		return "", "", "", nil, err
 	}
-	numMatching := len(podList.Items)
+	numMatching := len(podList)
 	if numMatching == 1 {
-		return podList.Items[0].Namespace, podList.Items[0].Name, c.getReplicasetName(podList.Items[0]), &metav1.LabelSelector{
-			MatchLabels: podList.Items[0].Labels}, nil
+		return podList[0].Namespace, podList[0].Name, c.getReplicasetName(*podList[0]), &metav1.LabelSelector{
+			MatchLabels: podList[0].Labels}, nil
 	}
 
 	return "", "", "", nil, fmt.Errorf("match failed, ip:%s matching pods:%v", podip, podList)
 }
 
-func (c *KubeClient) getPodList(podip string) (*v1.PodList, error) {
-	listObject, err := c.PodListWatch.List(metav1.ListOptions{
-		FieldSelector: "status.podIP==" + podip + phaseStatusFilter,
-	})
+func isPhaseValid(p v1.PodPhase) bool {
+	return p == v1.PodPending || p == v1.PodRunning
+}
 
+func (c *KubeClient) getPodList(podip string) ([]*v1.Pod, error) {
+	list, err := c.PodInformer.Lister().List(nil)
 	if err != nil {
+		glog.Error(err)
 		return nil, err
 	}
 
-	// Confirm that we are able to cast properly.
-	podList, ok := listObject.(*v1.PodList)
-	if !ok {
-		return nil, fmt.Errorf("list object could not be converted to podlist")
-	}
+	var podList []*v1.Pod
 
-	if podList == nil {
-		return nil, fmt.Errorf("pod list nil")
+	for _, pod := range list {
+		if pod.Status.PodIP == podip && isPhaseValid(pod.Status.Phase) {
+			podList = append(podList, pod)
+		}
 	}
-
-	if len(podList.Items) == 0 {
+	if len(podList) == 0 {
 		return nil, fmt.Errorf("pod list empty")
 	}
-
 	return podList, nil
 }
 
-func (c *KubeClient) getPodListRetry(podip string, retries int, sleeptime time.Duration) (*v1.PodList, error) {
-	var podList *v1.PodList
+func (c *KubeClient) getPodListRetry(podip string, retries int, sleeptime time.Duration) ([]*v1.Pod, error) {
+	var podList []*v1.Pod
 	var err error
 	i := 0
 
