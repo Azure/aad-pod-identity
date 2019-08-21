@@ -61,6 +61,7 @@ func main() {
 	if err != nil {
 		glog.Fatalf("Could not read config properly. Check the k8s config file, %+v", err)
 	}
+	config.UserAgent = version.GetUserAgent("MIC", version.MICVersion)
 
 	forceNamespaced = forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
 
