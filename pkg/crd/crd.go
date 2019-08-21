@@ -29,7 +29,9 @@ type Client struct {
 	IDListWatch                   *cache.ListWatch
 	IDInformer                    cache.SharedInformer
 	AssignedIDListWatch           *cache.ListWatch
+	AssignedIDInformer            cache.SharedInformer
 	PodIdentityExceptionListWatch *cache.ListWatch
+	PodIdentityExceptionInformer  cache.SharedInformer
 }
 
 // ClientInt ...
@@ -55,11 +57,23 @@ func NewCRDClientLite(config *rest.Config) (crdClient *Client, err error) {
 	}
 
 	assignedIDListWatch := newAssignedIDListWatch(restClient)
+	assignedIDListInformer, err := newAssignedIDInformer(assignedIDListWatch)
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	}
 	podIdentityExceptionListWatch := newPodIdentityExceptionListWatch(restClient)
+	podIdentityExceptionInformer, err := newPodIdentityExceptionInformer(podIdentityExceptionListWatch)
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	}
 
 	return &Client{
 		AssignedIDListWatch:           assignedIDListWatch,
+		AssignedIDInformer:            assignedIDListInformer,
 		PodIdentityExceptionListWatch: podIdentityExceptionListWatch,
+		PodIdentityExceptionInformer:  podIdentityExceptionInformer,
 		rest:                          restClient,
 	}, nil
 }
@@ -89,6 +103,11 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 	}
 
 	assignedIDListWatch := newAssignedIDListWatch(restClient)
+	assignedIDListInformer, err := newAssignedIDInformer(assignedIDListWatch)
+	if err != nil {
+		glog.Error(err)
+		return nil, err
+	}
 
 	return &Client{
 		rest:                restClient,
@@ -97,6 +116,7 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 		IDInformer:          idInformer,
 		IDListWatch:         idListWatch,
 		AssignedIDListWatch: assignedIDListWatch,
+		AssignedIDInformer:  assignedIDListInformer,
 	}, nil
 }
 
@@ -194,6 +214,15 @@ func newAssignedIDListWatch(r *rest.RESTClient) *cache.ListWatch {
 	return cache.NewListWatchFromClient(r, aadpodid.AzureAssignedIDResource, v1.NamespaceAll, fields.Everything())
 }
 
+func newAssignedIDInformer(lw *cache.ListWatch) (cache.SharedInformer, error) {
+	azAssignedIDInformer := cache.NewSharedInformer(lw, &aadpodid.AzureAssignedIdentity{}, time.Minute*10)
+	if azAssignedIDInformer == nil {
+		return nil, fmt.Errorf("could not create %s nformer", aadpodid.AzureAssignedIDResource)
+	}
+
+	return azAssignedIDInformer, nil
+}
+
 func newPodIdentityExceptionListWatch(r *rest.RESTClient) *cache.ListWatch {
 	optionsModifier := func(options *v1.ListOptions) {}
 	return cache.NewFilteredListWatchFromClient(
@@ -202,6 +231,14 @@ func newPodIdentityExceptionListWatch(r *rest.RESTClient) *cache.ListWatch {
 		v1.NamespaceAll,
 		optionsModifier,
 	)
+}
+
+func newPodIdentityExceptionInformer(lw *cache.ListWatch) (cache.SharedInformer, error) {
+	azPodIDExceptionInformer := cache.NewSharedInformer(lw, &aadpodid.AzurePodIdentityException{}, time.Minute*10)
+	if azPodIDExceptionInformer == nil {
+		return nil, fmt.Errorf("could not create %s nformer", aadpodid.AzureIdentityExceptionResource)
+	}
+	return azPodIDExceptionInformer, nil
 }
 
 // Start ...
@@ -251,89 +288,90 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
 	begin := time.Now()
 
-	ret, err := c.BindingListWatch.List(v1.ListOptions{})
-	if err != nil {
-		glog.Error(err)
-		return nil, err
+	var resList []aadpodid.AzureIdentityBinding
+
+	list := c.BindingInformer.GetStore().List()
+	for _, binding := range list {
+		o, ok := binding.(aadpodid.AzureIdentityBinding)
+		if !ok {
+			return nil, fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureIDBindingResource)
+		}
+		resList = append(resList, o)
 	}
+
 	stats.Update(stats.BindingList, time.Since(begin))
-	return &ret.(*aadpodid.AzureIdentityBindingList).Items, nil
+	return &resList, nil
 }
 
 // ListAssignedIDs returns a list of azureassignedidentities
 func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
 	begin := time.Now()
 
-	ret, err := c.AssignedIDListWatch.List(v1.ListOptions{})
-	if err != nil {
-		glog.Error(err)
-		return nil, err
-	}
+	var resList []aadpodid.AzureAssignedIdentity
 
-	// TODO (aramase) need to remove this if check and instead just get the identities using pager
-	// This if else logic currently exists to keep the changes minimal.
-	if _, ok := ret.(*aadpodid.AzureAssignedIdentityList); !ok {
-		// since there is an error trying to cast, we will do the
-		// alternate logic of creating a new pager, casting each individual obj and create a manual list
-		return c.getAssignedIdentitiesWithPager()
+	list := c.BindingInformer.GetStore().List()
+	for _, binding := range list {
+		o, ok := binding.(aadpodid.AzureAssignedIdentity)
+		if !ok {
+			return nil, fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureAssignedIDResource)
+		}
+		resList = append(resList, o)
 	}
 
 	stats.Update(stats.AssignedIDList, time.Since(begin))
-	return &ret.(*aadpodid.AzureAssignedIdentityList).Items, nil
+	return &resList, nil
 }
 
 // ListIds returns a list of azureidentities
 func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 	begin := time.Now()
-	ret, err := c.IDListWatch.List(v1.ListOptions{})
-	if err != nil {
-		glog.Error(err)
-		return nil, err
+
+	var resList []aadpodid.AzureIdentity
+
+	list := c.BindingInformer.GetStore().List()
+	for _, binding := range list {
+		o, ok := binding.(aadpodid.AzureIdentity)
+		if !ok {
+			return nil, fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureIDResource)
+		}
+		resList = append(resList, o)
 	}
+
 	stats.Update(stats.IDList, time.Since(begin))
-	return &ret.(*aadpodid.AzureIdentityList).Items, nil
+	return &resList, nil
 }
 
 // ListPodIdentityExceptions returns list of azurepodidentityexceptions
 func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error) {
 	begin := time.Now()
-	ret, err := c.PodIdentityExceptionListWatch.List(v1.ListOptions{
-		FieldSelector: "metadata.namespace=" + ns,
-	})
-	if err != nil {
-		glog.Error(err)
-		return nil, err
+
+	var resList []aadpodid.AzurePodIdentityException
+
+	list := c.BindingInformer.GetStore().List()
+	for _, binding := range list {
+		o, ok := binding.(aadpodid.AzurePodIdentityException)
+		if !ok {
+			return nil, fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureIdentityExceptionResource)
+		}
+		if o.Namespace == ns {
+			resList = append(resList, o)
+		}
 	}
+
 	stats.Update(stats.ExceptionList, time.Since(begin))
-	return &ret.(*aadpodid.AzurePodIdentityExceptionList).Items, nil
+	return &resList, nil
 }
 
 // ListPodIds - given a pod with pod name space
 // returns a map with list of azure identities in each state
 func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
-	azAssignedIDList, err := c.AssignedIDListWatch.List(v1.ListOptions{})
+	list, err := c.ListAssignedIDs()
 	if err != nil {
-		glog.Error(err)
 		return nil, err
 	}
 
-	var ret []aadpodid.AzureAssignedIdentity
-	// TODO (aramase) need to remove this if check and instead just get the identities using pager
-	// This if else logic currently exists to keep the changes minimal.
-	if _, ok := azAssignedIDList.(*aadpodid.AzureAssignedIdentityList); !ok {
-		// since there is an error trying to cast, we will do the
-		// alternate logic of creating a new pager, casting each individual obj and create a manual list
-		assignedIDs, err := c.getAssignedIdentitiesWithPager()
-		if err != nil {
-			return nil, err
-		}
-		ret = *assignedIDs
-	} else {
-		ret = azAssignedIDList.(*aadpodid.AzureAssignedIdentityList).Items
-	}
-
 	idStateMap := make(map[string][]aadpodid.AzureIdentity)
-	for _, v := range ret {
+	for _, v := range *list {
 		if v.Spec.Pod == podname && v.Spec.PodNamespace == podns {
 			idStateMap[v.Status.Status] = append(idStateMap[v.Status.Status], *v.Spec.AzureIdentityRef)
 		}
