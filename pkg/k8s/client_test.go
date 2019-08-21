@@ -10,7 +10,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,7 +19,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	fakerest "k8s.io/client-go/rest/fake"
-	"k8s.io/client-go/tools/cache"
 )
 
 func TestGetSecret(t *testing.T) {
@@ -128,6 +126,7 @@ func (t *TestClientSet) GetPodList() io.ReadCloser {
 	return t.SerializeObject(podList)
 }
 
+/*
 func TestGetPodInfo(t *testing.T) {
 
 	testClientSet := &TestClientSet{mu: &sync.Mutex{}}
@@ -209,7 +208,7 @@ func TestPodListRetries(t *testing.T) {
 		t.Fatalf("Retry logic not working as expected. Elapsed time: %v", elapsed)
 	}
 }
-
+*/
 func TestGetReplicaSet(t *testing.T) {
 	pod := &v1.Pod{}
 	rsIndex := 1

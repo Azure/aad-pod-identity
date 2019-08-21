@@ -12,7 +12,6 @@ import (
 	clientv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
@@ -30,6 +29,8 @@ const (
 
 // Client api client
 type Client interface {
+	// Start just starts any informers required.
+	Start(<-chan struct{})
 	// GetPodInfo returns the pod name, namespace & replica set name for a given pod ip
 	GetPodInfo(podip string) (podns, podname, rsName string, selectors *metav1.LabelSelector, err error)
 	// ListPodIds pod matching azure identity or nil
@@ -45,8 +46,9 @@ type KubeClient struct {
 	// Main Kubernetes client
 	ClientSet kubernetes.Interface
 	// Crd client used to access our CRD resources.
-	CrdClient   *crd.Client
-	PodInformer clientv1.PodInformer
+	CrdClient       *crd.Client
+	PodInformer     clientv1.PodInformer
+	InformerFactory informers.SharedInformerFactory
 }
 
 // NewKubeClient new kubernetes api client
@@ -65,21 +67,19 @@ func NewKubeClient() (Client, error) {
 		return nil, err
 	}
 
-	optionsModifier := func(options *metav1.ListOptions) {}
-
 	informer := informers.NewSharedInformerFactory(clientset, 30*time.Second)
 	podInformer := informer.Core().V1().Pods()
 
-	cache.NewFilteredListWatchFromClient(
-		clientset.CoreV1().RESTClient(),
-		"pods",
-		v1.NamespaceAll,
-		optionsModifier,
-	)
-
-	kubeClient := &KubeClient{CrdClient: crdclient, ClientSet: clientset, PodInformer: podInformer}
+	kubeClient := &KubeClient{CrdClient: crdclient, ClientSet: clientset, InformerFactory: informer, PodInformer: podInformer}
 
 	return kubeClient, nil
+}
+
+// Start the corresponding starts
+func (c *KubeClient) Start(exit <-chan struct{}) {
+	c.InformerFactory.Start(exit)
+	c.CrdClient.StartLite(exit)
+	c.CrdClient.SyncCache(exit)
 }
 
 func (c *KubeClient) getReplicasetName(pod v1.Pod) string {

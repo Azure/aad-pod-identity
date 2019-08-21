@@ -10,7 +10,6 @@ import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
-	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -23,15 +22,11 @@ import (
 
 // Client represents all the watchers and informers
 type Client struct {
-	rest                          *rest.RESTClient
-	BindingListWatch              *cache.ListWatch
-	BindingInformer               cache.SharedInformer
-	IDListWatch                   *cache.ListWatch
-	IDInformer                    cache.SharedInformer
-	AssignedIDListWatch           *cache.ListWatch
-	AssignedIDInformer            cache.SharedInformer
-	PodIdentityExceptionListWatch *cache.ListWatch
-	PodIdentityExceptionInformer  cache.SharedInformer
+	rest                         *rest.RESTClient
+	BindingInformer              cache.SharedInformer
+	IDInformer                   cache.SharedInformer
+	AssignedIDInformer           cache.SharedInformer
+	PodIdentityExceptionInformer cache.SharedInformer
 }
 
 // ClientInt ...
@@ -70,11 +65,9 @@ func NewCRDClientLite(config *rest.Config) (crdClient *Client, err error) {
 	}
 
 	return &Client{
-		AssignedIDListWatch:           assignedIDListWatch,
-		AssignedIDInformer:            assignedIDListInformer,
-		PodIdentityExceptionListWatch: podIdentityExceptionListWatch,
-		PodIdentityExceptionInformer:  podIdentityExceptionInformer,
-		rest:                          restClient,
+		AssignedIDInformer:           assignedIDListInformer,
+		PodIdentityExceptionInformer: podIdentityExceptionInformer,
+		rest:                         restClient,
 	}, nil
 }
 
@@ -110,13 +103,10 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 	}
 
 	return &Client{
-		rest:                restClient,
-		BindingListWatch:    bindingListWatch,
-		BindingInformer:     bindingInformer,
-		IDInformer:          idInformer,
-		IDListWatch:         idListWatch,
-		AssignedIDListWatch: assignedIDListWatch,
-		AssignedIDInformer:  assignedIDListInformer,
+		rest:               restClient,
+		BindingInformer:    bindingInformer,
+		IDInformer:         idInformer,
+		AssignedIDInformer: assignedIDListInformer,
 	}, nil
 }
 
@@ -241,11 +231,21 @@ func newPodIdentityExceptionInformer(lw *cache.ListWatch) (cache.SharedInformer,
 	return azPodIDExceptionInformer, nil
 }
 
+// StartLite to be used only case of lite client
+func (c *Client) StartLite(exit <-chan struct{}) {
+	go c.AssignedIDInformer.Run(exit)
+	go c.PodIdentityExceptionInformer.Run(exit)
+	c.SyncCache(exit)
+	glog.Info("CRD lite informers started ")
+}
+
 // Start ...
 func (c *Client) Start(exit <-chan struct{}) {
 	go c.BindingInformer.Run(exit)
 	go c.IDInformer.Run(exit)
-	glog.Info("CRD watchers started")
+	go c.AssignedIDInformer.Run(exit)
+	c.SyncCache(exit)
+	glog.Info("CRD informers started")
 }
 
 // SyncCache synchronizes cache
@@ -409,28 +409,4 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 		Error()
 
 	return err
-}
-
-func (c *Client) getAssignedIdentitiesWithPager() (res *[]aadpodid.AzureAssignedIdentity, err error) {
-	listFunc := func(opts v1.ListOptions) (runtime.Object, error) {
-		return c.AssignedIDListWatch.List(v1.ListOptions{})
-	}
-
-	obj, err := listFunc(v1.ListOptions{})
-	if err != nil {
-		return nil, err
-	}
-
-	assignedIDs := make([]aadpodid.AzureAssignedIdentity, 0)
-	if err = meta.EachListItem(obj, func(obj runtime.Object) error {
-		tmp, ok := obj.(*aadpodid.AzureAssignedIdentity)
-		if !ok {
-			return fmt.Errorf("expected type *v1.AzureAssignedIdentity, got type %T", tmp)
-		}
-		assignedIDs = append(assignedIDs, *tmp)
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	return &assignedIDs, nil
 }

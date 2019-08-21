@@ -51,6 +51,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}
+	exit := make(<-chan struct{})
+	client.Start(exit)
 	*forceNamespaced = *forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
 	s := server.NewServer(*forceNamespaced, *micNamespace)
 	s.KubeClient = client
