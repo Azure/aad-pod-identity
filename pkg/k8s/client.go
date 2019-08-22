@@ -9,7 +9,6 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
-	clientv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -20,6 +19,8 @@ import (
 	"github.com/golang/glog"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	informersv1 "k8s.io/client-go/informers/core/v1"
 )
 
 const (
@@ -46,9 +47,8 @@ type KubeClient struct {
 	// Main Kubernetes client
 	ClientSet kubernetes.Interface
 	// Crd client used to access our CRD resources.
-	CrdClient       *crd.Client
-	PodInformer     clientv1.PodInformer
-	InformerFactory informers.SharedInformerFactory
+	CrdClient   *crd.Client
+	PodInformer informersv1.PodInformer
 }
 
 // NewKubeClient new kubernetes api client
@@ -70,14 +70,14 @@ func NewKubeClient() (Client, error) {
 	informer := informers.NewSharedInformerFactory(clientset, 30*time.Second)
 	podInformer := informer.Core().V1().Pods()
 
-	kubeClient := &KubeClient{CrdClient: crdclient, ClientSet: clientset, InformerFactory: informer, PodInformer: podInformer}
+	kubeClient := &KubeClient{CrdClient: crdclient, ClientSet: clientset, PodInformer: podInformer}
 
 	return kubeClient, nil
 }
 
 // Start the corresponding starts
 func (c *KubeClient) Start(exit <-chan struct{}) {
-	c.InformerFactory.Start(exit)
+	go c.PodInformer.Informer().Run(exit)
 	c.CrdClient.StartLite(exit)
 	c.CrdClient.SyncCache(exit)
 }
@@ -116,21 +116,22 @@ func isPhaseValid(p v1.PodPhase) bool {
 }
 
 func (c *KubeClient) getPodList(podip string) ([]*v1.Pod, error) {
-	list, err := c.PodInformer.Lister().List(nil)
+	list, err := c.PodInformer.Lister().List(labels.Everything())
 	if err != nil {
 		glog.Error(err)
 		return nil, err
 	}
 
 	var podList []*v1.Pod
-
 	for _, pod := range list {
 		if pod.Status.PodIP == podip && isPhaseValid(pod.Status.Phase) {
 			podList = append(podList, pod)
 		}
 	}
 	if len(podList) == 0 {
-		return nil, fmt.Errorf("pod list empty")
+		err := fmt.Errorf("pod list empty")
+		glog.Error(err)
+		return nil, err
 	}
 	return podList, nil
 }
