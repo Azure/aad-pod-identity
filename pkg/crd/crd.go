@@ -80,7 +80,6 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 	}
 
 	bindingListWatch := newBindingListWatch(restClient)
-
 	bindingInformer, err := newBindingInformer(restClient, eventCh, bindingListWatch)
 	if err != nil {
 		glog.Error(err)
@@ -88,7 +87,6 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 	}
 
 	idListWatch := newIDListWatch(restClient)
-
 	idInformer, err := newIDInformer(restClient, eventCh, idListWatch)
 	if err != nil {
 		glog.Error(err)
@@ -292,11 +290,14 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 
 	list := c.BindingInformer.GetStore().List()
 	for _, binding := range list {
-		o, ok := binding.(aadpodid.AzureIdentityBinding)
+		o, ok := binding.(*aadpodid.AzureIdentityBinding)
 		if !ok {
-			return nil, fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureIDBindingResource)
+			err := fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureIDBindingResource)
+			glog.Error(err)
+			return nil, err
 		}
-		resList = append(resList, o)
+		resList = append(resList, *o)
+		glog.V(6).Infof("Appending binding: %s/%s to list.", o.Name, o.Namespace)
 	}
 
 	stats.Update(stats.BindingList, time.Since(begin))
@@ -309,13 +310,16 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 
 	var resList []aadpodid.AzureAssignedIdentity
 
-	list := c.BindingInformer.GetStore().List()
-	for _, binding := range list {
-		o, ok := binding.(aadpodid.AzureAssignedIdentity)
+	list := c.AssignedIDInformer.GetStore().List()
+	for _, assignedID := range list {
+		o, ok := assignedID.(*aadpodid.AzureAssignedIdentity)
 		if !ok {
-			return nil, fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureAssignedIDResource)
+			err := fmt.Errorf("could not cast %T to %s", assignedID, aadpodid.AzureAssignedIDResource)
+			glog.Error(err)
+			return nil, err
 		}
-		resList = append(resList, o)
+		resList = append(resList, *o)
+		glog.V(6).Infof("Appending Assigned ID: %s/%s to list.", o.Name, o.Namespace)
 	}
 
 	stats.Update(stats.AssignedIDList, time.Since(begin))
@@ -328,13 +332,16 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 
 	var resList []aadpodid.AzureIdentity
 
-	list := c.BindingInformer.GetStore().List()
-	for _, binding := range list {
-		o, ok := binding.(aadpodid.AzureIdentity)
+	list := c.IDInformer.GetStore().List()
+	for _, id := range list {
+		o, ok := id.(*aadpodid.AzureIdentity)
 		if !ok {
-			return nil, fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureIDResource)
+			err := fmt.Errorf("could not cast %T to %s", id, aadpodid.AzureIDResource)
+			glog.Error(err)
+			return nil, err
 		}
-		resList = append(resList, o)
+		resList = append(resList, *o)
+		glog.V(6).Infof("Appending Identity: %s/%s to list.", o.Name, o.Namespace)
 	}
 
 	stats.Update(stats.IDList, time.Since(begin))
@@ -347,14 +354,17 @@ func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodI
 
 	var resList []aadpodid.AzurePodIdentityException
 
-	list := c.BindingInformer.GetStore().List()
+	list := c.PodIdentityExceptionInformer.GetStore().List()
 	for _, binding := range list {
-		o, ok := binding.(aadpodid.AzurePodIdentityException)
+		o, ok := binding.(*aadpodid.AzurePodIdentityException)
 		if !ok {
-			return nil, fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureIdentityExceptionResource)
+			err := fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureIdentityExceptionResource)
+			glog.Error(err)
+			return nil, err
 		}
 		if o.Namespace == ns {
-			resList = append(resList, o)
+			resList = append(resList, *o)
+			glog.V(6).Infof("Appending exception: %s/%s to list.", o.Name, o.Namespace)
 		}
 	}
 
