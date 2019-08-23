@@ -3,6 +3,7 @@ package crd
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/golang/glog"
@@ -296,6 +297,15 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 			glog.Error(err)
 			return nil, err
 		}
+		// Note: List items returned from cache have empty Kind and API version..
+		// Work around this issue since we need that for event recording to work.
+		if o.Kind == "" {
+			o.Kind = reflect.TypeOf(*o).String()
+		}
+		if o.APIVersion == "" {
+			o.APIVersion = aadpodid.CRDGroup + "/" + aadpodid.CRDVersion
+		}
+
 		resList = append(resList, *o)
 		glog.V(6).Infof("Appending binding: %s/%s to list.", o.Name, o.Namespace)
 	}
@@ -318,6 +328,14 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 			glog.Error(err)
 			return nil, err
 		}
+		// Note: List items returned from cache have empty Kind and API version..
+		// Work around this issue since we need that for event recording to work.
+		if o.Kind == "" {
+			o.Kind = reflect.TypeOf(*o).String()
+		}
+		if o.APIVersion == "" {
+			o.APIVersion = aadpodid.CRDGroup + "/" + aadpodid.CRDVersion
+		}
 		resList = append(resList, *o)
 		glog.V(6).Infof("Appending Assigned ID: %s/%s to list.", o.Name, o.Namespace)
 	}
@@ -339,6 +357,14 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 			err := fmt.Errorf("could not cast %T to %s", id, aadpodid.AzureIDResource)
 			glog.Error(err)
 			return nil, err
+		}
+		// Note: List items returned from cache have empty Kind and API version..
+		// Work around this issue since we need that for event recording to work.
+		if o.Kind == "" {
+			o.Kind = reflect.TypeOf(*o).String()
+		}
+		if o.APIVersion == "" {
+			o.APIVersion = aadpodid.CRDGroup + "/" + aadpodid.CRDVersion
 		}
 		resList = append(resList, *o)
 		glog.V(6).Infof("Appending Identity: %s/%s to list.", o.Name, o.Namespace)
@@ -363,6 +389,14 @@ func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodI
 			return nil, err
 		}
 		if o.Namespace == ns {
+			// Note: List items returned from cache have empty Kind and API version..
+			// Work around this issue since we need that for event recording to work.
+			if o.Kind == "" {
+				o.Kind = reflect.TypeOf(*o).String()
+			}
+			if o.APIVersion == "" {
+				o.APIVersion = aadpodid.CRDGroup + "/" + aadpodid.CRDVersion
+			}
 			resList = append(resList, *o)
 			glog.V(6).Infof("Appending exception: %s/%s to list.", o.Name, o.Namespace)
 		}
