@@ -74,6 +74,7 @@ type IdentityValidatorTemplateData struct {
 	NodeName                 string
 	Replicas                 string
 	DeploymentLabels         map[string]string
+	InitContainer            bool
 }
 
 // CreateIdentityValidator will create an identity validator deployment on a Kubernetes cluster

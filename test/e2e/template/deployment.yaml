@@ -23,6 +23,12 @@ spec:
       {{ if ne .NodeName "" -}}
       nodeName: {{.NodeName}}
       {{- end }}
+      {{- if .InitContainer -}}
+      initContainers:
+        - name: init-myservice
+          image: microsoft/azure-cli:latest
+          command: ["sh", "-c", "az login --identity"]
+      {{- end }}
       containers:
       - name: {{.Name}}
         image: {{.Registry}}/identityvalidator:{{.IdentityValidatorVersion}}
