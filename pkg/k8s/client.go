@@ -15,6 +15,7 @@ import (
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	crd "github.com/Azure/aad-pod-identity/pkg/crd"
+	"github.com/Azure/aad-pod-identity/version"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -62,6 +63,7 @@ func NewKubeClient() (Client, error) {
 	if err != nil {
 		return nil, err
 	}
+	config.UserAgent = version.GetUserAgent("NMI", version.NMIVersion)
 	clientset, err := getkubeclient(config)
 	if err != nil {
 		return nil, err
