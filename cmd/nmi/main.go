@@ -51,6 +51,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}
+	exit := make(<-chan struct{})
+	logger := &server.Log{}
+	client.Start(exit, logger)
 	*forceNamespaced = *forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
 	s := server.NewServer(*forceNamespaced, *micNamespace)
 	s.KubeClient = client
@@ -66,7 +69,7 @@ func main() {
 
 	// Health probe will always report success once its started. The contents
 	// will report "Active" once the iptables rules are set
-	probes.InitAndStart(*httpProbePort, &s.Initialized, &server.Log{})
+	probes.InitAndStart(*httpProbePort, &s.Initialized, logger)
 
 	if err := s.Run(); err != nil {
 		log.Fatalf("%s", err)
