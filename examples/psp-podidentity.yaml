@@ -9,7 +9,8 @@ spec:
   allowedCapabilities:
     - NET_ADMIN
   volumes:
-    - '*'
+    - hostPath
+    - secret
   hostNetwork: true
   fsGroup:
     rule: RunAsAny
@@ -17,6 +18,9 @@ spec:
     rule: RunAsAny
   supplementalGroups:
     rule: RunAsAny
+  allowedHostPaths:
+    - pathPrefix: /etc/kubernetes/azure.json
+    - pathPrefix: /run/xtables.lock
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role

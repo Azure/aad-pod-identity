@@ -15,7 +15,7 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 * [Getting Started](#getting-started)
 * [Demo](#demo)
 * [Components](#components)
-* [Features](docs/readmes/README.features.md)
+* [Features](docs/readmes/README.md#features)
 * [What To Do Next?](#what-to-do-next)
 * [Code of Conduct](#code-of-conduct)
 
