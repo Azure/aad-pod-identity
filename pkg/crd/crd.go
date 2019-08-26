@@ -11,6 +11,7 @@ import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
+	log "github.com/Azure/aad-pod-identity/pkg/logger"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,7 +22,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-// Client represents all the watchers and informers
+// Client represents all the watchers
 type Client struct {
 	rest                         *rest.RESTClient
 	BindingInformer              cache.SharedInformer
@@ -206,7 +207,7 @@ func newAssignedIDListWatch(r *rest.RESTClient) *cache.ListWatch {
 func newAssignedIDInformer(lw *cache.ListWatch) (cache.SharedInformer, error) {
 	azAssignedIDInformer := cache.NewSharedInformer(lw, &aadpodid.AzureAssignedIdentity{}, time.Minute*10)
 	if azAssignedIDInformer == nil {
-		return nil, fmt.Errorf("could not create %s nformer", aadpodid.AzureAssignedIDResource)
+		return nil, fmt.Errorf("could not create %s informer", aadpodid.AzureAssignedIDResource)
 	}
 
 	return azAssignedIDInformer, nil
@@ -225,17 +226,17 @@ func newPodIdentityExceptionListWatch(r *rest.RESTClient) *cache.ListWatch {
 func newPodIdentityExceptionInformer(lw *cache.ListWatch) (cache.SharedInformer, error) {
 	azPodIDExceptionInformer := cache.NewSharedInformer(lw, &aadpodid.AzurePodIdentityException{}, time.Minute*10)
 	if azPodIDExceptionInformer == nil {
-		return nil, fmt.Errorf("could not create %s nformer", aadpodid.AzureIdentityExceptionResource)
+		return nil, fmt.Errorf("could not create %s informer", aadpodid.AzureIdentityExceptionResource)
 	}
 	return azPodIDExceptionInformer, nil
 }
 
 // StartLite to be used only case of lite client
-func (c *Client) StartLite(exit <-chan struct{}) {
+func (c *Client) StartLite(exit <-chan struct{}, log log.Logger) {
 	go c.AssignedIDInformer.Run(exit)
 	go c.PodIdentityExceptionInformer.Run(exit)
 	c.SyncCache(exit)
-	glog.Info("CRD lite informers started ")
+	log.Info("CRD lite informers started ")
 }
 
 // Start ...
@@ -299,15 +300,12 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 		}
 		// Note: List items returned from cache have empty Kind and API version..
 		// Work around this issue since we need that for event recording to work.
-		if o.Kind == "" {
-			o.Kind = reflect.TypeOf(*o).String()
-		}
-		if o.APIVersion == "" {
-			o.APIVersion = aadpodid.CRDGroup + "/" + aadpodid.CRDVersion
-		}
-
+		o.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   aadpodid.CRDGroup,
+			Version: aadpodid.CRDVersion,
+			Kind:    reflect.TypeOf(*o).String()})
 		resList = append(resList, *o)
-		glog.V(6).Infof("Appending binding: %s/%s to list.", o.Name, o.Namespace)
+		glog.V(6).Infof("Appending binding: %s/%s to list.", o.Namespace, o.Name)
 	}
 
 	stats.Update(stats.BindingList, time.Since(begin))
@@ -330,14 +328,12 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 		}
 		// Note: List items returned from cache have empty Kind and API version..
 		// Work around this issue since we need that for event recording to work.
-		if o.Kind == "" {
-			o.Kind = reflect.TypeOf(*o).String()
-		}
-		if o.APIVersion == "" {
-			o.APIVersion = aadpodid.CRDGroup + "/" + aadpodid.CRDVersion
-		}
+		o.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   aadpodid.CRDGroup,
+			Version: aadpodid.CRDVersion,
+			Kind:    reflect.TypeOf(*o).String()})
 		resList = append(resList, *o)
-		glog.V(6).Infof("Appending Assigned ID: %s/%s to list.", o.Name, o.Namespace)
+		glog.V(6).Infof("Appending Assigned ID: %s/%s to list.", o.Namespace, o.Name)
 	}
 
 	stats.Update(stats.AssignedIDList, time.Since(begin))
@@ -360,14 +356,12 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 		}
 		// Note: List items returned from cache have empty Kind and API version..
 		// Work around this issue since we need that for event recording to work.
-		if o.Kind == "" {
-			o.Kind = reflect.TypeOf(*o).String()
-		}
-		if o.APIVersion == "" {
-			o.APIVersion = aadpodid.CRDGroup + "/" + aadpodid.CRDVersion
-		}
+		o.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   aadpodid.CRDGroup,
+			Version: aadpodid.CRDVersion,
+			Kind:    reflect.TypeOf(*o).String()})
 		resList = append(resList, *o)
-		glog.V(6).Infof("Appending Identity: %s/%s to list.", o.Name, o.Namespace)
+		glog.V(6).Infof("Appending Identity: %s/%s to list.", o.Namespace, o.Name)
 	}
 
 	stats.Update(stats.IDList, time.Since(begin))
@@ -391,14 +385,12 @@ func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodI
 		if o.Namespace == ns {
 			// Note: List items returned from cache have empty Kind and API version..
 			// Work around this issue since we need that for event recording to work.
-			if o.Kind == "" {
-				o.Kind = reflect.TypeOf(*o).String()
-			}
-			if o.APIVersion == "" {
-				o.APIVersion = aadpodid.CRDGroup + "/" + aadpodid.CRDVersion
-			}
+			o.SetGroupVersionKind(schema.GroupVersionKind{
+				Group:   aadpodid.CRDGroup,
+				Version: aadpodid.CRDVersion,
+				Kind:    reflect.TypeOf(*o).String()})
 			resList = append(resList, *o)
-			glog.V(6).Infof("Appending exception: %s/%s to list.", o.Name, o.Namespace)
+			glog.V(6).Infof("Appending exception: %s/%s to list.", o.Namespace, o.Name)
 		}
 	}
 
