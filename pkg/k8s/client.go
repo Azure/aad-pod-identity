@@ -16,6 +16,7 @@ import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	crd "github.com/Azure/aad-pod-identity/pkg/crd"
 	"github.com/Azure/aad-pod-identity/version"
+	inlog "github.com/Azure/aad-pod-identity/pkg/logger"
 	"github.com/golang/glog"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,7 +32,7 @@ const (
 // Client api client
 type Client interface {
 	// Start just starts any informers required.
-	Start(<-chan struct{})
+	Start(<-chan struct{}, inlog.Logger)
 	// GetPodInfo returns the pod name, namespace & replica set name for a given pod ip
 	GetPodInfo(podip string) (podns, podname, rsName string, selectors *metav1.LabelSelector, err error)
 	// ListPodIds pod matching azure identity or nil
@@ -76,9 +77,9 @@ func NewKubeClient() (Client, error) {
 }
 
 // Start the corresponding starts
-func (c *KubeClient) Start(exit <-chan struct{}) {
+func (c *KubeClient) Start(exit <-chan struct{}, log inlog.Logger) {
 	go c.PodInformer.Informer().Run(exit)
-	c.CrdClient.StartLite(exit)
+	c.CrdClient.StartLite(exit, log)
 	c.CrdClient.SyncCache(exit)
 }
 
