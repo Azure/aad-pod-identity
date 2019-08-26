@@ -896,6 +896,26 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		wg.Wait()
 		fmt.Printf("Done with running validator test and disrupting MIC")
 	})
+
+	It("should assign identity with init containers", func() {
+		// should create an assigned identity when pod with init container is created
+		// In this test, we run az login --identity in an init container. This command will succeed only when
+		// identity has been successfully assigned for pod by NMI. Then we also perform an additional validation
+		// for the user assigned identity within the identity validator container.
+
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1", func(d *infra.IdentityValidatorTemplateData) {
+			d.InitContainer = true
+		})
+
+		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+
+		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity)
+	})
 })
 
 func runValidatorTest(iterations int) {
