@@ -3,6 +3,7 @@ package mic
 import (
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -706,7 +707,7 @@ func (c *Client) updateNodeAndDeps(newAssignedIDs []aadpodid.AzureAssignedIdenti
 func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeName string, nodeTrackList trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 	beginAdding := time.Now()
-	glog.V(5).Infof("Processing node %s, add [%d], del [%d]", nodeName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete))
+	glog.Infof("Processing node %s, add [%d], del [%d]", nodeName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete))
 
 	for _, createID := range nodeTrackList.assignedIDsToCreate {
 		if createID.Status.Status == "" {
@@ -730,7 +731,41 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 
 	node, err := c.NodeClient.Get(nodeName)
 	if err != nil {
-		glog.Errorf("Lookup of identities on node %s resulted in error %v", nodeName, err)
+		glog.Errorf("Failed to get node %s while updating user msis. Error %v", nodeName, err)
+
+		if !strings.Contains(err.Error(), "not found") {
+			return
+		}
+
+		// node is no longer found in the cluster, all the assigned identities that were created in this sync loop
+		// and those that already exist for this node need to be deleted.
+		for _, createID := range nodeTrackList.assignedIDsToCreate {
+			binding := createID.Spec.AzureBindingRef
+
+			err = c.removeAssignedIdentity(&createID)
+			if err != nil {
+				c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding remove error",
+					fmt.Sprintf("Removing assigned identity binding %s node %s for pod %s resulted in error %v", binding.Name, createID.Spec.NodeName, createID.Name, err.Error()))
+				glog.Error(err)
+				continue
+			}
+			c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding removed",
+				fmt.Sprintf("Binding %s removed from node %s for pod %s", binding.Name, createID.Spec.NodeName, createID.Spec.Pod))
+		}
+
+		for _, deleteID := range nodeTrackList.assignedIDsToDelete {
+			binding := deleteID.Spec.AzureBindingRef
+
+			err = c.removeAssignedIdentity(&deleteID)
+			if err != nil {
+				c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding remove error",
+					fmt.Sprintf("Removing assigned identity binding %s node %s for pod %s resulted in error %v", binding.Name, deleteID.Spec.NodeName, deleteID.Name, err.Error()))
+				glog.Error(err)
+				continue
+			}
+			c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding removed",
+				fmt.Sprintf("Binding %s removed from node %s for pod %s", binding.Name, deleteID.Spec.NodeName, deleteID.Spec.Pod))
+		}
 		return
 	}
 
