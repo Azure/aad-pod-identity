@@ -238,6 +238,11 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		begin := time.Now()
 		workDone := false
 
+		cacheTime := time.Now()
+		// sync cache to get the latest data
+		c.CRDClient.SyncCache(exit, false)
+		stats.Put(stats.CacheSync, time.Since(cacheTime))
+
 		// List all pods in all namespaces
 		systemTime := time.Now()
 		listPods, err := c.PodClient.GetPods()
@@ -731,7 +736,7 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 
 	node, err := c.NodeClient.Get(nodeName)
 	if err != nil {
-		glog.Errorf("Failed to get node %s while updating user msis. Error %v", nodeName, err)
+		glog.Warningf("Unable to get node %s while updating user msis. Error %v", nodeName, err)
 
 		if !strings.Contains(err.Error(), "not found") {
 			return

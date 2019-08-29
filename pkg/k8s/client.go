@@ -15,8 +15,8 @@ import (
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	crd "github.com/Azure/aad-pod-identity/pkg/crd"
-	"github.com/Azure/aad-pod-identity/version"
 	inlog "github.com/Azure/aad-pod-identity/pkg/logger"
+	"github.com/Azure/aad-pod-identity/version"
 	"github.com/golang/glog"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -80,7 +80,7 @@ func NewKubeClient() (Client, error) {
 func (c *KubeClient) Start(exit <-chan struct{}, log inlog.Logger) {
 	go c.PodInformer.Informer().Run(exit)
 	c.CrdClient.StartLite(exit, log)
-	c.CrdClient.SyncCache(exit)
+	c.CrdClient.SyncCache(exit, true)
 }
 
 func (c *KubeClient) getReplicasetName(pod v1.Pod) string {

@@ -15,6 +15,7 @@ type StatsType string
 const (
 	Total                StatsType = "Total"
 	System               StatsType = "System"
+	CacheSync            StatsType = "CacheSync"
 	CurrentState         StatsType = "Gather current state"
 	PodList              StatsType = "Pod listing"
 	BindingList          StatsType = "Binding listing"
@@ -81,6 +82,7 @@ func PrintSync() {
 		Print(BindingList)
 		Print(AssignedIDList)
 		Print(System)
+		Print(CacheSync)
 
 		Print(CloudGet)
 		Print(CloudPut)
