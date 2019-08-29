@@ -330,6 +330,22 @@ func (c *Client) Sync(exit <-chan struct{}) {
 }
 
 func (c *Client) convertAssignedIDListToMap(addList, deleteList *[]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
+	// generate the vmss based list
+	if addList != nil {
+		for _, id := range *addList {
+			node, err := c.NodeClient.Get(id.Spec.NodeName)
+			if err != nil {
+				glog.Errorf("error getting node %s. Error: %v", id.Spec.NodeName, err)
+				continue
+			}
+			vmssName, isvmss, err := isVMSS(node)
+			if !isvmss {
+				continue
+			}
+
+		}
+	}
+
 	if addList != nil {
 		for _, createID := range *addList {
 			if trackList, ok := nodeMap[createID.Spec.NodeName]; ok {
@@ -704,6 +720,36 @@ func (c *Client) updateAssignedIdentityStatus(assignedID *aadpodid.AzureAssigned
 
 func (c *Client) updateNodeAndDeps(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds, nodeRefs map[string]bool) {
 	var wg sync.WaitGroup
+
+	// vmss scenario
+	vmssMap := make(map[string][]string)
+	for n := range nodeMap {
+		node, err := c.NodeClient.Get(n)
+		if err != nil {
+			glog.Errorf("getting node %s failed with error %v", n, err)
+			continue
+		}
+		name, ok, err := isVMSS(node)
+		if err != nil {
+			glog.Errorf("error checking if node %s is vmss. Error: %v", n, err)
+			continue
+		}
+		// not vmss
+		if !ok {
+			continue
+		}
+		vmssMap[name] = append(vmssMap[name], n)
+	}
+
+	if len(vmssMap) != 0 {
+		for _, nodes := range vmssMap {
+			for i := range nodes {
+				// coalesce all nodes of vmss in 1 list
+
+			}
+		}
+	}
+
 	for nodeName, nodeTrackList := range nodeMap {
 		wg.Add(1)
 		go c.updateUserMSI(newAssignedIDs, nodeName, nodeTrackList, nodeRefs, &wg)
