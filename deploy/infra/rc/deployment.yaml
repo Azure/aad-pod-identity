@@ -58,6 +58,8 @@ metadata:
   name: nmi
   namespace: default
 spec:
+  updateStrategy:
+    type: RollingUpdate
   template:
     metadata:
       labels:
@@ -72,7 +74,7 @@ spec:
         name: iptableslock
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.5.2"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.5.3-rc2"
         imagePullPolicy: Always
         args:
           - "--host-ip=$(HOST_IP)"
@@ -103,20 +105,6 @@ spec:
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
-apiVersion: v1
-data:
-  Cloud: <base64-encoded-cloud>
-  SubscriptionID: <base64-encode-subscription-id>
-  ResourceGroup: <base64-encoded-resource-group>
-  VMType: <base64-encoded-vm-type>
-  TenantID: <base64-encoded-tenant-id>
-  ClientID: <base64-encoded-client-id>
-  ClientSecret: <base64-encoded-client-secret>
-kind: Secret
-metadata:
-  name: aadpodidentity-admin-secret
-  namespace: default
----
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -133,53 +121,21 @@ spec:
     spec:
       containers:
       - name: mic
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.5.2"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.5.3-rc2"
         imagePullPolicy: Always
         args:
           - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"
+          - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
-        env:
-          - name: CLOUD
-            valueFrom:
-              secretKeyRef:
-                key: Cloud
-                name: aadpodidentity-admin-secret
-          - name: SUBSCRIPTION_ID
-            valueFrom:
-              secretKeyRef:
-                key: SubscriptionID
-                name: aadpodidentity-admin-secret
-          - name: RESOURCE_GROUP
-            valueFrom:
-              secretKeyRef:
-                key: ResourceGroup
-                name: aadpodidentity-admin-secret
-          - name: VM_TYPE
-            valueFrom:
-              secretKeyRef:
-                key: VMType
-                name: aadpodidentity-admin-secret
-          - name: TENANT_ID
-            valueFrom:
-              secretKeyRef:
-                key: TenantID
-                name: aadpodidentity-admin-secret
-          - name: CLIENT_ID
-            valueFrom:
-              secretKeyRef:
-                key: ClientID
-                name: aadpodidentity-admin-secret
-          - name: CLIENT_SECRET
-            valueFrom:
-              secretKeyRef:
-                key: ClientSecret
-                name: aadpodidentity-admin-secret
         volumeMounts:
           - name: kubeconfig
             mountPath: /etc/kubernetes/kubeconfig
             readOnly: true
           - name: certificates
             mountPath: /etc/kubernetes/certs
+            readOnly: true
+          - name: k8s-azure-file
+            mountPath: /etc/kubernetes/azure.json
             readOnly: true
         livenessProbe:
           httpGet:
@@ -194,5 +150,8 @@ spec:
       - name: certificates
         hostPath:
           path: /etc/kubernetes/certs
+      - name: k8s-azure-file
+        hostPath:
+          path: /etc/kubernetes/azure.json
       nodeSelector:
         beta.kubernetes.io/os: linux

@@ -15,7 +15,7 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 * [Getting Started](#getting-started)
 * [Demo](#demo)
 * [Components](#components)
-* [Features](docs/readmes/README.features.md)
+* [Features](docs/readmes/README.md#features)
 * [What To Do Next?](#what-to-do-next)
 * [Code of Conduct](#code-of-conduct)
 
@@ -90,46 +90,9 @@ Finally, save your changes to the file, then create the `AzureIdentity` resource
 kubectl apply -f aadpodidentity.yaml
 ```
 
-### 4. (Optional) Match Pods in the Namespace
+### 4. (Optional) Match pods in the namespace
 
-By default, AAD Pod Identity matches pods to identities across namespaces. To match only pods in the namespace containing `AzureIdentity`, use one of these techniques:
-
-* Attach a `aadpodidentity.k8s.io/Behavior: namespaced` [annotation] to each `AzureIdentity` resource.
-
-    Here is the `AzureIdentity` manifest from the previous step with this annotation added:
-
-    ```yaml
-    apiVersion: "aadpodidentity.k8s.io/v1"
-    kind: AzureIdentity
-    metadata:
-      name: <a-idname>
-      annotations:
-        aadpodidentity.k8s.io/Behavior: namespaced
-    spec:
-      type: 0
-      ResourceID: /subscriptions/<subid>/resourcegroups/<resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>
-      ClientID: <clientId>
-    ```
-
-* Add the `--forceNamespaced` command line argument or set the `FORCENAMESPACED=true` environment variable when starting both the MIC and NMI components.
-
-    Here is a section from the MIC deployment which adds *both* the command line argument and the environment variable for illustration. Pick one approach and use it to update both the MIC deployment and the NMI daemon set.
-
-    ```yaml
-        spec:
-          containers:
-          - name: mic
-            image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.3"
-            imagePullPolicy: Always
-            args:
-              - mic
-              - "--cloudconfig=/etc/kubernetes/azure.json"
-              - "--logtostderr"
-              - "--forceNamespaced"
-            env:
-              - name: FORCENAMESPACED
-                value: "true"
-    ```
+For matching pods in the namespace, please refer to namespaced [README](docs/readmes/README.namespaced.md).
 
 ### 5. Install the Azure Identity Binding
 
