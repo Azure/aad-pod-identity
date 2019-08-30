@@ -453,6 +453,7 @@ func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r 
 		logger.Errorf("failed io operation of reading response body, %+v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	w.Header().Set("Content-Type", "application/json")
 	w.Write(body)
 }
 
