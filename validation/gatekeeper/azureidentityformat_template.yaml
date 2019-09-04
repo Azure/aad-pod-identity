@@ -15,7 +15,7 @@ spec:
       rego: |
         package azureidentityformat
         violation[{"msg": msg}] {
-         input.review.object.kind == "AzureIdentity"
+         input.review.kind.kind == "AzureIdentity"
          # format of resourceId is checked only for user-assigned MSI
          input.review.object.spec.type == 0
          resourceId := input.review.object.spec.ResourceID
