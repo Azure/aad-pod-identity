@@ -3,7 +3,7 @@
 ## Introduction
 
 This will help validate various CRDs and the azure resources used in aad-pod-identity.
-Currently validation of format of the User assigned MSI is supported.
+Currently validation of User assigned MSI format in Azure Identity is supported.
 
 [Gatekeeper](https://github.com/open-policy-agent/gatekeeper) - Policy Controller for Kubernetes, is used to validate the resources.
   * It is a validating webhook that enforces CRD based policies
@@ -36,7 +36,7 @@ Following are the two major resources to enable this check.
    /subscriptions/<subid>/resourcegroups/<resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>
    ```
 
-   The same can be checked via following regex pattern, any resource not matching the pattern is considered as invalid.
+   The same can be validate using the following regex pattern. Resource ID that does not match this pattern is considered invalid.
 
    ```
    (?i)/subscriptions/(.+?)/resourcegroups/(.+?)/providers/Microsoft.ManagedIdentity/(.+?)/(.+)
@@ -128,6 +128,11 @@ spec:
   type: 0
   ResourceID: /subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myidentity
   ClientID: 00000000-0000-0000-0000-000000000000
+```
+
+```sh
+ kubectl apply -f aadpodidentity_test_invalid.yaml
+Error from server ([denied by azureidentityformatconstraint] The identity resourceId '/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myidentity' is invalid.It must be of the following format: '/subscriptions/<subid>/resourcegroups/<resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>'): error when creating "aadpodidentity_test_invalid.yaml": admission webhook "validation.gatekeeper.sh" denied the request: [denied by azureidentityformatconstraint] The identity resourceId '/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myidentity' is invalid.It must be of the following format: '/subscriptions/<subid>/resourcegroups/<resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>'
 ```
 
 

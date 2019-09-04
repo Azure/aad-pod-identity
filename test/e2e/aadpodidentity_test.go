@@ -917,12 +917,12 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity)
 	})
 
-	It("should pass the identity format validation via gatekeeper constraint", func() {
+	It("should pass the identity format validation with gatekeeper constraint", func() {
 
 		// setup the required infra
 		setupIdentityFormatValidationInfra()
 
-		// cleanup the infra craeted for this specific test
+		// cleanup the infra created for this specific test
 		// uninstall the identity format constraint ,identity format template,Gatekeeper in sequence
 		defer cleanupIdentityFormatValidationInfra()
 
