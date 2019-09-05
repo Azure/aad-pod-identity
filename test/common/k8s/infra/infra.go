@@ -104,3 +104,28 @@ func CreateIdentityValidator(subscriptionID, resourceGroup, templateOutputPath s
 
 	return nil
 }
+
+// InstallGatekeeper will deploy Gatekeeper Policy Controller on a Kubernetes cluster
+func InstallGatekeeper() error {
+
+	cmd := exec.Command("kubectl", "apply", "-f", "https://raw.githubusercontent.com/open-policy-agent/gatekeeper/master/deploy/gatekeeper.yaml")
+	util.PrintCommand(cmd)
+	out, err := cmd.CombinedOutput()
+
+	if err != nil {
+		return errors.Wrapf(err, "Failed to deploy Gatekeeper to the kubernetes cluster: %s", out)
+	}
+	return nil
+}
+
+// UninstallGatekeeper will delete Gatekeeper Policy Controller on a Kubernetes cluster
+func UninstallGatekeeper() error {
+	cmd := exec.Command("kubectl", "delete", "-f", "https://raw.githubusercontent.com/open-policy-agent/gatekeeper/master/deploy/gatekeeper.yaml")
+	util.PrintCommand(cmd)
+	out, err := cmd.CombinedOutput()
+
+	if err != nil {
+		return errors.Wrapf(err, "Failed to uninstall Gatekeeper from the kubernetes cluster: %s", out)
+	}
+	return nil
+}

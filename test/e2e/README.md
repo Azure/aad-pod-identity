@@ -114,6 +114,7 @@ To ensure consistency across all tests, they generally follow the format below:
 | Enable a user assigned identity on VMs, then assign a different user assigned identity to a pod | Pod identity should work as expected and the user assigned identity on VMs should not be altered after deleting the pod identity | Advanced |
 | Enable a user assigned identity on VMs, then assign the same user assigned identity to a pod | Pod identity should work as expected and the user assigned identity on VMs should not be altered after deleting the pod identity | Advanced |
 | Enable system assigned identity on VMs, then assign a user assigned identity to a pod | Pod identity should work as expected and the system assigned identity on VMs should not be altered after deleting the pod identity | Advanced |
+| Enforce user assigned identity format validation constraint with Gatekeeper | Azure identity with invalid resource ID should not be accepted | Advanced |
 
 ## Development
 
