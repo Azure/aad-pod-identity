@@ -9,9 +9,10 @@ import (
 	"github.com/golang/glog"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	"github.com/Azure/aad-pod-identity/pkg/logger"
+	inlog "github.com/Azure/aad-pod-identity/pkg/logger"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
-	log "github.com/Azure/aad-pod-identity/pkg/logger"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,8 +34,8 @@ type Client struct {
 
 // ClientInt ...
 type ClientInt interface {
-	Start(exit <-chan struct{})
-	SyncCache(exit <-chan struct{}, initial bool)
+	Start(exit <-chan struct{}, log inlog.Logger)
+	SyncCache(exit <-chan struct{}, initial bool, log inlog.Logger)
 	RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error
@@ -232,27 +233,27 @@ func newPodIdentityExceptionInformer(lw *cache.ListWatch) (cache.SharedInformer,
 }
 
 // StartLite to be used only case of lite client
-func (c *Client) StartLite(exit <-chan struct{}, log log.Logger) {
+func (c *Client) StartLite(exit <-chan struct{}, log inlog.Logger) {
 	go c.AssignedIDInformer.Run(exit)
 	go c.PodIdentityExceptionInformer.Run(exit)
-	c.SyncCache(exit, true)
+	c.SyncCache(exit, true, log)
 	log.Info("CRD lite informers started ")
 }
 
 // Start ...
-func (c *Client) Start(exit <-chan struct{}) {
+func (c *Client) Start(exit <-chan struct{}, log inlog.Logger) {
 	go c.BindingInformer.Run(exit)
 	go c.IDInformer.Run(exit)
 	go c.AssignedIDInformer.Run(exit)
-	c.SyncCache(exit, true)
+	c.SyncCache(exit, true, log)
 	glog.Info("CRD informers started")
 }
 
 // SyncCache synchronizes cache
-func (c *Client) SyncCache(exit <-chan struct{}, initial bool) {
+func (c *Client) SyncCache(exit <-chan struct{}, initial bool, inlog logger.Logger) {
 	if !cache.WaitForCacheSync(exit) {
 		if !initial {
-			glog.Error("Cache could not be synchronized")
+			inlog.Errorf("Cache could not be synchronized")
 			return
 		}
 		panic("Cache could not be synchronized")
