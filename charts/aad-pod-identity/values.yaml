@@ -31,11 +31,11 @@ mic:
 
   resources:
     limits:
-    cpu: 200m
-    memory: 1024Mi
+      cpu: 200m
+      memory: 1024Mi
     requests:
-    cpu: 100m
-    memory: 256Mi
+      cpu: 100m
+      memory: 256Mi
 
   ## Node labels for pod assignment
   ## aad-pod-identity is currently only supported on linux
@@ -52,11 +52,11 @@ nmi:
 
   resources:
     limits:
-    cpu: 200m
-    memory: 512Mi
+      cpu: 200m
+      memory: 512Mi
     requests:
-    cpu: 100m
-    memory: 256Mi
+      cpu: 100m
+      memory: 256Mi
 
   ## Node labels for pod assignment
   ## aad-pod-identity is currently only supported on linux
