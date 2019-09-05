@@ -88,6 +88,13 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
+        resources:
+          limits:
+            cpu: 200m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
         securityContext:
           privileged: true
           capabilities:
@@ -127,6 +134,13 @@ spec:
           - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1024Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
         volumeMounts:
           - name: kubeconfig
             mountPath: /etc/kubernetes/kubeconfig

@@ -86,6 +86,13 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
+        resources:
+          limits:
+            cpu: 200m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
         securityContext:
           privileged: true
           capabilities:
@@ -174,6 +181,13 @@ spec:
               secretKeyRef:
                 key: ClientSecret
                 name: aadpodidentity-admin-secret
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1024Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
         volumeMounts:
           - name: kubeconfig
             mountPath: /etc/kubernetes/kubeconfig
