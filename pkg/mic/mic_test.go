@@ -10,7 +10,6 @@ import (
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/config"
-	inlog "github.com/Azure/aad-pod-identity/pkg/logger"
 
 	"github.com/golang/glog"
 
@@ -343,10 +342,10 @@ func NewTestCrdClient(config *rest.Config) *TestCrdClient {
 	}
 }
 
-func (c *TestCrdClient) Start(exit <-chan struct{}, log inlog.Logger) {
+func (c *TestCrdClient) Start(exit <-chan struct{}) {
 }
 
-func (c *TestCrdClient) SyncCache(exit <-chan struct{}, initial bool, log inlog.Logger) {
+func (c *TestCrdClient) SyncCache(exit <-chan struct{}, initial bool) {
 
 }
 

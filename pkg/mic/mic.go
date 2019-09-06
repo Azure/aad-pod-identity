@@ -93,7 +93,7 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 	glog.V(1).Infof("Cloud provider initialized")
 
 	eventCh := make(chan aadpodid.EventType, 100)
-	crdClient, err := crd.NewCRDClient(config, eventCh)
+	crdClient, err := crd.NewCRDClient(config, eventCh, Log{})
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func (c *Client) Start(exit <-chan struct{}) {
 
 	wg.Add(1)
 	go func() {
-		c.CRDClient.Start(exit, Log{})
+		c.CRDClient.Start(exit)
 		glog.V(6).Infof("CRD client started")
 		wg.Done()
 	}()
@@ -242,7 +242,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 		// There is a delay in data propogation to cache. It's possible that the creates performed in the previous sync cycle
 		// are not propogated before this sync cycle began. In order to avoid redoing the cycle, we sync cache again.
-		c.CRDClient.SyncCache(exit, false, Log{})
+		c.CRDClient.SyncCache(exit, false)
 		stats.Put(stats.CacheSync, time.Since(cacheTime))
 
 		// List all pods in all namespaces

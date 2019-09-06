@@ -47,13 +47,14 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 	log.Infof("Starting nmi process. Version: %v. Build date: %v", version.NMIVersion, version.BuildDate)
-	client, err := k8s.NewKubeClient()
+	logger := &server.Log{}
+
+	client, err := k8s.NewKubeClient(logger)
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}
 	exit := make(<-chan struct{})
-	logger := &server.Log{}
-	client.Start(exit, logger)
+	client.Start(exit)
 	*forceNamespaced = *forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
 	s := server.NewServer(*forceNamespaced, *micNamespace)
 	s.KubeClient = client
