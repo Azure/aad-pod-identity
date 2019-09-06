@@ -15,8 +15,8 @@ import (
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	crd "github.com/Azure/aad-pod-identity/pkg/crd"
-	"github.com/Azure/aad-pod-identity/version"
 	inlog "github.com/Azure/aad-pod-identity/pkg/logger"
+	"github.com/Azure/aad-pod-identity/version"
 	"github.com/golang/glog"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,7 +32,7 @@ const (
 // Client api client
 type Client interface {
 	// Start just starts any informers required.
-	Start(<-chan struct{}, inlog.Logger)
+	Start(<-chan struct{})
 	// GetPodInfo returns the pod name, namespace & replica set name for a given pod ip
 	GetPodInfo(podip string) (podns, podname, rsName string, selectors *metav1.LabelSelector, err error)
 	// ListPodIds pod matching azure identity or nil
@@ -50,10 +50,11 @@ type KubeClient struct {
 	// Crd client used to access our CRD resources.
 	CrdClient   *crd.Client
 	PodInformer informersv1.PodInformer
+	log         inlog.Logger
 }
 
 // NewKubeClient new kubernetes api client
-func NewKubeClient() (Client, error) {
+func NewKubeClient(log inlog.Logger) (Client, error) {
 	config, err := buildConfig()
 	if err != nil {
 		return nil, err
@@ -63,7 +64,7 @@ func NewKubeClient() (Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	crdclient, err := crd.NewCRDClientLite(config)
+	crdclient, err := crd.NewCRDClientLite(config, log)
 	if err != nil {
 		return nil, err
 	}
@@ -71,16 +72,21 @@ func NewKubeClient() (Client, error) {
 	informer := informers.NewSharedInformerFactory(clientset, 30*time.Second)
 	podInformer := informer.Core().V1().Pods()
 
-	kubeClient := &KubeClient{CrdClient: crdclient, ClientSet: clientset, PodInformer: podInformer}
+	kubeClient := &KubeClient{
+		CrdClient:   crdclient,
+		ClientSet:   clientset,
+		PodInformer: podInformer,
+		log:         log,
+	}
 
 	return kubeClient, nil
 }
 
 // Start the corresponding starts
-func (c *KubeClient) Start(exit <-chan struct{}, log inlog.Logger) {
+func (c *KubeClient) Start(exit <-chan struct{}) {
 	go c.PodInformer.Informer().Run(exit)
-	c.CrdClient.StartLite(exit, log)
-	c.CrdClient.SyncCache(exit)
+	c.CrdClient.StartLite(exit)
+	c.CrdClient.SyncCache(exit, true)
 }
 
 func (c *KubeClient) getReplicasetName(pod v1.Pod) string {

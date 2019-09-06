@@ -9,9 +9,9 @@ import (
 	"github.com/golang/glog"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	inlog "github.com/Azure/aad-pod-identity/pkg/logger"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
-	log "github.com/Azure/aad-pod-identity/pkg/logger"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -29,12 +29,13 @@ type Client struct {
 	IDInformer                   cache.SharedInformer
 	AssignedIDInformer           cache.SharedInformer
 	PodIdentityExceptionInformer cache.SharedInformer
+	log                          inlog.Logger
 }
 
 // ClientInt ...
 type ClientInt interface {
 	Start(exit <-chan struct{})
-	SyncCache(exit <-chan struct{})
+	SyncCache(exit <-chan struct{}, initial bool)
 	RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error
@@ -46,23 +47,23 @@ type ClientInt interface {
 }
 
 // NewCRDClientLite ...
-func NewCRDClientLite(config *rest.Config) (crdClient *Client, err error) {
+func NewCRDClientLite(config *rest.Config, log inlog.Logger) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
 	assignedIDListWatch := newAssignedIDListWatch(restClient)
 	assignedIDListInformer, err := newAssignedIDInformer(assignedIDListWatch)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 	podIdentityExceptionListWatch := newPodIdentityExceptionListWatch(restClient)
 	podIdentityExceptionInformer, err := newPodIdentityExceptionInformer(podIdentityExceptionListWatch)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
@@ -74,31 +75,31 @@ func NewCRDClientLite(config *rest.Config) (crdClient *Client, err error) {
 }
 
 // NewCRDClient returns a new crd client and error if any
-func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClient *Client, err error) {
+func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType, log inlog.Logger) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
 	bindingListWatch := newBindingListWatch(restClient)
 	bindingInformer, err := newBindingInformer(restClient, eventCh, bindingListWatch)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
 	idListWatch := newIDListWatch(restClient)
 	idInformer, err := newIDInformer(restClient, eventCh, idListWatch)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
 	assignedIDListWatch := newAssignedIDListWatch(restClient)
 	assignedIDListInformer, err := newAssignedIDInformer(assignedIDListWatch)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
@@ -107,6 +108,7 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 		BindingInformer:    bindingInformer,
 		IDInformer:         idInformer,
 		AssignedIDInformer: assignedIDListInformer,
+		log:                log,
 	}, nil
 }
 
@@ -132,7 +134,6 @@ func newRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
 	//Client interacting with our CRDs
 	restClient, err := rest.RESTClientFor(&crdconfig)
 	if err != nil {
-		glog.Error(err)
 		return nil, err
 	}
 	return restClient, nil
@@ -232,11 +233,11 @@ func newPodIdentityExceptionInformer(lw *cache.ListWatch) (cache.SharedInformer,
 }
 
 // StartLite to be used only case of lite client
-func (c *Client) StartLite(exit <-chan struct{}, log log.Logger) {
+func (c *Client) StartLite(exit <-chan struct{}) {
 	go c.AssignedIDInformer.Run(exit)
 	go c.PodIdentityExceptionInformer.Run(exit)
-	c.SyncCache(exit)
-	log.Info("CRD lite informers started ")
+	c.SyncCache(exit, true)
+	c.log.Info("CRD lite informers started ")
 }
 
 // Start ...
@@ -244,13 +245,17 @@ func (c *Client) Start(exit <-chan struct{}) {
 	go c.BindingInformer.Run(exit)
 	go c.IDInformer.Run(exit)
 	go c.AssignedIDInformer.Run(exit)
-	c.SyncCache(exit)
-	glog.Info("CRD informers started")
+	c.SyncCache(exit, true)
+	c.log.Info("CRD informers started")
 }
 
 // SyncCache synchronizes cache
-func (c *Client) SyncCache(exit <-chan struct{}) {
+func (c *Client) SyncCache(exit <-chan struct{}, initial bool) {
 	if !cache.WaitForCacheSync(exit) {
+		if !initial {
+			c.log.Errorf("Cache could not be synchronized")
+			return
+		}
 		panic("Cache could not be synchronized")
 	}
 }
@@ -323,7 +328,7 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 		o, ok := assignedID.(*aadpodid.AzureAssignedIdentity)
 		if !ok {
 			err := fmt.Errorf("could not cast %T to %s", assignedID, aadpodid.AzureAssignedIDResource)
-			glog.Error(err)
+			c.log.Error(err)
 			return nil, err
 		}
 		// Note: List items returned from cache have empty Kind and API version..
@@ -351,7 +356,7 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 		o, ok := id.(*aadpodid.AzureIdentity)
 		if !ok {
 			err := fmt.Errorf("could not cast %T to %s", id, aadpodid.AzureIDResource)
-			glog.Error(err)
+			c.log.Error(err)
 			return nil, err
 		}
 		// Note: List items returned from cache have empty Kind and API version..
@@ -379,7 +384,7 @@ func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodI
 		o, ok := binding.(*aadpodid.AzurePodIdentityException)
 		if !ok {
 			err := fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureIdentityExceptionResource)
-			glog.Error(err)
+			c.log.Error(err)
 			return nil, err
 		}
 		if o.Namespace == ns {
