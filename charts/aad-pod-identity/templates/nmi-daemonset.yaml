@@ -44,6 +44,24 @@ spec:
         args:
           - "--host-ip=$(HOST_IP)"
           - "--node=$(NODE_NAME)"
+          {{- if .Values.nmi.probePort }}
+          - --http-probe-port={{ .Values.nmi.probePort }}
+          {{- end }}
+          {{- if .Values.nmi.ipTableUpdateTimeIntervalInSeconds }}
+          - --ipt-update-interval-sec={{ .Values.nmi.ipTableUpdateTimeIntervalInSeconds }}
+          {{- end }}
+          {{- if .Values.nmi.micNamespace }}
+          - --MICNamespace={{ .Values.nmi.micNamespace }}
+          {{- end }}
+          {{- if .Values.nmi.retryAttemptsForCreated }}
+          - --retry-attempts-for-created={{ .Values.nmi.retryAttemptsForCreated }}
+          {{- end }}
+          {{- if .Values.nmi.retryAttemptsForAssigned }}
+          - --retry-attempts-for-assigned={{ .Values.nmi.retryAttemptsForAssigned }}
+          {{- end }}
+          {{- if .Values.nmi.findIdentityRetryIntervalInSeconds }}
+          - --find-identity-retry-interval={{ .Values.nmi.findIdentityRetryIntervalInSeconds }}
+          {{- end }}
         env:
           - name: HOST_IP
             valueFrom:
@@ -66,7 +84,11 @@ spec:
         livenessProbe:
           httpGet:
             path: /healthz
+            {{- if .Values.nmi.probePort }}
+            port: {{ .Values.nmi.probePort }}
+            {{- else }}
             port: 8080
+            {{- end }}            
           initialDelaySeconds: 10
           periodSeconds: 5
 {{- with .Values.nmi.resources }}

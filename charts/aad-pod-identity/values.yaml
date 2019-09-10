@@ -11,7 +11,7 @@ image:
 # To match only pods in the namespace containing AzureIdentity set this to true.
 forceNameSpaced: "false"
 
-## If using a separate service prinicipal for aad-pod-identity instead of cluster service principal specify the following
+## If using a separate service principal for aad-pod-identity instead of cluster service principal specify the following
 ## (The chart will perform the base64 encoding for you for values that are stored in secrets.)
 # adminsecret:
 #   cloud: <cloud environment name>
@@ -46,6 +46,22 @@ mic:
 
   affinity: {}
 
+  leaderElection:
+    # Override leader election instance name (default is 'hostname')
+    instance: ""
+    # Override the namespace to create leader election objects (default is default namespace)
+    namespace: ""
+    # Override leader election name (default is aad-pod-identity-mic)
+    name: ""
+    # Override leader election duration (default is 15s)
+    duration: ""
+
+  # Override http liveliness probe port (default is 8080)
+  probePort: ""
+
+  # Override interval in seconds at which sync loop should periodically check for errors and reconcile (default is 3600s)
+  syncRetryDuration: ""
+
 nmi:
   image: nmi
   tag: 1.5.2
@@ -67,9 +83,30 @@ nmi:
 
   affinity: {}
 
+  # Override iptables update interval in seconds (default is 60)
+  ipTableUpdateTimeIntervalInSeconds: ""
+
+  # Override mic namespace to short circuit MIC token requests (default is default namespace)
+  micNamespace: ""
+
+  # Override http liveliness probe port (default is 8080)
+  probePort: ""
+
+  # Override number of retries in NMI to find assigned identity in CREATED state (default is 16)
+  retryAttemptsForCreated: ""
+
+  # Override number of retries in NMI to find assigned identity in ASSIGNED state (default is 4)
+  retryAttemptsForAssigned: ""
+
+  # Override retry interval to find assigned identities in seconds (default is 5)
+  findIdentityRetryIntervalInSeconds: ""
+
 rbac:
   enabled: true
-
+  # NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity.
+  # If using only MSI (type: 0) in AzureIdentity, secret get permission can be disabled by setting this to false.
+  allowAccessToSecrets: true
+  
 azureIdentity:
   # enabled/disable deployment of azure identity and binding
   enabled: false

@@ -16,9 +16,11 @@ rules:
 - apiGroups: [""]
   resources: ["pods"]
   verbs: ["get", "list"]
+{{- if .Values.rbac.allowAccessToSecrets }}
 - apiGroups: [""]
   resources: ["secrets"]
   verbs: ["get"]
+{{- end }}
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureidentitybindings", "azureidentities", "azurepodidentityexceptions"]
   verbs: ["get", "list"]
