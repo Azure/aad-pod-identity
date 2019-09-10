@@ -1,35 +1,124 @@
-# Default values for pod-aad-identity-helm.
+# Default values for aad-pod-identity-helm.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+image:
+  repository: mcr.microsoft.com/k8s/aad-pod-identity
+  imagePullPolicy: Always
+
+# https://github.com/Azure/aad-pod-identity#4-optional-match-pods-in-the-namespace
+# By default, AAD Pod Identity matches pods to identities across namespaces.
+# To match only pods in the namespace containing AzureIdentity set this to true.
+forceNameSpaced: "false"
+
+## If using a separate service principal for aad-pod-identity instead of cluster service principal specify the following
+## (The chart will perform the base64 encoding for you for values that are stored in secrets.)
+# adminsecret:
+#   cloud: <cloud environment name>
+#   subscriptionID: <subscription id>
+#   resourceGroup: <cluster resource group>
+#   vmType: <`standard` for normal virtual machine nodes, and `vmss` for cluster deployed with a virtual machine scale set>
+#   tenantID: <service principal tenant id>
+#   clientID: <service principal client id>
+#   clientSecret: <service principal client secret>
+
+mic:
+  image: mic
+  tag: 1.5.2
+
+  # log level. Uses V logs (glog)
+  # logVerbosity: 0
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 1024Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  ## Node labels for pod assignment
+  ## aad-pod-identity is currently only supported on linux
+  nodeSelector:
+    beta.kubernetes.io/os: linux
+
+  tolerations: []
+
+  affinity: {}
+
+  leaderElection:
+    # Override leader election instance name (default is 'hostname')
+    instance: ""
+    # Override the namespace to create leader election objects (default is default namespace)
+    namespace: ""
+    # Override leader election name (default is aad-pod-identity-mic)
+    name: ""
+    # Override leader election duration (default is 15s)
+    duration: ""
+
+  # Override http liveliness probe port (default is 8080)
+  probePort: ""
+
+  # Override interval in seconds at which sync loop should periodically check for errors and reconcile (default is 3600s)
+  syncRetryDuration: ""
+
+nmi:
+  image: nmi
+  tag: 1.5.2
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  ## Node labels for pod assignment
+  ## aad-pod-identity is currently only supported on linux
+  nodeSelector:
+    beta.kubernetes.io/os: linux
+
+  tolerations: []
+
+  affinity: {}
+
+  # Override iptables update interval in seconds (default is 60)
+  ipTableUpdateTimeIntervalInSeconds: ""
+
+  # Override mic namespace to short circuit MIC token requests (default is default namespace)
+  micNamespace: ""
+
+  # Override http liveliness probe port (default is 8080)
+  probePort: ""
+
+  # Override number of retries in NMI to find assigned identity in CREATED state (default is 16)
+  retryAttemptsForCreated: ""
+
+  # Override number of retries in NMI to find assigned identity in ASSIGNED state (default is 4)
+  retryAttemptsForAssigned: ""
+
+  # Override retry interval to find assigned identities in seconds (default is 5)
+  findIdentityRetryIntervalInSeconds: ""
+
 rbac:
   enabled: true
-
+  # NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity.
+  # If using only MSI (type: 0) in AzureIdentity, secret get permission can be disabled by setting this to false.
+  allowAccessToSecrets: true
+  
 azureIdentity:
-  enabled: true # enabled/disable deployment of azure identity and binding
+  # enabled/disable deployment of azure identity and binding
+  enabled: false
   name: "azure-identity"
-  type: 0 # type 0: MSI, type 1: Service Principal
-  resourceID: "" # /subscriptions/subscription-id/resourcegroups/resource-group/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name
+  # if not defined, then the azure identity will be deployed in the same namespace as the chart
+  namespace: ""
+  # type 0: MSI, type 1: Service Principal
+  type: 0
+  # /subscriptions/subscription-id/resourcegroups/resource-group/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name
+  resourceID: ""
   clientID: ""
 
 azureIdentityBinding:
   name: "azure-identity-binding"
-  selector: "" # demo
-
-resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #  cpu: 100m
-  #  memory: 128Mi
-  # requests:
-  #  cpu: 100m
-  #  memory: 128Mi
-
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}
+  selector: "demo"
