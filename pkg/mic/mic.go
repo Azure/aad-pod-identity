@@ -708,6 +708,11 @@ func (c *Client) updateNodeAndDeps(newAssignedIDs []aadpodid.AzureAssignedIdenti
 
 	vmssMap := make(map[string][]string)
 
+	fmt.Println("NODE NAME BEFORE ##############")
+	for nodeName := range nodeMap {
+		fmt.Println(nodeName)
+	}
+
 	for nodeName, nodeTrackList := range nodeMap {
 		node, err := c.NodeClient.Get(nodeName)
 		if err != nil && !strings.Contains(err.Error(), "not found") {
@@ -756,6 +761,11 @@ func (c *Client) updateNodeAndDeps(newAssignedIDs []aadpodid.AzureAssignedIdenti
 
 			nodeMap[vmssNodes[0]] = firstNodeTrackList
 		}
+	}
+
+	fmt.Println("NODE NAME AFTER ##############")
+	for nodeName := range nodeMap {
+		fmt.Println(nodeName)
 	}
 
 	for nodeName, nodeTrackList := range nodeMap {
