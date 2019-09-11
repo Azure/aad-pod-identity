@@ -77,6 +77,7 @@ type trackUserAssignedMSIIds struct {
 	removeUserAssignedMSIIDs []string
 	assignedIDsToCreate      []aadpodid.AzureAssignedIdentity
 	assignedIDsToDelete      []aadpodid.AzureAssignedIdentity
+	isvmss                   bool
 }
 
 // NewMICClient returnes new mic client
@@ -633,8 +634,8 @@ func (c *Client) checkIfMSIExistsOnNode(id *aadpodid.AzureIdentity, nodeName str
 	return false
 }
 
-func (c *Client) getUserMSIListForNode(node *corev1.Node) ([]string, error) {
-	return c.CloudClient.GetUserMSIs(node)
+func (c *Client) getUserMSIListForNode(nodeOrVMSSName string, isvmss bool) ([]string, error) {
+	return c.CloudClient.GetUserMSIs(nodeOrVMSSName, isvmss)
 }
 
 func (c *Client) convertIDListToMap(arr []aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
@@ -744,22 +745,24 @@ func (c *Client) updateNodeAndDeps(newAssignedIDs []aadpodid.AzureAssignedIdenti
 	}
 
 	// aggregate vmss nodes into the first node list
-	for _, vmssNodes := range vmssMap {
-		if len(vmssNodes) <= 1 {
+	for vmssName, vmssNodes := range vmssMap {
+		if len(vmssNodes) < 1 {
 			continue
 		}
 
-		firstNodeTrackList := nodeMap[vmssNodes[0]]
+		vmssTrackList := trackUserAssignedMSIIds{}
 
-		for i := 1; i < len(vmssNodes); i++ {
-			firstNodeTrackList.addUserAssignedMSIIDs = append(firstNodeTrackList.addUserAssignedMSIIDs, nodeMap[vmssNodes[i]].addUserAssignedMSIIDs...)
-			firstNodeTrackList.removeUserAssignedMSIIDs = append(firstNodeTrackList.removeUserAssignedMSIIDs, nodeMap[vmssNodes[i]].removeUserAssignedMSIIDs...)
-			firstNodeTrackList.assignedIDsToCreate = append(firstNodeTrackList.assignedIDsToCreate, nodeMap[vmssNodes[i]].assignedIDsToCreate...)
-			firstNodeTrackList.assignedIDsToDelete = append(firstNodeTrackList.assignedIDsToDelete, nodeMap[vmssNodes[i]].assignedIDsToDelete...)
+		for i := 0; i < len(vmssNodes); i++ {
+			vmssTrackList.addUserAssignedMSIIDs = append(vmssTrackList.addUserAssignedMSIIDs, nodeMap[vmssNodes[i]].addUserAssignedMSIIDs...)
+			vmssTrackList.removeUserAssignedMSIIDs = append(vmssTrackList.removeUserAssignedMSIIDs, nodeMap[vmssNodes[i]].removeUserAssignedMSIIDs...)
+			vmssTrackList.assignedIDsToCreate = append(vmssTrackList.assignedIDsToCreate, nodeMap[vmssNodes[i]].assignedIDsToCreate...)
+			vmssTrackList.assignedIDsToDelete = append(vmssTrackList.assignedIDsToDelete, nodeMap[vmssNodes[i]].assignedIDsToDelete...)
+			vmssTrackList.isvmss = true
 
 			delete(nodeMap, vmssNodes[i])
 
-			nodeMap[vmssNodes[0]] = firstNodeTrackList
+			//nodeMap[getVMSSName(vmssName)] = vmssTrackList
+			nodeMap[getVMSSName(vmssName)] = vmssTrackList
 		}
 	}
 
@@ -775,10 +778,10 @@ func (c *Client) updateNodeAndDeps(newAssignedIDs []aadpodid.AzureAssignedIdenti
 	wg.Wait()
 }
 
-func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeName string, nodeTrackList trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
+func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeOrVMSSName string, nodeTrackList trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 	beginAdding := time.Now()
-	glog.Infof("Processing node %s, add [%d], del [%d]", nodeName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete))
+	glog.Infof("Processing node %s, add [%d], del [%d]", nodeOrVMSSName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete))
 
 	for _, createID := range nodeTrackList.assignedIDsToCreate {
 		if createID.Status.Status == "" {
@@ -800,18 +803,12 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 	addUserAssignedMSIIDs := c.getUniqueIDs(nodeTrackList.addUserAssignedMSIIDs)
 	removeUserAssignedMSIIDs := c.getUniqueIDs(nodeTrackList.removeUserAssignedMSIIDs)
 
-	node, err := c.NodeClient.Get(nodeName)
+	err := c.CloudClient.UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs, nodeOrVMSSName, nodeTrackList.isvmss)
 	if err != nil {
-		glog.Errorf("Unable to get node %s while updating user msis. Error %v", nodeName, err)
-		return
-	}
-
-	err = c.CloudClient.UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs, node)
-	if err != nil {
-		glog.Errorf("Updating msis on node %s, add [%d], del [%d] failed with error %v", nodeName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete), err)
-		idList, getErr := c.getUserMSIListForNode(node)
+		glog.Errorf("Updating msis on node %s, add [%d], del [%d] failed with error %v", nodeOrVMSSName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete), err)
+		idList, getErr := c.getUserMSIListForNode(nodeOrVMSSName, nodeTrackList.isvmss)
 		if getErr != nil {
-			glog.Errorf("Getting list of msis from node %s resulted in error %v", nodeName, getErr)
+			glog.Errorf("Getting list of msis from node %s resulted in error %v", nodeOrVMSSName, getErr)
 			return
 		}
 
@@ -832,7 +829,7 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 			c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding applied",
 				fmt.Sprintf("Binding %s applied on node %s for pod %s", binding.Name, createID.Spec.NodeName, createID.Name))
 
-			glog.Infof("Updating msis on node %s failed, but identity %s has successfully been assigned to node", nodeName, binding.Name)
+			glog.Infof("Updating msis on node %s failed, but identity %s has successfully been assigned to node", createID.Spec.NodeName, binding.Name)
 
 			// Identity is successfully assigned to node, so update the status of assigned identity to assigned
 			if updateErr := c.updateAssignedIdentityStatus(&createID, aadpodid.AssignedIDAssigned); updateErr != nil {
@@ -865,7 +862,7 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 				continue
 			}
 
-			glog.Infof("Updating msis on node %s failed, but identity %s has successfully been removed from node", nodeName, removedBinding.Name)
+			glog.Infof("Updating msis on node %s failed, but identity %s has successfully been removed from node", delID.Spec.NodeName, removedBinding.Name)
 
 			// remove assigned identity crd from cluster as the identity has successfully been removed from the node
 			err = c.removeAssignedIdentity(&delID)
