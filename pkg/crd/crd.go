@@ -71,6 +71,7 @@ func NewCRDClientLite(config *rest.Config, log inlog.Logger) (crdClient *Client,
 		AssignedIDInformer:           assignedIDListInformer,
 		PodIdentityExceptionInformer: podIdentityExceptionInformer,
 		rest:                         restClient,
+		log:                          log,
 	}, nil
 }
 
