@@ -59,8 +59,7 @@ type Client struct {
 	SyncLoopStarted   bool
 	syncRetryInterval time.Duration
 
-	syncing    int32 // protect against conucrrent sync's
-	statsMutex sync.Mutex
+	syncing int32 // protect against conucrrent sync's
 
 	leaderElector *leaderelection.LeaderElector
 	*LeaderElectionConfig
@@ -311,11 +310,15 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			c.getListOfIdsToAssign(*addList, nodeMap)
 		}
 
+		var wg sync.WaitGroup
+
 		// check if vmss and consolidate vmss nodes into vmss if necessary
-		c.consolidateVMSSNodes(nodeMap)
+		c.consolidateVMSSNodes(nodeMap, &wg)
 
 		// one final createorupdate to each node in the map
-		c.updateNodeAndDeps(newAssignedIDs, nodeMap, nodeRefs)
+		c.updateNodeAndDeps(newAssignedIDs, nodeMap, nodeRefs, &wg)
+
+		wg.Wait()
 
 		if workDone {
 			idsFound := 0
@@ -707,14 +710,11 @@ func (c *Client) updateAssignedIdentityStatus(assignedID *aadpodid.AzureAssigned
 	return c.CRDClient.UpdateAzureAssignedIdentityStatus(assignedID, status)
 }
 
-func (c *Client) updateNodeAndDeps(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds, nodeRefs map[string]bool) {
-	var wg sync.WaitGroup
-
+func (c *Client) updateNodeAndDeps(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
 	for nodeName, nodeTrackList := range nodeMap {
 		wg.Add(1)
-		go c.updateUserMSI(newAssignedIDs, nodeName, nodeTrackList, nodeRefs, &wg)
+		go c.updateUserMSI(newAssignedIDs, nodeName, nodeTrackList, nodeRefs, wg)
 	}
-	wg.Wait()
 }
 
 func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeOrVMSSName string, nodeTrackList trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
@@ -857,13 +857,12 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 		c.EventRecorder.Event(removedBinding, corev1.EventTypeNormal, "binding removed",
 			fmt.Sprintf("Binding %s removed from node %s for pod %s", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod))
 	}
-	c.statsMutex.Lock()
 	stats.Put(stats.TotalCreateOrUpdate, time.Since(beginAdding))
-	c.statsMutex.Unlock()
 }
 
 // cleanUpAllAssignedIdentitiesOnNode deletes all assigned identities associated with a the node
-func (c *Client) cleanUpAllAssignedIdentitiesOnNode(node string, nodeTrackList trackUserAssignedMSIIds) {
+func (c *Client) cleanUpAllAssignedIdentitiesOnNode(node string, nodeTrackList trackUserAssignedMSIIds, wg *sync.WaitGroup) {
+	defer wg.Done()
 	glog.Infof("deleting all assigned identites for node %s", node)
 	for _, deleteID := range nodeTrackList.assignedIDsToDelete {
 		binding := deleteID.Spec.AzureBindingRef
@@ -880,7 +879,10 @@ func (c *Client) cleanUpAllAssignedIdentitiesOnNode(node string, nodeTrackList t
 	}
 }
 
-func (c *Client) consolidateVMSSNodes(nodeMap map[string]trackUserAssignedMSIIds) {
+// consolidateVMSSNodes takes a list of all nodes that are part of the current sync cycle, checks if the nodes are
+// part of vmss and combines the vmss nodes into vmss name. This consolidation is needed because vmss identities
+// currently operate on all nodes in the vmss not just a single node.
+func (c *Client) consolidateVMSSNodes(nodeMap map[string]trackUserAssignedMSIIds, wg *sync.WaitGroup) {
 	vmssMap := make(map[string][]string)
 
 	for nodeName, nodeTrackList := range nodeMap {
@@ -891,10 +893,10 @@ func (c *Client) consolidateVMSSNodes(nodeMap map[string]trackUserAssignedMSIIds
 		}
 		if err != nil && strings.Contains(err.Error(), "not found") {
 			glog.Warningf("Unable to get node %s while updating user msis. Error %v", nodeName, err)
-
+			wg.Add(1)
 			// node is no longer found in the cluster, all the assigned identities that were created in this sync loop
 			// and those that already exist for this node need to be deleted.
-			go c.cleanUpAllAssignedIdentitiesOnNode(nodeName, nodeTrackList)
+			go c.cleanUpAllAssignedIdentitiesOnNode(nodeName, nodeTrackList, wg)
 			delete(nodeMap, nodeName)
 			continue
 		}
