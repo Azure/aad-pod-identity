@@ -81,7 +81,7 @@ The following steps will help you create a new Azure identity ([Managed Service 
 * [Azure CLI 2.0](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest)
 * [git](https://git-scm.com/downloads)
 
-> Recommended Helm version > `2.14.2`. Issue with CRD clean up has been resolved after that release.
+> Recommended Helm version > `2.14.2`. Issue with CRD during upgrade has been resolved after that release.
 
 <details>
 <summary><strong>[Optional] Creating user identity</strong></summary>
@@ -129,9 +129,10 @@ $ helm ls
 $ helm delete [last deployment] --purge
 ```
 
-The command removes all the Kubernetes components associated with the chart and deletes the release. All the CRDs are also removed with helm version > `2.14.2`.
+The command removes all the Kubernetes components associated with the chart and deletes the release.
 
-If the CRDs created by this chart still exist after uninstalling the chart, run the following commands to manually cleanup the CRDs.
+> The CRD created by the chart are not removed by default and should be manually cleaned up (if required) 
+
 ```bash
 kubectl delete crd azureassignedidentities.aadpodidentity.k8s.io
 kubectl delete crd azureidentities.aadpodidentity.k8s.io
@@ -188,3 +189,18 @@ The following tables list the configurable parameters of the aad-pod-identity ch
 | `azureIdentity.clientID`                 | Azure identity client ID                                                                                                                                                                                         | ` `                                                      |
 | `azureIdentityBinding.name`              | Azure identity binding name                                                                                                                                                                                      | `azure-identity-binding`                                 |
 | `azureIdentityBinding.selector`          | Azure identity binding selector. The selector defined here will also need to be included in labels for app deployment.                                                                                           | `demo`                                                   |
+
+## Troubleshooting
+
+If the helm chart is deleted and then reinstalled without manually deleting the crds, then you can get an error like -
+
+```console
+➜ helm install aad-pod-identity/aad-pod-identity --name pod-identity
+Error: customresourcedefinitions.apiextensions.k8s.io "azureassignedidentities.aadpodidentity.k8s.io" already exists
+```
+
+In this case, since there is no update to the crd definition since it was last installed, you can use a parameter to say not to use hook to install the CRD:
+
+```console
+helm install aad-pod-identity/aad-pod-identity --name pod-identity --no-hooks
+```
