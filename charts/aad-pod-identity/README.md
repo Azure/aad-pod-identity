@@ -13,47 +13,41 @@ Expected output:
 
 ```console
 NAME:   pod-identity
-LAST DEPLOYED: Thu Sep  5 11:08:23 2019
+LAST DEPLOYED: Mon Sep 16 11:47:45 2019
 NAMESPACE: default
 STATUS: DEPLOYED
 
 RESOURCES:
 ==> v1/ClusterRole
 NAME                  AGE
-aad-pod-identity-mic  2s
-aad-pod-identity-nmi  2s
+aad-pod-identity-mic  1s
+aad-pod-identity-nmi  1s
 
 ==> v1/Pod(related)
 NAME                                  READY  STATUS             RESTARTS  AGE
-aad-pod-identity-mic-99c767df7-htnld  0/1    ContainerCreating  0         2s
-aad-pod-identity-mic-99c767df7-hztlb  0/1    ContainerCreating  0         2s
-aad-pod-identity-nmi-44s6j            0/1    ContainerCreating  0         2s
-aad-pod-identity-nmi-nn5fr            0/1    ContainerCreating  0         2s
+aad-pod-identity-mic-9658685f4-vnmwx  0/1    ContainerCreating  0         1s
+aad-pod-identity-mic-9658685f4-xrzmv  0/1    ContainerCreating  0         1s
+aad-pod-identity-nmi-d5hvt            0/1    ContainerCreating  0         1s
+aad-pod-identity-nmi-rq27p            0/1    ContainerCreating  0         1s
+aad-pod-identity-nmi-wdgdf            0/1    ContainerCreating  0         1s
 
 ==> v1/ServiceAccount
 NAME                  SECRETS  AGE
-aad-pod-identity-mic  1        3s
-aad-pod-identity-nmi  1        3s
+aad-pod-identity-mic  1        1s
+aad-pod-identity-nmi  1        1s
 
 ==> v1beta1/ClusterRoleBinding
 NAME                  AGE
-aad-pod-identity-mic  2s
-aad-pod-identity-nmi  2s
-
-==> v1beta1/CustomResourceDefinition
-NAME                                              AGE
-azureassignedidentities.aadpodidentity.k8s.io     3s
-azureidentities.aadpodidentity.k8s.io             3s
-azureidentitybindings.aadpodidentity.k8s.io       3s
-azurepodidentityexceptions.aadpodidentity.k8s.io  2s
+aad-pod-identity-mic  1s
+aad-pod-identity-nmi  1s
 
 ==> v1beta1/DaemonSet
 NAME                  DESIRED  CURRENT  READY  UP-TO-DATE  AVAILABLE  NODE SELECTOR                AGE
-aad-pod-identity-nmi  2        2        0      2           0          beta.kubernetes.io/os=linux  2s
+aad-pod-identity-nmi  3        3        0      3           0          beta.kubernetes.io/os=linux  1s
 
 ==> v1beta1/Deployment
 NAME                  READY  UP-TO-DATE  AVAILABLE  AGE
-aad-pod-identity-mic  0/2    2           0          2s
+aad-pod-identity-mic  0/2    2           0          1s
 ```
 
 ## Introduction
