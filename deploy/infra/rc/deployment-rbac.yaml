@@ -118,7 +118,7 @@ spec:
         name: iptableslock
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.5.3-rc2"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.5.3-c2"
         imagePullPolicy: Always
         args:
           - "--host-ip=$(HOST_IP)"
@@ -220,7 +220,7 @@ spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.5.3-rc2"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.5.3-rc3"
         imagePullPolicy: Always
         args:
           - "--cloudconfig=/etc/kubernetes/azure.json"
