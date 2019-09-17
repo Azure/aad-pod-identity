@@ -609,6 +609,9 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
+		// TODO (aramase) make this deterministic by ensuring pods with desired image are running
+		time.Sleep(30 * time.Second)
+
 		ok, err = waitForIPTableRulesToExist("busybox")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))

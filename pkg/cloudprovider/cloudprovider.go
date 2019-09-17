@@ -151,7 +151,7 @@ func withInspection() autorest.PrepareDecorator {
 	}
 }
 
-// GetUserMSIs will return a list of all identities on the node
+// GetUserMSIs will return a list of all identities on the node or vmss based on value of isvmss
 func (c *Client) GetUserMSIs(name string, isvmss bool) ([]string, error) {
 	idH, _, err := c.getIdentityResource(name, isvmss)
 	if err != nil {

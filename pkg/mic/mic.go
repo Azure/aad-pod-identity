@@ -294,6 +294,8 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		}
 		glog.V(5).Infof("del: %v, add: %v", deleteList, addList)
 
+		// the node map is used to track assigned ids to create/delete, identities to assign/remove
+		// for each node or vmss
 		nodeMap := make(map[string]trackUserAssignedMSIIds)
 
 		// seperate the add and delete list per node
@@ -315,7 +317,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		// check if vmss and consolidate vmss nodes into vmss if necessary
 		c.consolidateVMSSNodes(nodeMap, &wg)
 
-		// one final createorupdate to each node in the map
+		// one final createorupdate to each node or vmss in the map
 		c.updateNodeAndDeps(newAssignedIDs, nodeMap, nodeRefs, &wg)
 
 		wg.Wait()
@@ -923,14 +925,14 @@ func (c *Client) consolidateVMSSNodes(nodeMap map[string]trackUserAssignedMSIIds
 
 		vmssTrackList := trackUserAssignedMSIIds{}
 
-		for i := 0; i < len(vmssNodes); i++ {
-			vmssTrackList.addUserAssignedMSIIDs = append(vmssTrackList.addUserAssignedMSIIDs, nodeMap[vmssNodes[i]].addUserAssignedMSIIDs...)
-			vmssTrackList.removeUserAssignedMSIIDs = append(vmssTrackList.removeUserAssignedMSIIDs, nodeMap[vmssNodes[i]].removeUserAssignedMSIIDs...)
-			vmssTrackList.assignedIDsToCreate = append(vmssTrackList.assignedIDsToCreate, nodeMap[vmssNodes[i]].assignedIDsToCreate...)
-			vmssTrackList.assignedIDsToDelete = append(vmssTrackList.assignedIDsToDelete, nodeMap[vmssNodes[i]].assignedIDsToDelete...)
+		for _, vmssNode := range vmssNodes {
+			vmssTrackList.addUserAssignedMSIIDs = append(vmssTrackList.addUserAssignedMSIIDs, nodeMap[vmssNode].addUserAssignedMSIIDs...)
+			vmssTrackList.removeUserAssignedMSIIDs = append(vmssTrackList.removeUserAssignedMSIIDs, nodeMap[vmssNode].removeUserAssignedMSIIDs...)
+			vmssTrackList.assignedIDsToCreate = append(vmssTrackList.assignedIDsToCreate, nodeMap[vmssNode].assignedIDsToCreate...)
+			vmssTrackList.assignedIDsToDelete = append(vmssTrackList.assignedIDsToDelete, nodeMap[vmssNode].assignedIDsToDelete...)
 			vmssTrackList.isvmss = true
 
-			delete(nodeMap, vmssNodes[i])
+			delete(nodeMap, vmssNode)
 
 			nodeMap[getVMSSName(vmssName)] = vmssTrackList
 		}
