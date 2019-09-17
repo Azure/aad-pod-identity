@@ -59,8 +59,7 @@ type Client struct {
 	SyncLoopStarted   bool
 	syncRetryInterval time.Duration
 
-	syncing    int32 // protect against conucrrent sync's
-	statsMutex sync.Mutex
+	syncing int32 // protect against conucrrent sync's
 
 	leaderElector *leaderelection.LeaderElector
 	*LeaderElectionConfig
@@ -77,6 +76,7 @@ type trackUserAssignedMSIIds struct {
 	removeUserAssignedMSIIDs []string
 	assignedIDsToCreate      []aadpodid.AzureAssignedIdentity
 	assignedIDsToDelete      []aadpodid.AzureAssignedIdentity
+	isvmss                   bool
 }
 
 // NewMICClient returnes new mic client
@@ -294,6 +294,8 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		}
 		glog.V(5).Infof("del: %v, add: %v", deleteList, addList)
 
+		// the node map is used to track assigned ids to create/delete, identities to assign/remove
+		// for each node or vmss
 		nodeMap := make(map[string]trackUserAssignedMSIIds)
 
 		// seperate the add and delete list per node
@@ -310,8 +312,15 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			c.getListOfIdsToAssign(*addList, nodeMap)
 		}
 
-		// one final createorupdate to each node in the map
-		c.updateNodeAndDeps(newAssignedIDs, nodeMap, nodeRefs)
+		var wg sync.WaitGroup
+
+		// check if vmss and consolidate vmss nodes into vmss if necessary
+		c.consolidateVMSSNodes(nodeMap, &wg)
+
+		// one final createorupdate to each node or vmss in the map
+		c.updateNodeAndDeps(newAssignedIDs, nodeMap, nodeRefs, &wg)
+
+		wg.Wait()
 
 		if workDone {
 			idsFound := 0
@@ -340,6 +349,7 @@ func (c *Client) convertAssignedIDListToMap(addList, deleteList *[]aadpodid.Azur
 			nodeMap[createID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToCreate: []aadpodid.AzureAssignedIdentity{createID}}
 		}
 	}
+
 	if deleteList != nil {
 		for _, delID := range *deleteList {
 			if trackList, ok := nodeMap[delID.Spec.NodeName]; ok {
@@ -632,8 +642,8 @@ func (c *Client) checkIfMSIExistsOnNode(id *aadpodid.AzureIdentity, nodeName str
 	return false
 }
 
-func (c *Client) getUserMSIListForNode(node *corev1.Node) ([]string, error) {
-	return c.CloudClient.GetUserMSIs(node)
+func (c *Client) getUserMSIListForNode(nodeOrVMSSName string, isvmss bool) ([]string, error) {
+	return c.CloudClient.GetUserMSIs(nodeOrVMSSName, isvmss)
 }
 
 func (c *Client) convertIDListToMap(arr []aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
@@ -702,19 +712,17 @@ func (c *Client) updateAssignedIdentityStatus(assignedID *aadpodid.AzureAssigned
 	return c.CRDClient.UpdateAzureAssignedIdentityStatus(assignedID, status)
 }
 
-func (c *Client) updateNodeAndDeps(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds, nodeRefs map[string]bool) {
-	var wg sync.WaitGroup
+func (c *Client) updateNodeAndDeps(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
 	for nodeName, nodeTrackList := range nodeMap {
 		wg.Add(1)
-		go c.updateUserMSI(newAssignedIDs, nodeName, nodeTrackList, nodeRefs, &wg)
+		go c.updateUserMSI(newAssignedIDs, nodeName, nodeTrackList, nodeRefs, wg)
 	}
-	wg.Wait()
 }
 
-func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeName string, nodeTrackList trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
+func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeOrVMSSName string, nodeTrackList trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 	beginAdding := time.Now()
-	glog.Infof("Processing node %s, add [%d], del [%d]", nodeName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete))
+	glog.Infof("Processing node %s, add [%d], del [%d]", nodeOrVMSSName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete))
 
 	for _, createID := range nodeTrackList.assignedIDsToCreate {
 		if createID.Status.Status == "" {
@@ -736,27 +744,12 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 	addUserAssignedMSIIDs := c.getUniqueIDs(nodeTrackList.addUserAssignedMSIIDs)
 	removeUserAssignedMSIIDs := c.getUniqueIDs(nodeTrackList.removeUserAssignedMSIIDs)
 
-	node, err := c.NodeClient.Get(nodeName)
+	err := c.CloudClient.UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs, nodeOrVMSSName, nodeTrackList.isvmss)
 	if err != nil {
-		if !strings.Contains(err.Error(), "not found") {
-			glog.Errorf("Unable to get node %s while updating user msis. Error %v", nodeName, err)
-			return
-		}
-
-		glog.Warningf("Unable to get node %s while updating user msis. Error %v", nodeName, err)
-
-		// node is no longer found in the cluster, all the assigned identities that were created in this sync loop
-		// and those that already exist for this node need to be deleted.
-		c.cleanUpAllAssignedIdentitiesOnNode(nodeName, nodeTrackList)
-		return
-	}
-
-	err = c.CloudClient.UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs, node)
-	if err != nil {
-		glog.Errorf("Updating msis on node %s, add [%d], del [%d] failed with error %v", nodeName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete), err)
-		idList, getErr := c.getUserMSIListForNode(node)
+		glog.Errorf("Updating msis on node %s, add [%d], del [%d] failed with error %v", nodeOrVMSSName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete), err)
+		idList, getErr := c.getUserMSIListForNode(nodeOrVMSSName, nodeTrackList.isvmss)
 		if getErr != nil {
-			glog.Errorf("Getting list of msis from node %s resulted in error %v", nodeName, getErr)
+			glog.Errorf("Getting list of msis from node %s resulted in error %v", nodeOrVMSSName, getErr)
 			return
 		}
 
@@ -777,7 +770,7 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 			c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding applied",
 				fmt.Sprintf("Binding %s applied on node %s for pod %s", binding.Name, createID.Spec.NodeName, createID.Name))
 
-			glog.Infof("Updating msis on node %s failed, but identity %s has successfully been assigned to node", nodeName, binding.Name)
+			glog.Infof("Updating msis on node %s failed, but identity %s has successfully been assigned to node", createID.Spec.NodeName, binding.Name)
 
 			// Identity is successfully assigned to node, so update the status of assigned identity to assigned
 			if updateErr := c.updateAssignedIdentityStatus(&createID, aadpodid.AssignedIDAssigned); updateErr != nil {
@@ -810,7 +803,7 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 				continue
 			}
 
-			glog.Infof("Updating msis on node %s failed, but identity %s has successfully been removed from node", nodeName, removedBinding.Name)
+			glog.Infof("Updating msis on node %s failed, but identity %s has successfully been removed from node", delID.Spec.NodeName, removedBinding.Name)
 
 			// remove assigned identity crd from cluster as the identity has successfully been removed from the node
 			err = c.removeAssignedIdentity(&delID)
@@ -866,28 +859,13 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 		c.EventRecorder.Event(removedBinding, corev1.EventTypeNormal, "binding removed",
 			fmt.Sprintf("Binding %s removed from node %s for pod %s", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod))
 	}
-	c.statsMutex.Lock()
 	stats.Put(stats.TotalCreateOrUpdate, time.Since(beginAdding))
-	c.statsMutex.Unlock()
 }
 
 // cleanUpAllAssignedIdentitiesOnNode deletes all assigned identities associated with a the node
-func (c *Client) cleanUpAllAssignedIdentitiesOnNode(node string, nodeTrackList trackUserAssignedMSIIds) {
+func (c *Client) cleanUpAllAssignedIdentitiesOnNode(node string, nodeTrackList trackUserAssignedMSIIds, wg *sync.WaitGroup) {
+	defer wg.Done()
 	glog.Infof("deleting all assigned identites for node %s", node)
-	for _, createID := range nodeTrackList.assignedIDsToCreate {
-		binding := createID.Spec.AzureBindingRef
-
-		err := c.removeAssignedIdentity(&createID)
-		if err != nil {
-			c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding remove error",
-				fmt.Sprintf("Removing assigned identity binding %s node %s for pod %s resulted in error %v", binding.Name, createID.Spec.NodeName, createID.Name, err.Error()))
-			glog.Error(err)
-			continue
-		}
-		c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding removed",
-			fmt.Sprintf("Binding %s removed from node %s for pod %s", binding.Name, createID.Spec.NodeName, createID.Spec.Pod))
-	}
-
 	for _, deleteID := range nodeTrackList.assignedIDsToDelete {
 		binding := deleteID.Spec.AzureBindingRef
 
@@ -900,5 +878,63 @@ func (c *Client) cleanUpAllAssignedIdentitiesOnNode(node string, nodeTrackList t
 		}
 		c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding removed",
 			fmt.Sprintf("Binding %s removed from node %s for pod %s", binding.Name, deleteID.Spec.NodeName, deleteID.Spec.Pod))
+	}
+}
+
+// consolidateVMSSNodes takes a list of all nodes that are part of the current sync cycle, checks if the nodes are
+// part of vmss and combines the vmss nodes into vmss name. This consolidation is needed because vmss identities
+// currently operate on all nodes in the vmss not just a single node.
+func (c *Client) consolidateVMSSNodes(nodeMap map[string]trackUserAssignedMSIIds, wg *sync.WaitGroup) {
+	vmssMap := make(map[string][]string)
+
+	for nodeName, nodeTrackList := range nodeMap {
+		node, err := c.NodeClient.Get(nodeName)
+		if err != nil && !strings.Contains(err.Error(), "not found") {
+			glog.Errorf("Unable to get node %s. Error %v", nodeName, err)
+			continue
+		}
+		if err != nil && strings.Contains(err.Error(), "not found") {
+			glog.Warningf("Unable to get node %s while updating user msis. Error %v", nodeName, err)
+			wg.Add(1)
+			// node is no longer found in the cluster, all the assigned identities that were created in this sync loop
+			// and those that already exist for this node need to be deleted.
+			go c.cleanUpAllAssignedIdentitiesOnNode(nodeName, nodeTrackList, wg)
+			delete(nodeMap, nodeName)
+			continue
+		}
+		vmssName, isvmss, err := isVMSS(node)
+		if err != nil {
+			glog.Errorf("error checking if node %s is vmss. Error: %v", nodeName, err)
+			continue
+		}
+		if isvmss {
+			if nodes, ok := vmssMap[vmssName]; ok {
+				nodes = append(nodes, nodeName)
+				vmssMap[vmssName] = nodes
+				continue
+			}
+			vmssMap[vmssName] = []string{nodeName}
+		}
+	}
+
+	// aggregate vmss nodes into vmss name
+	for vmssName, vmssNodes := range vmssMap {
+		if len(vmssNodes) < 1 {
+			continue
+		}
+
+		vmssTrackList := trackUserAssignedMSIIds{}
+
+		for _, vmssNode := range vmssNodes {
+			vmssTrackList.addUserAssignedMSIIDs = append(vmssTrackList.addUserAssignedMSIIDs, nodeMap[vmssNode].addUserAssignedMSIIDs...)
+			vmssTrackList.removeUserAssignedMSIIDs = append(vmssTrackList.removeUserAssignedMSIIDs, nodeMap[vmssNode].removeUserAssignedMSIIDs...)
+			vmssTrackList.assignedIDsToCreate = append(vmssTrackList.assignedIDsToCreate, nodeMap[vmssNode].assignedIDsToCreate...)
+			vmssTrackList.assignedIDsToDelete = append(vmssTrackList.assignedIDsToDelete, nodeMap[vmssNode].assignedIDsToDelete...)
+			vmssTrackList.isvmss = true
+
+			delete(nodeMap, vmssNode)
+
+			nodeMap[getVMSSName(vmssName)] = vmssTrackList
+		}
 	}
 }

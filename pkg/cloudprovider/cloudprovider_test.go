@@ -80,63 +80,63 @@ func TestSimple(t *testing.T) {
 			node3 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3-0"}, Spec: corev1.NodeSpec{ProviderID: vmProvider}}
 			node4 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node4-vmss0000000"}, Spec: corev1.NodeSpec{ProviderID: vmssProvider}}
 
-			cloudClient.AssignUserMSI("ID0", node0)
-			cloudClient.AssignUserMSI("ID0", node0)
-			cloudClient.AssignUserMSI("ID0again", node0)
-			cloudClient.AssignUserMSI("ID1", node1)
-			cloudClient.AssignUserMSI("ID2", node2)
-			cloudClient.AssignUserMSI("ID3", node3)
-			cloudClient.AssignUserMSI("ID4", node4)
+			cloudClient.AssignUserMSI("ID0", node0.Name, false)
+			cloudClient.AssignUserMSI("ID0", node0.Name, false)
+			cloudClient.AssignUserMSI("ID0again", node0.Name, false)
+			cloudClient.AssignUserMSI("ID1", node1.Name, false)
+			cloudClient.AssignUserMSI("ID2", node2.Name, false)
+			cloudClient.AssignUserMSI("ID3", node3.Name, false)
+			cloudClient.AssignUserMSI("ID4", node4.Name, true)
 
 			testMSI := []string{"ID0", "ID0again"}
-			if !cloudClient.CompareMSI(node0, testMSI) {
+			if !cloudClient.CompareMSI(node0.Name, false, testMSI) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
 
-			cloudClient.RemoveUserMSI("ID0", node0)
-			cloudClient.RemoveUserMSI("ID2", node2)
+			cloudClient.RemoveUserMSI("ID0", node0.Name, false)
+			cloudClient.RemoveUserMSI("ID2", node2.Name, false)
 			testMSI = []string{"ID0again"}
-			if !cloudClient.CompareMSI(node0, testMSI) {
+			if !cloudClient.CompareMSI(node0.Name, false, testMSI) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
 			testMSI = []string{}
-			if !cloudClient.CompareMSI(node2, testMSI) {
+			if !cloudClient.CompareMSI(node2.Name, false, testMSI) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
 
 			testMSI = []string{"ID3"}
-			if !cloudClient.CompareMSI(node3, testMSI) {
+			if !cloudClient.CompareMSI(node3.Name, false, testMSI) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
 
 			testMSI = []string{"ID4"}
-			if !cloudClient.CompareMSI(node4, testMSI) {
+			if !cloudClient.CompareMSI(node4.Name, true, testMSI) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
 
 			// test the UpdateUserMSI interface
-			cloudClient.UpdateUserMSI([]string{"ID1", "ID2", "ID3"}, []string{"ID0again"}, node0)
+			cloudClient.UpdateUserMSI([]string{"ID1", "ID2", "ID3"}, []string{"ID0again"}, node0.Name, false)
 			testMSI = []string{"ID1", "ID2", "ID3"}
-			if !cloudClient.CompareMSI(node0, testMSI) {
+			if !cloudClient.CompareMSI(node0.Name, false, testMSI) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
 
-			cloudClient.UpdateUserMSI(nil, []string{"ID3"}, node3)
+			cloudClient.UpdateUserMSI(nil, []string{"ID3"}, node3.Name, false)
 			testMSI = []string{}
-			if !cloudClient.CompareMSI(node3, testMSI) {
+			if !cloudClient.CompareMSI(node3.Name, false, testMSI) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
 
-			cloudClient.UpdateUserMSI([]string{"ID3"}, nil, node4)
+			cloudClient.UpdateUserMSI([]string{"ID3"}, nil, node4.Name, true)
 			testMSI = []string{"ID4", "ID3"}
-			if !cloudClient.CompareMSI(node4, testMSI) {
+			if !cloudClient.CompareMSI(node4.Name, true, testMSI) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
@@ -295,14 +295,8 @@ func (c *TestCloudClient) ListMSI() (ret map[string]*[]string) {
 	return ret
 }
 
-func (c *TestCloudClient) CompareMSI(node *corev1.Node, userIDs []string) bool {
-	r, _ := ParseResourceID(node.Spec.ProviderID)
-	vmType := vmTypeOrDefault(&r, c.Client.Config.VMType)
-	name := node.Name
-	if r.ResourceName != "" {
-		name = r.ResourceName
-	}
-	if vmType == "vmss" {
+func (c *TestCloudClient) CompareMSI(name string, isvmss bool, userIDs []string) bool {
+	if isvmss {
 		return c.testVMSSClient.CompareMSI(name, userIDs)
 	}
 	return c.testVMClient.CompareMSI(name, userIDs)

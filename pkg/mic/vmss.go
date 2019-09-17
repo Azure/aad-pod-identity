@@ -96,6 +96,11 @@ func makeVMSSID(r azure.Resource) string {
 	return path.Join(r.SubscriptionID, r.ResourceGroup, r.ResourceName)
 }
 
+func getVMSSName(vmssID string) string {
+	_, resourceName := path.Split(vmssID)
+	return resourceName
+}
+
 // Either get a vmss group by node reference or lookup the vmss ID from the node's provider ID.
 // The reason for this is we may have request to delete an identity from a node and it is the last identity, so
 // the node will not be referenced by any pods and will be absent from the group list
