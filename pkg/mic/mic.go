@@ -84,6 +84,12 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 	glog.Infof("Starting to create the pod identity client. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
 
 	clientSet := kubernetes.NewForConfigOrDie(config)
+
+	k8sVersion, err := clientSet.ServerVersion()
+	if err == nil {
+		glog.Infof("Kubernetes server version: %s", k8sVersion.String())
+	}
+
 	informer := informers.NewSharedInformerFactory(clientSet, 30*time.Second)
 
 	cloudClient, err := cloudprovider.NewCloudProvider(cloudconfig)
@@ -393,19 +399,18 @@ func (c *Client) createDesiredAssignedIdentityList(
 		}
 
 		for _, binding := range matchedBindings {
-			glog.V(5).Infof("Looking up id map: %v", binding.Spec.AzureIdentity)
+			glog.V(5).Infof("Looking up id map: %s/%s", binding.Namespace, binding.Spec.AzureIdentity)
 			if azureID, idPresent := idMap[getIDKey(binding.Namespace, binding.Spec.AzureIdentity)]; idPresent {
 				// working in Namespaced mode or this specific identity is namespaced
 				if c.IsNamespaced || aadpodid.IsNamespacedIdentity(&azureID) {
 					// They have to match all
 					if !(azureID.Namespace == binding.Namespace && binding.Namespace == pod.Namespace) {
 						glog.V(5).Infof("identity %s/%s was matched via binding %s/%s to %s/%s but namespaced identity is enforced, so it will be ignored",
-							azureID.Namespace, azureID.Name, binding.Namespace, binding.Name, pod.Name, pod.Namespace)
+							azureID.Namespace, azureID.Name, binding.Namespace, binding.Name, pod.Namespace, pod.Name)
 						continue
 					}
 				}
 				glog.V(5).Infof("identity %s/%s assigned to %s/%s via %s/%s", azureID.Namespace, azureID.Name, pod.Namespace, pod.Name, binding.Namespace, binding.Name)
-
 				assignedID, err := c.makeAssignedIDs(azureID, binding, pod.Name, pod.Namespace, pod.Spec.NodeName)
 
 				if err != nil {
@@ -418,7 +423,7 @@ func (c *Client) createDesiredAssignedIdentityList(
 				// In such a case, we will skip it from matching binding.
 				// This will ensure that the new assigned ids created will not have the
 				// one associated with this azure identity.
-				glog.V(5).Infof("%s identity not found when using %s binding", binding.Spec.AzureIdentity, binding.Name)
+				glog.V(5).Infof("%s identity not found when using %s/%s binding", binding.Spec.AzureIdentity, binding.Namespace, binding.Name)
 			}
 		}
 	}
@@ -591,7 +596,7 @@ func (c *Client) makeAssignedIDs(azID aadpodid.AzureIdentity, azBinding aadpodid
 		},
 	}
 	// if we are in namespaced mode (or az identity is namespaced)
-	if c.IsNamespaced || aadpodid.IsNamespacedIdentity(&azID) {
+	if c.IsNamespaced || aadpodid.IsNamespacedIdentity(&id) {
 		assignedID.Namespace = azID.Namespace
 	} else {
 		// eventually this should be identity namespace
@@ -883,7 +888,7 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 // cleanUpAllAssignedIdentitiesOnNode deletes all assigned identities associated with a the node
 func (c *Client) cleanUpAllAssignedIdentitiesOnNode(node string, nodeTrackList trackUserAssignedMSIIds, wg *sync.WaitGroup) {
 	defer wg.Done()
-	glog.Infof("deleting all assigned identites for node %s", node)
+	glog.Infof("deleting all assigned identites for %s as node not found", node)
 	for _, deleteID := range nodeTrackList.assignedIDsToDelete {
 		binding := deleteID.Spec.AzureBindingRef
 
