@@ -386,7 +386,7 @@ func (c *Client) createDesiredAssignedIdentityList(
 		var matchedBindings []aadpodid.AzureIdentityBinding
 		for _, allBinding := range *listBindings {
 			if allBinding.Spec.Selector == crdPodLabelVal {
-				glog.V(5).Infof("Found binding match for pod %s/%s with binding %s", pod.Namespace, pod.Name, allBinding.Name)
+				glog.V(5).Infof("Found binding match for pod %s/%s with binding %s/%s", pod.Namespace, pod.Name, allBinding.Namespace, allBinding.Name)
 				matchedBindings = append(matchedBindings, allBinding)
 				nodeRefs[pod.Spec.NodeName] = true
 			}
@@ -394,7 +394,7 @@ func (c *Client) createDesiredAssignedIdentityList(
 
 		for _, binding := range matchedBindings {
 			glog.V(5).Infof("Looking up id map: %v", binding.Spec.AzureIdentity)
-			if azureID, idPresent := idMap[binding.Spec.AzureIdentity]; idPresent {
+			if azureID, idPresent := idMap[getIDKey(binding.Namespace, binding.Spec.AzureIdentity)]; idPresent {
 				// working in Namespaced mode or this specific identity is namespaced
 				if c.IsNamespaced || aadpodid.IsNamespacedIdentity(&azureID) {
 					// They have to match all
@@ -404,8 +404,9 @@ func (c *Client) createDesiredAssignedIdentityList(
 						continue
 					}
 				}
-				glog.V(5).Infof("identity %s/%s assigned to %s/%s via %s/%s", azureID.Namespace, azureID.Name, pod.Namespace, pod.Name, binding.Namespace, binding.Namespace)
-				assignedID, err := c.makeAssignedIDs(&azureID, &binding, pod.Name, pod.Namespace, pod.Spec.NodeName)
+				glog.V(5).Infof("identity %s/%s assigned to %s/%s via %s/%s", azureID.Namespace, azureID.Name, pod.Namespace, pod.Name, binding.Namespace, binding.Name)
+
+				assignedID, err := c.makeAssignedIDs(azureID, binding, pod.Name, pod.Namespace, pod.Spec.NodeName)
 
 				if err != nil {
 					glog.Errorf("failed to create assignment for pod %s/%s with identity %s/%s with error %v", pod.Namespace, pod.Name, azureID.Namespace, azureID.Name, err.Error())
@@ -473,6 +474,15 @@ func (c *Client) matchAssignedID(x *aadpodid.AzureAssignedIdentity, y *aadpodid.
 
 	idX := x.Spec.AzureIdentityRef
 	idY := y.Spec.AzureIdentityRef
+
+	glog.V(6).Infof("assignedidX - %+v\n", x)
+	glog.V(6).Infof("assignedidY - %+v\n", y)
+
+	glog.V(6).Infof("bindingX - %+v\n", bindingX)
+	glog.V(6).Infof("bindingY - %+v\n", bindingY)
+
+	glog.V(6).Infof("idX - %+v\n", idX)
+	glog.V(6).Infof("idY - %+v\n", idY)
 
 	if bindingX.Name == bindingY.Name && bindingX.ResourceVersion == bindingY.ResourceVersion &&
 		idX.Name == idY.Name && idX.ResourceVersion == idY.ResourceVersion &&
@@ -561,14 +571,17 @@ func (c *Client) getAzureAssignedIDsToDelete(old *[]aadpodid.AzureAssignedIdenti
 	return &delete, nil
 }
 
-func (c *Client) makeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpodid.AzureIdentityBinding, podName, podNameSpace, nodeName string) (res *aadpodid.AzureAssignedIdentity, err error) {
+func (c *Client) makeAssignedIDs(azID aadpodid.AzureIdentity, azBinding aadpodid.AzureIdentityBinding, podName, podNameSpace, nodeName string) (res *aadpodid.AzureAssignedIdentity, err error) {
+	binding := azBinding
+	id := azID
+
 	assignedID := &aadpodid.AzureAssignedIdentity{
 		ObjectMeta: v1.ObjectMeta{
 			Name: c.getAssignedIDName(podName, podNameSpace, azID.Name),
 		},
 		Spec: aadpodid.AzureAssignedIdentitySpec{
-			AzureIdentityRef: azID,
-			AzureBindingRef:  azBinding,
+			AzureIdentityRef: &id,
+			AzureBindingRef:  &binding,
 			Pod:              podName,
 			PodNamespace:     podNameSpace,
 			NodeName:         nodeName,
@@ -578,7 +591,7 @@ func (c *Client) makeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpod
 		},
 	}
 	// if we are in namespaced mode (or az identity is namespaced)
-	if c.IsNamespaced || aadpodid.IsNamespacedIdentity(azID) {
+	if c.IsNamespaced || aadpodid.IsNamespacedIdentity(&azID) {
 		assignedID.Namespace = azID.Namespace
 	} else {
 		// eventually this should be identity namespace
@@ -587,7 +600,8 @@ func (c *Client) makeAssignedIDs(azID *aadpodid.AzureIdentity, azBinding *aadpod
 		assignedID.Namespace = "default"
 	}
 
-	glog.V(5).Infof("Making assigned ID: %v", assignedID)
+	glog.V(6).Infof("Binding - %+v Identity - %+v", azBinding, azID)
+	glog.V(5).Infof("Making assigned ID: %+v", assignedID)
 	return assignedID, nil
 }
 
@@ -646,10 +660,14 @@ func (c *Client) getUserMSIListForNode(nodeOrVMSSName string, isvmss bool) ([]st
 	return c.CloudClient.GetUserMSIs(nodeOrVMSSName, isvmss)
 }
 
+func getIDKey(ns, name string) string {
+	return strings.Join([]string{ns, name}, "/")
+}
+
 func (c *Client) convertIDListToMap(arr []aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
 	m = make(map[string]aadpodid.AzureIdentity, len(arr))
 	for _, element := range arr {
-		m[element.Name] = element
+		m[getIDKey(element.Namespace, element.Name)] = element
 	}
 	return m, nil
 }
