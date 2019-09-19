@@ -6,6 +6,7 @@ import (
 
 	"github.com/Azure/aad-pod-identity/pkg/config"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
+	"github.com/Azure/aad-pod-identity/version"
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
@@ -36,6 +37,8 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 	client.BaseURI = azureEnv.ResourceManagerEndpoint
 	client.Authorizer = autorest.NewBearerAuthorizer(spt)
 	client.PollingDelay = 5 * time.Second
+	client.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
+
 	return &VMSSClient{
 		client: client,
 	}, nil
