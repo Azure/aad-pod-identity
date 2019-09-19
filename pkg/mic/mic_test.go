@@ -598,42 +598,51 @@ func TestMapMICClient(t *testing.T) {
 	idList := make([]aadpodid.AzureIdentity, 0)
 
 	id := new(aadpodid.AzureIdentity)
+	id.Namespace = "default"
 	id.Name = "test-azure-identity"
 
 	idList = append(idList, *id)
 
+	id.Namespace = "newns"
 	id.Name = "test-akssvcrg-id"
+
 	idList = append(idList, *id)
 
 	idMap, _ := micClient.convertIDListToMap(idList)
 
+	namespace := "default"
 	name := "test-azure-identity"
 	count := 3
-	if azureID, idPresent := idMap[name]; idPresent {
+	if azureID, idPresent := idMap[getIDKey(namespace, name)]; idPresent {
 		if azureID.Name != name {
-			t.Errorf("id map id value mismatch")
+			t.Fatalf("id map id value mismatch")
 		}
 		count = count - 1
+	} else {
+		t.Fatalf("id %s not found", name)
 	}
 
+	namespace = "newns"
 	name = "test-akssvcrg-id"
-	if azureID, idPresent := idMap[name]; idPresent {
+	if azureID, idPresent := idMap[getIDKey(namespace, name)]; idPresent {
 		if azureID.Name != name {
-			t.Errorf("id map id value mismatch")
+			t.Fatalf("id map id value mismatch")
 		}
 		count = count - 1
+	} else {
+		t.Fatalf("id %s not found", name)
 	}
 
+	namespace = "default"
 	name = "test not there"
-	if _, idPresent := idMap[name]; idPresent {
-		t.Errorf("not present found")
+	if _, idPresent := idMap[getIDKey(namespace, name)]; idPresent {
+		t.Fatalf("not present found")
 	} else {
 		count = count - 1
 	}
 	if count != 0 {
-		t.Errorf("Test count mismatch")
+		t.Fatalf("Test count mismatch - count %d", count)
 	}
-
 }
 
 func (c *TestMICClient) testRunSync() func(t *testing.T) {
