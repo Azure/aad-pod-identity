@@ -23,6 +23,7 @@ import (
 	iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	"github.com/Azure/go-autorest/autorest/adal"
+	utils "github.com/Azure/aad-pod-identity/pkg/utils"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -367,12 +368,12 @@ func getTokenForMatchingID(kubeClient k8s.Client, logger *log.Entry, rqClientID 
 		idType := v.Spec.Type
 		switch idType {
 		case aadpodid.UserAssignedMSI:
-			logger.Infof("matched identityType:%v clientid:%s resource:%s", idType, redactClientID(clientID), rqResource)
+			logger.Infof("matched identityType:%v clientid:%s resource:%s", idType, utils.RedactClientID(clientID), rqResource)
 			token, err := auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, rqResource)
 			return token, clientID, err
 		case aadpodid.ServicePrincipal:
 			tenantid := v.Spec.TenantID
-			logger.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantid, redactClientID(clientID), rqResource)
+			logger.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantid, utils.RedactClientID(clientID), rqResource)
 			secret, err := kubeClient.GetSecret(&v.Spec.ClientPassword)
 			if err != nil {
 				return nil, clientID, err

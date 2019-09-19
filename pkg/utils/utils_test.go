@@ -1,4 +1,4 @@
-package server
+package utils
 
 import (
 	"testing"
@@ -18,7 +18,7 @@ func TestRedactClientID(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		actual := redactClientID(test.clientID)
+		actual := RedactClientID(test.clientID)
 		if actual != test.expected {
 			t.Fatalf("expected: %s, got %s", test.expected, actual)
 		}
