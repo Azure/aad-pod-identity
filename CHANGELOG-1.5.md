@@ -6,7 +6,6 @@
 - Fix list calls to use informer ([#358](https://github.com/Azure/aad-pod-identity/pull/358))
 - Clean up assigned identities if node not found ([#367](https://github.com/Azure/aad-pod-identity/pull/367))
 - Update identity in VMSS on VMSS level ([#379](https://github.com/Azure/aad-pod-identity/pull/379))
-- Add user agent to ARM calls ([#387](https://github.com/Azure/aad-pod-identity/pull/387))
 - Fix namespaced multiple binding/identity handling and verbose logs ([#388](https://github.com/Azure/aad-pod-identity/pull/388))
 
 ### Other Improvements
@@ -15,6 +14,7 @@
 - Redact client id in NMI logs ([#343](https://github.com/Azure/aad-pod-identity/pull/343))
 - Add user agent to kube-api calls ([#353](https://github.com/Azure/aad-pod-identity/pull/353))
 - Add resource and request limits ([#372](https://github.com/Azure/aad-pod-identity/pull/372))
+- Add user agent to ARM calls ([#387](https://github.com/Azure/aad-pod-identity/pull/387))
 
 # v1.5.2
 
