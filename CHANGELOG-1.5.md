@@ -1,3 +1,21 @@
+# v1.5.3
+
+### Bug Fixes
+
+- Fix concurrent map read and map write while updating stats ([#344](https://github.com/Azure/aad-pod-identity/pull/344))
+- Fix list calls to use informer ([#358](https://github.com/Azure/aad-pod-identity/pull/358))
+- Clean up assigned identities if node not found ([#367](https://github.com/Azure/aad-pod-identity/pull/367))
+- Fixes to identity operations on VMSS ([#379](https://github.com/Azure/aad-pod-identity/pull/379))
+- Fix namespaced multiple binding/identity handling and verbose logs ([#388](https://github.com/Azure/aad-pod-identity/pull/388))
+
+### Other Improvements
+
+- Set Content-Type on token response ([#341](https://github.com/Azure/aad-pod-identity/pull/341))
+- Redact client id in NMI logs ([#343](https://github.com/Azure/aad-pod-identity/pull/343))
+- Add user agent to kube-api calls ([#353](https://github.com/Azure/aad-pod-identity/pull/353))
+- Add resource and request limits ([#372](https://github.com/Azure/aad-pod-identity/pull/372))
+- Add user agent to ARM calls ([#387](https://github.com/Azure/aad-pod-identity/pull/387))
+
 # v1.5.2
 
 ### Bug Fixes
