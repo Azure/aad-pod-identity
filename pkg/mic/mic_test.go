@@ -471,6 +471,7 @@ func (c *TestCrdClient) UnSetError() {
 /************************ NODE MOCK *************************************/
 
 type TestNodeClient struct {
+	mu    sync.Mutex
 	nodes map[string]*corev1.Node
 }
 
@@ -479,6 +480,9 @@ func NewTestNodeClient() *TestNodeClient {
 }
 
 func (c *TestNodeClient) Get(name string) (*corev1.Node, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	node, exists := c.nodes[name]
 	if !exists {
 		return nil, errors.New("node not found")
@@ -487,12 +491,17 @@ func (c *TestNodeClient) Get(name string) (*corev1.Node, error) {
 }
 
 func (c *TestNodeClient) Delete(name string) {
+	c.mu.Lock()
 	delete(c.nodes, name)
+	c.mu.Unlock()
 }
 
 func (c *TestNodeClient) Start(<-chan struct{}) {}
 
 func (c *TestNodeClient) AddNode(name string, opts ...func(*corev1.Node)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	n := &corev1.Node{ObjectMeta: v1.ObjectMeta{Name: name}, Spec: corev1.NodeSpec{
 		ProviderID: "azure:///subscriptions/testSub/resourceGroups/fakeGroup/providers/Microsoft.Compute/virtualMachines/" + name,
 	}}
