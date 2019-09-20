@@ -3,7 +3,7 @@
 ### Bug Fixes
 
 - Fix concurrent map read and map write while updating stats ([#344](https://github.com/Azure/aad-pod-identity/pull/344))
-- Fix list calls to use informer ([#358](https://github.com/Azure/aad-pod-identity/pull/358))
+- Fix list calls to use local cache inorder to reduce api server load ([#358](https://github.com/Azure/aad-pod-identity/pull/358))
 - Clean up assigned identities if node not found ([#367](https://github.com/Azure/aad-pod-identity/pull/367))
 - Fixes to identity operations on VMSS ([#379](https://github.com/Azure/aad-pod-identity/pull/379))
 - Fix namespaced multiple binding/identity handling and verbose logs ([#388](https://github.com/Azure/aad-pod-identity/pull/388))
