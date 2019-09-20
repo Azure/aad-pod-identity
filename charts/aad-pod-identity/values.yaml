@@ -24,7 +24,7 @@ forceNameSpaced: "false"
 
 mic:
   image: mic
-  tag: 1.5.2
+  tag: 1.5.3
 
   # log level. Uses V logs (glog)
   # logVerbosity: 0
@@ -64,7 +64,7 @@ mic:
 
 nmi:
   image: nmi
-  tag: 1.5.2
+  tag: 1.5.3
 
   resources:
     limits:
