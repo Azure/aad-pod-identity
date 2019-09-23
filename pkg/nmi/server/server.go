@@ -45,6 +45,7 @@ type Server struct {
 	IsNamespaced                       bool
 	MICNamespace                       string
 	Initialized                        bool
+	BlockInstanceMetadata              bool
 
 	ListPodIDsRetryAttemptsForCreated  int
 	ListPodIDsRetryAttemptsForAssigned int
@@ -58,10 +59,11 @@ type NMIResponse struct {
 }
 
 // NewServer will create a new Server with default values.
-func NewServer(isNamespaced bool, micNamespace string) *Server {
+func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata bool) *Server {
 	return &Server{
-		IsNamespaced: isNamespaced,
-		MICNamespace: micNamespace,
+		IsNamespaced:          isNamespaced,
+		MICNamespace:          micNamespace,
+		BlockInstanceMetadata: blockInstanceMetadata,
 	}
 }
 
@@ -74,7 +76,11 @@ func (s *Server) Run() error {
 	mux.Handle("/metadata/identity/oauth2/token/", appHandler(s.msiHandler))
 	mux.Handle("/host/token", appHandler(s.hostHandler))
 	mux.Handle("/host/token/", appHandler(s.hostHandler))
-	mux.Handle("/", appHandler(s.defaultPathHandler))
+	if s.BlockInstanceMetadata {
+		mux.Handle("/", http.NotFoundHandler())
+	} else {
+		mux.Handle("/", appHandler(s.defaultPathHandler))
+	}
 
 	log.Infof("Listening on port %s", s.NMIPort)
 	if err := http.ListenAndServe(":"+s.NMIPort, mux); err != nil {

@@ -41,6 +41,7 @@ var (
 	findIdentityRetryIntervalInSeconds = pflag.Int("find-identity-retry-interval", defaultlistPodIDsRetryIntervalInSeconds, "Retry interval to find assigned identities in seconds")
 	enableProfile                      = pflag.Bool("enableProfile", false, "Enable/Disable pprof profiling")
 	enableScaleFeatures                = pflag.Bool("enableScaleFeatures", false, "Enable/Disable features for scale clusters")
+	blockInstanceMetadata              = pflag.Bool("block-instance-metadata", false, "Block instance metadata endpoints")
 )
 
 func main() {
@@ -75,7 +76,7 @@ func main() {
 	exit := make(<-chan struct{})
 	client.Start(exit)
 	*forceNamespaced = *forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
-	s := server.NewServer(*forceNamespaced, *micNamespace)
+	s := server.NewServer(*forceNamespaced, *micNamespace, *blockInstanceMetadata)
 	s.KubeClient = client
 	s.MetadataIP = *metadataIP
 	s.MetadataPort = *metadataPort
