@@ -77,10 +77,9 @@ func (s *Server) Run() error {
 	mux.Handle("/host/token", appHandler(s.hostHandler))
 	mux.Handle("/host/token/", appHandler(s.hostHandler))
 	if s.BlockInstanceMetadata {
-		mux.Handle("/", http.HandlerFunc(forbiddenHandler))
-	} else {
-		mux.Handle("/", appHandler(s.defaultPathHandler))
+		mux.Handle("/metadata/instance", http.HandlerFunc(forbiddenHandler))
 	}
+	mux.Handle("/", appHandler(s.defaultPathHandler))
 
 	log.Infof("Listening on port %s", s.NMIPort)
 	if err := http.ListenAndServe(":"+s.NMIPort, mux); err != nil {
