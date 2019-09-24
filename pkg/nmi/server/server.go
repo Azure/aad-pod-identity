@@ -77,7 +77,7 @@ func (s *Server) Run() error {
 	mux.Handle("/host/token", appHandler(s.hostHandler))
 	mux.Handle("/host/token/", appHandler(s.hostHandler))
 	if s.BlockInstanceMetadata {
-		mux.Handle("/", http.NotFoundHandler())
+		mux.Handle("/", http.HandlerFunc(forbiddenHandler))
 	} else {
 		mux.Handle("/", appHandler(s.defaultPathHandler))
 	}
@@ -462,6 +462,11 @@ func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(body)
+}
+
+// forbiddenHandler responses to any request with HTTP 403 Forbidden
+func forbiddenHandler(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "", http.StatusForbidden)
 }
 
 func copyHeader(dst, src http.Header) {
