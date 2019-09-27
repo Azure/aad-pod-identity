@@ -463,9 +463,9 @@ func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r 
 	w.Write(body)
 }
 
-// forbiddenHandler responses to any request with HTTP 403 Forbidden
+// forbiddenHandler responds to any request with HTTP 403 Forbidden
 func forbiddenHandler(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "", http.StatusForbidden)
+	http.Error(w, "Request blocked by AAD Pod Identity NMI", http.StatusForbidden)
 }
 
 func copyHeader(dst, src http.Header) {
