@@ -345,7 +345,11 @@ func NewTestCrdClient(config *rest.Config) *TestCrdClient {
 func (c *TestCrdClient) Start(exit <-chan struct{}) {
 }
 
-func (c *TestCrdClient) SyncCache(exit <-chan struct{}, initial bool) {
+func (c *TestCrdClient) SyncCache(exit <-chan struct{}) {
+
+}
+
+func (c *TestCrdClient) SyncCacheLite(exit <-chan struct{}) {
 
 }
 
