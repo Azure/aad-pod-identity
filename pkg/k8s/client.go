@@ -87,7 +87,7 @@ func NewKubeClient(log inlog.Logger, nodeName string) (Client, error) {
 func (c *KubeClient) Start(exit <-chan struct{}) {
 	go c.PodInformer.Run(exit)
 	c.CrdClient.StartLite(exit)
-	c.CrdClient.SyncCache(exit, true)
+	c.CrdClient.SyncCacheLite(exit)
 }
 
 func (c *KubeClient) getReplicasetName(pod v1.Pod) string {

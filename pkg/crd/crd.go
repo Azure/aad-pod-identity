@@ -35,7 +35,8 @@ type Client struct {
 // ClientInt ...
 type ClientInt interface {
 	Start(exit <-chan struct{})
-	SyncCache(exit <-chan struct{}, initial bool)
+	SyncCache(exit <-chan struct{})
+	SyncCacheLite(exit <-chan struct{})
 	RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error
@@ -237,7 +238,7 @@ func newPodIdentityExceptionInformer(lw *cache.ListWatch) (cache.SharedInformer,
 func (c *Client) StartLite(exit <-chan struct{}) {
 	go c.AssignedIDInformer.Run(exit)
 	go c.PodIdentityExceptionInformer.Run(exit)
-	c.SyncCache(exit, true)
+	c.SyncCacheLite(exit)
 	c.log.Info("CRD lite informers started ")
 }
 
@@ -246,13 +247,24 @@ func (c *Client) Start(exit <-chan struct{}) {
 	go c.BindingInformer.Run(exit)
 	go c.IDInformer.Run(exit)
 	go c.AssignedIDInformer.Run(exit)
-	c.SyncCache(exit, true)
+	c.SyncCache(exit)
 	c.log.Info("CRD informers started")
 }
 
+func (c *Client) SyncCache(exit <-chan struct{}) {
+	c.syncCache(exit, true, c.BindingInformer.HasSynced,
+		c.IDInformer.HasSynced,
+		c.AssignedIDInformer.HasSynced)
+}
+
+func (c *Client) SyncCacheLite(exit <-chan struct{}) {
+	c.syncCache(exit, true, c.AssignedIDInformer.HasSynced,
+		c.PodIdentityExceptionInformer.HasSynced)
+}
+
 // SyncCache synchronizes cache
-func (c *Client) SyncCache(exit <-chan struct{}, initial bool) {
-	if !cache.WaitForCacheSync(exit) {
+func (c *Client) syncCache(exit <-chan struct{}, initial bool, cacheSyncs ...cache.InformerSynced) {
+	if !cache.WaitForCacheSync(exit, cacheSyncs...) {
 		if !initial {
 			c.log.Errorf("Cache could not be synchronized")
 			return
