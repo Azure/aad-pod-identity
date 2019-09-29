@@ -51,7 +51,7 @@ func main() {
 	log.Infof("Starting nmi process. Version: %v. Build date: %v. Log level: %s.", version.NMIVersion, version.BuildDate, log.GetLevel())
 	logger := &server.Log{}
 
-	client, err := k8s.NewKubeClient(logger)
+	client, err := k8s.NewKubeClient(logger, *nodename)
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}

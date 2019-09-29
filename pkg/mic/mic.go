@@ -244,13 +244,6 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		begin := time.Now()
 		workDone := false
 
-		cacheTime := time.Now()
-
-		// There is a delay in data propogation to cache. It's possible that the creates performed in the previous sync cycle
-		// are not propogated before this sync cycle began. In order to avoid redoing the cycle, we sync cache again.
-		c.CRDClient.SyncCache(exit, false)
-		stats.Put(stats.CacheSync, time.Since(cacheTime))
-
 		// List all pods in all namespaces
 		systemTime := time.Now()
 		listPods, err := c.PodClient.GetPods()
@@ -340,6 +333,10 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			glog.Infof("Found %d pods, %d ids, %d bindings", len(listPods), idsFound, bindingsFound)
 			stats.Put(stats.Total, time.Since(begin))
 			stats.PrintSync()
+			// We need to synchornize the cache inorder to get the latest updates. Sync cache has a bug in the current go client which caused thread leak.
+			// Updating of go client has issues with case sensitivity. Avoid this issue by sleping for 500 milliseconds to reduce the chance
+			// of cache misses for assignedidentities updated in the previous cycle.
+			time.Sleep(time.Millisecond * 500)
 		}
 	}
 }
