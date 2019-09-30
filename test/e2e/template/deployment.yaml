@@ -4,6 +4,9 @@ metadata:
   labels:
     app: identity-validator
     aadpodidbinding: {{.IdentityBinding}}
+    {{- range $key, $value := $.DeploymentLabels }}
+    {{ $key }}: {{ $value -}}
+    {{ end }}
   name: {{.Name}}
   namespace: default
 spec:
@@ -13,9 +16,18 @@ spec:
       labels:
         app: identity-validator
         aadpodidbinding: {{.IdentityBinding}}
+        {{- range $key, $value := $.DeploymentLabels }}
+        {{ $key }}: {{ $value -}}
+        {{ end }}
     spec:
       {{ if ne .NodeName "" -}}
       nodeName: {{.NodeName}}
+      {{- end }}
+      {{- if .InitContainer -}}
+      initContainers:
+        - name: init-myservice
+          image: microsoft/azure-cli:latest
+          command: ["sh", "-c", "az login --identity"]
       {{- end }}
       containers:
       - name: {{.Name}}

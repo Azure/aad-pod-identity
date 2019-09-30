@@ -1,22 +1,26 @@
 package stats
 
 import (
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
 )
 
 var GlobalStats map[StatsType]time.Duration
+var Mutex *sync.RWMutex
 
 type StatsType string
 
 const (
 	Total                StatsType = "Total"
 	System               StatsType = "System"
+	CacheSync            StatsType = "CacheSync"
 	CurrentState         StatsType = "Gather current state"
 	PodList              StatsType = "Pod listing"
 	BindingList          StatsType = "Binding listing"
 	IDList               StatsType = "ID listing"
+	ExceptionList        StatsType = "Pod Identity Exception listing"
 	AssignedIDList       StatsType = "Assigned ID listing"
 	CloudGet             StatsType = "Cloud provider get"
 	CloudPut             StatsType = "Cloud provider put"
@@ -35,16 +39,21 @@ const (
 
 func Init() {
 	GlobalStats = make(map[StatsType]time.Duration)
+	Mutex = &sync.RWMutex{}
 }
 
 func Put(key StatsType, val time.Duration) {
 	if GlobalStats != nil {
+		Mutex.Lock()
+		defer Mutex.Unlock()
 		GlobalStats[key] = val
 	}
 }
 
 func Get(key StatsType) time.Duration {
 	if GlobalStats != nil {
+		Mutex.RLock()
+		defer Mutex.RUnlock()
 		return GlobalStats[key]
 	}
 	return 0
@@ -52,11 +61,15 @@ func Get(key StatsType) time.Duration {
 
 func Update(key StatsType, val time.Duration) {
 	if GlobalStats != nil {
+		Mutex.Lock()
+		defer Mutex.Unlock()
 		GlobalStats[key] = GlobalStats[key] + val
 	}
 }
 
 func Print(key StatsType) {
+	Mutex.RLock()
+	defer Mutex.RUnlock()
 	glog.Infof("%s: %s", key, GlobalStats[key])
 }
 
@@ -69,6 +82,7 @@ func PrintSync() {
 		Print(BindingList)
 		Print(AssignedIDList)
 		Print(System)
+		Print(CacheSync)
 
 		Print(CloudGet)
 		Print(CloudPut)
@@ -87,6 +101,8 @@ func PrintSync() {
 }
 
 func GetAll() map[StatsType]time.Duration {
+	Mutex.RLock()
+	defer Mutex.RUnlock()
 	return GlobalStats
 }
 

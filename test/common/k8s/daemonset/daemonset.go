@@ -71,7 +71,7 @@ func isAvailableReplicasMatchDesired(name string) (bool, error) {
 // WaitOnReady will block until the number of replicas of a daemonset is equal to the specified amount
 func WaitOnReady(name string) (bool, error) {
 	successChannel, errorChannel := make(chan bool, 1), make(chan error)
-	duration, sleep := 30*time.Second, 3*time.Second
+	duration, sleep := 40*time.Second, 3*time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 

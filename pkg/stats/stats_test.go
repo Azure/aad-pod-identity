@@ -2,6 +2,7 @@ package stats_test
 
 import (
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,5 +30,41 @@ func TestBasics(t *testing.T) {
 	getAllStats := stats.GetAll()
 	if reflect.DeepEqual(getAllStats, validateMap) != true {
 		panic("Stats added did not come back")
+	}
+}
+
+func TestConcurrency(t *testing.T) {
+	glog.Infof("Concurrency test starting")
+	stats.Init()
+	var wg sync.WaitGroup
+	var startWg sync.WaitGroup
+
+	// Make sure all of them start at the same time so that there are more chances of sync issues.
+	startWg.Add(1)
+	count := 100
+	duration := time.Second * 10
+	for i := 0; i < count; i++ {
+		wg.Add(1)
+		go func(c int) {
+			defer wg.Done()
+			startWg.Wait()
+			//fmt.Printf("Updating %d \n", c)
+			stats.Update(stats.AssignedIDList, duration)
+		}(i)
+		wg.Add(1)
+		go func(c int) {
+			defer wg.Done()
+			startWg.Wait()
+			//fmt.Printf("Getting %d\n", c)
+			stats.Get(stats.AssignedIDList)
+		}(i)
+	}
+
+	// All of them should start together.
+	startWg.Done()
+	wg.Wait()
+
+	if stats.Get(stats.AssignedIDList) != duration*time.Duration(count) {
+		panic("Stats did not get incremented.")
 	}
 }

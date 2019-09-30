@@ -2,6 +2,7 @@ package mic
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"sync"
 	"testing"
@@ -40,11 +41,15 @@ type TestVMClient struct {
 }
 
 func (c *TestVMClient) SetError(err error) {
+	c.mu.Lock()
 	c.err = &err
+	c.mu.Unlock()
 }
 
 func (c *TestVMClient) UnSetError() {
+	c.mu.Lock()
 	c.err = nil
+	c.mu.Unlock()
 }
 
 func (c *TestVMClient) Get(rgName string, nodeName string) (ret compute.VirtualMachine, err error) {
@@ -340,7 +345,7 @@ func NewTestCrdClient(config *rest.Config) *TestCrdClient {
 func (c *TestCrdClient) Start(exit <-chan struct{}) {
 }
 
-func (c *TestCrdClient) SyncCache(exit <-chan struct{}) {
+func (c *TestCrdClient) SyncCache(exit <-chan struct{}, initial bool) {
 
 }
 
@@ -372,14 +377,18 @@ func (c *TestCrdClient) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureA
 func (c *TestCrdClient) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error {
 	assignedIdentity.Status.Status = status
 	assignedIdentityToStore := *assignedIdentity //Make a copy to store in the map.
+	c.mu.Lock()
 	c.assignedIDMap[assignedIdentity.Name] = &assignedIdentityToStore
+	c.mu.Unlock()
 	return nil
 }
 
-func (c *TestCrdClient) CreateBinding(bindingName string, idName string, selector string) {
+func (c *TestCrdClient) CreateBinding(name, ns, idName, selector, resourceVersion string) {
 	binding := &aadpodid.AzureIdentityBinding{
 		ObjectMeta: v1.ObjectMeta{
-			Name: bindingName,
+			Name:            name,
+			Namespace:       ns,
+			ResourceVersion: resourceVersion,
 		},
 		Spec: aadpodid.AzureIdentityBindingSpec{
 			AzureIdentity: idName,
@@ -387,27 +396,28 @@ func (c *TestCrdClient) CreateBinding(bindingName string, idName string, selecto
 		},
 	}
 	c.mu.Lock()
-	c.bindingMap[bindingName] = binding
+	c.bindingMap[getIDKey(ns, name)] = binding
 	c.mu.Unlock()
 }
 
-func (c *TestCrdClient) CreateID(idName string, t aadpodid.IdentityType, rID string, cID string, cp *api.SecretReference, tID string, adRID string, adEpt string) {
+func (c *TestCrdClient) CreateID(idName, ns string, t aadpodid.IdentityType, rID, cID string, cp *api.SecretReference, tID, adRID, adEpt, resourceVersion string) {
 	id := &aadpodid.AzureIdentity{
 		ObjectMeta: v1.ObjectMeta{
-			Name: idName,
+			Name:            idName,
+			Namespace:       ns,
+			ResourceVersion: resourceVersion,
 		},
 		Spec: aadpodid.AzureIdentitySpec{
-			Type:       t,
-			ResourceID: rID,
-			ClientID:   cID,
-			//ClientPassword: *cp,
+			Type:         t,
+			ResourceID:   rID,
+			ClientID:     cID,
 			TenantID:     tID,
 			ADResourceID: adRID,
 			ADEndpoint:   adEpt,
 		},
 	}
 	c.mu.Lock()
-	c.idMap[idName] = id
+	c.idMap[getIDKey(ns, idName)] = id
 	c.mu.Unlock()
 }
 
@@ -445,6 +455,11 @@ func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureI
 	return map[string][]aadpodid.AzureIdentity{}, nil
 }
 
+// ListPodIdentityExceptions ...
+func (c *Client) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodIdentityException, error) {
+	return nil, nil
+}
+
 func (c *TestCrdClient) SetError(err error) {
 	c.err = &err
 }
@@ -456,6 +471,7 @@ func (c *TestCrdClient) UnSetError() {
 /************************ NODE MOCK *************************************/
 
 type TestNodeClient struct {
+	mu    sync.Mutex
 	nodes map[string]*corev1.Node
 }
 
@@ -464,6 +480,9 @@ func NewTestNodeClient() *TestNodeClient {
 }
 
 func (c *TestNodeClient) Get(name string) (*corev1.Node, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	node, exists := c.nodes[name]
 	if !exists {
 		return nil, errors.New("node not found")
@@ -471,9 +490,18 @@ func (c *TestNodeClient) Get(name string) (*corev1.Node, error) {
 	return node, nil
 }
 
+func (c *TestNodeClient) Delete(name string) {
+	c.mu.Lock()
+	delete(c.nodes, name)
+	c.mu.Unlock()
+}
+
 func (c *TestNodeClient) Start(<-chan struct{}) {}
 
 func (c *TestNodeClient) AddNode(name string, opts ...func(*corev1.Node)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	n := &corev1.Node{ObjectMeta: v1.ObjectMeta{Name: name}, Spec: corev1.NodeSpec{
 		ProviderID: "azure:///subscriptions/testSub/resourceGroups/fakeGroup/providers/Microsoft.Compute/virtualMachines/" + name,
 	}}
@@ -553,7 +581,12 @@ func (c *TestEventRecorder) AnnotatedEventf(object runtime.Object, annotations m
 }
 
 /************************ MIC MOC *************************************/
-func NewMICTestClient(eventCh chan aadpodid.EventType, cpClient *TestCloudClient, crdClient *TestCrdClient, podClient *TestPodClient, nodeClient *TestNodeClient, eventRecorder *TestEventRecorder) *TestMICClient {
+func NewMICTestClient(eventCh chan aadpodid.EventType,
+	cpClient *TestCloudClient,
+	crdClient *TestCrdClient,
+	podClient *TestPodClient,
+	nodeClient *TestNodeClient,
+	eventRecorder *TestEventRecorder, isNamespaced bool) *TestMICClient {
 
 	realMICClient := &Client{
 		CloudClient:       cpClient,
@@ -563,6 +596,7 @@ func NewMICTestClient(eventCh chan aadpodid.EventType, cpClient *TestCloudClient
 		EventChannel:      eventCh,
 		NodeClient:        nodeClient,
 		syncRetryInterval: 120 * time.Second,
+		IsNamespaced:      isNamespaced,
 	}
 
 	return &TestMICClient{
@@ -577,47 +611,58 @@ type TestMICClient struct {
 /************************ UNIT TEST *************************************/
 
 func TestMapMICClient(t *testing.T) {
+	defaultNS := "default"
 	micClient := &TestMICClient{}
 
 	idList := make([]aadpodid.AzureIdentity, 0)
 
 	id := new(aadpodid.AzureIdentity)
+	id.Namespace = "default"
 	id.Name = "test-azure-identity"
+	id.Namespace = defaultNS
 
 	idList = append(idList, *id)
 
+	id.Namespace = "newns"
 	id.Name = "test-akssvcrg-id"
+
 	idList = append(idList, *id)
 
 	idMap, _ := micClient.convertIDListToMap(idList)
 
+	namespace := "default"
 	name := "test-azure-identity"
 	count := 3
-	if azureID, idPresent := idMap[name]; idPresent {
+	if azureID, idPresent := idMap[getIDKey(namespace, name)]; idPresent {
 		if azureID.Name != name {
-			t.Errorf("id map id value mismatch")
+			t.Fatalf("id map id value mismatch")
 		}
 		count = count - 1
+	} else {
+		t.Fatalf("id %s not found", name)
 	}
 
+	namespace = "newns"
 	name = "test-akssvcrg-id"
-	if azureID, idPresent := idMap[name]; idPresent {
+	if azureID, idPresent := idMap[getIDKey(namespace, name)]; idPresent {
 		if azureID.Name != name {
-			t.Errorf("id map id value mismatch")
+			t.Fatalf("id map id value mismatch")
 		}
 		count = count - 1
+	} else {
+		t.Fatalf("id %s not found", name)
 	}
 
+	namespace = "default"
 	name = "test not there"
-	if _, idPresent := idMap[name]; idPresent {
-		t.Errorf("not present found")
+	if _, idPresent := idMap[getIDKey(namespace, name)]; idPresent {
+		t.Fatalf("not present found")
 	} else {
 		count = count - 1
 	}
 	if count != 0 {
-		t.Errorf("Test count mismatch")
+		t.Fatalf("Test count mismatch. Expected %d, actual %d", 0, count)
 	}
-
 }
 
 func (c *TestMICClient) testRunSync() func(t *testing.T) {
@@ -658,10 +703,10 @@ func TestSimpleMICClient(t *testing.T) {
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool, 100)
 
-	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false)
 
-	crdClient.CreateID("test-id", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
-	crdClient.CreateBinding("testbinding", "test-id", "test-select")
+	crdClient.CreateID("test-id", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateBinding("testbinding", "default", "test-id", "test-select", "")
 
 	nodeClient.AddNode("test-node")
 	podClient.AddPod("test-pod", "default", "test-node", "test-select")
@@ -684,13 +729,6 @@ func TestSimpleMICClient(t *testing.T) {
 			if assignedID.Spec.Pod == "test-pod" && assignedID.Spec.PodNamespace == "default" && assignedID.Spec.NodeName == "test-node" &&
 				assignedID.Spec.AzureBindingRef.Name == "testbinding" && assignedID.Spec.AzureIdentityRef.Name == "test-id" {
 				testPass = true
-				/*
-					testPass = evtRecorder.Validate(&LastEvent{Type: "Normal", Reason: "binding applied",
-						Message: "Binding testbinding applied on node test-node for pod test-pod-default-test-id"})
-					if !testPass {
-						t.Errorf("event mismatch")
-					}
-				*/
 				break
 			}
 		}
@@ -786,19 +824,19 @@ func TestAddDelMICClient(t *testing.T) {
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool, 100)
 
-	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false)
 
 	// Test to add and delete at the same time.
 	// Add a pod, identity and binding.
-	crdClient.CreateID("test-id2", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
-	crdClient.CreateBinding("testbinding2", "test-id2", "test-select2")
+	crdClient.CreateID("test-id2", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateBinding("testbinding2", "default", "test-id2", "test-select2", "")
 
 	nodeClient.AddNode("test-node2")
 	podClient.AddPod("test-pod2", "default", "test-node2", "test-select2")
 	podClient.GetPods()
 
-	crdClient.CreateID("test-id4", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
-	crdClient.CreateBinding("testbinding4", "test-id4", "test-select4")
+	crdClient.CreateID("test-id4", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateBinding("testbinding4", "default", "test-id4", "test-select4", "")
 	podClient.AddPod("test-pod4", "default", "test-node2", "test-select4")
 	podClient.GetPods()
 
@@ -830,8 +868,8 @@ func TestAddDelMICClient(t *testing.T) {
 	podClient.DeletePod("test-pod4", "default")
 
 	//Add a new pod, with different id and binding on the same node.
-	crdClient.CreateID("test-id3", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
-	crdClient.CreateBinding("testbinding3", "test-id3", "test-select3")
+	crdClient.CreateID("test-id3", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateBinding("testbinding3", "default", "test-id3", "test-select3", "")
 	podClient.AddPod("test-pod3", "default", "test-node2", "test-select3")
 	podClient.GetPods()
 
@@ -878,12 +916,12 @@ func TestMicAddDelVMSS(t *testing.T) {
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool, 100)
 
-	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false)
 
 	// Test to add and delete at the same time.
 	// Add a pod, identity and binding.
-	crdClient.CreateID("test-id1", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
-	crdClient.CreateBinding("testbinding1", "test-id1", "test-select1")
+	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateBinding("testbinding1", "default", "test-id1", "test-select1", "")
 
 	nodeClient.AddNode("test-node1", func(n *corev1.Node) {
 		n.Spec.ProviderID = "azure:///subscriptions/fakeSub/resourceGroups/fakeGroup/providers/Microsoft.Compute/virtualMachineScaleSets/testvmss1/virtualMachines/0"
@@ -981,11 +1019,11 @@ func TestMICStateFlow(t *testing.T) {
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool, 100)
 
-	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false)
 
 	// Add a pod, identity and binding.
-	crdClient.CreateID("test-id1", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
-	crdClient.CreateBinding("testbinding1", "test-id1", "test-select1")
+	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateBinding("testbinding1", "default", "test-id1", "test-select1", "")
 
 	nodeClient.AddNode("test-node1")
 	podClient.AddPod("test-pod1", "default", "test-node1", "test-select1")
@@ -996,6 +1034,7 @@ func TestMICStateFlow(t *testing.T) {
 	if !evtRecorder.WaitForEvents(1) {
 		t.Fatalf("Timeout waiting for mic sync cycles")
 	}
+
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
 		glog.Error(err)
@@ -1010,10 +1049,14 @@ func TestMICStateFlow(t *testing.T) {
 
 	// delete the pod, simulate failure in cloud calls on trying to un-assign identity from node
 	podClient.DeletePod("test-pod1", "default")
+	// SetError sets error in crd client only for remove assigned identity
 	cloudClient.SetError(errors.New("error removing identity from node"))
-	cloudClient.testVMClient.identity = nil
+	cloudClient.testVMClient.identity = &compute.VirtualMachineIdentity{IdentityIds: &[]string{"test-user-msi-resourceid"}}
 
 	eventCh <- aadpodid.PodDeleted
+	if !evtRecorder.WaitForEvents(1) {
+		t.Fatalf("Timeout waiting for mic sync cycles")
+	}
 
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
@@ -1032,8 +1075,8 @@ func TestMICStateFlow(t *testing.T) {
 
 	// add new pod, this time the old assigned identity which is in Assigned state should be tried to delete
 	// simulate failure on kube api call to delete crd
-	crdClient.CreateID("test-id2", aadpodid.UserAssignedMSI, "test-user-msi-resourceid2", "test-user-msi-clientid2", nil, "", "", "")
-	crdClient.CreateBinding("testbinding2", "test-id2", "test-select2")
+	crdClient.CreateID("test-id2", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid2", "test-user-msi-clientid2", nil, "", "", "", "")
+	crdClient.CreateBinding("testbinding2", "default", "test-id2", "test-select2", "")
 
 	nodeClient.AddNode("test-node2")
 	podClient.AddPod("test-pod2", "default", "test-node2", "test-select2")
@@ -1080,6 +1123,70 @@ func TestMICStateFlow(t *testing.T) {
 	}
 }
 
+func TestForceNamespaced(t *testing.T) {
+	eventCh := make(chan aadpodid.EventType, 100)
+	cloudClient := NewTestCloudClient(config.AzureConfig{})
+	crdClient := NewTestCrdClient(nil)
+	podClient := NewTestPodClient()
+	nodeClient := NewTestNodeClient()
+	var evtRecorder TestEventRecorder
+	evtRecorder.lastEvent = new(LastEvent)
+	evtRecorder.eventChannel = make(chan bool, 100)
+
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, true)
+
+	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "idrv1")
+	crdClient.CreateBinding("testbinding1", "default", "test-id1", "test-select1", "bindingrv1")
+
+	nodeClient.AddNode("test-node1")
+	podClient.AddPod("test-pod1", "default", "test-node1", "test-select1")
+
+	eventCh <- aadpodid.PodCreated
+	defer micClient.testRunSync()(t)
+
+	if !evtRecorder.WaitForEvents(1) {
+		t.Fatalf("Timeout waiting for mic sync cycles")
+	}
+	listAssignedIDs, err := crdClient.ListAssignedIDs()
+	if err != nil {
+		glog.Error(err)
+		t.Errorf("list assigned failed")
+	}
+	if !(len(*listAssignedIDs) == 1) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
+	}
+	if !((*listAssignedIDs)[0].Status.Status == aadpodid.AssignedIDAssigned) {
+		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (*listAssignedIDs)[0].Status.Status)
+	}
+
+	crdClient.CreateID("test-id1", "default2", aadpodid.UserAssignedMSI, "test-user-msi-resourceid1", "test-user-msi-clientid", nil, "", "", "", "idrv2")
+	crdClient.CreateBinding("testbinding1", "default2", "test-id1", "test-select1", "bindingrv2")
+	podClient.AddPod("test-pod2", "default2", "test-node1", "test-select1")
+
+	eventCh <- aadpodid.IdentityCreated
+	eventCh <- aadpodid.BindingCreated
+	eventCh <- aadpodid.PodCreated
+
+	if !evtRecorder.WaitForEvents(1) {
+		t.Fatalf("Timeout waiting for mic sync cycles")
+	}
+
+	listAssignedIDs, err = crdClient.ListAssignedIDs()
+	if err != nil {
+		glog.Error(err)
+		t.Errorf("list assigned failed")
+	}
+	if !(len(*listAssignedIDs) == 2) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
+	}
+
+	for _, assignedID := range *listAssignedIDs {
+		if !(assignedID.Status.Status == aadpodid.AssignedIDAssigned) {
+			t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (*listAssignedIDs)[0].Status.Status)
+		}
+	}
+}
+
 func TestSyncRetryLoop(t *testing.T) {
 	eventCh := make(chan aadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
@@ -1090,7 +1197,7 @@ func TestSyncRetryLoop(t *testing.T) {
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool, 100)
 
-	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false)
 	syncRetryInterval, err := time.ParseDuration("10s")
 	if err != nil {
 		t.Errorf("error parsing duration: %v", err)
@@ -1098,8 +1205,8 @@ func TestSyncRetryLoop(t *testing.T) {
 	micClient.syncRetryInterval = syncRetryInterval
 
 	// Add a pod, identity and binding.
-	crdClient.CreateID("test-id1", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "")
-	crdClient.CreateBinding("testbinding1", "test-id1", "test-select1")
+	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateBinding("testbinding1", "default", "test-id1", "test-select1", "")
 
 	nodeClient.AddNode("test-node1")
 	podClient.AddPod("test-pod1", "default", "test-node1", "test-select1")
@@ -1159,6 +1266,78 @@ func TestSyncRetryLoop(t *testing.T) {
 	}
 }
 
+func TestSyncNodeNotFound(t *testing.T) {
+	eventCh := make(chan aadpodid.EventType, 100)
+	cloudClient := NewTestCloudClient(config.AzureConfig{})
+	crdClient := NewTestCrdClient(nil)
+	podClient := NewTestPodClient()
+	nodeClient := NewTestNodeClient()
+	var evtRecorder TestEventRecorder
+	evtRecorder.lastEvent = new(LastEvent)
+	evtRecorder.eventChannel = make(chan bool, 100)
+
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false)
+
+	// Add a pod, identity and binding.
+	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateBinding("testbinding1", "default", "test-id1", "test-select1", "")
+
+	for i := 0; i < 10; i++ {
+		nodeClient.AddNode(fmt.Sprintf("test-node%d", i))
+		podClient.AddPod(fmt.Sprintf("test-pod%d", i), "default", fmt.Sprintf("test-node%d", i), "test-select1")
+		eventCh <- aadpodid.PodCreated
+	}
+
+	defer micClient.testRunSync()(t)
+
+	if !evtRecorder.WaitForEvents(10) {
+		t.Fatalf("Timeout waiting for mic sync cycles")
+	}
+
+	listAssignedIDs, err := crdClient.ListAssignedIDs()
+	if err != nil {
+		glog.Error(err)
+		t.Errorf("list assigned failed")
+	}
+	if !(len(*listAssignedIDs) == 10) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 10, len(*listAssignedIDs))
+	}
+	for i := range *listAssignedIDs {
+		if !((*listAssignedIDs)[i].Status.Status == aadpodid.AssignedIDAssigned) {
+			t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (*listAssignedIDs)[i].Status.Status)
+		}
+	}
+
+	// delete 5 nodes
+	for i := 5; i < 10; i++ {
+		nodeClient.Delete(fmt.Sprintf("test-node%d", i))
+		podClient.DeletePod(fmt.Sprintf("test-pod%d", i), "default")
+		eventCh <- aadpodid.PodDeleted
+	}
+
+	nodeClient.AddNode("test-nodex")
+	podClient.AddPod("test-podx", "default", "test-node1", "test-select1")
+	eventCh <- aadpodid.PodCreated
+
+	if !evtRecorder.WaitForEvents(6) {
+		t.Fatalf("Timeout waiting for mic sync cycles")
+	}
+
+	listAssignedIDs, err = crdClient.ListAssignedIDs()
+	if err != nil {
+		glog.Error(err)
+		t.Errorf("list assigned failed")
+	}
+	if !(len(*listAssignedIDs) == 6) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 6, len(*listAssignedIDs))
+	}
+	for i := range *listAssignedIDs {
+		if !((*listAssignedIDs)[i].Status.Status == aadpodid.AssignedIDAssigned) {
+			t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (*listAssignedIDs)[i].Status.Status)
+		}
+	}
+}
+
 func TestSyncExit(t *testing.T) {
 	eventCh := make(chan aadpodid.EventType)
 	cloudClient := NewTestCloudClient(config.AzureConfig{VMType: "vmss"})
@@ -1169,7 +1348,7 @@ func TestSyncExit(t *testing.T) {
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool)
 
-	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder)
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false)
 
 	micClient.testRunSync()(t)
 }

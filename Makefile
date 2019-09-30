@@ -35,7 +35,7 @@ else
 endif
 
 GO_BUILD_OPTIONS := --tags "netgo osusergo"  -ldflags "-s -X $(NMI_VERSION_VAR)=$(NMI_VERSION) -X $(MIC_VERSION_VAR)=$(MIC_VERSION) -X $(GIT_VAR)=$(GIT_HASH) -X $(BUILD_DATE_VAR)=$(BUILD_DATE) -extldflags '-static'"
-E2E_TEST_OPTIONS := -count=1 -v -timeout 24h -ginkgo.failFast $(E2E_TEST_OPTIONS_EXTRA)
+E2E_TEST_OPTIONS := -count=1 -v -timeout 24h -ginkgo.progress $(E2E_TEST_OPTIONS_EXTRA)
 
 # useful for other docker repos
 REGISTRY_NAME ?= upstreamk8sci
@@ -91,7 +91,7 @@ build: clean build-nmi build-mic build-demo build-identity-validator
 
 .PHONY: deepcopy-gen
 deepcopy-gen:
-	deepcopy-gen -i ./pkg/apis/aadpodidentity/v1/ -o ../../../ -O aadpodidentity_deepcopy_generated -p aadpodidentity
+	deepcopy-gen -i ./pkg/apis/aadpodidentity/v1/ -o . -O aadpodidentity_deepcopy_generated -p aadpodidentity
 
 .PHONY: image-nmi
 image-nmi:
@@ -141,7 +141,7 @@ e2e:
 
 .PHONY: unit-test
 unit-test:
-	go test -count=1 $(shell go list ./... | grep -v /test/e2e) -v
+	go test -race -count=1 $(shell go list ./... | grep -v /test/e2e) -v
 
 .PHONY: validate-version
 validate-version: validate-version-NMI validate-version-MIC validate-version-IDENTITY_VALIDATOR validate-version-DEMO

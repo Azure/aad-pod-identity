@@ -11,6 +11,7 @@ import (
 	"time"
 
 	config "github.com/Azure/aad-pod-identity/pkg/config"
+	"github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/aad-pod-identity/version"
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
 	"github.com/Azure/go-autorest/autorest"
@@ -18,7 +19,6 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/golang/glog"
 	yaml "gopkg.in/yaml.v2"
-	corev1 "k8s.io/api/core/v1"
 )
 
 // Client is a cloud provider client
@@ -31,10 +31,10 @@ type Client struct {
 
 // ClientInt client interface
 type ClientInt interface {
-	RemoveUserMSI(userAssignedMSIID string, node *corev1.Node) error
-	AssignUserMSI(userAssignedMSIID string, node *corev1.Node) error
-	UpdateUserMSI(addUserAssignedMSIIDs []string, removeUserAssignedMSIIDs []string, node *corev1.Node) error
-	GetUserMSIs(node *corev1.Node) ([]string, error)
+	RemoveUserMSI(userAssignedMSIID, name string, isvmss bool) error
+	AssignUserMSI(userAssignedMSIID, name string, isvmss bool) error
+	UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs []string, name string, isvmss bool) error
+	GetUserMSIs(name string, isvmss bool) ([]string, error)
 }
 
 // NewCloudProvider returns a azure cloud provider client
@@ -98,7 +98,7 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 				return nil, err
 			}
 		} else { // User assigned identity usage.
-			glog.Infof("MIC using user assigned identity: %s for authentication.", azureConfig.UserAssignedIdentityID)
+			glog.Infof("MIC using user assigned identity: %s for authentication.", utils.RedactClientID(azureConfig.UserAssignedIdentityID))
 			spt, err = adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(msiEndpoint, azureEnv.ResourceManagerEndpoint, azureConfig.UserAssignedIdentityID)
 			if err != nil {
 				glog.Errorf("Get token from user assigned MSI error: %+v", err)
@@ -113,7 +113,7 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 			azureEnv.ResourceManagerEndpoint,
 		)
 		if err != nil {
-			glog.Errorf("Get service principle token error: %+v", err)
+			glog.Errorf("Get service principal token error: %+v", err)
 			return nil, err
 		}
 	}
@@ -152,9 +152,9 @@ func withInspection() autorest.PrepareDecorator {
 	}
 }
 
-// GetUserMSIs will return a list of all identities on the node
-func (c *Client) GetUserMSIs(node *corev1.Node) ([]string, error) {
-	idH, _, err := c.getIdentityResource(node)
+// GetUserMSIs will return a list of all identities on the node or vmss based on value of isvmss
+func (c *Client) GetUserMSIs(name string, isvmss bool) ([]string, error) {
+	idH, _, err := c.getIdentityResource(name, isvmss)
 	if err != nil {
 		glog.Errorf("GetUserMSIs: get identity resource failed with error %v", err)
 		return nil, err
@@ -168,8 +168,8 @@ func (c *Client) GetUserMSIs(node *corev1.Node) ([]string, error) {
 }
 
 // UpdateUserMSI will batch process the removal and addition of ids
-func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs []string, removeUserAssignedMSIIDs []string, node *corev1.Node) error {
-	idH, updateFunc, err := c.getIdentityResource(node)
+func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs []string, name string, isvmss bool) error {
+	idH, updateFunc, err := c.getIdentityResource(name, isvmss)
 	if err != nil {
 		return err
 	}
@@ -184,43 +184,43 @@ func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs []string, removeUserAssigne
 	for _, userAssignedMSIID := range removeUserAssignedMSIIDs {
 		requiresUpdate = true
 		if err := info.RemoveUserIdentity(userAssignedMSIID); err != nil {
-			return fmt.Errorf("could not remove identity from node %s: %v", node.Name, err)
+			return fmt.Errorf("could not remove identity from node %s: %v", name, err)
 		}
 	}
 	// add new ids to the list
 	for _, userAssignedMSIID := range addUserAssignedMSIIDs {
 		addedToList := info.AppendUserIdentity(userAssignedMSIID)
 		if !addedToList {
-			glog.V(6).Infof("Identity %s already assigned to node %s. Skipping assignment.", userAssignedMSIID, node.Name)
+			glog.V(6).Infof("Identity %s already assigned to node %s. Skipping assignment.", userAssignedMSIID, name)
 		}
 		requiresUpdate = requiresUpdate || addedToList
 	}
 	if requiresUpdate {
-		glog.Infof("Updating user assigned MSIs on %s", node.Name)
+		glog.Infof("Updating user assigned MSIs on %s", name)
 		timeStarted := time.Now()
 		if err := updateFunc(); err != nil {
 			return err
 		}
-		glog.V(6).Infof("UpdateUserMSI of %s completed in %s", node.Name, time.Since(timeStarted))
+		glog.V(6).Infof("UpdateUserMSI of %s completed in %s", name, time.Since(timeStarted))
 	}
 	return nil
 }
 
 //RemoveUserMSI - Use the underlying cloud api calls and remove the given user assigned MSI from the vm.
-func (c *Client) RemoveUserMSI(userAssignedMSIID string, node *corev1.Node) error {
-	idH, updateFunc, err := c.getIdentityResource(node)
+func (c *Client) RemoveUserMSI(userAssignedMSIID, name string, isvmss bool) error {
+	idH, updateFunc, err := c.getIdentityResource(name, isvmss)
 	if err != nil {
 		return err
 	}
 
 	info := idH.IdentityInfo()
 	if info == nil {
-		glog.Errorf("Identity null for vm: %s ", node.Name)
-		return fmt.Errorf("identity null for vm: %s ", node.Name)
+		glog.Errorf("Identity null for vm: %s ", name)
+		return fmt.Errorf("identity null for vm: %s ", name)
 	}
 
 	if err := info.RemoveUserIdentity(userAssignedMSIID); err != nil {
-		return fmt.Errorf("could not remove identity from node %s: %v", node.Name, err)
+		return fmt.Errorf("could not remove identity from node %s: %v", name, err)
 	}
 
 	if err := updateFunc(); err != nil {
@@ -232,18 +232,18 @@ func (c *Client) RemoveUserMSI(userAssignedMSIID string, node *corev1.Node) erro
 }
 
 // AssignUserMSI - Use the underlying cloud api call and add the given user assigned MSI to the vm
-func (c *Client) AssignUserMSI(userAssignedMSIID string, node *corev1.Node) error {
+func (c *Client) AssignUserMSI(userAssignedMSIID, name string, isvmss bool) error {
 	// Get the vm using the VmClient
 	// Update the assigned identity into the VM using the CreateOrUpdate
 
-	glog.Infof("Find %s in resource group: %s", node.Name, c.Config.ResourceGroupName)
+	glog.Infof("Find %s in resource group: %s", name, c.Config.ResourceGroupName)
 	timeStarted := time.Now()
 
-	idH, updateFunc, err := c.getIdentityResource(node)
+	idH, updateFunc, err := c.getIdentityResource(name, isvmss)
 	if err != nil {
 		return err
 	}
-	glog.V(6).Infof("Get of %s completed in %s", node.Name, time.Since(timeStarted))
+	glog.V(6).Infof("Get of %s completed in %s", name, time.Since(timeStarted))
 
 	info := idH.IdentityInfo()
 	if info == nil {
@@ -255,34 +255,17 @@ func (c *Client) AssignUserMSI(userAssignedMSIID string, node *corev1.Node) erro
 		if err := updateFunc(); err != nil {
 			return err
 		}
-		glog.V(6).Infof("CreateOrUpdate of %s completed in %s", node.Name, time.Since(timeStarted))
+		glog.V(6).Infof("CreateOrUpdate of %s completed in %s", name, time.Since(timeStarted))
 	} else {
-		glog.V(6).Infof("Identity %s already assigned to node %s. Skipping assignment.", userAssignedMSIID, node.Name)
+		glog.V(6).Infof("Identity %s already assigned to node %s. Skipping assignment.", userAssignedMSIID, name)
 	}
 	return nil
 }
 
-func (c *Client) getIdentityResource(node *corev1.Node) (idH IdentityHolder, update func() error, retErr error) {
-	name := node.Name // fallback in case parsing the provider spec fails
+func (c *Client) getIdentityResource(name string, isvmss bool) (idH IdentityHolder, update func() error, retErr error) {
 	rg := c.Config.ResourceGroupName
-	r, err := ParseResourceID(node.Spec.ProviderID)
-	if err != nil {
-		glog.Warningf("Could not parse Azure node resource ID: %v", err)
-	}
 
-	rt := vmTypeOrDefault(&r, c.Config.VMType)
-	glog.V(6).Infof("Using resource type %s for node %s", rt, name)
-
-	if r.ResourceGroup != "" {
-		rg = r.ResourceGroup
-	}
-
-	if r.ResourceName != "" {
-		name = r.ResourceName
-	}
-
-	switch rt {
-	case "vmss":
+	if isvmss {
 		vmss, err := c.VMSSClient.Get(rg, name)
 		if err != nil {
 			return nil, nil, err
@@ -292,16 +275,17 @@ func (c *Client) getIdentityResource(node *corev1.Node) (idH IdentityHolder, upd
 			return c.VMSSClient.CreateOrUpdate(rg, name, vmss)
 		}
 		idH = &vmssIdentityHolder{&vmss}
-	default:
-		vm, err := c.VMClient.Get(rg, name)
-		if err != nil {
-			return nil, nil, err
-		}
-		update = func() error {
-			return c.VMClient.CreateOrUpdate(rg, name, vm)
-		}
-		idH = &vmIdentityHolder{&vm}
+		return idH, update, nil
 	}
+
+	vm, err := c.VMClient.Get(rg, name)
+	if err != nil {
+		return nil, nil, err
+	}
+	update = func() error {
+		return c.VMClient.CreateOrUpdate(rg, name, vm)
+	}
+	idH = &vmIdentityHolder{&vm}
 
 	return idH, update, nil
 }
@@ -315,7 +299,9 @@ var (
 )
 
 const (
-	VMResourceType   = "virtualMachines"
+	// VMResourceType virtual machine resource type
+	VMResourceType = "virtualMachines"
+	// VMSSResourceType virtual machine scale sets resource type
 	VMSSResourceType = "virtualMachineScaleSets"
 )
 

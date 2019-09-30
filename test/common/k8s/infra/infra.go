@@ -11,8 +11,14 @@ import (
 )
 
 // CreateInfra will deploy all the infrastructure components (nmi and mic) on a Kubernetes cluster
-func CreateInfra(namespace, registry, nmiVersion, micVersion, templateOutputPath string) error {
-	t, err := template.New("deployment-rbac.yaml").ParseFiles(path.Join("template", "deployment-rbac.yaml"))
+func CreateInfra(namespace, registry, nmiVersion, micVersion, templateOutputPath string, old bool) error {
+	var err error
+	var t *template.Template
+	if !old {
+		t, err = template.New("deployment-rbac.yaml").ParseFiles(path.Join("template", "deployment-rbac.yaml"))
+	} else {
+		t, err = template.New("deployment-rbac-old.yaml").ParseFiles(path.Join("template", "deployment-rbac-old.yaml"))
+	}
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse deployment-rbac.yaml")
 	}
@@ -20,7 +26,7 @@ func CreateInfra(namespace, registry, nmiVersion, micVersion, templateOutputPath
 	deployFilePath := path.Join(templateOutputPath, namespace+"-deployment.yaml")
 	deployFile, err := os.Create(deployFilePath)
 	if err != nil {
-		return errors.Wrap(err, "Failed to create a deployment file from deployment-rbac.yaml")
+		return errors.Wrap(err, "Failed to create a deployment file")
 	}
 	defer deployFile.Close()
 
@@ -67,6 +73,8 @@ type IdentityValidatorTemplateData struct {
 	IdentityValidatorVersion string
 	NodeName                 string
 	Replicas                 string
+	DeploymentLabels         map[string]string
+	InitContainer            bool
 }
 
 // CreateIdentityValidator will create an identity validator deployment on a Kubernetes cluster
@@ -94,5 +102,30 @@ func CreateIdentityValidator(subscriptionID, resourceGroup, templateOutputPath s
 		return errors.Wrapf(err, "Failed to deploy AzureIdentityBinding to the Kubernetes cluster: %s", out)
 	}
 
+	return nil
+}
+
+// InstallGatekeeper will deploy Gatekeeper Policy Controller on a Kubernetes cluster
+func InstallGatekeeper() error {
+
+	cmd := exec.Command("kubectl", "apply", "-f", "https://raw.githubusercontent.com/open-policy-agent/gatekeeper/master/deploy/gatekeeper.yaml")
+	util.PrintCommand(cmd)
+	out, err := cmd.CombinedOutput()
+
+	if err != nil {
+		return errors.Wrapf(err, "Failed to deploy Gatekeeper to the kubernetes cluster: %s", out)
+	}
+	return nil
+}
+
+// UninstallGatekeeper will delete Gatekeeper Policy Controller on a Kubernetes cluster
+func UninstallGatekeeper() error {
+	cmd := exec.Command("kubectl", "delete", "-f", "https://raw.githubusercontent.com/open-policy-agent/gatekeeper/master/deploy/gatekeeper.yaml")
+	util.PrintCommand(cmd)
+	out, err := cmd.CombinedOutput()
+
+	if err != nil {
+		return errors.Wrapf(err, "Failed to uninstall Gatekeeper from the kubernetes cluster: %s", out)
+	}
 	return nil
 }

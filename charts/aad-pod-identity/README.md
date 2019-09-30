@@ -1,11 +1,64 @@
-# Helm chart for Azure Active Directory Pod Identity
+# aad-pod-identity
+
+[aad-pod-identity](https://github.com/Azure/aad-pod-identity) enables Kubernetes applications to access cloud resources securely with [Azure Active Directory](https://azure.microsoft.com/en-us/services/active-directory/) (AAD).
+
+## TL;DR:
+
+```console
+$ helm repo add aad-pod-identity https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts
+$ helm install aad-pod-identity/aad-pod-identity
+```
+
+Expected output:
+
+```console
+NAME:   pod-identity
+LAST DEPLOYED: Mon Sep 16 11:47:45 2019
+NAMESPACE: default
+STATUS: DEPLOYED
+
+RESOURCES:
+==> v1/ClusterRole
+NAME                  AGE
+aad-pod-identity-mic  1s
+aad-pod-identity-nmi  1s
+
+==> v1/Pod(related)
+NAME                                  READY  STATUS             RESTARTS  AGE
+aad-pod-identity-mic-9658685f4-vnmwx  0/1    ContainerCreating  0         1s
+aad-pod-identity-mic-9658685f4-xrzmv  0/1    ContainerCreating  0         1s
+aad-pod-identity-nmi-d5hvt            0/1    ContainerCreating  0         1s
+aad-pod-identity-nmi-rq27p            0/1    ContainerCreating  0         1s
+aad-pod-identity-nmi-wdgdf            0/1    ContainerCreating  0         1s
+
+==> v1/ServiceAccount
+NAME                  SECRETS  AGE
+aad-pod-identity-mic  1        1s
+aad-pod-identity-nmi  1        1s
+
+==> v1beta1/ClusterRoleBinding
+NAME                  AGE
+aad-pod-identity-mic  1s
+aad-pod-identity-nmi  1s
+
+==> v1beta1/DaemonSet
+NAME                  DESIRED  CURRENT  READY  UP-TO-DATE  AVAILABLE  NODE SELECTOR                AGE
+aad-pod-identity-nmi  3        3        0      3           0          beta.kubernetes.io/os=linux  1s
+
+==> v1beta1/Deployment
+NAME                  READY  UP-TO-DATE  AVAILABLE  AGE
+aad-pod-identity-mic  0/2    2           0          1s
+```
+
+## Introduction
+
 A simple [helm](https://helm.sh/) chart for setting up the components needed to use [Azure Active Directory Pod Identity](https://github.com/Azure/aad-pod-identity) in Kubernetes.
 
-## Chart resources
 This helm chart will deploy the following resources:
 * AzureIdentity `CustomResourceDefinition`
 * AzureIdentityBinding `CustomResourceDefinition`
 * AzureAssignedIdentity `CustomResourceDefinition`
+* AzurePodIdentityException `CustomResourceDefinition`
 * AzureIdentity instance (optional)
 * AzureIdentityBinding instance (optional)
 * Managed Identity Controller (MIC) `Deployment`
@@ -18,11 +71,14 @@ The following steps will help you create a new Azure identity ([Managed Service 
 * [Azure Subscription](https://azure.microsoft.com/)
 * [Azure Kubernetes Service (AKS)](https://azure.microsoft.com/services/kubernetes-service/) or [AKS Engine](https://github.com/Azure/aks-engine) deployment
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) (authenticated to your Kubernetes cluster)
-* [Helm v1.10+](https://github.com/helm/helm)
+* [Helm v2.14+](https://github.com/helm/helm)
 * [Azure CLI 2.0](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest)
 * [git](https://git-scm.com/downloads)
 
-### Steps
+> Recommended Helm version > `2.14.2`. Issue with CRD during upgrade has been resolved after that release.
+
+<details>
+<summary><strong>[Optional] Creating user identity</strong></summary>
 
 1. Create a new [Azure User Identity](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview) using the Azure CLI:
 > __NOTE:__ It's simpler to use the same resource group as your Kubernetes nodes are deployed in. For AKS this is the MC_* resource group. If you can't use the same resource group, you'll need to grant the Kubernetes cluster's service principal the "Managed Identity Operator" role.
@@ -30,68 +86,115 @@ The following steps will help you create a new Azure identity ([Managed Service 
 az identity create -g <resource-group> -n <id-name>
 ```
 
-2. Assign your newly created identity the role of _Reader_ for the resource group:
-```shell
-az role assignment create --role Reader --assignee <principal-id> --scope /subscriptions/<subscription-id>/resourcegroups/<resource-group>
+2. Assign your newly created identity the appropriate role to the resource you want to access.
+</details>
+
+
+#### Installing charts
+
+* If you need the `AzureIdentity` and `AzureIdentityBinding` resources to be created as part of the chart installation, update the values.yml to enable the azureIdentity and replace the resourceID, clientID using the values for the user identity.
+* If you need the aad-pod-identity deployment to use it's own service principal credentials instead of the cluster service prinicipal '/etc/kubernetes/azure.json`, then uncomment this section and add the appropriate values for each required field.
+
+```
+adminsecret:
+  cloud: <cloud environment name>
+  subscriptionID: <subscription id>
+  resourceGroup: <cluster resource group>
+  vmType: <`standard` for normal virtual machine nodes, and `vmss` for cluster deployed with a virtual machine scale set>
+  tenantID: <service principal tenant id>
+  clientID: <service principal client id>
+  clientSecret: <service principal client secret>
 ```
 
-3. Clone this repository and navigate to the helm chart's directory.
-```shell
-git clone git@github.com:Azure/aad-pod-identity.git && cd aad-pod-identity/charts/aad-pod-identity
+To install the chart with the release name `my-release`:
+
+```console
+$ helm install --name my-release aad-pod-identity/aad-pod-identity
 ```
 
-4. Open the `values.yaml` file in a text editor.
+Deploy your application to Kubernetes. The application can use [ADAL](https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-authentication-libraries) to request a token from the MSI endpoint as usual. If you do not currently have such an application, a demo application is available [here](https://github.com/Azure/aad-pod-identity#demo-app). If you do use the demo application, please update the `deployment.yaml` with the appropriate subscription ID, client ID and resource group name. Also make sure the selector you defined in your `AzureIdentityBinding` matches the `aadpodidbinding` label on the deployment.
 
-5. Update the `azureIdentity` values with your Azure identity's resource ID and client ID (retrievable from the CLI or portal).
+## Uninstalling the Chart
 
-6. Update the `azureIdentityBinding` selector value with a value that will match the label applied to the pods you wish to assign the identity to i.e. `selector: demo`.
+To uninstall/delete the last deployment:
 
-7. Ensure you have helm initialized correctly to work with your cluster. If not, follow this [guide](https://docs.helm.sh/using_helm/#initialize-helm-and-install-tiller). If your cluster has rbac-enabled, you'll need to initialize tiller with a suitable `service-account`.
-
-8. Install the helm chart into your Kubernetes cluster using your updated `values.yaml`.
-```shell
-helm install --values values.yaml .
+```console
+$ helm ls
+$ helm delete [last deployment] --purge
 ```
 
-9. Deploy your application to Kubernetes. The application should use [ADAL](https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-authentication-libraries) to request a token from the MSI endpoint as usual. If you do not currently have such an application, a demo application is available [here](https://github.com/Azure/aad-pod-identity#demo-app). If you do use the demo application, please update the `deployment.yaml` with the appropriate subscription ID, client ID and resource group name. Also make sure the selector you defined in your `AzureIdentityBinding` matches the `aadpodidbinding` label on the deployment i.e. `aadpodidbinding: demo`.
+The command removes all the Kubernetes components associated with the chart and deletes the release.
 
-10. Once you have successfully deployed your application, validate the MIC has detected your `AzureIdentityBinding` by viewing its logs.
-```shell
-kubectl logs mic-768489d94-pjxqf
-...
-I0919 13:12:34.222107       1 event.go:218] Event(v1.ObjectReference{Kind:"AzureIdentityBinding", Namespace:"default", Name:"msi-binding", UID:"UID", APIVersion:"aadpodidentity.k8s.io/v1", ResourceVersion:"231329", FieldPath:""}): type: 'Normal' reason: 'binding applied' Binding msi-binding applied on node aks-agentpool-12603492-1 for pod demo-77d858d9f9-62d4r-default-msi
+> The CRD created by the chart are not removed by default and should be manually cleaned up (if required) 
+
+```bash
+kubectl delete crd azureassignedidentities.aadpodidentity.k8s.io
+kubectl delete crd azureidentities.aadpodidentity.k8s.io
+kubectl delete crd azureidentitybindings.aadpodidentity.k8s.io
+kubectl delete crd azurepodidentityexceptions.aadpodidentity.k8s.io
 ```
 
-11. Check the MIC has created a new `AzureAssignedIdentity` for your deployment.
-```shell
-kubectl get AzureAssignedIdentity
-...
-NAME                                CREATED AT
-demo-77d858d9f9-62d4r-default-msi   1m
+## Configuration
+
+The following tables list the configurable parameters of the aad-pod-identity chart and their default values.
+
+| Parameter                                | Description                                                                                                                                                                                                      | Default                                                  |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `image.repository`                       | Image repository                                                                                                                                                                                                 | `mcr.microsoft.com/k8s/aad-pod-identity`                 |
+| `image.pullPolicy`                       | Image pull policy                                                                                                                                                                                                | `Always`                                                 |
+| `forceNameSpaced`                        | By default, AAD Pod Identity matches pods to identities across namespaces. To match only pods in the namespace containing AzureIdentity set this to true.                                                        | `false`                                                  |
+| `adminsecret.cloud`                      | Azure cloud environment name                                                                                                                                                                                     | ` `                                                      |
+| `adminsecret.subscriptionID`             | Azure subscription ID                                                                                                                                                                                            | ` `                                                      |
+| `adminsecret.resourceGroup`              | Azure resource group                                                                                                                                                                                             | ` `                                                      |
+| `adminsecret.vmType`                     | `standard` for normal virtual machine nodes, and `vmss` for cluster deployed with a virtual machine scale set                                                                                                    | ` `                                                      |
+| `adminsecret.tenantID`                   | Azure service principal tenantID                                                                                                                                                                                 | ` `                                                      |
+| `adminsecret.clientID`                   | Azure service principal clientID                                                                                                                                                                                 | ` `                                                      |
+| `adminsecret.clientSecret`               | Azure service principal clientSecret                                                                                                                                                                             | ` `                                                      |
+| `mic.image`                              | MIC image name                                                                                                                                                                                                   | `mic`                                                    |
+| `mic.tag`                                | MIC image tag                                                                                                                                                                                                    | `1.5.2`                                                  |
+| `mic.logVerbosity`                       | Log level. Uses V logs (glog)                                                                                                                                                                                    | `0`                                                      |
+| `mic.resources`                          | Resource limit for MIC                                                                                                                                                                                           | `{}`                                                     |
+| `mic.tolerations`                        | Affinity settings                                                                                                                                                                                                | `{}`                                                     |
+| `mic.affinity`                           | List of node taints to tolerate                                                                                                                                                                                  | `[]`                                                     |
+| `mic.leaderElection.instance`            | Override leader election instance name                                                                                                                                                                           | If not provided, default value is `hostname`             |
+| `mic.leaderElection.namespace`           | Override the namespace to create leader election objects                                                                                                                                                         | `default`                                                |
+| `mic.leaderElection.name`                | Override leader election name                                                                                                                                                                                    | If not provided, default value is `aad-pod-identity-mic` |
+| `mic.leaderElection.duration`            | Override leader election duration                                                                                                                                                                                | If not provided, default value is `15s`                  |
+| `mic.probePort`                          | Override http liveliness probe port                                                                                                                                                                              | If not provided, default port is `8080`                  |
+| `mic.syncRetryDuration`                  | Override interval in seconds at which sync loop should periodically check for errors and reconcile                                                                                                               | If not provided, default value is `3600s`                |
+| `nmi.image`                              | NMI image name                                                                                                                                                                                                   | `nmi`                                                    |
+| `nmi.tag`                                | NMI image tag                                                                                                                                                                                                    | `1.5.2`                                                  |
+| `nmi.resources`                          | Resource limit for NMI                                                                                                                                                                                           | `{}`                                                     |
+| `nmi.tolerations`                        | Affinity settings                                                                                                                                                                                                | `{}`                                                     |
+| `nmi.affinity`                           | List of node taints to tolerate                                                                                                                                                                                  | `[]`                                                     |
+| `nmi.ipTableUpdateTimeIntervalInSeconds` | Override iptables update interval in seconds                                                                                                                                                                     | `60`                                                     |
+| `nmi.micNamespace`                       | Override mic namespace to short circuit MIC token requests                                                                                                                                                       | If not provided, default is `default` namespace          |
+| `nmi.probePort`                          | Override http liveliness probe port                                                                                                                                                                              | If not provided, default is `8080`                       |
+| `nmi.retryAttemptsForCreated`            | Override number of retries in NMI to find assigned identity in CREATED state                                                                                                                                     | If not provided, default is  `16`                        |
+| `nmi.retryAttemptsForAssigned`           | Override number of retries in NMI to find assigned identity in ASSIGNED state                                                                                                                                    | If not provided, default is  `4`                         |
+| `nmi.findIdentityRetryIntervalInSeconds` | Override retry interval to find assigned identities in seconds                                                                                                                                                   | If not provided, default is  `5`                         |
+| `rbac.enabled`                           | Create and use RBAC for all aad-pod-identity resources                                                                                                                                                           | `true`                                                   |
+| `rbac.allowAccessToSecrets`              | NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity. If using only MSI (type: 0) in AzureIdentity, secret get permission can be disabled by setting this to false. | `true`                                                   |
+| `azureIdentity.enabled`                  | Create azure identity and azure identity binding resource                                                                                                                                                        | `false`                                                  |
+| `azureIdentity.name`                     | Azure identity resource name                                                                                                                                                                                     | `azure-identity`                                         |
+| `azureIdentity.namespace`                | Azure identity resource namespace. Default value is release namespace                                                                                                                                            | ` `                                                      |
+| `azureIdentity.type`                     | Azure identity type - type 0: MSI, type 1: Service Principal                                                                                                                                                     | `0`                                                      |
+| `azureIdentity.resourceID`               | Azure identity resource ID                                                                                                                                                                                       | ` `                                                      |
+| `azureIdentity.clientID`                 | Azure identity client ID                                                                                                                                                                                         | ` `                                                      |
+| `azureIdentityBinding.name`              | Azure identity binding name                                                                                                                                                                                      | `azure-identity-binding`                                 |
+| `azureIdentityBinding.selector`          | Azure identity binding selector. The selector defined here will also need to be included in labels for app deployment.                                                                                           | `demo`                                                   |
+
+## Troubleshooting
+
+If the helm chart is deleted and then reinstalled without manually deleting the crds, then you can get an error like -
+
+```console
+➜ helm install aad-pod-identity/aad-pod-identity --name pod-identity
+Error: customresourcedefinitions.apiextensions.k8s.io "azureassignedidentities.aadpodidentity.k8s.io" already exists
 ```
 
-12. Check the NMI successfully retrieved a token for your app by viewing its logs
-```shell
-kubectl logs nmi-cn4cc
-...
-time="2018-09-19T13:56:20Z" level=info msg="Status (200) took 37041685 ns" req.method=GET req.path=/metadata/identity/oauth2/token req.remote=10.244.0.12
+In this case, since there is no update to the crd definition since it was last installed, you can use a parameter to say not to use hook to install the CRD:
+
+```console
+helm install aad-pod-identity/aad-pod-identity --name pod-identity --no-hooks
 ```
-
-13. Finally, validate your application is behaving and logging as expected. The demo application will log details about the MSI acquisition
-```
-kubectl logs demo-77d858d9f9-62d4r
-...
-time="2018-09-19T13:14:28Z" level=info msg="succesfully acquired a token using the MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token)" podip=10.244.0.12 podname=demo-77d858d9f9-62d4r podnamespace=demo-77d858d9f9-62d4r
-```
-
-## Known Issues
-
-__Error Redeploying Chart__
-
-If you have previously installed the helm chart, you may come across the following error message:
-```shell
-Error: object is being deleted: customresourcedefinitions.apiextensions.k8s.io ? "azureassignedidentities.aadpodidentity.k8s.io" already exists
-```
-This is because helm doesn't actively manage the `CustomResourceDefinition` resources that the chart created. The full discussion concerning this issue is available [here](https://github.com/helm/helm/issues/2994). We are using helm's [crd-install hooks](https://docs.helm.sh/developing_charts#defining-a-crd-with-the-crd-install-hook) to provision the `CustomResourceDefintion` resources before the rest of the chart is verified and deployed. We also use `hook-delete-policy` to try and clean down the resources before the next helm release is applied. Unfortunately, as CRD deletion is slow it doesn't appear to resolve the issue. This issue is tracked [here](https://github.com/helm/helm/issues/4440). The easiest solution is to manually delete the `CustomerResourceDefintion` resources or setup a job to do so.
-
-

@@ -26,10 +26,11 @@ export KEYVAULT_SECRET_NAME='...'
 
 # The version of the secret inserted into the keyvault
 export KEYVAULT_SECRET_VERSION='...'
-
+```
 
 Optionally, to use custom images:
 
+```bash
 # The registry where to get the images from. Defaults to `mcr.microsoft.com/k8s/aad-pod-identity`.
 export REGISTRY='...'
 
@@ -44,7 +45,12 @@ export IDENTITY_VALIDATOR_VERSION='...'
 
 ```
 
-At the same time, the tests utilizes two user assigned identities, `keyvault-identity` (have read access to the keyvault that you create) and `cluster-identity` (have read access to the resource group level). You can create necessary Azure resources and roles with the bash script [`setup.sh`](./setup.sh) (Note that reader assignment in the script might need a few attempts to succeed).
+If you are using system asssigned identity cluster, please set the following variable:
+```bash
+export SYSTEM_MSI_CLUSTER=true
+```
+
+The tests utilizes two user assigned identities - `keyvault-identity` (have read access to the keyvault that you create) and `cluster-identity` (have read access to the resource group level). You can create necessary Azure resources and roles with the bash script [`setup.sh`](./setup.sh) (Note that reader assignment in the script might need a few attempts to succeed).
 
 Finally, to start the E2E tests, execute the following commands:
 
@@ -108,6 +114,7 @@ To ensure consistency across all tests, they generally follow the format below:
 | Enable a user assigned identity on VMs, then assign a different user assigned identity to a pod | Pod identity should work as expected and the user assigned identity on VMs should not be altered after deleting the pod identity | Advanced |
 | Enable a user assigned identity on VMs, then assign the same user assigned identity to a pod | Pod identity should work as expected and the user assigned identity on VMs should not be altered after deleting the pod identity | Advanced |
 | Enable system assigned identity on VMs, then assign a user assigned identity to a pod | Pod identity should work as expected and the system assigned identity on VMs should not be altered after deleting the pod identity | Advanced |
+| Enforce user assigned identity format validation constraint with Gatekeeper | Azure identity with invalid resource ID should not be accepted | Advanced |
 
 ## Development
 

@@ -1,4 +1,5 @@
 # Deploy AAD Pod Identity with a dedicated service principal
+> Available from 1.5 release
 
 ## The why
 
@@ -13,7 +14,7 @@ The permission of the admin service principal needs to be 'Contributor' role ove
 Create a new service principal with the permission:
 
 ```
-az ad sp create-for-rbac -n "<sp_name>" --role "Contributor" --scopes "/subscriptions/<subscription-id>/resourceGroups/<MC_node_resource_group>" 
+az ad sp create-for-rbac -n "<sp_name>" --role "Contributor" --scopes "/subscriptions/<subscription-id>/resourceGroups/<MC_node_resource_group>"
 ```
 
 > Note the `appId` (client id), `password` (secret) and `tenant` from the resulting json, which will be used in creating the admin secret.
@@ -38,7 +39,7 @@ The `aadpodidentity-admin-secret` contains the following fields:
   * 'Cloud' should be chosen from the following case-insensitive values: `AzurePublicCloud`, `AzureUSGovernmentCloud`, `AzureChinaCloud`, `AzureGermanCloud` (values taken from [here](https://raw.githubusercontent.com/Azure/go-autorest/master/autorest/azure/environments.go)).
 * SubscriptionID: `<base64-encoded-subscription-id>`
 * ResourceGroup: `<base64-encoded-resource-group>`
-  * 'ResourceGroup' is the node resource group where the actual virtual machines or virtual machine scale set resides. 
+  * 'ResourceGroup' is the node resource group where the actual virtual machines or virtual machine scale set resides.
 * VMType: `<base64-encoded-vm-type>`
   * 'VMType' is optional and can be one of these values: `standard` for normal virtual machine nodes, and `vmss` for cluster deployed with a virtual machine scale set.
 * TenantID: `<base64-encoded-tenant-id>`

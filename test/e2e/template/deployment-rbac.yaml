@@ -41,6 +41,19 @@ spec:
     plural: azureidentities
   scope: Namespaced
 ---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: azurepodidentityexceptions.aadpodidentity.k8s.io
+spec:
+  group: aadpodidentity.k8s.io
+  version: v1
+  names:
+    kind: AzurePodIdentityException
+    singular: azurepodidentityexception
+    plural: azurepodidentityexceptions
+  scope: Namespaced
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -51,13 +64,13 @@ rules:
   verbs: ["get", "list"]
 - apiGroups: [""]
   resources: ["pods"]
-  verbs: ["get", "list"]
+  verbs: ["get", "list", "watch"]
 - apiGroups: ["aadpodidentity.k8s.io"]
-  resources: ["azureidentitybindings", "azureidentities"]
-  verbs: ["get", "list"]
+  resources: ["azureidentitybindings", "azureidentities", "azurepodidentityexceptions"]
+  verbs: ["get", "list", "watch"]
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureassignedidentities"]
-  verbs: ["get", "list"]
+  verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
@@ -112,11 +125,24 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
+        resources:
+          limits:
+            cpu: 200m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
         securityContext:
           privileged: true
           capabilities:
             add:
             - NET_ADMIN
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
@@ -140,6 +166,9 @@ rules:
 - apiGroups: [""]
   resources: ["events"]
   verbs: ["create", "patch"]
+- apiGroups: [""]
+  resources: ["endpoints"]
+  verbs: [ "create", "get", "update"]
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureidentitybindings", "azureidentities"]
   verbs: ["get", "list", "watch", "post"]
@@ -171,6 +200,7 @@ metadata:
   name: mic
   namespace: {{.Namespace}}
 spec:
+  replicas: 2
   template:
     metadata:
       labels:
@@ -185,10 +215,23 @@ spec:
           {{if .MICArg}}- mic {{ end }}
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1024Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
         volumeMounts:
           - name: k8s-azure-file
             mountPath: /etc/kubernetes/azure.json
             readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
       volumes:
       - name: k8s-azure-file
         hostPath:

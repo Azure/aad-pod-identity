@@ -1,3 +1,6 @@
+# System MSI cluster support
+> Available from 1.5 release
+
 ## Introduction
 
 The MIC component in aad-pod-identity needs to authenticate with the cloud to assign and remove user assigned identities onto

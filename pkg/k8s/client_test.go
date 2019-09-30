@@ -1,12 +1,24 @@
 package k8s
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"strings"
+	"sync"
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
+	fakerest "k8s.io/client-go/rest/fake"
 )
 
 func TestGetSecret(t *testing.T) {
@@ -32,70 +44,163 @@ func TestGetSecret(t *testing.T) {
 	}
 }
 
-/* This is commented because we are using listwatch now and it does not work in test due to: https://github.com/kubernetes/client-go/issues/352
-// Will uncomment and reenable in another PR.
-func TestGetPodName(t *testing.T) {
-	podIP := "10.0.0.8"
+type TestClientSet struct {
+	mu      *sync.Mutex
+	podList []v1.Pod
+}
 
+func (t *TestClientSet) GetTestClientSet() (kubernetes.Interface, *fakerest.RESTClient) {
+	TestGroupVersion := schema.GroupVersion{Group: "", Version: "v1"}
 	fakeClient := fake.NewSimpleClientset()
 
+	scheme := runtime.NewScheme()
+	scheme.AddKnownTypes(TestGroupVersion, &v1.PodList{})
+
+	fakeRestClient := &fakerest.RESTClient{
+		NegotiatedSerializer: serializer.DirectCodecFactory{
+			CodecFactory: serializer.NewCodecFactory(scheme)},
+		Resp: &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       t.SerializeObject(&metav1.APIVersions{Versions: []string{"version1"}}),
+		},
+		Client: fakerest.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
+			header := http.Header{}
+			header.Set("Content-Type", runtime.ContentTypeJSON)
+			return &http.Response{StatusCode: http.StatusOK, Header: header, Body: t.GetPodList()}, nil
+		}),
+	}
+	return fakeClient, fakeRestClient
+}
+
+func (t *TestClientSet) AddPod(name, ns, ip string) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	pod := &v1.Pod{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Pod",
+			APIVersion: "v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "testpodname",
-			Namespace: "default",
+			Name:      name,
+			Namespace: ns,
 		},
 		Status: v1.PodStatus{
-			PodIP: podIP,
+			PodIP: ip,
 		},
 	}
-	fakeClient.CoreV1().Pods("default").Create(pod)
+	t.podList = append(t.podList, *pod)
+}
 
-	kubeClient := &KubeClient{ClientSet: fakeClient}
+func (t *TestClientSet) DeletePod(name, ns string) {
+	for i, p := range t.podList {
+		if strings.EqualFold(name, p.Name) && strings.EqualFold(ns, p.Namespace) {
+			t.podList = append(t.podList[:i], t.podList[i+1:]...)
+			break
+		}
+	}
+}
 
-	podNs, podName, err := kubeClient.GetPodName(podIP)
+func (t *TestClientSet) SerializeObject(o interface{}) io.ReadCloser {
+	output, err := json.MarshalIndent(o, "", "")
+	if err != nil {
+		panic(err)
+	}
+	return ioutil.NopCloser(bytes.NewReader([]byte(output)))
+}
+
+func (t *TestClientSet) GetPodList() io.ReadCloser {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	podList := &v1.PodList{}
+	for _, p := range t.podList {
+		podList.Items = append(podList.Items, p)
+	}
+
+	podList.TypeMeta = metav1.TypeMeta{
+		Kind:       "PodList",
+		APIVersion: "v1",
+	}
+
+	return t.SerializeObject(podList)
+}
+
+/*
+func TestGetPodInfo(t *testing.T) {
+
+	testClientSet := &TestClientSet{mu: &sync.Mutex{}}
+	client, restClient := testClientSet.GetTestClientSet()
+
+	optionsModifier := func(options *metav1.ListOptions) {}
+	podListWatch := cache.NewFilteredListWatchFromClient(
+		restClient,
+		"pods",
+		v1.NamespaceAll,
+		optionsModifier,
+	)
+	kubeClient := &KubeClient{ClientSet: client, PodListWatch: podListWatch}
+
+	// Test a single pod
+	testPodName := "testpodname"
+	testPodNs := "default"
+	testPodIP := "10.0.0.8"
+	testClientSet.AddPod(testPodName, testPodNs, testPodIP)
+	podNs, podName, _, _, err := kubeClient.GetPodInfo(testPodIP)
 	if err != nil {
 		t.Fatalf("Error getting pod: %v", err)
 	}
-	if podName != "testpodname" {
+	if podName != testPodName {
 		t.Fatalf("Incorrect pod name: %v", podName)
 	}
-	if podNs != "default" {
+	if podNs != testPodNs {
 		t.Fatalf("Incorrect pod ns: %v", podNs)
+	}
+
+	// Delete test
+	testPodIP = "10.0.0.8"
+	testClientSet.DeletePod(testPodName, testPodNs)
+	podNs, podName, _, _, err = kubeClient.GetPodInfo(testPodIP)
+	if err == nil {
+		t.Fatal("Pod still in pod list")
 	}
 }
 
 func TestPodListRetries(t *testing.T) {
 	// this test is to solely test the retry and sleep logic works as expected
 	podIP := "10.0.0.8"
+	testClientSet := &TestClientSet{mu: &sync.Mutex{}}
+	client, restClient := testClientSet.GetTestClientSet()
 
-	fakeClient := fake.NewSimpleClientset()
+	testPodName := "testpodname"
+	testPodNs := "default"
+	testPodIP := "10.0.0.8"
 
-	pod := &v1.Pod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "testpodname1",
-			Namespace: "default",
-		},
-		Status: v1.PodStatus{
-			PodIP: podIP,
-		},
-	}
-	kubeClient := &KubeClient{ClientSet: fakeClient}
+	optionsModifier := func(options *metav1.ListOptions) {}
+	podListWatch := cache.NewFilteredListWatchFromClient(
+		restClient,
+		"pods",
+		v1.NamespaceAll,
+		optionsModifier,
+	)
+
+	kubeClient := &KubeClient{ClientSet: client, PodListWatch: podListWatch}
 
 	time.AfterFunc(time.Duration(1200*time.Millisecond), func() {
-		fakeClient.CoreV1().Pods("default").Create(pod)
+		testClientSet.AddPod(testPodName, testPodNs, testPodIP)
 	})
 
 	start := time.Now()
-	podNs, podName, err := kubeClient.GetPodName(podIP)
+	podNs, podName, _, _, err := kubeClient.GetPodInfo(podIP)
 	elapsed := time.Since(start)
 
 	if err != nil {
 		t.Fatalf("Error getting pod: %v", err)
 	}
-	if podName != "testpodname1" {
+	if podName != testPodName {
 		t.Fatalf("Incorrect pod name: %v", podName)
 	}
-	if podNs != "default" {
+	if podNs != testPodNs {
 		t.Fatalf("Incorrect pod ns: %v", podNs)
 	}
 	// check the retries actually work as the pod object is created only after 1.2s
@@ -104,7 +209,6 @@ func TestPodListRetries(t *testing.T) {
 	}
 }
 */
-
 func TestGetReplicaSet(t *testing.T) {
 	pod := &v1.Pod{}
 	rsIndex := 1

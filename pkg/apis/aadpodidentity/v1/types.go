@@ -70,6 +70,18 @@ type AzureAssignedIdentity struct {
 	Status AzureAssignedIdentityStatus `json:"Status"`
 }
 
+//AzurePodIdentityException contains the pod selectors for all pods that don't require
+// NMI to process and request token on their behalf.
+
+//+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type AzurePodIdentityException struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   AzurePodIdentityExceptionSpec   `json:"spec"`
+	Status AzurePodIdentityExceptionStatus `json:"Status"`
+}
+
 /*** Lists ***/
 //+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AzureIdentityList struct {
@@ -93,6 +105,14 @@ type AzureAssignedIdentityList struct {
 	metav1.ListMeta `json:"metadata"`
 
 	Items []AzureAssignedIdentity `json:"items"`
+}
+
+//+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+type AzurePodIdentityExceptionList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []AzurePodIdentityException `json:"items"`
 }
 
 /*** AzureIdentity ***/
@@ -150,9 +170,10 @@ const (
 )
 
 const (
-	AzureIDResource         = "azureidentities"
-	AzureIDBindingResource  = "azureidentitybindings"
-	AzureAssignedIDResource = "azureassignedidentities"
+	AzureIDResource                = "azureidentities"
+	AzureIDBindingResource         = "azureidentitybindings"
+	AzureAssignedIDResource        = "azureassignedidentities"
+	AzureIdentityExceptionResource = "azurepodidentityexceptions"
 )
 
 // AzureIdentityBindingSpec matches the pod with the Identity.
@@ -190,4 +211,18 @@ type AzureAssignedIdentityStatus struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	Status            string `json:"status"`
 	AvailableReplicas int32  `json:"availableReplicas"`
+}
+
+// AzurePodIdentityExceptionSpec matches pods with the selector defined.
+// If request originates from a pod that matches the selector, nmi will
+// proxy the request and send response back without any validation.
+type AzurePodIdentityExceptionSpec struct {
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	PodLabels         map[string]string `json:"podLabels"`
+}
+
+// AzurePodIdentityExceptionStatus ...
+type AzurePodIdentityExceptionStatus struct {
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	Status            string `json:"status"`
 }

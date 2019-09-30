@@ -2,12 +2,14 @@ package aadpodidentity
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
 	"os/exec"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
@@ -16,6 +18,7 @@ import (
 	"github.com/Azure/aad-pod-identity/test/common/k8s/azureassignedidentity"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/azureidentity"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/azureidentitybinding"
+	"github.com/Azure/aad-pod-identity/test/common/k8s/azurepodidentityexception"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/daemonset"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/deploy"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/infra"
@@ -24,6 +27,8 @@ import (
 	"github.com/Azure/aad-pod-identity/test/common/util"
 	"github.com/Azure/aad-pod-identity/test/e2e/config"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
+	rl "k8s.io/client-go/tools/leaderelection/resourcelock"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -39,6 +44,8 @@ const (
 var (
 	cfg                config.Config
 	templateOutputPath = path.Join("template", "_output")
+	logsPath           = path.Join("_output", "logs")
+	testIndex          = 0
 )
 
 var _ = BeforeSuite(func() {
@@ -52,7 +59,7 @@ var _ = BeforeSuite(func() {
 	c, err := config.ParseConfig()
 	Expect(err).NotTo(HaveOccurred())
 	cfg = *c
-
+	fmt.Printf("System MSI enabled: %v\n", cfg.SystemMSICluster)
 	setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion)
 })
 
@@ -102,9 +109,17 @@ var _ = AfterSuite(func() {
 })
 
 var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
+	BeforeEach(func() {
+		testIndex++
+		fmt.Printf("\n\n[%d] %s\n", testIndex, CurrentGinkgoTestDescription().TestText)
+	})
+
 	AfterEach(func() {
 		fmt.Println("\nTearing down the test environment...")
-
+		if CurrentGinkgoTestDescription().Failed {
+			fmt.Println("Test failed. Collecting debugging information.")
+			collectDebuggingInfo()
+		}
 		// Ensure a clean cluster after the end of each test
 		cmd := exec.Command("kubectl", "delete", "AzureIdentity,AzureIdentityBinding", "--all")
 		util.PrintCommand(cmd)
@@ -487,6 +502,9 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should not alter the system assigned identity after creating and deleting pod identity", func() {
+		if cfg.SystemMSICluster {
+			Skip("Test running on system assigned MSI cluster. Skip specific system MSI tests")
+		}
 		// Assign system assigned identity to every node
 		nodeList, err := node.GetAll()
 		Expect(err).NotTo(HaveOccurred())
@@ -534,14 +552,14 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		removeSystemAssignedIdentityOnCluster(nodeList)
 	})
 
-	It("should create azureassignedidentities for 40 pods within ~2mins", func() {
+	It("should create azureassignedidentities for 40 pods within ~2mins 30seconds", func() {
 		// setup all the 40 pods in a loop to ensure mic handles
 		// scale out efficiently
 		for i := 0; i < 5; i++ {
 			setUpIdentityAndDeployment(keyvaultIdentity, fmt.Sprintf("%d", i), "8")
 		}
 
-		// WaitOnLengthMatched waits for 2 mins, so this will ensure we are performant at high scale
+		// WaitOnLengthMatched waits for 2 mins 30 seconds, so this will ensure we are performant at high scale
 		ok, err := azureassignedidentity.WaitOnLengthMatched(40)
 		Expect(ok).To(Equal(true))
 		Expect(err).NotTo(HaveOccurred())
@@ -564,6 +582,9 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should be backward compatible with old and new version of mic and nmi", func() {
+		if cfg.SystemMSICluster {
+			Skip("Test running on system assigned MSI cluster. Skip backward compat tests since old versions did not support system MSI clusters")
+		}
 		// Uninstall CRDs and delete MIC and NMI
 		err := deploy.Delete("default", templateOutputPath)
 		Expect(err).NotTo(HaveOccurred())
@@ -573,7 +594,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(ok).To(Equal(true))
 
 		// setup mic and nmi with old releases
-		setupInfra("mcr.microsoft.com/k8s/aad-pod-identity", "1.4", "1.3")
+		setupInfraOld("mcr.microsoft.com/k8s/aad-pod-identity", "1.4", "1.3")
 
 		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
@@ -587,6 +608,9 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		ok, err = daemonset.WaitOnReady(nmiDaemonSet)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
+
+		// TODO (aramase) make this deterministic by ensuring pods with desired image are running
+		time.Sleep(30 * time.Second)
 
 		ok, err = waitForIPTableRulesToExist("busybox")
 		Expect(err).NotTo(HaveOccurred())
@@ -626,7 +650,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		}
 
 		if vmssID == "" {
-			fmt.Println("skipping test since no there is no vmss with more than 1 node")
+			Skip("Skipping test since there is no vmss with more than 1 node")
 			return
 		}
 
@@ -667,15 +691,447 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(exists).To(Equal(true))
 	})
+
+	It("should pass liveness probe test", func() {
+		pods, err := pod.GetAllNameByPrefix("mic")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(pods).NotTo(BeNil())
+
+		leader, err := getMICLeader()
+		Expect(err).NotTo(HaveOccurred())
+		fmt.Printf("MIC leader: %s\n", leader)
+
+		for _, p := range pods {
+			// Leader MIC will show as active and other as Not Active
+			if strings.EqualFold(p, leader) {
+				checkHealthProbe(p, "Active")
+			} else {
+				checkHealthProbe(p, "Not Active")
+			}
+		}
+
+		pods, err = pod.GetAllNameByPrefix("nmi")
+		Expect(err).NotTo(HaveOccurred())
+		Expect(pods).NotTo(BeNil())
+		for _, p := range pods {
+			checkHealthProbe(p, "Active")
+		}
+	})
+
+	It("should pass validation by bypassing nmi using azurepodidentityexception crd", func() {
+		// Creates 2 pods with labels defined in AzurePodIdentityException
+		// Creates 1 pod that needs to go through pod-identity
+		// Validates the mixed scenario works as expected.
+
+		// Assign user assigned identity to every node
+		nodeList, err := node.GetAll()
+		Expect(err).NotTo(HaveOccurred())
+
+		enableUserAssignedIdentityOnCluster(nodeList, fmt.Sprintf("%s-%d", keyvaultIdentity, 1))
+		enableUserAssignedIdentityOnCluster(nodeList, fmt.Sprintf("%s-%d", keyvaultIdentity, 2))
+
+		// If we have system assigned MSI cluster, the identity validator check for generating system
+		// assigned MSI token will work without adding system assigned identity explicitly.
+		if !cfg.SystemMSICluster {
+			enableSystemAssignedIdentityOnCluster(nodeList)
+		}
+
+		err = azurepodidentityexception.Create(fmt.Sprintf("%s-%d", identityValidator, 1), templateOutputPath, map[string]string{"thispod": "shouldexcept"})
+		Expect(err).NotTo(HaveOccurred())
+
+		err = azurepodidentityexception.Create(fmt.Sprintf("%s-%d", identityValidator, 2), templateOutputPath, map[string]string{"thispod": "alsoshouldexcept"})
+		Expect(err).NotTo(HaveOccurred())
+
+		data := infra.IdentityValidatorTemplateData{
+			Name:                     fmt.Sprintf("%s-%d", identityValidator, 1),
+			IdentityBinding:          "random",
+			Registry:                 cfg.Registry,
+			IdentityValidatorVersion: cfg.IdentityValidatorVersion,
+			Replicas:                 "1",
+			DeploymentLabels:         map[string]string{"thispod": "shouldexcept"},
+		}
+
+		err = infra.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, templateOutputPath, data)
+		Expect(err).NotTo(HaveOccurred())
+
+		data = infra.IdentityValidatorTemplateData{
+			Name:                     fmt.Sprintf("%s-%d", identityValidator, 2),
+			IdentityBinding:          "random",
+			Registry:                 cfg.Registry,
+			IdentityValidatorVersion: cfg.IdentityValidatorVersion,
+			Replicas:                 "1",
+			DeploymentLabels:         map[string]string{"thispod": "alsoshouldexcept"},
+		}
+
+		err = infra.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, templateOutputPath, data)
+		Expect(err).NotTo(HaveOccurred())
+
+		ok, err := deploy.WaitOnReady(fmt.Sprintf("%s-%d", identityValidator, 1))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		ok, err = deploy.WaitOnReady(fmt.Sprintf("%s-%d", identityValidator, 2))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		setUpIdentityAndDeployment(keyvaultIdentity, "0", "1")
+
+		ok, err = azureassignedidentity.WaitOnLengthMatched(1)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		// This pod should go through the nmi as it has the aadpodidbinding label and doesn't contain exception crd
+		podName0, err := pod.GetNameByPrefix(fmt.Sprintf("%s-%d", identityValidator, 0))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(podName0).NotTo(Equal(""))
+
+		identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, fmt.Sprintf("%s-%d", keyvaultIdentity, 0))
+		Expect(err).NotTo(HaveOccurred())
+
+		cmdOutput, err := validateUserAssignedIdentityOnPod(podName0, identityClientID)
+		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
+
+		// Pod1 and Pod2 have labels matching labels defined in exception crds. So NMI should proxy the request as is
+		// and send the token back without any validation.
+		podName1, err := pod.GetNameByPrefix(fmt.Sprintf("%s-%d", identityValidator, 1))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(podName1).NotTo(Equal(""))
+
+		identityClientID, err = azure.GetIdentityClientID(cfg.ResourceGroup, fmt.Sprintf("%s-%d", keyvaultIdentity, 1))
+		Expect(err).NotTo(HaveOccurred())
+
+		cmdOutput, err = validateUserAssignedIdentityOnPod(podName1, identityClientID)
+		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
+
+		podName2, err := pod.GetNameByPrefix(fmt.Sprintf("%s-%d", identityValidator, 2))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(podName2).NotTo(Equal(""))
+
+		identityClientID, err = azure.GetIdentityClientID(cfg.ResourceGroup, fmt.Sprintf("%s-%d", keyvaultIdentity, 2))
+		Expect(err).NotTo(HaveOccurred())
+
+		cmdOutput, err = validateUserAssignedIdentityOnPod(podName2, identityClientID)
+		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
+
+		removeUserAssignedIdentityFromCluster(nodeList, fmt.Sprintf("%s-%d", keyvaultIdentity, 1))
+		removeUserAssignedIdentityFromCluster(nodeList, fmt.Sprintf("%s-%d", keyvaultIdentity, 2))
+		if !cfg.SystemMSICluster {
+			removeSystemAssignedIdentityOnCluster(nodeList)
+		}
+	})
+
+	It("should pass identity validation with correct identity and fail with wrong identity", func() {
+		// This test is to ensure when 2 identities for the pod exist, the
+		// correct identity is used based on the client id in the request.
+		// keyvault-identity has the right permissions to get and list secret
+		// keyvault-identity-5 only has permission to list and should fail to get secret.
+
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
+
+		err := azureidentity.CreateOnCluster(cfg.SubscriptionID, cfg.ResourceGroup, fmt.Sprintf("%s-%d", keyvaultIdentity, 5), templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = azureidentitybinding.Create(fmt.Sprintf("%s-%d", keyvaultIdentity, 5), keyvaultIdentity, templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+
+		ok, err := azureassignedidentity.WaitOnLengthMatched(2)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		podName, err := pod.GetNameByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(podName).NotTo(Equal(""))
+
+		identityClientID, err := azure.GetIdentityClientID(cfg.ResourceGroup, fmt.Sprintf("%s-%d", keyvaultIdentity, 5))
+		Expect(err).NotTo(HaveOccurred())
+
+		cmdOutput, err := validateUserAssignedIdentityOnPod(podName, identityClientID)
+		Expect(errors.Wrap(err, string(cmdOutput))).To(HaveOccurred())
+
+		identityClientID, err = azure.GetIdentityClientID(cfg.ResourceGroup, keyvaultIdentity)
+		Expect(err).NotTo(HaveOccurred())
+
+		cmdOutput, err = validateUserAssignedIdentityOnPod(podName, identityClientID)
+		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
+	})
+
+	It("should delete assigned identity when identity no longer exists on underlying node", func() {
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
+
+		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+
+		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity)
+
+		nodeList, err := node.GetAll()
+		Expect(err).NotTo(HaveOccurred())
+		// remove the assigned identity manually from the underlying node
+		removeUserAssignedIdentityFromCluster(nodeList, keyvaultIdentity)
+
+		waitForDeployDeletion(identityValidator)
+		ok, err = azureassignedidentity.WaitOnLengthMatched(0)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+	})
+
+	It("should pass multiple identity validating test even when MIC is failing over", func() {
+		// Two go routines - one which keeps assigning identities by means of identity validator assignment.
+		iterations := 2
+		var wg sync.WaitGroup
+		wg.Add(2)
+
+		go func(iterations int) {
+			defer wg.Done()
+			runMICDisrupt(iterations)
+			fmt.Printf("Disrupting MIC completed %d iterations\n", iterations)
+		}(iterations)
+
+		go func(iterations int) {
+			defer wg.Done()
+			runValidatorTest(iterations)
+			fmt.Printf("Validator tests completed %d iterations\n", iterations)
+		}(iterations)
+
+		wg.Wait()
+		fmt.Printf("Done with running validator test and disrupting MIC")
+	})
+
+	It("should assign identity with init containers", func() {
+		// should create an assigned identity when pod with init container is created
+		// In this test, we run az login --identity in an init container. This command will succeed only when
+		// identity has been successfully assigned for pod by NMI. Then we also perform an additional validation
+		// for the user assigned identity within the identity validator container.
+
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1", func(d *infra.IdentityValidatorTemplateData) {
+			d.InitContainer = true
+		})
+
+		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+
+		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity)
+	})
+
+	It("should pass the identity format validation with gatekeeper constraint", func() {
+
+		// setup the required infra
+		setupIdentityFormatValidationInfra()
+
+		// cleanup the infra created for this specific test
+		// uninstall the identity format constraint ,identity format template,Gatekeeper in sequence
+		defer cleanupIdentityFormatValidationInfra()
+
+		cmd := exec.Command("kubectl", "apply", "-f", "template/aadpodidentity_test_invalid.yaml")
+		util.PrintCommand(cmd)
+		output, err := cmd.CombinedOutput()
+		fmt.Printf("%s", output)
+		// this should fail given the constraint on the resourceId format
+		Expect(err).To(HaveOccurred())
+
+		cmd = exec.Command("kubectl", "apply", "-f", "template/aadpodidentity_test_valid.yaml")
+		util.PrintCommand(cmd)
+		output, err = cmd.CombinedOutput()
+		fmt.Printf("%s", output)
+		Expect(err).NotTo(HaveOccurred())
+	})
 })
 
-// setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
-func setupInfra(registry, nmiVersion, micVersion string) {
-	// Install CRDs and deploy MIC and NMI
-	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath)
+func runValidatorTest(iterations int) {
+	defer GinkgoRecover()
+	replicas := "1"
+	data := infra.IdentityValidatorTemplateData{
+		Name:                     identityValidator,
+		IdentityBinding:          keyvaultIdentity,
+		Registry:                 cfg.Registry,
+		IdentityValidatorVersion: cfg.IdentityValidatorVersion,
+		Replicas:                 replicas,
+	}
+	var err error
 
+	for i := 0; i < iterations; i++ {
+		fmt.Printf("Starting identity validator. Iteration: %d\n", i)
+
+		if i == 0 {
+			// Initial creation of identity, binding and identityvalidator pod.
+			setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
+		} else { // After the initial one only create and delete the identity validator.
+			err = infra.CreateIdentityValidator(cfg.SubscriptionID, cfg.ResourceGroup, templateOutputPath, data)
+			Expect(err).NotTo(HaveOccurred())
+		}
+
+		ok, err := deploy.WaitOnReady(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		ok, err = azureassignedidentity.WaitOnLengthMatched(1)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity)
+
+		deleteAllIdentityValidator()
+
+		ok, err = azureassignedidentity.WaitOnLengthMatched(0)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+	}
+	fmt.Printf("Completing %d validation checks\n", iterations)
+}
+
+func runMICDisrupt(iterations int) {
+	defer GinkgoRecover()
+	delay := time.Second * 60
+	for i := 0; i < iterations; i++ {
+		fmt.Printf("Starting MIC disruptor. Iteration: %d\n", i)
+		leader, err := getMICLeader()
+		Expect(err).NotTo(HaveOccurred())
+		fmt.Printf("MIC leader: %s\n", leader)
+		Expect(pod.DeletePod(leader)).NotTo(HaveOccurred())
+		waitForLeaderChange(leader)
+		// Wait for some time for MIC to go through some iterations.
+		time.Sleep(delay)
+	}
+	fmt.Printf("Completing disrupting MIC %d times.\n", iterations)
+}
+
+func waitForLeaderChange(checkLeader string) {
+	// Total 60 seconds for leader change.
+	retries := 12
+	sleepTime := time.Second * 5
+
+	for i := 0; i < retries; i++ {
+		currentLeader, err := getMICLeader()
+		Expect(err).NotTo(HaveOccurred())
+		if !strings.EqualFold(currentLeader, checkLeader) {
+			fmt.Printf("Leader changed from %s to %s\n", checkLeader, currentLeader)
+			return
+		}
+		time.Sleep(sleepTime)
+	}
+	Expect(false).Should(Equal(true), "Leader change did not happen in 60 seconds")
+}
+
+func collectLogs(podName, dir string) {
+	pods, err := pod.GetAllNameByPrefix(podName)
+	Expect(err).NotTo(HaveOccurred())
+	for _, p := range pods {
+		logFile := path.Join(dir, p)
+		cmd := exec.Command("bash", "-c", "kubectl logs "+p+" > "+logFile)
+		util.PrintCommand(cmd)
+		_, err := cmd.Output()
+		Expect(err).NotTo(HaveOccurred())
+	}
+}
+
+func collectPods(dir string) {
+	logFile := path.Join(dir, "pods")
+	cmd := exec.Command("bash", "-c", "kubectl get pods -o wide > "+logFile)
+	util.PrintCommand(cmd)
+	_, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+}
+
+func collectEvents(dir string) {
+	logFile := path.Join(dir, "events")
+	cmd := exec.Command("bash", "-c", "kubectl get  events --sort-by='.metadata.creationTimestamp' >"+logFile)
+	util.PrintCommand(cmd)
+	_, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+}
+
+func collectLeEndpoint(dir string) {
+	logFile := path.Join(dir, "leEndpoint")
+	cmd := exec.Command("bash", "-c", "kubectl get endpoints aad-pod-identity-mic -o yaml >"+logFile)
+	util.PrintCommand(cmd)
+	_, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+}
+
+func collectAadpodidentityInfoInternal(dir, crdName string) {
+	logFile := path.Join(dir, crdName)
+	cmd := exec.Command("bash", "-c", "kubectl get "+crdName+" -o yaml >"+logFile)
+	util.PrintCommand(cmd)
+	_, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+}
+
+func collectAadpodidentityInfo(dir string) {
+	collectAadpodidentityInfoInternal(dir, "azureidentities")
+	collectAadpodidentityInfoInternal(dir, "azureidentitybindings")
+	collectAadpodidentityInfoInternal(dir, "azureassignedidentities")
+}
+
+func collectDebuggingInfo() {
+	tNow := time.Now()
+	logDirName := path.Join(logsPath, tNow.Format(time.RFC3339))
+	err := os.MkdirAll(logDirName, os.ModePerm)
 	Expect(err).NotTo(HaveOccurred())
 
+	infoFile := path.Join(logDirName, "info")
+	fd, err := os.Create(infoFile)
+	Expect(err).NotTo(HaveOccurred())
+
+	fd.WriteString("Test name: " + CurrentGinkgoTestDescription().TestText + "\n")
+	fd.WriteString("Collecting diagnostics at: " + tNow.Format(time.UnixDate))
+	fd.Sync()
+	fd.Close()
+
+	collectPods(logDirName)
+	collectEvents(logDirName)
+	collectLeEndpoint(logDirName)
+	collectAadpodidentityInfo(logDirName)
+	collectLogs("mic", logDirName)
+	collectLogs("nmi", logDirName)
+	collectLogs("identityvalidator", logDirName)
+	collectLogs("busybox", logDirName)
+}
+
+func getMICLeader() (string, error) {
+	cmd := exec.Command("kubectl", "get", "endpoints", "aad-pod-identity-mic", "-o", "json")
+	output, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+
+	const leAnnotation = "control-plane.alpha.kubernetes.io/leader"
+
+	ep := &corev1.Endpoints{}
+	if err := json.Unmarshal(output, &ep); err != nil {
+		return "", errors.Wrap(err, "Failed to unmarshall json")
+	}
+
+	leRecordStr := ep.Annotations[leAnnotation]
+	if leRecordStr == "" {
+		return "", fmt.Errorf("Leader election record empty ")
+	}
+
+	leRecord := &rl.LeaderElectionRecord{}
+	if err := json.Unmarshal([]byte(leRecordStr), leRecord); err != nil {
+		return "", errors.Wrapf(err, "Could not unmarshall: %s. Error: %+v", leRecordStr, err)
+	}
+	return leRecord.HolderIdentity, nil
+}
+
+func checkProbe(p string, endpoint string) string {
+	output, err := pod.RunCommandInPod("exec", p, "--", "wget", "http://127.0.0.1:8080/"+endpoint, "-q", "-O", "-")
+	Expect(err).NotTo(HaveOccurred())
+	fmt.Printf("Output: %s\n", output)
+	return output
+}
+
+func checkHealthProbe(p string, state string) {
+	Expect(strings.EqualFold(state, checkProbe(p, "healthz"))).To(BeTrue())
+}
+
+func checkInfra() {
 	ok, err := daemonset.WaitOnReady(nmiDaemonSet)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(ok).To(Equal(true))
@@ -708,6 +1164,22 @@ func setupInfra(registry, nmiVersion, micVersion string) {
 	Expect(ok).To(Equal(true))
 }
 
+// setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
+func setupInfraOld(registry, nmiVersion, micVersion string) {
+	// Install CRDs and deploy MIC and NMI
+	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, true)
+	Expect(err).NotTo(HaveOccurred())
+	checkInfra()
+}
+
+// setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
+func setupInfra(registry, nmiVersion, micVersion string) {
+	// Install CRDs and deploy MIC and NMI
+	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, false)
+	Expect(err).NotTo(HaveOccurred())
+	checkInfra()
+}
+
 // setUpIdentityAndDeployment will deploy AzureIdentity, AzureIdentityBinding, and an identity validator
 // Suffix will give the tests the option to add a suffix to the end of the identity name, useful for scale tests
 // replicas to indicate the number of replicas for the deployment
@@ -722,11 +1194,11 @@ func setUpIdentityAndDeployment(azureIdentityName, suffix, replicas string, tmpl
 	err := azureidentity.CreateOnCluster(cfg.SubscriptionID, cfg.ResourceGroup, azureIdentityName, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
-	err = azureidentitybinding.Create(azureIdentityName, templateOutputPath)
+	err = azureidentitybinding.Create(azureIdentityName, azureIdentityName, templateOutputPath)
 	Expect(err).NotTo(HaveOccurred())
 
 	data := infra.IdentityValidatorTemplateData{
-		Name:                     identityValidator,
+		Name:                     identityValidatorName,
 		IdentityBinding:          azureIdentityName,
 		Registry:                 cfg.Registry,
 		IdentityValidatorVersion: cfg.IdentityValidatorVersion,
@@ -817,6 +1289,7 @@ func validateUserAssignedIdentityOnPod(podName, identityClientID string) ([]byte
 		"--keyvault-name", cfg.KeyvaultName,
 		"--keyvault-secret-name", cfg.KeyvaultSecretName,
 		"--keyvault-secret-version", cfg.KeyvaultSecretVersion)
+	util.PrintCommand(cmd)
 	return cmd.CombinedOutput()
 }
 
@@ -828,11 +1301,12 @@ func validateClusterWideUserAssignedIdentity(podName, identityClientID string) (
 		"--subscription-id", cfg.SubscriptionID,
 		"--resource-group", cfg.ResourceGroup,
 		"--identity-client-id", identityClientID)
+	util.PrintCommand(cmd)
 	return cmd.CombinedOutput()
 }
 
 // enableUserAssignedIdentityOnCluster will assign an azure identity to all the worker nodes in a cluster
-func enableUserAssignedIdentityOnCluster(nodeList *node.List, azureIdentityName string) {
+func enableUserAssignedIdentityOnCluster(nodeList *node.List, identityName string) {
 	for _, n := range nodeList.Nodes {
 		if strings.Contains(n.Name, "master") {
 			continue
@@ -842,13 +1316,13 @@ func enableUserAssignedIdentityOnCluster(nodeList *node.List, azureIdentityName 
 		m, err := getResourceManager(&n)
 		Expect(err).NotTo(HaveOccurred())
 
-		err = m.EnableUserAssignedIdentity(clusterIdentity)
+		err = m.EnableUserAssignedIdentity(identityName)
 		Expect(err).NotTo(HaveOccurred())
 	}
 }
 
 // removeUserAssignedIdentityFromCluster will remove an azure identity from all the worker nodes in a cluster
-func removeUserAssignedIdentityFromCluster(nodeList *node.List, azureIdentityName string) {
+func removeUserAssignedIdentityFromCluster(nodeList *node.List, identityName string) {
 	for _, n := range nodeList.Nodes {
 		if strings.Contains(n.Name, "master") {
 			continue
@@ -858,7 +1332,7 @@ func removeUserAssignedIdentityFromCluster(nodeList *node.List, azureIdentityNam
 		m, err := getResourceManager(&n)
 		Expect(err).NotTo(HaveOccurred())
 
-		err = m.RemoveUserAssignedIdentity(clusterIdentity)
+		err = m.RemoveUserAssignedIdentity(identityName)
 		Expect(err).NotTo(HaveOccurred())
 	}
 }
@@ -963,6 +1437,55 @@ func getResourceManager(n *node.Node) (resourceManager, error) {
 	}
 }
 
+// setupIdentityFormatValidationInfra install Gatekeeper, format template and constraints
+func setupIdentityFormatValidationInfra() {
+	// install Gatekeeper policy controller
+	err := infra.InstallGatekeeper()
+	Expect(err).NotTo(HaveOccurred())
+
+	var output []byte
+	// install identity format template
+	cmd := exec.Command("kubectl", "apply", "-f", "../../validation/gatekeeper/azureidentityformat_template.yaml")
+	util.PrintCommand(cmd)
+	output, err = cmd.CombinedOutput()
+	fmt.Printf("%s", output)
+	Expect(err).NotTo(HaveOccurred())
+
+	// constraint template takes time to init to handle request, leading to failure
+	// added to make reliable, can be converted to deterministic sleep by retrying after GET on expected resource
+	time.Sleep(60 * time.Second)
+
+	// install identity format constraint
+	cmd = exec.Command("kubectl", "apply", "-f", "../../validation/gatekeeper/azureidentityformat_constraint.yaml")
+	util.PrintCommand(cmd)
+	output, err = cmd.CombinedOutput()
+	fmt.Printf("%s", output)
+	Expect(err).NotTo(HaveOccurred())
+
+	// constraint takes time to init
+	time.Sleep(60 * time.Second)
+}
+
+// cleanupIdentityFormatValidationInfra delete Gatekeeper, format template and constraints
+func cleanupIdentityFormatValidationInfra() {
+
+	// uninstall identity format constraint
+	cmd := exec.Command("kubectl", "delete", "-f", "../../validation/gatekeeper/azureidentityformat_constraint.yaml")
+	util.PrintCommand(cmd)
+	_, err := cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+
+	// uninstall identity format template
+	cmd = exec.Command("kubectl", "delete", "-f", "../../validation/gatekeeper/azureidentityformat_template.yaml")
+	util.PrintCommand(cmd)
+	_, err = cmd.CombinedOutput()
+	Expect(err).NotTo(HaveOccurred())
+
+	// uninstall Gatekeeper policy controller
+	err = infra.UninstallGatekeeper()
+	Expect(err).NotTo(HaveOccurred())
+}
+
 type resourceManager interface {
 	GetUserAssignedIdentities() (map[string]azure.UserAssignedIdentity, error)
 	GetSystemAssignedIdentity() (string, string, error)
@@ -1022,8 +1545,10 @@ func (m vmManager) RemoveAllIdentities() error {
 			errs = append(errs, err)
 		}
 	}
-	if err := m.RemoveSystemAssignedIdentity(); err != nil {
-		errs = append(errs, err)
+	if !cfg.SystemMSICluster {
+		if err := m.RemoveSystemAssignedIdentity(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 	return errs
 }
@@ -1070,8 +1595,10 @@ func (m vmssManager) RemoveAllIdentities() error {
 			errs = append(errs, err)
 		}
 	}
-	if err := m.RemoveSystemAssignedIdentity(); err != nil {
-		errs = append(errs, err)
+	if !cfg.SystemMSICluster {
+		if err := m.RemoveSystemAssignedIdentity(); err != nil {
+			errs = append(errs, err)
+		}
 	}
 	return errs
 }

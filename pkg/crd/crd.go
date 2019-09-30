@@ -3,11 +3,13 @@ package crd
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/golang/glog"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	inlog "github.com/Azure/aad-pod-identity/pkg/logger"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,18 +22,20 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
+// Client represents all the watchers
 type Client struct {
-	rest                *rest.RESTClient
-	BindingListWatch    *cache.ListWatch
-	BindingInformer     cache.SharedInformer
-	IDListWatch         *cache.ListWatch
-	IDInformer          cache.SharedInformer
-	AssignedIDListWatch *cache.ListWatch
+	rest                         *rest.RESTClient
+	BindingInformer              cache.SharedInformer
+	IDInformer                   cache.SharedInformer
+	AssignedIDInformer           cache.SharedInformer
+	PodIdentityExceptionInformer cache.SharedInformer
+	log                          inlog.Logger
 }
 
+// ClientInt ...
 type ClientInt interface {
 	Start(exit <-chan struct{})
-	SyncCache(exit <-chan struct{})
+	SyncCache(exit <-chan struct{}, initial bool)
 	RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error
@@ -39,55 +43,73 @@ type ClientInt interface {
 	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
 	ListIds() (res *[]aadpodid.AzureIdentity, err error)
 	ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error)
+	ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error)
 }
 
-func NewCRDClientLite(config *rest.Config) (crdClient *Client, err error) {
+// NewCRDClientLite ...
+func NewCRDClientLite(config *rest.Config, log inlog.Logger) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
 	assignedIDListWatch := newAssignedIDListWatch(restClient)
+	assignedIDListInformer, err := newAssignedIDInformer(assignedIDListWatch)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+	podIdentityExceptionListWatch := newPodIdentityExceptionListWatch(restClient)
+	podIdentityExceptionInformer, err := newPodIdentityExceptionInformer(podIdentityExceptionListWatch)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
 
 	return &Client{
-		AssignedIDListWatch: assignedIDListWatch,
-		rest:                restClient,
+		AssignedIDInformer:           assignedIDListInformer,
+		PodIdentityExceptionInformer: podIdentityExceptionInformer,
+		rest:                         restClient,
+		log:                          log,
 	}, nil
 }
 
-func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClient *Client, err error) {
+// NewCRDClient returns a new crd client and error if any
+func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType, log inlog.Logger) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
 	bindingListWatch := newBindingListWatch(restClient)
-
 	bindingInformer, err := newBindingInformer(restClient, eventCh, bindingListWatch)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
 	idListWatch := newIDListWatch(restClient)
-
 	idInformer, err := newIDInformer(restClient, eventCh, idListWatch)
 	if err != nil {
-		glog.Error(err)
+		log.Error(err)
 		return nil, err
 	}
 
 	assignedIDListWatch := newAssignedIDListWatch(restClient)
+	assignedIDListInformer, err := newAssignedIDInformer(assignedIDListWatch)
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
 
 	return &Client{
-		rest:                restClient,
-		BindingListWatch:    bindingListWatch,
-		BindingInformer:     bindingInformer,
-		IDInformer:          idInformer,
-		IDListWatch:         idListWatch,
-		AssignedIDListWatch: assignedIDListWatch,
+		rest:               restClient,
+		BindingInformer:    bindingInformer,
+		IDInformer:         idInformer,
+		AssignedIDInformer: assignedIDListInformer,
+		log:                log,
 	}, nil
 }
 
@@ -103,14 +125,16 @@ func newRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
 		&aadpodid.AzureIdentityBinding{},
 		&aadpodid.AzureIdentityBindingList{},
 		&aadpodid.AzureAssignedIdentity{},
-		&aadpodid.AzureAssignedIdentityList{})
+		&aadpodid.AzureAssignedIdentityList{},
+		&aadpodid.AzurePodIdentityException{},
+		&aadpodid.AzurePodIdentityExceptionList{},
+	)
 	crdconfig.NegotiatedSerializer = serializer.DirectCodecFactory{
 		CodecFactory: serializer.NewCodecFactory(s)}
 
 	//Client interacting with our CRDs
 	restClient, err := rest.RESTClientFor(&crdconfig)
 	if err != nil {
-		glog.Error(err)
 		return nil, err
 	}
 	return restClient, nil
@@ -182,14 +206,57 @@ func newAssignedIDListWatch(r *rest.RESTClient) *cache.ListWatch {
 	return cache.NewListWatchFromClient(r, aadpodid.AzureAssignedIDResource, v1.NamespaceAll, fields.Everything())
 }
 
+func newAssignedIDInformer(lw *cache.ListWatch) (cache.SharedInformer, error) {
+	azAssignedIDInformer := cache.NewSharedInformer(lw, &aadpodid.AzureAssignedIdentity{}, time.Minute*10)
+	if azAssignedIDInformer == nil {
+		return nil, fmt.Errorf("could not create %s informer", aadpodid.AzureAssignedIDResource)
+	}
+
+	return azAssignedIDInformer, nil
+}
+
+func newPodIdentityExceptionListWatch(r *rest.RESTClient) *cache.ListWatch {
+	optionsModifier := func(options *v1.ListOptions) {}
+	return cache.NewFilteredListWatchFromClient(
+		r,
+		aadpodid.AzureIdentityExceptionResource,
+		v1.NamespaceAll,
+		optionsModifier,
+	)
+}
+
+func newPodIdentityExceptionInformer(lw *cache.ListWatch) (cache.SharedInformer, error) {
+	azPodIDExceptionInformer := cache.NewSharedInformer(lw, &aadpodid.AzurePodIdentityException{}, time.Minute*10)
+	if azPodIDExceptionInformer == nil {
+		return nil, fmt.Errorf("could not create %s informer", aadpodid.AzureIdentityExceptionResource)
+	}
+	return azPodIDExceptionInformer, nil
+}
+
+// StartLite to be used only case of lite client
+func (c *Client) StartLite(exit <-chan struct{}) {
+	go c.AssignedIDInformer.Run(exit)
+	go c.PodIdentityExceptionInformer.Run(exit)
+	c.SyncCache(exit, true)
+	c.log.Info("CRD lite informers started ")
+}
+
+// Start ...
 func (c *Client) Start(exit <-chan struct{}) {
 	go c.BindingInformer.Run(exit)
 	go c.IDInformer.Run(exit)
-	glog.Info("CRD watchers started")
+	go c.AssignedIDInformer.Run(exit)
+	c.SyncCache(exit, true)
+	c.log.Info("CRD informers started")
 }
 
-func (c *Client) SyncCache(exit <-chan struct{}) {
+// SyncCache synchronizes cache
+func (c *Client) SyncCache(exit <-chan struct{}, initial bool) {
 	if !cache.WaitForCacheSync(exit) {
+		if !initial {
+			c.log.Errorf("Cache could not be synchronized")
+			return
+		}
 		panic("Cache could not be synchronized")
 	}
 }
@@ -223,51 +290,130 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	return nil
 }
 
+// ListBindings returns a list of azureidentitybindings
 func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
 	begin := time.Now()
 
-	ret, err := c.BindingListWatch.List(v1.ListOptions{})
-	if err != nil {
-		glog.Error(err)
-		return nil, err
+	var resList []aadpodid.AzureIdentityBinding
+
+	list := c.BindingInformer.GetStore().List()
+	for _, binding := range list {
+		o, ok := binding.(*aadpodid.AzureIdentityBinding)
+		if !ok {
+			err := fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureIDBindingResource)
+			glog.Error(err)
+			return nil, err
+		}
+		// Note: List items returned from cache have empty Kind and API version..
+		// Work around this issue since we need that for event recording to work.
+		o.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   aadpodid.CRDGroup,
+			Version: aadpodid.CRDVersion,
+			Kind:    reflect.TypeOf(*o).String()})
+		resList = append(resList, *o)
+		glog.V(6).Infof("Appending binding: %s/%s to list.", o.Namespace, o.Name)
 	}
+
 	stats.Update(stats.BindingList, time.Since(begin))
-	return &ret.(*aadpodid.AzureIdentityBindingList).Items, nil
+	return &resList, nil
 }
 
+// ListAssignedIDs returns a list of azureassignedidentities
 func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
 	begin := time.Now()
-	ret, err := c.AssignedIDListWatch.List(v1.ListOptions{})
-	if err != nil {
-		glog.Error(err)
-		return nil, err
+
+	var resList []aadpodid.AzureAssignedIdentity
+
+	list := c.AssignedIDInformer.GetStore().List()
+	for _, assignedID := range list {
+		o, ok := assignedID.(*aadpodid.AzureAssignedIdentity)
+		if !ok {
+			err := fmt.Errorf("could not cast %T to %s", assignedID, aadpodid.AzureAssignedIDResource)
+			c.log.Error(err)
+			return nil, err
+		}
+		// Note: List items returned from cache have empty Kind and API version..
+		// Work around this issue since we need that for event recording to work.
+		o.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   aadpodid.CRDGroup,
+			Version: aadpodid.CRDVersion,
+			Kind:    reflect.TypeOf(*o).String()})
+		resList = append(resList, *o)
+		glog.V(6).Infof("Appending Assigned ID: %s/%s to list.", o.Namespace, o.Name)
 	}
+
 	stats.Update(stats.AssignedIDList, time.Since(begin))
-	return &ret.(*aadpodid.AzureAssignedIdentityList).Items, nil
+	return &resList, nil
 }
 
+// ListIds returns a list of azureidentities
 func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 	begin := time.Now()
-	ret, err := c.IDListWatch.List(v1.ListOptions{})
-	if err != nil {
-		glog.Error(err)
-		return nil, err
+
+	var resList []aadpodid.AzureIdentity
+
+	list := c.IDInformer.GetStore().List()
+	for _, id := range list {
+		o, ok := id.(*aadpodid.AzureIdentity)
+		if !ok {
+			err := fmt.Errorf("could not cast %T to %s", id, aadpodid.AzureIDResource)
+			c.log.Error(err)
+			return nil, err
+		}
+		// Note: List items returned from cache have empty Kind and API version..
+		// Work around this issue since we need that for event recording to work.
+		o.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   aadpodid.CRDGroup,
+			Version: aadpodid.CRDVersion,
+			Kind:    reflect.TypeOf(*o).String()})
+		resList = append(resList, *o)
+		glog.V(6).Infof("Appending Identity: %s/%s to list.", o.Namespace, o.Name)
 	}
+
 	stats.Update(stats.IDList, time.Since(begin))
-	return &ret.(*aadpodid.AzureIdentityList).Items, nil
+	return &resList, nil
+}
+
+// ListPodIdentityExceptions returns list of azurepodidentityexceptions
+func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error) {
+	begin := time.Now()
+
+	var resList []aadpodid.AzurePodIdentityException
+
+	list := c.PodIdentityExceptionInformer.GetStore().List()
+	for _, binding := range list {
+		o, ok := binding.(*aadpodid.AzurePodIdentityException)
+		if !ok {
+			err := fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureIdentityExceptionResource)
+			c.log.Error(err)
+			return nil, err
+		}
+		if o.Namespace == ns {
+			// Note: List items returned from cache have empty Kind and API version..
+			// Work around this issue since we need that for event recording to work.
+			o.SetGroupVersionKind(schema.GroupVersionKind{
+				Group:   aadpodid.CRDGroup,
+				Version: aadpodid.CRDVersion,
+				Kind:    reflect.TypeOf(*o).String()})
+			resList = append(resList, *o)
+			glog.V(6).Infof("Appending exception: %s/%s to list.", o.Namespace, o.Name)
+		}
+	}
+
+	stats.Update(stats.ExceptionList, time.Since(begin))
+	return &resList, nil
 }
 
 // ListPodIds - given a pod with pod name space
 // returns a map with list of azure identities in each state
 func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
-	azAssignedIDList, err := c.AssignedIDListWatch.List(v1.ListOptions{})
+	list, err := c.ListAssignedIDs()
 	if err != nil {
-		glog.Error(err)
 		return nil, err
 	}
 
 	idStateMap := make(map[string][]aadpodid.AzureIdentity)
-	for _, v := range azAssignedIDList.(*aadpodid.AzureAssignedIdentityList).Items {
+	for _, v := range *list {
 		if v.Spec.Pod == podname && v.Spec.PodNamespace == podns {
 			idStateMap[v.Status.Status] = append(idStateMap[v.Status.Status], *v.Spec.AzureIdentityRef)
 		}
