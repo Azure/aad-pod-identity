@@ -1,6 +1,7 @@
 package mic
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	"github.com/Azure/aad-pod-identity/version"
 	"github.com/golang/glog"
+	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
@@ -336,7 +338,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			// We need to synchornize the cache inorder to get the latest updates. Sync cache has a bug in the current go client which caused thread leak.
 			// Updating of go client has issues with case sensitivity. Avoid this issue by sleping for 500 milliseconds to reduce the chance
 			// of cache misses for assignedidentities updated in the previous cycle.
-			time.Sleep(time.Millisecond * 500)
+			time.Sleep(time.Millisecond * 200)
 		}
 	}
 }
@@ -841,44 +843,75 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 		return
 	}
 
+	var parallelMax int64 = 64
+
+	ctx := context.TODO()
+	semCreate := semaphore.NewWeighted(parallelMax)
+
 	for _, createID := range nodeTrackList.assignedIDsToCreate {
-		binding := createID.Spec.AzureBindingRef
-		// update the status to assigned for assigned identity as identity was successfully assigned to node.
-		err = c.updateAssignedIdentityStatus(&createID, aadpodid.AssignedIDAssigned)
-		if err != nil {
-			message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", createID.Name, aadpodid.AssignedIDAssigned, createID.Spec.Pod, err.Error())
-			c.EventRecorder.Event(&createID, corev1.EventTypeWarning, "status update error", message)
-			glog.Error(message)
-			continue
+		if err := semCreate.Acquire(ctx, 1); err != nil {
+			glog.Errorf("Failed to acquire semaphore in the create loop: %v", err)
+			return
 		}
-		c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding applied",
-			fmt.Sprintf("Binding %s applied on node %s for pod %s", binding.Name, createID.Spec.NodeName, createID.Name))
+		go func(assignedID aadpodid.AzureAssignedIdentity) {
+			defer semCreate.Release(1)
+			binding := assignedID.Spec.AzureBindingRef
+			// update the status to assigned for assigned identity as identity was successfully assigned to node.
+			err = c.updateAssignedIdentityStatus(&assignedID, aadpodid.AssignedIDAssigned)
+			if err != nil {
+				message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", assignedID.Name, aadpodid.AssignedIDAssigned, assignedID.Spec.Pod, err.Error())
+				c.EventRecorder.Event(&assignedID, corev1.EventTypeWarning, "status update error", message)
+				glog.Error(message)
+				return
+			}
+			c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding applied",
+				fmt.Sprintf("Binding %s applied on node %s for pod %s", binding.Name, assignedID.Spec.NodeName, assignedID.Name))
+		}(createID)
 	}
+
+	if err := semCreate.Acquire(ctx, parallelMax); err != nil {
+		glog.Errorf("Failed to acquire semaphore at the end of creates: %v", err)
+		return
+	}
+
+	semDel := semaphore.NewWeighted(parallelMax)
 
 	for _, delID := range nodeTrackList.assignedIDsToDelete {
-		removedBinding := delID.Spec.AzureBindingRef
-
-		// update the status for the assigned identity to Unassigned as the identity has been successfully removed from node.
-		// this will ensure on next sync loop we only try to delete the assigned identity instead of doing everything.
-		err = c.updateAssignedIdentityStatus(&delID, aadpodid.AssignedIDUnAssigned)
-		if err != nil {
-			message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", delID.Name, aadpodid.AssignedIDUnAssigned, delID.Spec.Pod, err.Error())
-			c.EventRecorder.Event(&delID, corev1.EventTypeWarning, "status update error", message)
-			glog.Error(message)
-			continue
+		if err := semDel.Acquire(ctx, 1); err != nil {
+			glog.Errorf("Failed to acquire semaphore in the delete loop: %v", err)
+			return
 		}
-		// remove assigned identity crd from cluster as the identity has successfully been removed from the node
-		err = c.removeAssignedIdentity(&delID)
-		if err != nil {
-			c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error",
-				fmt.Sprintf("Removing assigned identity binding %s node %s for pod %s resulted in error %v", removedBinding.Name, delID.Spec.NodeName, delID.Name, err))
-			glog.Error(err)
-			continue
-		}
-		// the identity was successfully removed from node
-		c.EventRecorder.Event(removedBinding, corev1.EventTypeNormal, "binding removed",
-			fmt.Sprintf("Binding %s removed from node %s for pod %s", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod))
+		go func(assignedID aadpodid.AzureAssignedIdentity) {
+			defer semDel.Release(1)
+			removedBinding := assignedID.Spec.AzureBindingRef
+			// update the status for the assigned identity to Unassigned as the identity has been successfully removed from node.
+			// this will ensure on next sync loop we only try to delete the assigned identity instead of doing everything.
+			err = c.updateAssignedIdentityStatus(&assignedID, aadpodid.AssignedIDUnAssigned)
+			if err != nil {
+				message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", assignedID.Name, aadpodid.AssignedIDUnAssigned, assignedID.Spec.Pod, err.Error())
+				c.EventRecorder.Event(&assignedID, corev1.EventTypeWarning, "status update error", message)
+				glog.Error(message)
+				return
+			}
+			// remove assigned identity crd from cluster as the identity has successfully been removed from the node
+			err = c.removeAssignedIdentity(&assignedID)
+			if err != nil {
+				c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error",
+					fmt.Sprintf("Removing assigned identity binding %s node %s for pod %s resulted in error %v", removedBinding.Name, assignedID.Spec.NodeName, assignedID.Name, err))
+				glog.Error(err)
+				return
+			}
+			// the identity was successfully removed from node
+			c.EventRecorder.Event(removedBinding, corev1.EventTypeNormal, "binding removed",
+				fmt.Sprintf("Binding %s removed from node %s for pod %s", removedBinding.Name, assignedID.Spec.NodeName, assignedID.Spec.Pod))
+		}(delID)
 	}
+
+	if err := semDel.Acquire(ctx, parallelMax); err != nil {
+		glog.Errorf("Failed to acquire semaphore at the end of deletes: %v", err)
+		return
+	}
+
 	stats.Put(stats.TotalCreateOrUpdate, time.Since(beginAdding))
 }
 
