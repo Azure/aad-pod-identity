@@ -83,11 +83,18 @@ func NewKubeClient(log inlog.Logger, nodeName string) (Client, error) {
 	return kubeClient, nil
 }
 
+func (c *KubeClient) Sync(exit <-chan struct{}) {
+	if !cache.WaitForCacheSync(exit, c.PodInformer.HasSynced) {
+		c.log.Errorf("Cache could not be synchronized")
+	}
+	c.CrdClient.SyncCacheLite(exit)
+}
+
 // Start the corresponding starts
 func (c *KubeClient) Start(exit <-chan struct{}) {
 	go c.PodInformer.Run(exit)
 	c.CrdClient.StartLite(exit)
-	c.CrdClient.SyncCacheLite(exit)
+	c.Sync(exit)
 }
 
 func (c *KubeClient) getReplicasetName(pod v1.Pod) string {
