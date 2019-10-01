@@ -22,8 +22,8 @@ import (
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
-	"github.com/Azure/go-autorest/autorest/adal"
 	utils "github.com/Azure/aad-pod-identity/pkg/utils"
+	"github.com/Azure/go-autorest/autorest/adal"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -84,7 +84,7 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) updateIPTableRulesInternal() {
-	log.Infof("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, s.MetadataIP, s.MetadataPort, s.NMIPort)
+	log.Debugf("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, s.MetadataIP, s.MetadataPort, s.NMIPort)
 
 	if err := iptables.AddCustomChain(s.MetadataIP, s.MetadataPort, s.HostIP, s.NMIPort); err != nil {
 		log.Fatalf("%s", err)
@@ -472,7 +472,7 @@ func handleTermination() {
 	exitCode := 0
 	// clean up iptables
 	if err := iptables.DeleteCustomChain(); err != nil {
-		log.Infof("Error cleaning up during shutdown: %v", err)
+		log.Errorf("Error cleaning up during shutdown: %v", err)
 		exitCode = 1
 	}
 
