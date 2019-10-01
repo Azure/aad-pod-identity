@@ -51,15 +51,17 @@ type LeaderElectionConfig struct {
 // Client has the required pointers to talk to the api server
 // and interact with the CRD related datastructure.
 type Client struct {
-	CRDClient         crd.ClientInt
-	CloudClient       cloudprovider.ClientInt
-	PodClient         pod.ClientInt
-	EventRecorder     record.EventRecorder
-	EventChannel      chan aadpodid.EventType
-	NodeClient        NodeGetter
-	IsNamespaced      bool
-	SyncLoopStarted   bool
-	syncRetryInterval time.Duration
+	CRDClient           crd.ClientInt
+	CloudClient         cloudprovider.ClientInt
+	PodClient           pod.ClientInt
+	EventRecorder       record.EventRecorder
+	EventChannel        chan aadpodid.EventType
+	NodeClient          NodeGetter
+	IsNamespaced        bool
+	SyncLoopStarted     bool
+	syncRetryInterval   time.Duration
+	enableScaleFeatures bool
+	createDeleteBatch   int64
 
 	syncing int32 // protect against conucrrent sync's
 
@@ -82,7 +84,8 @@ type trackUserAssignedMSIIds struct {
 }
 
 // NewMICClient returnes new mic client
-func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, syncRetryInterval time.Duration, leaderElectionConfig *LeaderElectionConfig) (*Client, error) {
+func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, syncRetryInterval time.Duration,
+	leaderElectionConfig *LeaderElectionConfig, enableScaleFeatures bool, createDeleteBatch int64) (*Client, error) {
 	glog.Infof("Starting to create the pod identity client. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
 
 	clientSet := kubernetes.NewForConfigOrDie(config)
@@ -116,14 +119,16 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: aadpodid.CRDGroup})
 
 	c := &Client{
-		CRDClient:         crdClient,
-		CloudClient:       cloudClient,
-		PodClient:         podClient,
-		EventRecorder:     recorder,
-		EventChannel:      eventCh,
-		NodeClient:        &NodeClient{informer.Core().V1().Nodes()},
-		IsNamespaced:      isNamespaced,
-		syncRetryInterval: syncRetryInterval,
+		CRDClient:           crdClient,
+		CloudClient:         cloudClient,
+		PodClient:           podClient,
+		EventRecorder:       recorder,
+		EventChannel:        eventCh,
+		NodeClient:          &NodeClient{informer.Core().V1().Nodes()},
+		IsNamespaced:        isNamespaced,
+		syncRetryInterval:   syncRetryInterval,
+		enableScaleFeatures: enableScaleFeatures,
+		createDeleteBatch:   createDeleteBatch,
 	}
 	leaderElector, err := c.NewLeaderElector(clientSet, recorder, leaderElectionConfig)
 	if err != nil {
@@ -579,10 +584,25 @@ func (c *Client) makeAssignedIDs(azID aadpodid.AzureIdentity, azBinding aadpodid
 	binding := azBinding
 	id := azID
 
-	assignedID := &aadpodid.AzureAssignedIdentity{
-		ObjectMeta: v1.ObjectMeta{
+	var oMeta v1.ObjectMeta
+
+	if c.enableScaleFeatures {
+		labels := make(map[string]string)
+		labels["nodename"] = nodeName
+		labels["podnamespace"] = podNameSpace
+		labels["podname"] = podName
+		oMeta = v1.ObjectMeta{
+			Name:   c.getAssignedIDName(podName, podNameSpace, azID.Name),
+			Labels: labels,
+		}
+	} else {
+		oMeta = v1.ObjectMeta{
 			Name: c.getAssignedIDName(podName, podNameSpace, azID.Name),
-		},
+		}
+	}
+
+	assignedID := &aadpodid.AzureAssignedIdentity{
+		ObjectMeta: oMeta,
 		Spec: aadpodid.AzureAssignedIdentitySpec{
 			AzureIdentityRef: &id,
 			AzureBindingRef:  &binding,
@@ -843,10 +863,8 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 		return
 	}
 
-	var parallelMax int64 = 64
-
 	ctx := context.TODO()
-	semCreate := semaphore.NewWeighted(parallelMax)
+	semCreate := semaphore.NewWeighted(c.createDeleteBatch)
 
 	for _, createID := range nodeTrackList.assignedIDsToCreate {
 		if err := semCreate.Acquire(ctx, 1); err != nil {
@@ -869,12 +887,12 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 		}(createID)
 	}
 
-	if err := semCreate.Acquire(ctx, parallelMax); err != nil {
+	if err := semCreate.Acquire(ctx, c.createDeleteBatch); err != nil {
 		glog.Errorf("Failed to acquire semaphore at the end of creates: %v", err)
 		return
 	}
 
-	semDel := semaphore.NewWeighted(parallelMax)
+	semDel := semaphore.NewWeighted(c.createDeleteBatch)
 
 	for _, delID := range nodeTrackList.assignedIDsToDelete {
 		if err := semDel.Acquire(ctx, 1); err != nil {
@@ -907,7 +925,7 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 		}(delID)
 	}
 
-	if err := semDel.Acquire(ctx, parallelMax); err != nil {
+	if err := semDel.Acquire(ctx, c.createDeleteBatch); err != nil {
 		glog.Errorf("Failed to acquire semaphore at the end of deletes: %v", err)
 		return
 	}

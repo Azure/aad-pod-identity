@@ -12,12 +12,14 @@ import (
 	inlog "github.com/Azure/aad-pod-identity/pkg/logger"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/informers/internalinterfaces"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 )
@@ -48,14 +50,21 @@ type ClientInt interface {
 }
 
 // NewCRDClientLite ...
-func NewCRDClientLite(config *rest.Config, log inlog.Logger) (crdClient *Client, err error) {
+func NewCRDClientLite(config *rest.Config, log inlog.Logger, nodeName string, scale bool) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
 		log.Error(err)
 		return nil, err
 	}
 
-	assignedIDListWatch := newAssignedIDListWatch(restClient)
+	var assignedIDListWatch *cache.ListWatch
+
+	if scale {
+		assignedIDListWatch = newAssignedIDNodeListWatch(restClient, nodeName)
+	} else {
+		assignedIDListWatch = newAssignedIDListWatch(restClient)
+	}
+
 	assignedIDListInformer, err := newAssignedIDInformer(assignedIDListWatch)
 	if err != nil {
 		log.Error(err)
@@ -201,6 +210,20 @@ func newIDInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cach
 		},
 	)
 	return azIDInformer, nil
+}
+
+func TweakOptionFunc(nodeName string) internalinterfaces.TweakListOptionsFunc {
+	return func(l *metav1.ListOptions) {
+		if l == nil {
+			l = &metav1.ListOptions{}
+		}
+		l.LabelSelector = l.LabelSelector + "nodename=" + nodeName
+		return
+	}
+}
+
+func newAssignedIDNodeListWatch(r *rest.RESTClient, nodeName string) *cache.ListWatch {
+	return cache.NewFilteredListWatchFromClient(r, aadpodid.AzureAssignedIDResource, v1.NamespaceAll, TweakOptionFunc(nodeName))
 }
 
 func newAssignedIDListWatch(r *rest.RESTClient) *cache.ListWatch {

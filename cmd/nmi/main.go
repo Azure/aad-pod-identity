@@ -3,6 +3,9 @@ package main
 import (
 	"os"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
 	"github.com/Azure/aad-pod-identity/pkg/probes"
@@ -36,6 +39,8 @@ var (
 	retryAttemptsForCreated            = pflag.Int("retry-attempts-for-created", defaultlistPodIDsRetryAttemptsForCreated, "Number of retries in NMI to find assigned identity in CREATED state")
 	retryAttemptsForAssigned           = pflag.Int("retry-attempts-for-assigned", defaultlistPodIDsRetryAttemptsForAssigned, "Number of retries in NMI to find assigned identity in ASSIGNED state")
 	findIdentityRetryIntervalInSeconds = pflag.Int("find-identity-retry-interval", defaultlistPodIDsRetryIntervalInSeconds, "Retry interval to find assigned identities in seconds")
+	enableProfile                      = pflag.Bool("enableProfile", false, "Enable/Disable pprof profiling")
+	enableScaleFeatures                = pflag.Bool("enableScaleFeatures", false, "Enable/Disable features for scale clusters")
 )
 
 func main() {
@@ -49,9 +54,21 @@ func main() {
 		log.SetLevel(log.DebugLevel)
 	}
 	log.Infof("Starting nmi process. Version: %v. Build date: %v. Log level: %s.", version.NMIVersion, version.BuildDate, log.GetLevel())
+
+	if *enableProfile {
+		profilePort := "6060"
+		log.Infof("Starting profiling on port %s", profilePort)
+		go func() {
+			log.Error(http.ListenAndServe("localhost:"+profilePort, nil))
+		}()
+	}
+	if *enableScaleFeatures {
+		log.Infof("Features for scale clusters enabled")
+	}
+
 	logger := &server.Log{}
 
-	client, err := k8s.NewKubeClient(logger, *nodename)
+	client, err := k8s.NewKubeClient(logger, *nodename, *enableScaleFeatures)
 	if err != nil {
 		log.Fatalf("%+v", err)
 	}

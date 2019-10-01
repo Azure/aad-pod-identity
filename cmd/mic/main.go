@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"time"
 
@@ -14,13 +16,16 @@ import (
 )
 
 var (
-	kubeconfig        string
-	cloudconfig       string
-	forceNamespaced   bool
-	versionInfo       bool
-	syncRetryDuration time.Duration
-	leaderElectionCfg mic.LeaderElectionConfig
-	httpProbePort     string
+	kubeconfig          string
+	cloudconfig         string
+	forceNamespaced     bool
+	versionInfo         bool
+	syncRetryDuration   time.Duration
+	leaderElectionCfg   mic.LeaderElectionConfig
+	httpProbePort       string
+	enableProfile       bool
+	enableScaleFeatures bool
+	createDeleteBatch   int64
 )
 
 func main() {
@@ -44,6 +49,15 @@ func main() {
 	//Probe port
 	flag.StringVar(&httpProbePort, "http-probe-port", "8080", "http liveliness probe port")
 
+	// Profile
+	flag.BoolVar(&enableProfile, "enableProfile", false, "Enable/Disable pprof profiling")
+
+	// Profile
+	flag.BoolVar(&enableScaleFeatures, "enableScaleFeatures", false, "Enable/Disable new features used for clusters at scale")
+
+	// Profile
+	flag.Int64Var(&createDeleteBatch, "createDeleteBatch", 200, "Per node/VMSS create/delete batches")
+
 	flag.Parse()
 	if versionInfo {
 		version.PrintVersionAndExit()
@@ -55,6 +69,17 @@ func main() {
 	if kubeconfig == "" {
 		glog.Warningf("--kubeconfig not passed will use InClusterConfig")
 	}
+	if enableProfile {
+		profilePort := "6060"
+		glog.Infof("Starting profiling on port %s", profilePort)
+		go func() {
+			glog.Error(http.ListenAndServe("localhost:"+profilePort, nil))
+		}()
+	}
+
+	if enableScaleFeatures {
+		glog.Infof("Enabling features for scale clusters")
+	}
 
 	glog.Infof("kubeconfig (%s) cloudconfig (%s)", kubeconfig, cloudconfig)
 	config, err := buildConfig(kubeconfig)
@@ -65,7 +90,7 @@ func main() {
 
 	forceNamespaced = forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
 
-	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration, &leaderElectionCfg)
+	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration, &leaderElectionCfg, enableScaleFeatures, createDeleteBatch)
 	if err != nil {
 		glog.Fatalf("Could not get the MIC client: %+v", err)
 	}

@@ -29,6 +29,7 @@ require (
 	github.com/sirupsen/logrus v1.2.0
 	github.com/spf13/pflag v1.0.1
 	go.opencensus.io v0.22.0 // indirect
+	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6
 	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2 // indirect
 	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
 	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect

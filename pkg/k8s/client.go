@@ -54,7 +54,7 @@ type KubeClient struct {
 }
 
 // NewKubeClient new kubernetes api client
-func NewKubeClient(log inlog.Logger, nodeName string) (Client, error) {
+func NewKubeClient(log inlog.Logger, nodeName string, scale bool) (Client, error) {
 	config, err := buildConfig()
 	if err != nil {
 		return nil, err
@@ -64,7 +64,7 @@ func NewKubeClient(log inlog.Logger, nodeName string) (Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	crdclient, err := crd.NewCRDClientLite(config, log)
+	crdclient, err := crd.NewCRDClientLite(config, log, nodeName, scale)
 	if err != nil {
 		return nil, err
 	}
