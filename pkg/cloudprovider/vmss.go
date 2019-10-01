@@ -132,5 +132,8 @@ func (i *vmssIdentityInfo) AppendUserIdentity(id string) bool {
 }
 
 func (i *vmssIdentityInfo) GetUserIdentityList() []string {
+	if i.info.IdentityIds == nil {
+		return []string{}
+	}
 	return *i.info.IdentityIds
 }
