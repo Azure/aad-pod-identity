@@ -144,13 +144,23 @@ The MIC uses the service principal [credentials stored in the cluster] to access
 
 If the Azure identity is in the same resource group as your AKS cluster nodes, you can skip this section. (For [AKS], a resource group was added with an `MC_` prefix when you created the cluster.) Otherwise, follow these steps to assign the required permissions:
 
-1. Find the service principal used by your cluster. Please refer to the [AKS docs] for details. For example, if you didn't specify a service principal to the `az aks create` command, it will have generated one in the `~/.azure/aksServicePrincipal.json` file.
+1. Find the service principal used by your cluster. You can run the following command to obtain the SP:
+
+```Bash
+az aks show -g <resourcegroup> -n <name> --query servicePrincipalProfile.clientId -o tsv
+```
+
+Replace `<resourcegroup>` with the name of the resource group that holds the AKS Cluster and `<name>` with the name of the AKS Cluster.
+
+For more information please refer to the [AKS docs].
 
 2. Assign the required permissions with the following command:
 
 ```shell
 az role assignment create --role "Managed Identity Operator" --assignee <sp id> --scope <full id of the managed identity>
 ```
+
+Where `<full id of the managed identity>` is the `id` of the identity created in [2. Create an Azure Identity](#2.-create-an-azure-identity)
 
 ### Uninstall Notes
 
