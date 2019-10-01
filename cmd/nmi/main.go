@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	debug                              = pflag.Bool("debug", true, "sets log to debug level")
+	debug                              = pflag.Bool("debug", false, "sets log to debug level")
 	versionInfo                        = pflag.Bool("version", false, "prints the version information")
 	nmiPort                            = pflag.String("nmi-port", defaultNmiPort, "NMI application port")
 	metadataIP                         = pflag.String("metadata-ip", defaultMetadataIP, "instance metadata host ip")
@@ -43,10 +43,12 @@ func main() {
 	if *versionInfo {
 		version.PrintVersionAndExit()
 	}
+
+	log.SetLevel(log.InfoLevel)
 	if *debug {
 		log.SetLevel(log.DebugLevel)
 	}
-	log.Infof("Starting nmi process. Version: %v. Build date: %v", version.NMIVersion, version.BuildDate)
+	log.Infof("Starting nmi process. Version: %v. Build date: %v. Log level: %s.", version.NMIVersion, version.BuildDate, log.GetLevel())
 	logger := &server.Log{}
 
 	client, err := k8s.NewKubeClient(logger)
