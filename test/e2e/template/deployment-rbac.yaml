@@ -116,6 +116,7 @@ spec:
           {{if .NMIArg}}- nmi {{ end }}
           - "--host-ip=$(HOST_IP)"
           - "--node=$(NODE_NAME)"
+          {{if .EnableScaleFeatures}}- "--enableScaleFeatures=true" {{end}}
         env:
           - name: HOST_IP
             valueFrom:
@@ -215,6 +216,7 @@ spec:
           {{if .MICArg}}- mic {{ end }}
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
+          {{if .EnableScaleFeatures}}- "--enableScaleFeatures=true" {{end}}
         resources:
           limits:
             cpu: 200m

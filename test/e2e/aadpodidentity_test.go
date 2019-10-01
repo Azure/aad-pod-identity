@@ -60,7 +60,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	cfg = *c
 	fmt.Printf("System MSI enabled: %v\n", cfg.SystemMSICluster)
-	setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion)
+	setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures)
 })
 
 var _ = AfterSuite(func() {
@@ -498,7 +498,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		}
 
 		// reset the infra to previous state
-		setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion)
+		setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures)
 	})
 
 	It("should not alter the system assigned identity after creating and deleting pod identity", func() {
@@ -603,7 +603,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(ok).To(Equal(true))
 
 		// update the infra to use latest mic and nmi images
-		setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion)
+		setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures)
 
 		ok, err = daemonset.WaitOnReady(nmiDaemonSet)
 		Expect(err).NotTo(HaveOccurred())
@@ -1167,15 +1167,15 @@ func checkInfra() {
 // setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
 func setupInfraOld(registry, nmiVersion, micVersion string) {
 	// Install CRDs and deploy MIC and NMI
-	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, true)
+	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, true, false)
 	Expect(err).NotTo(HaveOccurred())
 	checkInfra()
 }
 
 // setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
-func setupInfra(registry, nmiVersion, micVersion string) {
+func setupInfra(registry, nmiVersion, micVersion string, enableScaleFeatures bool) {
 	// Install CRDs and deploy MIC and NMI
-	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, false)
+	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, false, enableScaleFeatures)
 	Expect(err).NotTo(HaveOccurred())
 	checkInfra()
 }
