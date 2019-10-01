@@ -766,21 +766,36 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 	beginAdding := time.Now()
 	glog.Infof("Processing node %s, add [%d], del [%d]", nodeOrVMSSName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete))
 
+	ctx := context.TODO()
+	semCreate := semaphore.NewWeighted(c.createDeleteBatch)
+
 	for _, createID := range nodeTrackList.assignedIDsToCreate {
-		if createID.Status.Status == "" {
-			binding := createID.Spec.AzureBindingRef
-
-			// this is the state when the azure assigned identity is yet to be created
-			glog.V(5).Infof("Initiating assigned id creation for pod - %s, binding - %s", createID.Spec.Pod, binding.Name)
-
-			createID.Status.Status = aadpodid.AssignedIDCreated
-			err := c.createAssignedIdentity(&createID)
-			if err != nil {
-				c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error",
-					fmt.Sprintf("Creating assigned identity for pod %s resulted in error %v", createID.Name, err))
-				glog.Error(err)
-			}
+		if err := semCreate.Acquire(ctx, 1); err != nil {
+			glog.Errorf("Failed to acquire semaphore in the create loop: %v", err)
+			return
 		}
+		go func(assignedID aadpodid.AzureAssignedIdentity) {
+			defer semCreate.Release(1)
+			if assignedID.Status.Status == "" {
+				binding := assignedID.Spec.AzureBindingRef
+
+				// this is the state when the azure assigned identity is yet to be created
+				glog.V(5).Infof("Initiating assigned id creation for pod - %s, binding - %s", assignedID.Spec.Pod, binding.Name)
+
+				assignedID.Status.Status = aadpodid.AssignedIDCreated
+				err := c.createAssignedIdentity(&assignedID)
+				if err != nil {
+					c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error",
+						fmt.Sprintf("Creating assigned identity for pod %s resulted in error %v", assignedID.Name, err))
+					glog.Error(err)
+				}
+			}
+		}(createID)
+	}
+
+	if err := semCreate.Acquire(ctx, c.createDeleteBatch); err != nil {
+		glog.Errorf("Failed to acquire semaphore at the end of creates: %v", err)
+		return
 	}
 	// generate unique list so we don't make multiple calls to assign/remove same id
 	addUserAssignedMSIIDs := c.getUniqueIDs(nodeTrackList.addUserAssignedMSIIDs)
@@ -863,16 +878,15 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 		return
 	}
 
-	ctx := context.TODO()
-	semCreate := semaphore.NewWeighted(c.createDeleteBatch)
+	semUpdate := semaphore.NewWeighted(c.createDeleteBatch)
 
 	for _, createID := range nodeTrackList.assignedIDsToCreate {
-		if err := semCreate.Acquire(ctx, 1); err != nil {
+		if err := semUpdate.Acquire(ctx, 1); err != nil {
 			glog.Errorf("Failed to acquire semaphore in the create loop: %v", err)
 			return
 		}
 		go func(assignedID aadpodid.AzureAssignedIdentity) {
-			defer semCreate.Release(1)
+			defer semUpdate.Release(1)
 			binding := assignedID.Spec.AzureBindingRef
 			// update the status to assigned for assigned identity as identity was successfully assigned to node.
 			err = c.updateAssignedIdentityStatus(&assignedID, aadpodid.AssignedIDAssigned)
@@ -887,7 +901,7 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 		}(createID)
 	}
 
-	if err := semCreate.Acquire(ctx, c.createDeleteBatch); err != nil {
+	if err := semUpdate.Acquire(ctx, c.createDeleteBatch); err != nil {
 		glog.Errorf("Failed to acquire semaphore at the end of creates: %v", err)
 		return
 	}
