@@ -26,6 +26,7 @@ var (
 	enableProfile       bool
 	enableScaleFeatures bool
 	createDeleteBatch   int64
+	clientQPS           float64
 )
 
 func main() {
@@ -58,6 +59,9 @@ func main() {
 	// Profile
 	flag.Int64Var(&createDeleteBatch, "createDeleteBatch", 200, "Per node/VMSS create/delete batches")
 
+	// Profile
+	flag.Float64Var(&clientQPS, "clientQps", 70, "Client QPS used for throttling of calls to server")
+
 	flag.Parse()
 	if versionInfo {
 		version.PrintVersionAndExit()
@@ -89,6 +93,10 @@ func main() {
 	config.UserAgent = version.GetUserAgent("MIC", version.MICVersion)
 
 	forceNamespaced = forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
+
+	config.QPS = float32(clientQPS)
+	config.Burst = int(clientQPS)
+	glog.Infof("Client QPS set to: %v. Burst to: %v", config.QPS, config.Burst)
 
 	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration, &leaderElectionCfg, enableScaleFeatures, createDeleteBatch)
 	if err != nil {
