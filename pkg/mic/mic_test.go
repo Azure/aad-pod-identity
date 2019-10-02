@@ -455,6 +455,16 @@ func (c *TestCrdClient) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity
 	return &assignedIDList, nil
 }
 
+func (c *TestCrdClient) ListAssignedIDsInMap() (res map[string]aadpodid.AzureAssignedIdentity, err error) {
+	assignedIDMap := make(map[string]aadpodid.AzureAssignedIdentity)
+	c.mu.Lock()
+	for k, v := range c.assignedIDMap {
+		assignedIDMap[k] = *v
+	}
+	c.mu.Unlock()
+	return assignedIDMap, nil
+}
+
 func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
 	return map[string][]aadpodid.AzureIdentity{}, nil
 }
