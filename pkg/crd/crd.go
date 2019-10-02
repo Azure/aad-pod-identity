@@ -43,6 +43,7 @@ type ClientInt interface {
 	UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error
 	ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error)
 	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
+	ListAssignedIDsInMap() (res map[string]aadpodid.AzureAssignedIdentity, err error)
 	ListIds() (res *[]aadpodid.AzureIdentity, err error)
 	ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error)
 	ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error)
@@ -382,6 +383,37 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 
 	stats.Update(stats.AssignedIDList, time.Since(begin))
 	return &resList, nil
+}
+
+// ListAssignedIDsInMap gets the list of current assigned ids, adds it to a map
+// with assigned identity name as key and assigned identity as value.
+func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdentity, error) {
+	begin := time.Now()
+
+	result := make(map[string]aadpodid.AzureAssignedIdentity)
+	list := c.AssignedIDInformer.GetStore().List()
+
+	for _, assignedID := range list {
+
+		o, ok := assignedID.(*aadpodid.AzureAssignedIdentity)
+		if !ok {
+			err := fmt.Errorf("could not cast %T to %s", assignedID, aadpodid.AzureAssignedIDResource)
+			c.log.Error(err)
+			return nil, err
+		}
+		// Note: List items returned from cache have empty Kind and API version..
+		// Work around this issue since we need that for event recording to work.
+		o.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   aadpodid.CRDGroup,
+			Version: aadpodid.CRDVersion,
+			Kind:    reflect.TypeOf(*o).String()})
+
+		// assigned identities names are unique across namespaces as we use pod name-<id ns>-<id name>
+		result[o.Name] = *o
+	}
+
+	stats.Update(stats.AssignedIDList, time.Since(begin))
+	return result, nil
 }
 
 // ListIds returns a list of azureidentities

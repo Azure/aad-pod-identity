@@ -455,6 +455,16 @@ func (c *TestCrdClient) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity
 	return &assignedIDList, nil
 }
 
+func (c *TestCrdClient) ListAssignedIDsInMap() (res map[string]aadpodid.AzureAssignedIdentity, err error) {
+	assignedIDMap := make(map[string]aadpodid.AzureAssignedIdentity)
+	c.mu.Lock()
+	for k, v := range c.assignedIDMap {
+		assignedIDMap[k] = *v
+	}
+	c.mu.Unlock()
+	return assignedIDMap, nil
+}
+
 func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
 	return map[string][]aadpodid.AzureIdentity{}, nil
 }
@@ -1341,6 +1351,61 @@ func TestSyncNodeNotFound(t *testing.T) {
 		if !((*listAssignedIDs)[i].Status.Status == aadpodid.AssignedIDAssigned) {
 			t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (*listAssignedIDs)[i].Status.Status)
 		}
+	}
+}
+
+func TestProcessingTimeForScale(t *testing.T) {
+	eventCh := make(chan aadpodid.EventType, 20000)
+	cloudClient := NewTestCloudClient(config.AzureConfig{})
+	crdClient := NewTestCrdClient(nil)
+	podClient := NewTestPodClient()
+	nodeClient := NewTestNodeClient()
+	var evtRecorder TestEventRecorder
+	evtRecorder.lastEvent = new(LastEvent)
+	evtRecorder.eventChannel = make(chan bool, 20000)
+
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4)
+
+	// Add a pod, identity and binding.
+	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateBinding("testbinding1", "default", "test-id1", "test-select1", "")
+
+	nodeClient.AddNode("test-node1")
+	for i := 0; i < 20000; i++ {
+		podClient.AddPod(fmt.Sprintf("test-pod%d", i), "default", "test-node1", "test-select1")
+	}
+	eventCh <- aadpodid.PodCreated
+
+	defer micClient.testRunSync()(t)
+
+	if !evtRecorder.WaitForEvents(20000) {
+		t.Fatalf("Timeout waiting for mic sync cycles")
+	}
+
+	listAssignedIDs, err := crdClient.ListAssignedIDs()
+	if err != nil {
+		glog.Error(err)
+		t.Errorf("list assigned failed")
+	}
+	if !(len(*listAssignedIDs) == 20000) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 20000, len(*listAssignedIDs))
+	}
+
+	for i := 10000; i < 20000; i++ {
+		podClient.DeletePod(fmt.Sprintf("test-pod%d", i), "default")
+	}
+	eventCh <- aadpodid.PodDeleted
+
+	if !evtRecorder.WaitForEvents(10000) {
+		t.Fatalf("Timeout waiting for mic sync cycles")
+	}
+	listAssignedIDs, err = crdClient.ListAssignedIDs()
+	if err != nil {
+		glog.Error(err)
+		t.Errorf("list assigned failed")
+	}
+	if !(len(*listAssignedIDs) == 10000) {
+		t.Fatalf("expected assigned identities len: %d, got: %d", 10000, len(*listAssignedIDs))
 	}
 }
 
