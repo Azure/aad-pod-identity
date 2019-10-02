@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/informers/internalinterfaces"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 )
@@ -35,7 +36,8 @@ type Client struct {
 // ClientInt ...
 type ClientInt interface {
 	Start(exit <-chan struct{})
-	SyncCache(exit <-chan struct{}, initial bool)
+	SyncCache(exit <-chan struct{})
+	SyncCacheLite(exit <-chan struct{})
 	RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error
@@ -47,14 +49,21 @@ type ClientInt interface {
 }
 
 // NewCRDClientLite ...
-func NewCRDClientLite(config *rest.Config, log inlog.Logger) (crdClient *Client, err error) {
+func NewCRDClientLite(config *rest.Config, log inlog.Logger, nodeName string, scale bool) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
 		log.Error(err)
 		return nil, err
 	}
 
-	assignedIDListWatch := newAssignedIDListWatch(restClient)
+	var assignedIDListWatch *cache.ListWatch
+
+	if scale {
+		assignedIDListWatch = newAssignedIDNodeListWatch(restClient, nodeName)
+	} else {
+		assignedIDListWatch = newAssignedIDListWatch(restClient)
+	}
+
 	assignedIDListInformer, err := newAssignedIDInformer(assignedIDListWatch)
 	if err != nil {
 		log.Error(err)
@@ -202,6 +211,23 @@ func newIDInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cach
 	return azIDInformer, nil
 }
 
+// NodeNameFilter - CRDs do not yet support field selectors. Instead of that we
+// apply labels with node name and then later use the NodeNameFilter to tweak
+// options to filter using nodename label.
+func NodeNameFilter(nodeName string) internalinterfaces.TweakListOptionsFunc {
+	return func(l *v1.ListOptions) {
+		if l == nil {
+			l = &v1.ListOptions{}
+		}
+		l.LabelSelector = l.LabelSelector + "nodename=" + nodeName
+		return
+	}
+}
+
+func newAssignedIDNodeListWatch(r *rest.RESTClient, nodeName string) *cache.ListWatch {
+	return cache.NewFilteredListWatchFromClient(r, aadpodid.AzureAssignedIDResource, v1.NamespaceAll, NodeNameFilter(nodeName))
+}
+
 func newAssignedIDListWatch(r *rest.RESTClient) *cache.ListWatch {
 	return cache.NewListWatchFromClient(r, aadpodid.AzureAssignedIDResource, v1.NamespaceAll, fields.Everything())
 }
@@ -237,7 +263,7 @@ func newPodIdentityExceptionInformer(lw *cache.ListWatch) (cache.SharedInformer,
 func (c *Client) StartLite(exit <-chan struct{}) {
 	go c.AssignedIDInformer.Run(exit)
 	go c.PodIdentityExceptionInformer.Run(exit)
-	c.SyncCache(exit, true)
+	c.SyncCacheLite(exit)
 	c.log.Info("CRD lite informers started ")
 }
 
@@ -246,13 +272,24 @@ func (c *Client) Start(exit <-chan struct{}) {
 	go c.BindingInformer.Run(exit)
 	go c.IDInformer.Run(exit)
 	go c.AssignedIDInformer.Run(exit)
-	c.SyncCache(exit, true)
+	c.SyncCache(exit)
 	c.log.Info("CRD informers started")
 }
 
+func (c *Client) SyncCache(exit <-chan struct{}) {
+	c.syncCache(exit, true, c.BindingInformer.HasSynced,
+		c.IDInformer.HasSynced,
+		c.AssignedIDInformer.HasSynced)
+}
+
+func (c *Client) SyncCacheLite(exit <-chan struct{}) {
+	c.syncCache(exit, true, c.AssignedIDInformer.HasSynced,
+		c.PodIdentityExceptionInformer.HasSynced)
+}
+
 // SyncCache synchronizes cache
-func (c *Client) SyncCache(exit <-chan struct{}, initial bool) {
-	if !cache.WaitForCacheSync(exit) {
+func (c *Client) syncCache(exit <-chan struct{}, initial bool, cacheSyncs ...cache.InformerSynced) {
+	if !cache.WaitForCacheSync(exit, cacheSyncs...) {
 		if !initial {
 			c.log.Errorf("Cache could not be synchronized")
 			return
@@ -266,6 +303,7 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	glog.V(6).Infof("Deletion of assigned id named: %s", assignedIdentity.Name)
 	begin := time.Now()
 	err := c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Name(assignedIdentity.Name).Do().Error()
+	glog.V(5).Infof("Deletion %s took: %v", assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDDel, time.Since(begin))
 	return err
 }
@@ -276,7 +314,6 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	begin := time.Now()
 	// Create a new AzureAssignedIdentity which maps the relationship between
 	// id and pod
-	glog.Infof("Creating assigned Id: %s", assignedIdentity.Name)
 	var res aadpodid.AzureAssignedIdentity
 	// TODO: Ensure that the status reflects the corresponding
 	err := c.rest.Post().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Body(assignedIdentity).Do().Into(&res)
@@ -285,6 +322,7 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 		return err
 	}
 
+	glog.V(5).Infof("Time take to create %s: %v", assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDAdd, time.Since(begin))
 	//TODO: Update the status of the assign identity to indicate that the node assignment got done.
 	return nil
@@ -441,6 +479,7 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 		return err
 	}
 
+	begin := time.Now()
 	err = c.rest.
 		Patch(types.JSONPatchType).
 		Namespace(assignedIdentity.Namespace).
@@ -449,6 +488,7 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 		Body(patchBytes).
 		Do().
 		Error()
+	glog.V(5).Infof("Patch of %s took: %v", assignedIdentity.Name, time.Since(begin))
 
 	return err
 }

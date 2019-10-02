@@ -8,9 +8,9 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
@@ -20,8 +20,8 @@ import (
 	"github.com/golang/glog"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	informersv1 "k8s.io/client-go/informers/core/v1"
+	"k8s.io/client-go/informers/internalinterfaces"
 )
 
 const (
@@ -49,12 +49,12 @@ type KubeClient struct {
 	ClientSet kubernetes.Interface
 	// Crd client used to access our CRD resources.
 	CrdClient   *crd.Client
-	PodInformer informersv1.PodInformer
+	PodInformer cache.SharedIndexInformer
 	log         inlog.Logger
 }
 
 // NewKubeClient new kubernetes api client
-func NewKubeClient(log inlog.Logger) (Client, error) {
+func NewKubeClient(log inlog.Logger, nodeName string, scale bool) (Client, error) {
 	config, err := buildConfig()
 	if err != nil {
 		return nil, err
@@ -64,13 +64,14 @@ func NewKubeClient(log inlog.Logger) (Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	crdclient, err := crd.NewCRDClientLite(config, log)
+	crdclient, err := crd.NewCRDClientLite(config, log, nodeName, scale)
 	if err != nil {
 		return nil, err
 	}
 
-	informer := informers.NewSharedInformerFactory(clientset, 30*time.Second)
-	podInformer := informer.Core().V1().Pods()
+	podInformer := informersv1.NewFilteredPodInformer(clientset, v1.NamespaceAll, 10*time.Minute,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
+		NodeNameFilter(nodeName))
 
 	kubeClient := &KubeClient{
 		CrdClient:   crdclient,
@@ -82,11 +83,18 @@ func NewKubeClient(log inlog.Logger) (Client, error) {
 	return kubeClient, nil
 }
 
+func (c *KubeClient) Sync(exit <-chan struct{}) {
+	if !cache.WaitForCacheSync(exit, c.PodInformer.HasSynced) {
+		c.log.Errorf("Pod cache could not be synchronized")
+	}
+	c.CrdClient.SyncCacheLite(exit)
+}
+
 // Start the corresponding starts
 func (c *KubeClient) Start(exit <-chan struct{}) {
-	go c.PodInformer.Informer().Run(exit)
+	go c.PodInformer.Run(exit)
 	c.CrdClient.StartLite(exit)
-	c.CrdClient.SyncCache(exit, true)
+	c.Sync(exit)
 }
 
 func (c *KubeClient) getReplicasetName(pod v1.Pod) string {
@@ -96,6 +104,18 @@ func (c *KubeClient) getReplicasetName(pod v1.Pod) string {
 		}
 	}
 	return ""
+}
+
+// NodeNameFilter will tweak the options to include the node name as field
+// selector.
+func NodeNameFilter(nodeName string) internalinterfaces.TweakListOptionsFunc {
+	return func(l *metav1.ListOptions) {
+		if l == nil {
+			l = &metav1.ListOptions{}
+		}
+		l.FieldSelector = l.FieldSelector + "spec.nodeName=" + nodeName
+		return
+	}
 }
 
 // GetPodInfo get pod ns,name from apiserver
@@ -123,14 +143,15 @@ func isPhaseValid(p v1.PodPhase) bool {
 }
 
 func (c *KubeClient) getPodList(podip string) ([]*v1.Pod, error) {
-	list, err := c.PodInformer.Lister().List(labels.Everything())
-	if err != nil {
-		glog.Error(err)
-		return nil, err
-	}
-
 	var podList []*v1.Pod
-	for _, pod := range list {
+	list := c.PodInformer.GetStore().List()
+	for _, o := range list {
+		pod, ok := o.(*v1.Pod)
+		if !ok {
+			err := fmt.Errorf("could not cast %T to %s", pod, "v1.Pod")
+			glog.Error(err)
+			return nil, err
+		}
 		if pod.Status.PodIP == podip && isPhaseValid(pod.Status.Phase) {
 			podList = append(podList, pod)
 		}
