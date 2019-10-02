@@ -893,7 +893,7 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 			defer semUpdate.Release(1)
 			binding := assignedID.Spec.AzureBindingRef
 			// update the status to assigned for assigned identity as identity was successfully assigned to node.
-			err = c.updateAssignedIdentityStatus(&assignedID, aadpodid.AssignedIDAssigned)
+			err := c.updateAssignedIdentityStatus(&assignedID, aadpodid.AssignedIDAssigned)
 			if err != nil {
 				message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", assignedID.Name, aadpodid.AssignedIDAssigned, assignedID.Spec.Pod, err.Error())
 				c.EventRecorder.Event(&assignedID, corev1.EventTypeWarning, "status update error", message)
@@ -923,7 +923,7 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 			removedBinding := assignedID.Spec.AzureBindingRef
 			// update the status for the assigned identity to Unassigned as the identity has been successfully removed from node.
 			// this will ensure on next sync loop we only try to delete the assigned identity instead of doing everything.
-			err = c.updateAssignedIdentityStatus(&assignedID, aadpodid.AssignedIDUnAssigned)
+			err := c.updateAssignedIdentityStatus(&assignedID, aadpodid.AssignedIDUnAssigned)
 			if err != nil {
 				message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", assignedID.Name, aadpodid.AssignedIDUnAssigned, assignedID.Spec.Pod, err.Error())
 				c.EventRecorder.Event(&assignedID, corev1.EventTypeWarning, "status update error", message)
