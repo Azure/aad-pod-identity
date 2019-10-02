@@ -212,7 +212,10 @@ func newIDInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cach
 	return azIDInformer, nil
 }
 
-func TweakOptionFunc(nodeName string) internalinterfaces.TweakListOptionsFunc {
+// NodeNameFilter - CRDs do not yet support field selectors. Instead of that we
+// apply labels with node name and then later use the NodeNameFilter to tweak
+// options to filter using nodename label.
+func NodeNameFilter(nodeName string) internalinterfaces.TweakListOptionsFunc {
 	return func(l *metav1.ListOptions) {
 		if l == nil {
 			l = &metav1.ListOptions{}
@@ -223,7 +226,7 @@ func TweakOptionFunc(nodeName string) internalinterfaces.TweakListOptionsFunc {
 }
 
 func newAssignedIDNodeListWatch(r *rest.RESTClient, nodeName string) *cache.ListWatch {
-	return cache.NewFilteredListWatchFromClient(r, aadpodid.AzureAssignedIDResource, v1.NamespaceAll, TweakOptionFunc(nodeName))
+	return cache.NewFilteredListWatchFromClient(r, aadpodid.AzureAssignedIDResource, v1.NamespaceAll, NodeNameFilter(nodeName))
 }
 
 func newAssignedIDListWatch(r *rest.RESTClient) *cache.ListWatch {
@@ -301,6 +304,7 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	glog.V(6).Infof("Deletion of assigned id named: %s", assignedIdentity.Name)
 	begin := time.Now()
 	err := c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Name(assignedIdentity.Name).Do().Error()
+	glog.V(5).Infof("Deletion %s took: %v", assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDDel, time.Since(begin))
 	return err
 }
@@ -311,7 +315,6 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	begin := time.Now()
 	// Create a new AzureAssignedIdentity which maps the relationship between
 	// id and pod
-	glog.Infof("Creating assigned Id: %s", assignedIdentity.Name)
 	var res aadpodid.AzureAssignedIdentity
 	// TODO: Ensure that the status reflects the corresponding
 	err := c.rest.Post().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Body(assignedIdentity).Do().Into(&res)
@@ -320,6 +323,7 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 		return err
 	}
 
+	glog.V(5).Infof("Time take to create %s: %v", assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDAdd, time.Since(begin))
 	//TODO: Update the status of the assign identity to indicate that the node assignment got done.
 	return nil
@@ -476,6 +480,7 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 		return err
 	}
 
+	begin := time.Now()
 	err = c.rest.
 		Patch(types.JSONPatchType).
 		Namespace(assignedIdentity.Namespace).
@@ -484,6 +489,7 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 		Body(patchBytes).
 		Do().
 		Error()
+	glog.V(5).Infof("Patch of %s took: %v", assignedIdentity.Name, time.Since(begin))
 
 	return err
 }
