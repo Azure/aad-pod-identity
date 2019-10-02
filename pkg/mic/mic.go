@@ -114,7 +114,6 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 	glog.V(1).Infof("Pod Client initialized")
 
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(glog.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: clientSet.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: aadpodid.CRDGroup})
 
@@ -236,6 +235,8 @@ func (c *Client) Sync(exit <-chan struct{}) {
 	glog.Info("Sync thread started.")
 	c.SyncLoopStarted = true
 	var event aadpodid.EventType
+	totalWorkDoneCycles := 0
+	totalSyncCycles := 0
 	for {
 		select {
 		case <-exit:
@@ -245,7 +246,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		case <-ticker.C:
 			glog.V(6).Infof("Running periodic sync loop")
 		}
-
+		totalSyncCycles++
 		stats.Init()
 		// This is the only place where the AzureAssignedIdentity creation is initiated.
 		begin := time.Now()
@@ -328,7 +329,10 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 		wg.Wait()
 
-		if workDone {
+		if workDone || ((totalSyncCycles % 1000) == 0) {
+			if workDone {
+				totalWorkDoneCycles++
+			}
 			idsFound := 0
 			bindingsFound := 0
 			if listIDs != nil {
@@ -337,13 +341,16 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			if listBindings != nil {
 				bindingsFound = len(*listBindings)
 			}
-			glog.Infof("Found %d pods, %d ids, %d bindings", len(listPods), idsFound, bindingsFound)
+			glog.Infof("Work done: %v. Found %d pods, %d ids, %d bindings", workDone, len(listPods), idsFound, bindingsFound)
+			glog.Infof("Total work cycles: %d, out of which work was done in: %d.", totalSyncCycles, totalWorkDoneCycles)
 			stats.Put(stats.Total, time.Since(begin))
 			stats.PrintSync()
-			// We need to synchornize the cache inorder to get the latest updates. Sync cache has a bug in the current go client which caused thread leak.
-			// Updating of go client has issues with case sensitivity. Avoid this issue by sleping for 500 milliseconds to reduce the chance
-			// of cache misses for assignedidentities updated in the previous cycle.
-			time.Sleep(time.Millisecond * 200)
+			if workDone {
+				// We need to synchornize the cache inorder to get the latest updates. Sync cache has a bug in the current go client which caused thread leak.
+				// Updating of go client has issues with case sensitivity. Avoid this issue by sleping for 500 milliseconds to reduce the chance
+				// of cache misses for assignedidentities updated in the previous cycle.
+				time.Sleep(time.Millisecond * 200)
+			}
 		}
 	}
 }
@@ -484,14 +491,14 @@ func (c *Client) matchAssignedID(x *aadpodid.AzureAssignedIdentity, y *aadpodid.
 	idX := x.Spec.AzureIdentityRef
 	idY := y.Spec.AzureIdentityRef
 
-	glog.V(6).Infof("assignedidX - %+v\n", x)
-	glog.V(6).Infof("assignedidY - %+v\n", y)
+	glog.V(7).Infof("assignedidX - %+v\n", x)
+	glog.V(7).Infof("assignedidY - %+v\n", y)
 
-	glog.V(6).Infof("bindingX - %+v\n", bindingX)
-	glog.V(6).Infof("bindingY - %+v\n", bindingY)
+	glog.V(7).Infof("bindingX - %+v\n", bindingX)
+	glog.V(7).Infof("bindingY - %+v\n", bindingY)
 
-	glog.V(6).Infof("idX - %+v\n", idX)
-	glog.V(6).Infof("idY - %+v\n", idY)
+	glog.V(7).Infof("idX - %+v\n", idX)
+	glog.V(7).Infof("idY - %+v\n", idY)
 
 	if bindingX.Name == bindingY.Name && bindingX.ResourceVersion == bindingY.ResourceVersion &&
 		idX.Name == idY.Name && idX.ResourceVersion == idY.ResourceVersion &&
@@ -584,23 +591,15 @@ func (c *Client) makeAssignedIDs(azID aadpodid.AzureIdentity, azBinding aadpodid
 	binding := azBinding
 	id := azID
 
-	var oMeta v1.ObjectMeta
+	labels := make(map[string]string)
+	labels["nodename"] = nodeName
+	labels["podnamespace"] = podNameSpace
+	labels["podname"] = podName
 
-	if c.enableScaleFeatures {
-		labels := make(map[string]string)
-		labels["nodename"] = nodeName
-		labels["podnamespace"] = podNameSpace
-		labels["podname"] = podName
-		oMeta = v1.ObjectMeta{
-			Name:   c.getAssignedIDName(podName, podNameSpace, azID.Name),
-			Labels: labels,
-		}
-	} else {
-		oMeta = v1.ObjectMeta{
-			Name: c.getAssignedIDName(podName, podNameSpace, azID.Name),
-		}
+	oMeta := v1.ObjectMeta{
+		Name:   c.getAssignedIDName(podName, podNameSpace, azID.Name),
+		Labels: labels,
 	}
-
 	assignedID := &aadpodid.AzureAssignedIdentity{
 		ObjectMeta: oMeta,
 		Spec: aadpodid.AzureAssignedIdentitySpec{
@@ -767,6 +766,10 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 	glog.Infof("Processing node %s, add [%d], del [%d]", nodeOrVMSSName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete))
 
 	ctx := context.TODO()
+	// We have to ensure that we don't overwhelm the API server with too many
+	// requests in flight. We use a token based approach implemented using semaphore to
+	// ensure that only given createDeleteBatch requests are in flight at any point in time.
+	// Note that at this point in the code path, we are doing this in parallel per node/VMSS already.
 	semCreate := semaphore.NewWeighted(c.createDeleteBatch)
 
 	for _, createID := range nodeTrackList.assignedIDsToCreate {
@@ -793,6 +796,7 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 		}(createID)
 	}
 
+	// Ensure that all creates are complete
 	if err := semCreate.Acquire(ctx, c.createDeleteBatch); err != nil {
 		glog.Errorf("Failed to acquire semaphore at the end of creates: %v", err)
 		return
@@ -882,7 +886,7 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 
 	for _, createID := range nodeTrackList.assignedIDsToCreate {
 		if err := semUpdate.Acquire(ctx, 1); err != nil {
-			glog.Errorf("Failed to acquire semaphore in the create loop: %v", err)
+			glog.Errorf("Failed to acquire semaphore in the update loop: %v", err)
 			return
 		}
 		go func(assignedID aadpodid.AzureAssignedIdentity) {
@@ -901,8 +905,9 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 		}(createID)
 	}
 
+	// Ensure that all updates are complete
 	if err := semUpdate.Acquire(ctx, c.createDeleteBatch); err != nil {
-		glog.Errorf("Failed to acquire semaphore at the end of creates: %v", err)
+		glog.Errorf("Failed to acquire semaphore at the end of updates: %v", err)
 		return
 	}
 
@@ -939,6 +944,7 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 		}(delID)
 	}
 
+	// Ensure that all deletes are complete
 	if err := semDel.Acquire(ctx, c.createDeleteBatch); err != nil {
 		glog.Errorf("Failed to acquire semaphore at the end of deletes: %v", err)
 		return
