@@ -71,7 +71,7 @@ func NewKubeClient(log inlog.Logger, nodeName string, scale bool) (Client, error
 
 	podInformer := informersv1.NewFilteredPodInformer(clientset, v1.NamespaceAll, 10*time.Minute,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
-		TweakOptionFunc(nodeName))
+		NodeNameFilter(nodeName))
 
 	kubeClient := &KubeClient{
 		CrdClient:   crdclient,
@@ -106,7 +106,9 @@ func (c *KubeClient) getReplicasetName(pod v1.Pod) string {
 	return ""
 }
 
-func TweakOptionFunc(nodeName string) internalinterfaces.TweakListOptionsFunc {
+// NodeNameFilter will tweak the options to include the node name as field
+// selector.
+func NodeNameFilter(nodeName string) internalinterfaces.TweakListOptionsFunc {
 	return func(l *metav1.ListOptions) {
 		if l == nil {
 			l = &metav1.ListOptions{}
