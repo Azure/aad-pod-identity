@@ -85,7 +85,7 @@ func NewKubeClient(log inlog.Logger, nodeName string, scale bool) (Client, error
 
 func (c *KubeClient) Sync(exit <-chan struct{}) {
 	if !cache.WaitForCacheSync(exit, c.PodInformer.HasSynced) {
-		c.log.Errorf("Cache could not be synchronized")
+		c.log.Errorf("Pod cache could not be synchronized")
 	}
 	c.CrdClient.SyncCacheLite(exit)
 }

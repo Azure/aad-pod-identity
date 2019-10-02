@@ -12,7 +12,6 @@ import (
 	inlog "github.com/Azure/aad-pod-identity/pkg/logger"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -216,9 +215,9 @@ func newIDInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cach
 // apply labels with node name and then later use the NodeNameFilter to tweak
 // options to filter using nodename label.
 func NodeNameFilter(nodeName string) internalinterfaces.TweakListOptionsFunc {
-	return func(l *metav1.ListOptions) {
+	return func(l *v1.ListOptions) {
 		if l == nil {
-			l = &metav1.ListOptions{}
+			l = &v1.ListOptions{}
 		}
 		l.LabelSelector = l.LabelSelector + "nodename=" + nodeName
 		return
