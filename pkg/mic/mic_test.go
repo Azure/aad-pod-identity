@@ -2,7 +2,6 @@ package mic
 
 import (
 	"errors"
-	"flag"
 	"fmt"
 	"reflect"
 	"sync"
@@ -1356,9 +1355,6 @@ func TestSyncNodeNotFound(t *testing.T) {
 }
 
 func TestProcessingTimeForScale(t *testing.T) {
-	flag.Set("logtostderr", "true")
-	flag.Parse()
-
 	eventCh := make(chan aadpodid.EventType, 20000)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
 	crdClient := NewTestCrdClient(nil)
@@ -1368,7 +1364,7 @@ func TestProcessingTimeForScale(t *testing.T) {
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool, 20000)
 
-	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false)
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4)
 
 	// Add a pod, identity and binding.
 	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
