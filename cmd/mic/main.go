@@ -53,14 +53,14 @@ func main() {
 	// Profile
 	flag.BoolVar(&enableProfile, "enableProfile", false, "Enable/Disable pprof profiling")
 
-	// Profile
+	// Enable scale features handles the label based azureassignedidentity.
 	flag.BoolVar(&enableScaleFeatures, "enableScaleFeatures", false, "Enable/Disable new features used for clusters at scale")
 
-	// Profile
+	// createDeleteBatch can be used for tuning the number of outstanding api server operations we do per node/VMSS.
 	flag.Int64Var(&createDeleteBatch, "createDeleteBatch", 200, "Per node/VMSS create/delete batches")
 
-	// Profile
-	flag.Float64Var(&clientQPS, "clientQps", 70, "Client QPS used for throttling of calls to server")
+	// Client QPS is used to configure the client-go QPS throttling and bursting.
+	flag.Float64Var(&clientQPS, "clientQps", 10, "Client QPS used for throttling of calls to server")
 
 	flag.Parse()
 	if versionInfo {
