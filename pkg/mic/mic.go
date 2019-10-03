@@ -1,6 +1,7 @@
 package mic
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -15,6 +16,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	"github.com/Azure/aad-pod-identity/version"
 	"github.com/golang/glog"
+	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
@@ -49,15 +51,17 @@ type LeaderElectionConfig struct {
 // Client has the required pointers to talk to the api server
 // and interact with the CRD related datastructure.
 type Client struct {
-	CRDClient         crd.ClientInt
-	CloudClient       cloudprovider.ClientInt
-	PodClient         pod.ClientInt
-	EventRecorder     record.EventRecorder
-	EventChannel      chan aadpodid.EventType
-	NodeClient        NodeGetter
-	IsNamespaced      bool
-	SyncLoopStarted   bool
-	syncRetryInterval time.Duration
+	CRDClient           crd.ClientInt
+	CloudClient         cloudprovider.ClientInt
+	PodClient           pod.ClientInt
+	EventRecorder       record.EventRecorder
+	EventChannel        chan aadpodid.EventType
+	NodeClient          NodeGetter
+	IsNamespaced        bool
+	SyncLoopStarted     bool
+	syncRetryInterval   time.Duration
+	enableScaleFeatures bool
+	createDeleteBatch   int64
 
 	syncing int32 // protect against conucrrent sync's
 
@@ -80,7 +84,8 @@ type trackUserAssignedMSIIds struct {
 }
 
 // NewMICClient returnes new mic client
-func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, syncRetryInterval time.Duration, leaderElectionConfig *LeaderElectionConfig) (*Client, error) {
+func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, syncRetryInterval time.Duration,
+	leaderElectionConfig *LeaderElectionConfig, enableScaleFeatures bool, createDeleteBatch int64) (*Client, error) {
 	glog.Infof("Starting to create the pod identity client. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
 
 	clientSet := kubernetes.NewForConfigOrDie(config)
@@ -109,19 +114,20 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 	glog.V(1).Infof("Pod Client initialized")
 
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(glog.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: clientSet.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: aadpodid.CRDGroup})
 
 	c := &Client{
-		CRDClient:         crdClient,
-		CloudClient:       cloudClient,
-		PodClient:         podClient,
-		EventRecorder:     recorder,
-		EventChannel:      eventCh,
-		NodeClient:        &NodeClient{informer.Core().V1().Nodes()},
-		IsNamespaced:      isNamespaced,
-		syncRetryInterval: syncRetryInterval,
+		CRDClient:           crdClient,
+		CloudClient:         cloudClient,
+		PodClient:           podClient,
+		EventRecorder:       recorder,
+		EventChannel:        eventCh,
+		NodeClient:          &NodeClient{informer.Core().V1().Nodes()},
+		IsNamespaced:        isNamespaced,
+		syncRetryInterval:   syncRetryInterval,
+		enableScaleFeatures: enableScaleFeatures,
+		createDeleteBatch:   createDeleteBatch,
 	}
 	leaderElector, err := c.NewLeaderElector(clientSet, recorder, leaderElectionConfig)
 	if err != nil {
@@ -229,6 +235,8 @@ func (c *Client) Sync(exit <-chan struct{}) {
 	glog.Info("Sync thread started.")
 	c.SyncLoopStarted = true
 	var event aadpodid.EventType
+	totalWorkDoneCycles := 0
+	totalSyncCycles := 0
 	for {
 		select {
 		case <-exit:
@@ -238,18 +246,11 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		case <-ticker.C:
 			glog.V(6).Infof("Running periodic sync loop")
 		}
-
+		totalSyncCycles++
 		stats.Init()
 		// This is the only place where the AzureAssignedIdentity creation is initiated.
 		begin := time.Now()
 		workDone := false
-
-		cacheTime := time.Now()
-
-		// There is a delay in data propogation to cache. It's possible that the creates performed in the previous sync cycle
-		// are not propogated before this sync cycle began. In order to avoid redoing the cycle, we sync cache again.
-		c.CRDClient.SyncCache(exit, false)
-		stats.Put(stats.CacheSync, time.Since(cacheTime))
 
 		// List all pods in all namespaces
 		systemTime := time.Now()
@@ -272,7 +273,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			continue
 		}
 
-		currentAssignedIDs, err := c.CRDClient.ListAssignedIDs()
+		currentAssignedIDs, err := c.CRDClient.ListAssignedIDsInMap()
 		if err != nil {
 			continue
 		}
@@ -288,12 +289,12 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 		// Extract add list and delete list based on existing assigned ids in the system (currentAssignedIDs).
 		// and the ones we have arrived at in the volatile list (newAssignedIDs).
-		addList, err := c.getAzureAssignedIDsToCreate(*currentAssignedIDs, newAssignedIDs)
+		addList, err := c.getAzureAssignedIDsToCreate(currentAssignedIDs, newAssignedIDs)
 		if err != nil {
 			glog.Error(err)
 			continue
 		}
-		deleteList, err := c.getAzureAssignedIDsToDelete(currentAssignedIDs, &newAssignedIDs)
+		deleteList, err := c.getAzureAssignedIDsToDelete(currentAssignedIDs, newAssignedIDs)
 		if err != nil {
 			glog.Error(err)
 			continue
@@ -309,13 +310,13 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 		// process the delete and add list
 		// determine the list of identities that need to updated, create a node to identity list mapping for add and delete
-		if deleteList != nil && len(*deleteList) > 0 {
+		if len(deleteList) > 0 {
 			workDone = true
-			c.getListOfIdsToDelete(*deleteList, newAssignedIDs, nodeMap, nodeRefs)
+			c.getListOfIdsToDelete(deleteList, newAssignedIDs, nodeMap, nodeRefs)
 		}
-		if addList != nil && len(*addList) > 0 {
+		if len(addList) > 0 {
 			workDone = true
-			c.getListOfIdsToAssign(*addList, nodeMap)
+			c.getListOfIdsToAssign(addList, nodeMap)
 		}
 
 		var wg sync.WaitGroup
@@ -328,7 +329,10 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 		wg.Wait()
 
-		if workDone {
+		if workDone || ((totalSyncCycles % 1000) == 0) {
+			if workDone {
+				totalWorkDoneCycles++
+			}
 			idsFound := 0
 			bindingsFound := 0
 			if listIDs != nil {
@@ -337,16 +341,23 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			if listBindings != nil {
 				bindingsFound = len(*listBindings)
 			}
-			glog.Infof("Found %d pods, %d ids, %d bindings", len(listPods), idsFound, bindingsFound)
+			glog.Infof("Work done: %v. Found %d pods, %d ids, %d bindings", workDone, len(listPods), idsFound, bindingsFound)
+			glog.Infof("Total work cycles: %d, out of which work was done in: %d.", totalSyncCycles, totalWorkDoneCycles)
 			stats.Put(stats.Total, time.Since(begin))
 			stats.PrintSync()
+			if workDone {
+				// We need to synchornize the cache inorder to get the latest updates. Sync cache has a bug in the current go client which caused thread leak.
+				// Updating of go client has issues with case sensitivity. Avoid this issue by sleping for 500 milliseconds to reduce the chance
+				// of cache misses for assignedidentities updated in the previous cycle.
+				time.Sleep(time.Millisecond * 200)
+			}
 		}
 	}
 }
 
-func (c *Client) convertAssignedIDListToMap(addList, deleteList *[]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
+func (c *Client) convertAssignedIDListToMap(addList, deleteList map[string]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
 	if addList != nil {
-		for _, createID := range *addList {
+		for _, createID := range addList {
 			if trackList, ok := nodeMap[createID.Spec.NodeName]; ok {
 				trackList.assignedIDsToCreate = append(trackList.assignedIDsToCreate, createID)
 				nodeMap[createID.Spec.NodeName] = trackList
@@ -357,7 +368,7 @@ func (c *Client) convertAssignedIDListToMap(addList, deleteList *[]aadpodid.Azur
 	}
 
 	if deleteList != nil {
-		for _, delID := range *deleteList {
+		for _, delID := range deleteList {
 			if trackList, ok := nodeMap[delID.Spec.NodeName]; ok {
 				trackList.assignedIDsToDelete = append(trackList.assignedIDsToDelete, delID)
 				nodeMap[delID.Spec.NodeName] = trackList
@@ -369,13 +380,13 @@ func (c *Client) convertAssignedIDListToMap(addList, deleteList *[]aadpodid.Azur
 }
 
 func (c *Client) createDesiredAssignedIdentityList(
-	listPods []*corev1.Pod, listBindings *[]aadpodid.AzureIdentityBinding, idMap map[string]aadpodid.AzureIdentity) ([]aadpodid.AzureAssignedIdentity, map[string]bool, error) {
+	listPods []*corev1.Pod, listBindings *[]aadpodid.AzureIdentityBinding, idMap map[string]aadpodid.AzureIdentity) (map[string]aadpodid.AzureAssignedIdentity, map[string]bool, error) {
 	//For each pod, check what bindings are matching. For each binding create volatile azure assigned identity.
 	//Compare this list with the current list of azure assigned identities.
 	//For any new assigned identities found in this volatile list, create assigned identity and assign user assigned msis.
 	//For any assigned ids not present the volatile list, proceed with the deletion.
 	nodeRefs := make(map[string]bool)
-	var newAssignedIDs []aadpodid.AzureAssignedIdentity
+	newAssignedIDs := make(map[string]aadpodid.AzureAssignedIdentity)
 
 	for _, pod := range listPods {
 		if pod.Spec.NodeName == "" {
@@ -417,7 +428,7 @@ func (c *Client) createDesiredAssignedIdentityList(
 					glog.Errorf("failed to create assignment for pod %s/%s with identity %s/%s with error %v", pod.Namespace, pod.Name, azureID.Namespace, azureID.Name, err.Error())
 					continue
 				}
-				newAssignedIDs = append(newAssignedIDs, *assignedID)
+				newAssignedIDs[assignedID.Name] = *assignedID
 			} else {
 				// This is the case where the identity has been deleted.
 				// In such a case, we will skip it from matching binding.
@@ -432,7 +443,10 @@ func (c *Client) createDesiredAssignedIdentityList(
 
 // getListOfIdsToDelete will go over the delete list to determine if the id is required to be deleted
 // only user assigned identity not in use are added to the remove list for the node
-func (c *Client) getListOfIdsToDelete(deleteList, newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds, nodeRefs map[string]bool) {
+func (c *Client) getListOfIdsToDelete(deleteList map[string]aadpodid.AzureAssignedIdentity,
+	newAssignedIDs map[string]aadpodid.AzureAssignedIdentity,
+	nodeMap map[string]trackUserAssignedMSIIds,
+	nodeRefs map[string]bool) {
 	vmssGroups, err := getVMSSGroups(c.NodeClient, nodeRefs)
 	if err != nil {
 		glog.Error(err)
@@ -459,7 +473,7 @@ func (c *Client) getListOfIdsToDelete(deleteList, newAssignedIDs []aadpodid.Azur
 }
 
 // getListOfIdsToAssign will add the id to the append list for node if it's user assigned identity
-func (c *Client) getListOfIdsToAssign(addList []aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
+func (c *Client) getListOfIdsToAssign(addList map[string]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
 	for _, createID := range addList {
 		id := createID.Spec.AzureIdentityRef
 		isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
@@ -473,117 +487,110 @@ func (c *Client) getListOfIdsToAssign(addList []aadpodid.AzureAssignedIdentity, 
 	}
 }
 
-func (c *Client) matchAssignedID(x *aadpodid.AzureAssignedIdentity, y *aadpodid.AzureAssignedIdentity) (ret bool, err error) {
+func (c *Client) matchAssignedID(x aadpodid.AzureAssignedIdentity, y aadpodid.AzureAssignedIdentity) (ret bool) {
 	bindingX := x.Spec.AzureBindingRef
 	bindingY := y.Spec.AzureBindingRef
 
 	idX := x.Spec.AzureIdentityRef
 	idY := y.Spec.AzureIdentityRef
 
-	glog.V(6).Infof("assignedidX - %+v\n", x)
-	glog.V(6).Infof("assignedidY - %+v\n", y)
+	glog.V(7).Infof("assignedidX - %+v\n", x)
+	glog.V(7).Infof("assignedidY - %+v\n", y)
 
-	glog.V(6).Infof("bindingX - %+v\n", bindingX)
-	glog.V(6).Infof("bindingY - %+v\n", bindingY)
+	glog.V(7).Infof("bindingX - %+v\n", bindingX)
+	glog.V(7).Infof("bindingY - %+v\n", bindingY)
 
-	glog.V(6).Infof("idX - %+v\n", idX)
-	glog.V(6).Infof("idY - %+v\n", idY)
+	glog.V(7).Infof("idX - %+v\n", idX)
+	glog.V(7).Infof("idY - %+v\n", idY)
 
-	if bindingX.Name == bindingY.Name && bindingX.ResourceVersion == bindingY.ResourceVersion &&
-		idX.Name == idY.Name && idX.ResourceVersion == idY.ResourceVersion &&
-		x.Spec.Pod == y.Spec.Pod && x.Spec.PodNamespace == y.Spec.PodNamespace && x.Spec.NodeName == y.Spec.NodeName {
-		return true, nil
-	}
-	return false, nil
+	return bindingX.Name == bindingY.Name &&
+		bindingX.ResourceVersion == bindingY.ResourceVersion &&
+		idX.Name == idY.Name &&
+		idX.ResourceVersion == idY.ResourceVersion &&
+		x.Spec.Pod == y.Spec.Pod &&
+		x.Spec.PodNamespace == y.Spec.PodNamespace &&
+		x.Spec.NodeName == y.Spec.NodeName
 }
 
-func (c *Client) getAzureAssignedIDsToCreate(old, new []aadpodid.AzureAssignedIdentity) (*[]aadpodid.AzureAssignedIdentity, error) {
+func (c *Client) getAzureAssignedIDsToCreate(old, new map[string]aadpodid.AzureAssignedIdentity) (map[string]aadpodid.AzureAssignedIdentity, error) {
 	// everything in new needs to be created
-	if old == nil || len(old) == 0 {
-		return &new, nil
+	if len(old) == 0 {
+		return new, nil
 	}
 
-	create := make([]aadpodid.AzureAssignedIdentity, 0)
-	var err error
-	idMatch := false
+	create := make(map[string]aadpodid.AzureAssignedIdentity)
 	begin := time.Now()
-	// TODO: We should be able to optimize the many for loops.
-	for _, newAssignedID := range new {
-		idMatch = false
-		for _, oldAssignedID := range old {
-			idMatch, err = c.matchAssignedID(&newAssignedID, &oldAssignedID)
-			if err != nil {
-				glog.Error(err)
-				continue
-			}
-			if idMatch {
-				// if the old assigned id is in created state, then the identity assignment to the node
-				// is not done. Adding to the list will ensure we retry identity assignment to node for
-				// this assigned identity.
-				if oldAssignedID.Status.Status == aadpodid.AssignedIDCreated {
-					create = append(create, oldAssignedID)
-				}
-				break
-			}
+
+	for assignedIDName, newAssignedID := range new {
+		oldAssignedID, exists := old[assignedIDName]
+		idMatch := false
+		if exists {
+			idMatch = c.matchAssignedID(oldAssignedID, newAssignedID)
+		}
+		if idMatch && oldAssignedID.Status.Status == aadpodid.AssignedIDCreated {
+			// if the old assigned id is in created state, then the identity assignment to the node
+			// is not done. Adding to the list will ensure we retry identity assignment to node for
+			// this assigned identity.
+			glog.V(5).Infof("ok: %v, Create added: %s", idMatch, assignedIDName)
+			create[assignedIDName] = oldAssignedID
 		}
 		if !idMatch {
-			glog.V(5).Infof("ok: %v, Create added: %s", idMatch, newAssignedID.Name)
 			// We are done checking that this new id is not present in the old
 			// list. So we will add it to the create list.
-			create = append(create, newAssignedID)
+			glog.V(5).Infof("ok: %v, Create added: %s", idMatch, assignedIDName)
+			create[assignedIDName] = newAssignedID
 		}
 	}
 	stats.Put(stats.FindAssignedIDCreate, time.Since(begin))
-	return &create, nil
+	return create, nil
 }
 
-func (c *Client) getAzureAssignedIDsToDelete(old *[]aadpodid.AzureAssignedIdentity, new *[]aadpodid.AzureAssignedIdentity) (*[]aadpodid.AzureAssignedIdentity, error) {
+func (c *Client) getAzureAssignedIDsToDelete(old, new map[string]aadpodid.AzureAssignedIdentity) (map[string]aadpodid.AzureAssignedIdentity, error) {
+	delete := make(map[string]aadpodid.AzureAssignedIdentity)
 	// nothing to delete
-	if old == nil || len(*old) == 0 {
-		return nil, nil
+	if len(old) == 0 {
+		return delete, nil
 	}
 	// delete everything as nothing in new
-	if new == nil || len(*new) == 0 {
+	if len(new) == 0 {
 		return old, nil
 	}
 
-	delete := make([]aadpodid.AzureAssignedIdentity, 0)
-	var err error
-	idMatch := false
-
 	begin := time.Now()
-	for _, oldAssignedID := range *old {
-		idMatch = false
-		for _, newAssignedID := range *new {
-			idMatch, err = c.matchAssignedID(&newAssignedID, &oldAssignedID)
-			if err != nil {
-				glog.Error(err)
-				continue
-			}
-			//glog.Infof("Match %s %s %v", newAssignedID.Name, oldAssignedID.Name, idMatch)
-			if idMatch {
-				break
-			}
+	for assignedIDName, oldAssignedID := range old {
+		newAssignedID, exists := new[assignedIDName]
+		idMatch := false
+		if exists {
+			idMatch = c.matchAssignedID(oldAssignedID, newAssignedID)
 		}
-		if !idMatch {
-			glog.V(5).Infof("ok: %v, Delete added: %s", idMatch, oldAssignedID.Name)
-			// We are done checking that this old id is not present in the new
-			// list. So we will add it to the delete list.
-			delete = append(delete, oldAssignedID)
+		// assigned identity exists in the desired list too which means
+		// it should not be deleted
+		if exists && idMatch {
+			continue
 		}
+		// We are done checking that this old id is not present in the new
+		// list. So we will add it to the delete list.
+		delete[assignedIDName] = oldAssignedID
 	}
 	stats.Put(stats.FindAssignedIDDel, time.Since(begin))
-	return &delete, nil
+	return delete, nil
 }
 
 func (c *Client) makeAssignedIDs(azID aadpodid.AzureIdentity, azBinding aadpodid.AzureIdentityBinding, podName, podNameSpace, nodeName string) (res *aadpodid.AzureAssignedIdentity, err error) {
 	binding := azBinding
 	id := azID
 
+	labels := make(map[string]string)
+	labels["nodename"] = nodeName
+	labels["podnamespace"] = podNameSpace
+	labels["podname"] = podName
+
+	oMeta := v1.ObjectMeta{
+		Name:   c.getAssignedIDName(podName, podNameSpace, azID.Name),
+		Labels: labels,
+	}
 	assignedID := &aadpodid.AzureAssignedIdentity{
-		ObjectMeta: v1.ObjectMeta{
-			Name: c.getAssignedIDName(podName, podNameSpace, azID.Name),
-		},
+		ObjectMeta: oMeta,
 		Spec: aadpodid.AzureAssignedIdentitySpec{
 			AzureIdentityRef: &id,
 			AzureBindingRef:  &binding,
@@ -677,8 +684,8 @@ func (c *Client) convertIDListToMap(arr []aadpodid.AzureIdentity) (m map[string]
 	return m, nil
 }
 
-func (c *Client) checkIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, arr []aadpodid.AzureAssignedIdentity, vmssGroups *vmssGroupList) (bool, error) {
-	for _, assignedID := range arr {
+func (c *Client) checkIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, assignedIDMap map[string]aadpodid.AzureAssignedIdentity, vmssGroups *vmssGroupList) (bool, error) {
+	for _, assignedID := range assignedIDMap {
 		checkID := checkAssignedID.Spec.AzureIdentityRef
 		id := assignedID.Spec.AzureIdentityRef
 		// If they have the same client id, reside on the same node but the pod name is different, then the
@@ -735,33 +742,53 @@ func (c *Client) updateAssignedIdentityStatus(assignedID *aadpodid.AzureAssigned
 	return c.CRDClient.UpdateAzureAssignedIdentityStatus(assignedID, status)
 }
 
-func (c *Client) updateNodeAndDeps(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
+func (c *Client) updateNodeAndDeps(newAssignedIDs map[string]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
 	for nodeName, nodeTrackList := range nodeMap {
 		wg.Add(1)
 		go c.updateUserMSI(newAssignedIDs, nodeName, nodeTrackList, nodeRefs, wg)
 	}
 }
 
-func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, nodeOrVMSSName string, nodeTrackList trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
+func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedIdentity, nodeOrVMSSName string, nodeTrackList trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 	beginAdding := time.Now()
 	glog.Infof("Processing node %s, add [%d], del [%d]", nodeOrVMSSName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete))
 
+	ctx := context.TODO()
+	// We have to ensure that we don't overwhelm the API server with too many
+	// requests in flight. We use a token based approach implemented using semaphore to
+	// ensure that only given createDeleteBatch requests are in flight at any point in time.
+	// Note that at this point in the code path, we are doing this in parallel per node/VMSS already.
+	semCreate := semaphore.NewWeighted(c.createDeleteBatch)
+
 	for _, createID := range nodeTrackList.assignedIDsToCreate {
-		if createID.Status.Status == "" {
-			binding := createID.Spec.AzureBindingRef
-
-			// this is the state when the azure assigned identity is yet to be created
-			glog.V(5).Infof("Initiating assigned id creation for pod - %s, binding - %s", createID.Spec.Pod, binding.Name)
-
-			createID.Status.Status = aadpodid.AssignedIDCreated
-			err := c.createAssignedIdentity(&createID)
-			if err != nil {
-				c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error",
-					fmt.Sprintf("Creating assigned identity for pod %s resulted in error %v", createID.Name, err))
-				glog.Error(err)
-			}
+		if err := semCreate.Acquire(ctx, 1); err != nil {
+			glog.Errorf("Failed to acquire semaphore in the create loop: %v", err)
+			return
 		}
+		go func(assignedID aadpodid.AzureAssignedIdentity) {
+			defer semCreate.Release(1)
+			if assignedID.Status.Status == "" {
+				binding := assignedID.Spec.AzureBindingRef
+
+				// this is the state when the azure assigned identity is yet to be created
+				glog.V(5).Infof("Initiating assigned id creation for pod - %s, binding - %s", assignedID.Spec.Pod, binding.Name)
+
+				assignedID.Status.Status = aadpodid.AssignedIDCreated
+				err := c.createAssignedIdentity(&assignedID)
+				if err != nil {
+					c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error",
+						fmt.Sprintf("Creating assigned identity for pod %s resulted in error %v", assignedID.Name, err))
+					glog.Error(err)
+				}
+			}
+		}(createID)
+	}
+
+	// Ensure that all creates are complete
+	if err := semCreate.Acquire(ctx, c.createDeleteBatch); err != nil {
+		glog.Errorf("Failed to acquire semaphore at the end of creates: %v", err)
+		return
 	}
 	// generate unique list so we don't make multiple calls to assign/remove same id
 	addUserAssignedMSIIDs := c.getUniqueIDs(nodeTrackList.addUserAssignedMSIIDs)
@@ -844,44 +871,76 @@ func (c *Client) updateUserMSI(newAssignedIDs []aadpodid.AzureAssignedIdentity, 
 		return
 	}
 
+	semUpdate := semaphore.NewWeighted(c.createDeleteBatch)
+
 	for _, createID := range nodeTrackList.assignedIDsToCreate {
-		binding := createID.Spec.AzureBindingRef
-		// update the status to assigned for assigned identity as identity was successfully assigned to node.
-		err = c.updateAssignedIdentityStatus(&createID, aadpodid.AssignedIDAssigned)
-		if err != nil {
-			message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", createID.Name, aadpodid.AssignedIDAssigned, createID.Spec.Pod, err.Error())
-			c.EventRecorder.Event(&createID, corev1.EventTypeWarning, "status update error", message)
-			glog.Error(message)
-			continue
+		if err := semUpdate.Acquire(ctx, 1); err != nil {
+			glog.Errorf("Failed to acquire semaphore in the update loop: %v", err)
+			return
 		}
-		c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding applied",
-			fmt.Sprintf("Binding %s applied on node %s for pod %s", binding.Name, createID.Spec.NodeName, createID.Name))
+		go func(assignedID aadpodid.AzureAssignedIdentity) {
+			defer semUpdate.Release(1)
+			binding := assignedID.Spec.AzureBindingRef
+			// update the status to assigned for assigned identity as identity was successfully assigned to node.
+			err := c.updateAssignedIdentityStatus(&assignedID, aadpodid.AssignedIDAssigned)
+			if err != nil {
+				message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", assignedID.Name, aadpodid.AssignedIDAssigned, assignedID.Spec.Pod, err.Error())
+				c.EventRecorder.Event(&assignedID, corev1.EventTypeWarning, "status update error", message)
+				glog.Error(message)
+				return
+			}
+			c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding applied",
+				fmt.Sprintf("Binding %s applied on node %s for pod %s", binding.Name, assignedID.Spec.NodeName, assignedID.Name))
+		}(createID)
 	}
+
+	// Ensure that all updates are complete
+	if err := semUpdate.Acquire(ctx, c.createDeleteBatch); err != nil {
+		glog.Errorf("Failed to acquire semaphore at the end of updates: %v", err)
+		return
+	}
+
+	semDel := semaphore.NewWeighted(c.createDeleteBatch)
 
 	for _, delID := range nodeTrackList.assignedIDsToDelete {
-		removedBinding := delID.Spec.AzureBindingRef
-
-		// update the status for the assigned identity to Unassigned as the identity has been successfully removed from node.
-		// this will ensure on next sync loop we only try to delete the assigned identity instead of doing everything.
-		err = c.updateAssignedIdentityStatus(&delID, aadpodid.AssignedIDUnAssigned)
-		if err != nil {
-			message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", delID.Name, aadpodid.AssignedIDUnAssigned, delID.Spec.Pod, err.Error())
-			c.EventRecorder.Event(&delID, corev1.EventTypeWarning, "status update error", message)
-			glog.Error(message)
-			continue
+		if err := semDel.Acquire(ctx, 1); err != nil {
+			glog.Errorf("Failed to acquire semaphore in the delete loop: %v", err)
+			return
 		}
-		// remove assigned identity crd from cluster as the identity has successfully been removed from the node
-		err = c.removeAssignedIdentity(&delID)
-		if err != nil {
-			c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error",
-				fmt.Sprintf("Removing assigned identity binding %s node %s for pod %s resulted in error %v", removedBinding.Name, delID.Spec.NodeName, delID.Name, err))
-			glog.Error(err)
-			continue
-		}
-		// the identity was successfully removed from node
-		c.EventRecorder.Event(removedBinding, corev1.EventTypeNormal, "binding removed",
-			fmt.Sprintf("Binding %s removed from node %s for pod %s", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod))
+		go func(assignedID aadpodid.AzureAssignedIdentity) {
+			defer semDel.Release(1)
+			removedBinding := assignedID.Spec.AzureBindingRef
+			// update the status for the assigned identity to Unassigned as the identity has been successfully removed from node.
+			// this will ensure on next sync loop we only try to delete the assigned identity instead of doing everything.
+			err := c.updateAssignedIdentityStatus(&assignedID, aadpodid.AssignedIDUnAssigned)
+			if err != nil {
+				message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", assignedID.Name, aadpodid.AssignedIDUnAssigned, assignedID.Spec.Pod, err.Error())
+				c.EventRecorder.Event(&assignedID, corev1.EventTypeWarning, "status update error", message)
+				glog.Error(message)
+				return
+			}
+			// remove assigned identity crd from cluster as the identity has successfully been removed from the node
+			err = c.removeAssignedIdentity(&assignedID)
+			if err != nil {
+				c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error",
+					fmt.Sprintf("Removing assigned identity binding %s node %s for pod %s resulted in error %v", removedBinding.Name, assignedID.Spec.NodeName, assignedID.Name, err))
+				glog.Error(err)
+				return
+			}
+			// the identity was successfully removed from node
+			c.EventRecorder.Event(removedBinding, corev1.EventTypeNormal, "binding removed",
+				fmt.Sprintf("Binding %s removed from node %s for pod %s", removedBinding.Name, assignedID.Spec.NodeName, assignedID.Spec.Pod))
+		}(delID)
 	}
+
+	// Ensure that all deletes are complete
+	if err := semDel.Acquire(ctx, c.createDeleteBatch); err != nil {
+		glog.Errorf("Failed to acquire semaphore at the end of deletes: %v", err)
+		return
+	}
+
+	stats.UpdateCount(stats.TotalAssignedIDsCreated, len(nodeTrackList.assignedIDsToCreate))
+	stats.UpdateCount(stats.TotalAssignedIDsDeleted, len(nodeTrackList.assignedIDsToDelete))
 	stats.Put(stats.TotalCreateOrUpdate, time.Since(beginAdding))
 }
 
