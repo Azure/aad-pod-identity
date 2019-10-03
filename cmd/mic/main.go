@@ -57,10 +57,10 @@ func main() {
 	flag.BoolVar(&enableScaleFeatures, "enableScaleFeatures", false, "Enable/Disable new features used for clusters at scale")
 
 	// createDeleteBatch can be used for tuning the number of outstanding api server operations we do per node/VMSS.
-	flag.Int64Var(&createDeleteBatch, "createDeleteBatch", 200, "Per node/VMSS create/delete batches")
+	flag.Int64Var(&createDeleteBatch, "createDeleteBatch", 20, "Per node/VMSS create/delete batches")
 
 	// Client QPS is used to configure the client-go QPS throttling and bursting.
-	flag.Float64Var(&clientQPS, "clientQps", 10, "Client QPS used for throttling of calls to server")
+	flag.Float64Var(&clientQPS, "clientQps", 5, "Client QPS used for throttling of calls to kube-api server")
 
 	flag.Parse()
 	if versionInfo {
