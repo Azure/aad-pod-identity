@@ -77,7 +77,15 @@ func Update(key StatsType, val time.Duration) {
 func Print(key StatsType) {
 	Mutex.RLock()
 	defer Mutex.RUnlock()
+
 	glog.Infof("%s: %s", key, GlobalStats[key])
+}
+
+func PrintCount(key StatsType) {
+	Mutex.RLock()
+	defer Mutex.RUnlock()
+
+	glog.Infof("%s: %d", key, CountStats[key])
 }
 
 func UpdateCount(key StatsType, val int) {
@@ -102,11 +110,11 @@ func PrintSync() {
 		Print(AssignedIDAdd)
 		Print(AssignedIDDel)
 
-		Print(TotalPutCalls)
-		Print(TotalGetCalls)
+		PrintCount(TotalPutCalls)
+		PrintCount(TotalGetCalls)
 
-		Print(TotalAssignedIDsCreated)
-		Print(TotalAssignedIDsDeleted)
+		PrintCount(TotalAssignedIDsCreated)
+		PrintCount(TotalAssignedIDsDeleted)
 
 		Print(FindAssignedIDCreate)
 		Print(FindAssignedIDDel)
