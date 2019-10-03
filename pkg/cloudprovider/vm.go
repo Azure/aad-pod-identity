@@ -63,6 +63,7 @@ func (c *VMClient) CreateOrUpdate(rg string, nodeName string, vm compute.Virtual
 		glog.Error(err)
 		return err
 	}
+	stats.UpdateCount(stats.TotalPutCalls, 1)
 	stats.Update(stats.CloudPut, time.Since(begin))
 	return nil
 }
@@ -75,6 +76,7 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 		glog.Error(err)
 		return vm, err
 	}
+	stats.UpdateCount(stats.TotalGetCalls, 1)
 	stats.Update(stats.CloudGet, time.Since(beginGetTime))
 	return vm, nil
 }

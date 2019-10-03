@@ -939,6 +939,8 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 		return
 	}
 
+	stats.UpdateCount(stats.TotalAssignedIDsCreated, len(nodeTrackList.assignedIDsToCreate))
+	stats.UpdateCount(stats.TotalAssignedIDsDeleted, len(nodeTrackList.assignedIDsToDelete))
 	stats.Put(stats.TotalCreateOrUpdate, time.Since(beginAdding))
 }
 
