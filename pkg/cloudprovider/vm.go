@@ -57,12 +57,6 @@ func (c *VMClient) CreateOrUpdate(rg string, nodeName string, vm compute.Virtual
 		glog.Error(err)
 		return err
 	}
-
-	vm, err = future.Result(c.client)
-	if err != nil {
-		glog.Error(err)
-		return err
-	}
 	stats.UpdateCount(stats.TotalPutCalls, 1)
 	stats.Update(stats.CloudPut, time.Since(begin))
 	return nil
