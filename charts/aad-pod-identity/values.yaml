@@ -111,7 +111,7 @@ nmi:
 
   # Enable scale features - https://github.com/Azure/aad-pod-identity/blob/master/docs/readmes/README.featureflags.md#enable-scale-features-flag
   # Accepted values are true/false. Default is false.
-  enableScaleFeatures: "true"
+  enableScaleFeatures: ""
 
 rbac:
   enabled: true
