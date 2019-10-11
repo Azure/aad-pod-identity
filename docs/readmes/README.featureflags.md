@@ -8,10 +8,10 @@ When the optional parameter `enabledScaleFeatures` is set to 'true', the NMI wat
 the nodename label. This approach is taken because currently K8s does not support field selectors in CRD watches. This reduces the load which
 NMIs add on API server. When this flag is enabled, NMI will no longer work for AzureAssignedIdentities which were created before 1.5.3-rc5, since
 they don't have the labels. Hence please note that this flag renders your setup incompatible with releases before 1.5.3-rc5. This feature can be
-used in regular clusters of small size as well if there are no backward compatability concerns.
+used in regular clusters of small size as well, if there are no backward compatability concerns.
 
 
-## Batch Create delete flag
+## Batch Create Delete flag
 
 Code within MIC groups operations based on nodes/VMSS during the given cycle. With `createDeleteBatch` parameter we can
 tune the number of operations (CREATE/DELETE/UPDATE) to the API server which are performed parallely in the context of a
