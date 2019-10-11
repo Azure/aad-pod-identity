@@ -90,7 +90,7 @@ roleRef:
   name: aad-pod-id-nmi-role
   apiGroup: rbac.authorization.k8s.io
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
@@ -213,7 +213,7 @@ metadata:
   name: aadpodidentity-admin-secret
   namespace: default
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
