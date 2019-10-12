@@ -87,6 +87,10 @@ metadata:
 spec:
   updateStrategy:
     type: RollingUpdate
+  selector:
+    matchLabels:
+      component: nmi
+      tier: node
   template:
     metadata:
       labels:
@@ -171,6 +175,9 @@ metadata:
   name: mic
   namespace: {{.Namespace}}
 spec:
+  selector:
+    matchLabels:
+      component: mic
   template:
     metadata:
       labels:

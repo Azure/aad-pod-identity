@@ -11,6 +11,13 @@ metadata:
   namespace: default
 spec:
   replicas: {{.Replicas}}
+  selector:
+    matchLabels:
+      app: identity-validator
+      aadpodidbinding: {{.IdentityBinding}}
+      {{- range $key, $value := $.DeploymentLabels }}
+      {{ $key }}: {{ $value -}}
+      {{ end }}
   template:
     metadata:
       labels:

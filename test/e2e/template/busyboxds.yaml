@@ -4,6 +4,9 @@ metadata:
   name: busybox
   namespace: default
 spec:
+  selector:
+    matchLabels:
+      component: busybox
   template:
     metadata:
       labels:
