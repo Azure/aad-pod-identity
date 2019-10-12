@@ -233,8 +233,6 @@ spec:
         args:
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
-          - "--createDeleteBatch=20"
-          - "--clientQps=5"
         resources:
           limits:
             cpu: 200m
