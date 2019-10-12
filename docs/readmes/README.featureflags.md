@@ -3,11 +3,12 @@
 ## Enable Scale Features flag
 > Available from 1.5.3 release
 
-From 1.5.3 release, aad-pod-identity adds labels to AzureAssignedIdentities which denote the nodename, podname and podnamespace.
+Aad-pod-identity adds labels to AzureAssignedIdentities which denote the nodename, podname and podnamespace.
 When the optional parameter `enabledScaleFeatures` is set to 'true', the NMI watches for AzureAssignedIdentities will do a label based filtering on
 the nodename label. This approach is taken because currently K8s does not support field selectors in CRD watches. This reduces the load which
 NMIs add on API server. When this flag is enabled, NMI will no longer work for AzureAssignedIdentities which were created before 1.5.3-rc5, since
 they don't have the labels. Hence please note that this flag renders your setup incompatible with releases before 1.5.3-rc5.
+
 ## Batch Create Delete flag
 > Available from 1.5.3 release
 
