@@ -103,6 +103,10 @@ metadata:
 spec:
   updateStrategy:
     type: RollingUpdate
+  selector:
+    matchLabels:
+      component: nmi
+      tier: node
   template:
     metadata:
       labels:
@@ -211,6 +215,10 @@ metadata:
   namespace: default
 spec:
   replicas: 2
+  selector:
+    matchLabels:
+      component: mic
+      app: mic
   template:
     metadata:
       labels:
@@ -225,6 +233,8 @@ spec:
         args:
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
+          - "--createDeleteBatch=20"
+          - "--clientQps=5"
         resources:
           limits:
             cpu: 200m

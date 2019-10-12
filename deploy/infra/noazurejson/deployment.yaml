@@ -58,6 +58,10 @@ metadata:
   name: nmi
   namespace: default
 spec:
+  selector:
+    matchLabels:
+      component: nmi
+      tier: node
   template:
     metadata:
       labels:
@@ -133,6 +137,9 @@ metadata:
   namespace: default
 spec:
   replicas: 2
+  selector:
+    matchLabels:
+      component: mic
   template:
     metadata:
       labels:
