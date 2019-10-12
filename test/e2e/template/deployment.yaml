@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -11,6 +11,13 @@ metadata:
   namespace: default
 spec:
   replicas: {{.Replicas}}
+  selector:
+    matchLabels:
+      app: identity-validator
+      aadpodidbinding: {{.IdentityBinding}}
+      {{- range $key, $value := $.DeploymentLabels }}
+      {{ $key }}: {{ $value -}}
+      {{ end }}
   template:
     metadata:
       labels:

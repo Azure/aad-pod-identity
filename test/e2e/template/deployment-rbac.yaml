@@ -87,7 +87,7 @@ roleRef:
   name: aad-pod-id-nmi-role
   apiGroup: rbac.authorization.k8s.io
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
@@ -100,6 +100,10 @@ metadata:
 spec:
   updateStrategy:
     type: RollingUpdate
+  selector:
+    matchLabels:
+      component: nmi
+      tier: node
   template:
     metadata:
       labels:
@@ -192,7 +196,7 @@ roleRef:
   name: aad-pod-id-mic-role
   apiGroup: rbac.authorization.k8s.io
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -202,6 +206,9 @@ metadata:
   namespace: {{.Namespace}}
 spec:
   replicas: 2
+  selector:
+    matchLabels:
+      component: mic
   template:
     metadata:
       labels:
