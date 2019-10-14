@@ -5,6 +5,7 @@
 3. [Non cluster credentials for MIC](README.noazure-json.md)
 4. [Application exception](README.app-exception.md)
 5. [Validation](README.validation.md)
+6. [Feature flags](README.featureflags.md)
 
 # Others
 
