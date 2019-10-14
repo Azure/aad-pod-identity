@@ -56,6 +56,12 @@ spec:
           {{- if .Values.mic.probePort }}
           - --http-probe-port={{ .Values.mic.probePort }}
           {{- end }}
+          {{- if .Values.mic.createDeleteBatch }}
+          - --createDeleteBatch={{ .Values.mic.createDeleteBatch }}
+          {{- end }}
+          {{- if .Values.mic.clientQps }}
+          - --clientQps={{ .Values.mic.clientQps }}
+          {{- end }}
         env:
           - name: FORCENAMESPACED
             value: "{{ .Values.forceNameSpaced }}"

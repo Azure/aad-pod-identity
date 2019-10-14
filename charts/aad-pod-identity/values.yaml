@@ -24,7 +24,7 @@ forceNameSpaced: "false"
 
 mic:
   image: mic
-  tag: 1.5.2
+  tag: 1.5.3
 
   # log level. Uses V logs (glog)
   # logVerbosity: 0
@@ -62,9 +62,17 @@ mic:
   # Override interval in seconds at which sync loop should periodically check for errors and reconcile (default is 3600s)
   syncRetryDuration: ""
 
+  # https://github.com/Azure/aad-pod-identity/blob/master/docs/readmes/README.featureflags.md#batch-create-delete-flag
+  # default value is 20
+  createDeleteBatch: ""
+
+  # https://github.com/Azure/aad-pod-identity/blob/master/docs/readmes/README.featureflags.md#client-qps-flag
+  # default value is 5
+  clientQps: ""
+
 nmi:
   image: nmi
-  tag: 1.5.2
+  tag: 1.5.3
 
   resources:
     limits:
@@ -100,6 +108,10 @@ nmi:
 
   # Override retry interval to find assigned identities in seconds (default is 5)
   findIdentityRetryIntervalInSeconds: ""
+
+  # Enable scale features - https://github.com/Azure/aad-pod-identity/blob/master/docs/readmes/README.featureflags.md#enable-scale-features-flag
+  # Accepted values are true/false. Default is false.
+  enableScaleFeatures: ""
 
 rbac:
   enabled: true

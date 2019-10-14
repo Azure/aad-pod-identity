@@ -64,16 +64,16 @@ rules:
   verbs: ["get", "list"]
 - apiGroups: [""]
   resources: ["pods"]
-  verbs: ["get", "list"]
+  verbs: ["get", "list", "watch"]
 - apiGroups: [""]
   resources: ["secrets"]
   verbs: ["get"]
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureidentitybindings", "azureidentities", "azurepodidentityexceptions"]
-  verbs: ["get", "list"]
+  verbs: ["get", "list", "watch"]
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureassignedidentities"]
-  verbs: ["get", "list"]
+  verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
@@ -90,7 +90,7 @@ roleRef:
   name: aad-pod-id-nmi-role
   apiGroup: rbac.authorization.k8s.io
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
@@ -101,6 +101,10 @@ metadata:
   name: nmi
   namespace: default
 spec:
+  selector:
+    matchLabels:
+      component: nmi
+      tier: node
   template:
     metadata:
       labels:
@@ -116,7 +120,7 @@ spec:
         name: iptableslock
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.5.2"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.5.3"
         imagePullPolicy: Always
         args:
           - "--host-ip=$(HOST_IP)"
@@ -213,7 +217,7 @@ metadata:
   name: aadpodidentity-admin-secret
   namespace: default
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -223,6 +227,9 @@ metadata:
   namespace: default
 spec:
   replicas: 2
+  selector:
+    matchLabels:
+      component: mic
   template:
     metadata:
       labels:
@@ -231,7 +238,7 @@ spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.5.2"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.5.3"
         imagePullPolicy: Always
         args:
           - "--logtostderr"

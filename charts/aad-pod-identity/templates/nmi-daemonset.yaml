@@ -62,6 +62,9 @@ spec:
           {{- if .Values.nmi.findIdentityRetryIntervalInSeconds }}
           - --find-identity-retry-interval={{ .Values.nmi.findIdentityRetryIntervalInSeconds }}
           {{- end }}
+          {{- if .Values.nmi.enableScaleFeatures }}
+          - --enableScaleFeatures={{ .Values.nmi.enableScaleFeatures }}
+          {{- end }}
         env:
           - name: HOST_IP
             valueFrom:

@@ -48,7 +48,7 @@ spec:
     plural: azurepodidentityexceptions
   scope: Namespaced
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
@@ -60,6 +60,10 @@ metadata:
 spec:
   updateStrategy:
     type: RollingUpdate
+  selector:
+    matchLabels:
+      component: nmi
+      tier: node
   template:
     metadata:
       labels:
@@ -74,7 +78,7 @@ spec:
         name: iptableslock
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.5.2"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.5.3"
         imagePullPolicy: Always
         args:
           - "--host-ip=$(HOST_IP)"
@@ -112,7 +116,7 @@ spec:
       nodeSelector:
         beta.kubernetes.io/os: linux
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -121,6 +125,9 @@ metadata:
   namespace: default
 spec:
   replicas: 2
+  selector:
+    matchLabels:
+      component: mic
   template:
     metadata:
       labels:
@@ -128,7 +135,7 @@ spec:
     spec:
       containers:
       - name: mic
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.5.2"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.5.3"
         imagePullPolicy: Always
         args:
           - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"
