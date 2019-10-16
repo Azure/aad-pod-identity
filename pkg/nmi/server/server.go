@@ -152,6 +152,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"req.path":   r.URL.Path,
 		"req.remote": parseRemoteAddr(r.RemoteAddr),
 	})
+	w.Header().Set("Content-Type", "application/json")
 	start := time.Now()
 	defer func() {
 		var err error
