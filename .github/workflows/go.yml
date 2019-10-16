@@ -25,6 +25,6 @@ jobs:
         fi
 
     - name: Build
-      run: go build -v .
+      run: make build
     - name: RunTests
-      run: go test -v $(go list ./... | grep -v test/e2e)
+      run: make unit-test
