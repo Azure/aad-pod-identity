@@ -10,8 +10,8 @@ import (
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	inlog "github.com/Azure/aad-pod-identity/pkg/logger"
+	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
-
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -306,6 +306,7 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	err := c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Name(assignedIdentity.Name).Do().Error()
 	glog.V(5).Infof("Deletion %s took: %v", assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDDel, time.Since(begin))
+	metrics.AssignedIdentityDeletion.WithLabelValues(assignedIdentity.Namespace).Observe(metrics.SinceInSeconds(begin))
 	return err
 }
 
@@ -325,6 +326,8 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 
 	glog.V(5).Infof("Time take to create %s: %v", assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDAdd, time.Since(begin))
+	metrics.AssignedIdentityAddition.WithLabelValues(assignedIdentity.Namespace).Observe(metrics.SinceInSeconds(begin))
+
 	//TODO: Update the status of the assign identity to indicate that the node assignment got done.
 	return nil
 }

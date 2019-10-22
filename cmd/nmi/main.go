@@ -7,6 +7,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
+	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
 	"github.com/Azure/aad-pod-identity/pkg/probes"
 	"github.com/Azure/aad-pod-identity/version"
@@ -91,6 +92,9 @@ func main() {
 	// Health probe will always report success once its started. The contents
 	// will report "Active" once the iptables rules are set
 	probes.InitAndStart(*httpProbePort, &s.Initialized, logger)
+
+	// Register prometheus metrics.
+	metrics.Register()
 
 	if err := s.Run(); err != nil {
 		log.Fatalf("%s", err)

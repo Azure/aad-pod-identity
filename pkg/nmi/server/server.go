@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -20,6 +21,7 @@ import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
+	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	utils "github.com/Azure/aad-pod-identity/pkg/utils"
@@ -175,6 +177,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fn(logger, rw, r)
 	latency := time.Since(start)
 	logger.Infof("Status (%d) took %d ns", rw.statusCode, latency.Nanoseconds())
+	metrics.NodeManagedIdentityOperationsLatency.WithLabelValues(r.URL.Path, strconv.Itoa(rw.statusCode)).Observe(metrics.SinceInMicroseconds(start))
 }
 
 func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {

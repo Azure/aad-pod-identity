@@ -12,6 +12,7 @@ import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	"github.com/Azure/aad-pod-identity/pkg/crd"
+	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	"github.com/Azure/aad-pod-identity/version"
@@ -344,6 +345,8 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			glog.Infof("Work done: %v. Found %d pods, %d ids, %d bindings", workDone, len(listPods), idsFound, bindingsFound)
 			glog.Infof("Total work cycles: %d, out of which work was done in: %d.", totalSyncCycles, totalWorkDoneCycles)
 			stats.Put(stats.Total, time.Since(begin))
+			metrics.ManagedIdentityControllerCycleDuration.Observe(metrics.SinceInSeconds(begin))
+			metrics.ManagedIdentityControllerCycleCount.Inc()
 			stats.PrintSync()
 			if workDone {
 				// We need to synchornize the cache inorder to get the latest updates. Sync cache has a bug in the current go client which caused thread leak.

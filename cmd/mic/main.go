@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/mic"
 	"github.com/Azure/aad-pod-identity/pkg/probes"
 	"github.com/Azure/aad-pod-identity/version"
@@ -107,6 +108,9 @@ func main() {
 	// MIC instance will report the contents as "Active" only once its elected the leader
 	// and starts the sync loop.
 	probes.InitAndStart(httpProbePort, &micClient.SyncLoopStarted, &mic.Log{})
+
+	// Register prometheus metrics.
+	metrics.Register()
 
 	// Starts the leader election loop
 	micClient.Run()
