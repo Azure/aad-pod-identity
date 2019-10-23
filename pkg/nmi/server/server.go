@@ -45,6 +45,7 @@ type Server struct {
 	IsNamespaced                       bool
 	MICNamespace                       string
 	Initialized                        bool
+	BlockInstanceMetadata              bool
 
 	ListPodIDsRetryAttemptsForCreated  int
 	ListPodIDsRetryAttemptsForAssigned int
@@ -58,10 +59,11 @@ type NMIResponse struct {
 }
 
 // NewServer will create a new Server with default values.
-func NewServer(isNamespaced bool, micNamespace string) *Server {
+func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata bool) *Server {
 	return &Server{
-		IsNamespaced: isNamespaced,
-		MICNamespace: micNamespace,
+		IsNamespaced:          isNamespaced,
+		MICNamespace:          micNamespace,
+		BlockInstanceMetadata: blockInstanceMetadata,
 	}
 }
 
@@ -74,6 +76,9 @@ func (s *Server) Run() error {
 	mux.Handle("/metadata/identity/oauth2/token/", appHandler(s.msiHandler))
 	mux.Handle("/host/token", appHandler(s.hostHandler))
 	mux.Handle("/host/token/", appHandler(s.hostHandler))
+	if s.BlockInstanceMetadata {
+		mux.Handle("/metadata/instance", http.HandlerFunc(forbiddenHandler))
+	}
 	mux.Handle("/", appHandler(s.defaultPathHandler))
 
 	log.Infof("Listening on port %s", s.NMIPort)
@@ -456,6 +461,11 @@ func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(body)
+}
+
+// forbiddenHandler responds to any request with HTTP 403 Forbidden
+func forbiddenHandler(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "Request blocked by AAD Pod Identity NMI", http.StatusForbidden)
 }
 
 func copyHeader(dst, src http.Header) {
