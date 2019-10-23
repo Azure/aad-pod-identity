@@ -51,17 +51,18 @@ type LeaderElectionConfig struct {
 // Client has the required pointers to talk to the api server
 // and interact with the CRD related datastructure.
 type Client struct {
-	CRDClient           crd.ClientInt
-	CloudClient         cloudprovider.ClientInt
-	PodClient           pod.ClientInt
-	EventRecorder       record.EventRecorder
-	EventChannel        chan aadpodid.EventType
-	NodeClient          NodeGetter
-	IsNamespaced        bool
-	SyncLoopStarted     bool
-	syncRetryInterval   time.Duration
-	enableScaleFeatures bool
-	createDeleteBatch   int64
+	CRDClient             crd.ClientInt
+	CloudClient           cloudprovider.ClientInt
+	PodClient             pod.ClientInt
+	EventRecorder         record.EventRecorder
+	EventChannel          chan aadpodid.EventType
+	NodeClient            NodeGetter
+	IsNamespaced          bool
+	SyncLoopStarted       bool
+	syncRetryInterval     time.Duration
+	enableScaleFeatures   bool
+	createDeleteBatch     int64
+	WhiteListedIdentities map[string]bool
 
 	syncing int32 // protect against conucrrent sync's
 
@@ -85,7 +86,7 @@ type trackUserAssignedMSIIds struct {
 
 // NewMICClient returnes new mic client
 func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, syncRetryInterval time.Duration,
-	leaderElectionConfig *LeaderElectionConfig, enableScaleFeatures bool, createDeleteBatch int64) (*Client, error) {
+	leaderElectionConfig *LeaderElectionConfig, enableScaleFeatures bool, createDeleteBatch int64, whiteListedIdentities []string) (*Client, error) {
 	glog.Infof("Starting to create the pod identity client. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
 
 	clientSet := kubernetes.NewForConfigOrDie(config)
@@ -117,17 +118,23 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: clientSet.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: aadpodid.CRDGroup})
 
+	whiteListedIdentitiesMap := make(map[string]bool)
+	for _, item := range whiteListedIdentities {
+		whiteListedIdentitiesMap[item] = true
+	}
+
 	c := &Client{
-		CRDClient:           crdClient,
-		CloudClient:         cloudClient,
-		PodClient:           podClient,
-		EventRecorder:       recorder,
-		EventChannel:        eventCh,
-		NodeClient:          &NodeClient{informer.Core().V1().Nodes()},
-		IsNamespaced:        isNamespaced,
-		syncRetryInterval:   syncRetryInterval,
-		enableScaleFeatures: enableScaleFeatures,
-		createDeleteBatch:   createDeleteBatch,
+		CRDClient:             crdClient,
+		CloudClient:           cloudClient,
+		PodClient:             podClient,
+		EventRecorder:         recorder,
+		EventChannel:          eventCh,
+		NodeClient:            &NodeClient{informer.Core().V1().Nodes()},
+		IsNamespaced:          isNamespaced,
+		syncRetryInterval:     syncRetryInterval,
+		enableScaleFeatures:   enableScaleFeatures,
+		createDeleteBatch:     createDeleteBatch,
+		WhiteListedIdentities: whiteListedIdentitiesMap,
 	}
 	leaderElector, err := c.NewLeaderElector(clientSet, recorder, leaderElectionConfig)
 	if err != nil {
@@ -794,7 +801,15 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 	addUserAssignedMSIIDs := c.getUniqueIDs(nodeTrackList.addUserAssignedMSIIDs)
 	removeUserAssignedMSIIDs := c.getUniqueIDs(nodeTrackList.removeUserAssignedMSIIDs)
 
-	err := c.CloudClient.UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs, nodeOrVMSSName, nodeTrackList.isvmss)
+	// The whitelisted identities (user-defined managed identities) shouldn't be deleted from AAD, but only from Kubernetes
+	approvedRemoveUserAssignedMSIIDs := make([]string, 0)
+	for _, item := range removeUserAssignedMSIIDs {
+		if _, ok := c.WhiteListedIdentities[item]; !ok {
+			approvedRemoveUserAssignedMSIIDs = append(approvedRemoveUserAssignedMSIIDs, item)
+		}
+	}
+
+	err := c.CloudClient.UpdateUserMSI(addUserAssignedMSIIDs, approvedRemoveUserAssignedMSIIDs, nodeOrVMSSName, nodeTrackList.isvmss)
 	if err != nil {
 		glog.Errorf("Updating msis on node %s, add [%d], del [%d] failed with error %v", nodeOrVMSSName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete), err)
 		idList, getErr := c.getUserMSIListForNode(nodeOrVMSSName, nodeTrackList.isvmss)

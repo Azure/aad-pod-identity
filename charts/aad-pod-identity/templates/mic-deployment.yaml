@@ -62,6 +62,9 @@ spec:
           {{- if .Values.mic.clientQps }}
           - --clientQps={{ .Values.mic.clientQps }}
           {{- end }}
+          {{- if .Values.mic.whiteListedIdentitiesParam }}
+          - --whiteListedIdentitiesParam={{ .Values.mic.whiteListedIdentitiesParam }}
+          {{- end }}
         env:
           - name: FORCENAMESPACED
             value: "{{ .Values.forceNameSpaced }}"

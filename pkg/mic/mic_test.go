@@ -601,18 +601,20 @@ func NewMICTestClient(eventCh chan aadpodid.EventType,
 	podClient *TestPodClient,
 	nodeClient *TestNodeClient,
 	eventRecorder *TestEventRecorder, isNamespaced bool,
-	createDeleteBatch int64) *TestMICClient {
+	createDeleteBatch int64,
+	whiteListedIdentities map[string]bool) *TestMICClient {
 
 	realMICClient := &Client{
-		CloudClient:       cpClient,
-		CRDClient:         crdClient,
-		EventRecorder:     eventRecorder,
-		PodClient:         podClient,
-		EventChannel:      eventCh,
-		NodeClient:        nodeClient,
-		syncRetryInterval: 120 * time.Second,
-		IsNamespaced:      isNamespaced,
-		createDeleteBatch: createDeleteBatch,
+		CloudClient:           cpClient,
+		CRDClient:             crdClient,
+		EventRecorder:         eventRecorder,
+		PodClient:             podClient,
+		EventChannel:          eventCh,
+		NodeClient:            nodeClient,
+		syncRetryInterval:     120 * time.Second,
+		IsNamespaced:          isNamespaced,
+		createDeleteBatch:     createDeleteBatch,
+		WhiteListedIdentities: whiteListedIdentities,
 	}
 
 	return &TestMICClient{
@@ -718,8 +720,9 @@ func TestSimpleMICClient(t *testing.T) {
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool, 100)
+	whiteListedIdentities := make(map[string]bool)
 
-	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4)
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, whiteListedIdentities)
 
 	crdClient.CreateID("test-id", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
 	crdClient.CreateBinding("testbinding", "default", "test-id", "test-select", "")
@@ -839,8 +842,9 @@ func TestAddDelMICClient(t *testing.T) {
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool, 100)
+	whiteListedIdentities := make(map[string]bool)
 
-	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4)
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, whiteListedIdentities)
 
 	// Test to add and delete at the same time.
 	// Add a pod, identity and binding.
@@ -931,8 +935,9 @@ func TestMicAddDelVMSS(t *testing.T) {
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool, 100)
+	whiteListedIdentities := make(map[string]bool)
 
-	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4)
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, whiteListedIdentities)
 
 	// Test to add and delete at the same time.
 	// Add a pod, identity and binding.
@@ -1034,8 +1039,9 @@ func TestMICStateFlow(t *testing.T) {
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool, 100)
+	whiteListedIdentities := make(map[string]bool)
 
-	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4)
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, whiteListedIdentities)
 
 	// Add a pod, identity and binding.
 	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
@@ -1148,8 +1154,9 @@ func TestForceNamespaced(t *testing.T) {
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool, 100)
+	whiteListedIdentities := make(map[string]bool)
 
-	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, true, 4)
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, true, 4, whiteListedIdentities)
 
 	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "idrv1")
 	crdClient.CreateBinding("testbinding1", "default", "test-id1", "test-select1", "bindingrv1")
@@ -1212,8 +1219,9 @@ func TestSyncRetryLoop(t *testing.T) {
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool, 100)
+	whiteListedIdentities := make(map[string]bool)
 
-	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4)
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, whiteListedIdentities)
 	syncRetryInterval, err := time.ParseDuration("10s")
 	if err != nil {
 		t.Errorf("error parsing duration: %v", err)
@@ -1291,8 +1299,9 @@ func TestSyncNodeNotFound(t *testing.T) {
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool, 100)
+	whiteListedIdentities := make(map[string]bool)
 
-	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4)
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, whiteListedIdentities)
 
 	// Add a pod, identity and binding.
 	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
@@ -1363,8 +1372,9 @@ func TestProcessingTimeForScale(t *testing.T) {
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool, 20000)
+	whiteListedIdentities := make(map[string]bool)
 
-	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4)
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, whiteListedIdentities)
 
 	// Add a pod, identity and binding.
 	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
@@ -1418,8 +1428,9 @@ func TestSyncExit(t *testing.T) {
 	var evtRecorder TestEventRecorder
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool)
+	whiteListedIdentities := make(map[string]bool)
 
-	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4)
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, whiteListedIdentities)
 
 	micClient.testRunSync()(t)
 }
