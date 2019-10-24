@@ -21,3 +21,9 @@ node/VMSS.
 
 Aad-pod-identity has a new flag clientQps which can be used to control the total number of client operations performed per second
 to the API server by MIC.
+
+## ImmutableUserMSIs flag
+> Available from 1.5.4 release
+
+Aad-pod-identity has a new flag immutableUserMSIs which can be used to prevent deletetion of spcecified identitites from VM/VMSS.
+The list is comma separated.

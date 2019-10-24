@@ -62,8 +62,8 @@ mic:
   # Override interval in seconds at which sync loop should periodically check for errors and reconcile (default is 3600s)
   syncRetryDuration: ""
 
-  # Override the defult value of whitelisted identities. Note: the list should be comma separated
-  whiteListedIdentitiesParam: ""
+  # Override the defult value of immutable identities. Note: the list should be comma separated
+  immutableUserMSIs: ""
 
   # https://github.com/Azure/aad-pod-identity/blob/master/docs/readmes/README.featureflags.md#batch-create-delete-flag
   # default value is 20

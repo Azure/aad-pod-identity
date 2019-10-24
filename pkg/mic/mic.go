@@ -51,18 +51,18 @@ type LeaderElectionConfig struct {
 // Client has the required pointers to talk to the api server
 // and interact with the CRD related datastructure.
 type Client struct {
-	CRDClient             crd.ClientInt
-	CloudClient           cloudprovider.ClientInt
-	PodClient             pod.ClientInt
-	EventRecorder         record.EventRecorder
-	EventChannel          chan aadpodid.EventType
-	NodeClient            NodeGetter
-	IsNamespaced          bool
-	SyncLoopStarted       bool
-	syncRetryInterval     time.Duration
-	enableScaleFeatures   bool
-	createDeleteBatch     int64
-	WhiteListedIdentities map[string]bool
+	CRDClient           crd.ClientInt
+	CloudClient         cloudprovider.ClientInt
+	PodClient           pod.ClientInt
+	EventRecorder       record.EventRecorder
+	EventChannel        chan aadpodid.EventType
+	NodeClient          NodeGetter
+	IsNamespaced        bool
+	SyncLoopStarted     bool
+	syncRetryInterval   time.Duration
+	enableScaleFeatures bool
+	createDeleteBatch   int64
+	ImmutableUserMSIs   map[string]bool
 
 	syncing int32 // protect against conucrrent sync's
 
@@ -86,7 +86,7 @@ type trackUserAssignedMSIIds struct {
 
 // NewMICClient returnes new mic client
 func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, syncRetryInterval time.Duration,
-	leaderElectionConfig *LeaderElectionConfig, enableScaleFeatures bool, createDeleteBatch int64, whiteListedIdentities []string) (*Client, error) {
+	leaderElectionConfig *LeaderElectionConfig, enableScaleFeatures bool, createDeleteBatch int64, immutableUserMSIsList []string) (*Client, error) {
 	glog.Infof("Starting to create the pod identity client. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
 
 	clientSet := kubernetes.NewForConfigOrDie(config)
@@ -118,23 +118,27 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: clientSet.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: aadpodid.CRDGroup})
 
-	whiteListedIdentitiesMap := make(map[string]bool)
-	for _, item := range whiteListedIdentities {
-		whiteListedIdentitiesMap[item] = true
+	var immutableUserMSIsMap map[string]bool
+
+	if immutableUserMSIsList != nil {
+		immutableUserMSIsMap = make(map[string]bool)
+		for _, item := range immutableUserMSIsList {
+			immutableUserMSIsMap[strings.ToLower(item)] = true
+		}
 	}
 
 	c := &Client{
-		CRDClient:             crdClient,
-		CloudClient:           cloudClient,
-		PodClient:             podClient,
-		EventRecorder:         recorder,
-		EventChannel:          eventCh,
-		NodeClient:            &NodeClient{informer.Core().V1().Nodes()},
-		IsNamespaced:          isNamespaced,
-		syncRetryInterval:     syncRetryInterval,
-		enableScaleFeatures:   enableScaleFeatures,
-		createDeleteBatch:     createDeleteBatch,
-		WhiteListedIdentities: whiteListedIdentitiesMap,
+		CRDClient:           crdClient,
+		CloudClient:         cloudClient,
+		PodClient:           podClient,
+		EventRecorder:       recorder,
+		EventChannel:        eventCh,
+		NodeClient:          &NodeClient{informer.Core().V1().Nodes()},
+		IsNamespaced:        isNamespaced,
+		syncRetryInterval:   syncRetryInterval,
+		enableScaleFeatures: enableScaleFeatures,
+		createDeleteBatch:   createDeleteBatch,
+		ImmutableUserMSIs:   immutableUserMSIsMap,
 	}
 	leaderElector, err := c.NewLeaderElector(clientSet, recorder, leaderElectionConfig)
 	if err != nil {
@@ -801,12 +805,17 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 	addUserAssignedMSIIDs := c.getUniqueIDs(nodeTrackList.addUserAssignedMSIIDs)
 	removeUserAssignedMSIIDs := c.getUniqueIDs(nodeTrackList.removeUserAssignedMSIIDs)
 
-	// The whitelisted identities (user-defined managed identities) shouldn't be deleted from AAD, but only from Kubernetes
-	approvedRemoveUserAssignedMSIIDs := make([]string, 0)
-	for _, item := range removeUserAssignedMSIIDs {
-		if _, ok := c.WhiteListedIdentities[item]; !ok {
-			approvedRemoveUserAssignedMSIIDs = append(approvedRemoveUserAssignedMSIIDs, item)
+	// The the list of identities (user-defined managed identities) shouldn't be deleted from VM/VMSS, but only from Kubernetes
+	var approvedRemoveUserAssignedMSIIDs []string
+	if c.ImmutableUserMSIs != nil {
+		approvedRemoveUserAssignedMSIIDs := make([]string, 0)
+		for _, item := range removeUserAssignedMSIIDs {
+			if _, ok := c.ImmutableUserMSIs[item]; !ok {
+				approvedRemoveUserAssignedMSIIDs = append(approvedRemoveUserAssignedMSIIDs, item)
+			}
 		}
+	} else {
+		approvedRemoveUserAssignedMSIIDs = removeUserAssignedMSIIDs
 	}
 
 	err := c.CloudClient.UpdateUserMSI(addUserAssignedMSIIDs, approvedRemoveUserAssignedMSIIDs, nodeOrVMSSName, nodeTrackList.isvmss)
