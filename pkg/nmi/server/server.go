@@ -152,6 +152,9 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"req.path":   r.URL.Path,
 		"req.remote": parseRemoteAddr(r.RemoteAddr),
 	})
+	// Set the header in advance so that both success as well
+	// as error paths have it set as application/json content type.
+	w.Header().Set("Content-Type", "application/json")
 	start := time.Now()
 	defer func() {
 		var err error
@@ -459,7 +462,6 @@ func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r 
 		logger.Errorf("failed io operation of reading response body, %+v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	w.Header().Set("Content-Type", "application/json")
 	w.Write(body)
 }
 
