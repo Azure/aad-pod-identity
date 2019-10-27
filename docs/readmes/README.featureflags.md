@@ -22,8 +22,29 @@ node/VMSS.
 Aad-pod-identity has a new flag clientQps which can be used to control the total number of client operations performed per second
 to the API server by MIC.
 
+## Block Instance Metadata flag
+
+The Azure Metadata API includes endpoints under `/instance/metadata` which
+provide information about the virtual machine. You can see examples of this
+endpoint in [the Azure documentation](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service#retrieving-all-metadata-for-an-instance).
+
+Some of the information returned by this endpoint may be considered sensitive
+or secret. The response includes information on the operating system and image,
+tags, resource IDs, network, and VM custom data.
+
+This information is legitimately useful for many use cases, but also presents a
+risk. If an attacker can exploit a vulnerability that allows them to read from
+this endpoint, they may be able to access sensitive information even if the
+vulnerable Pod does not use Managed Identity.
+
+The `blockInstanceMetadata` flag for NMI will intercept any  requests to this
+endpoint from Pods which are not using host networking and return an HTTP 403
+Forbidden response. This flag is disabled by default to maximize compatibility.
+Users are encouraged to determine if this option is relevant and beneficial for
+their use cases.
+
 ## ImmutableUserMSIs flag
 > Available from 1.5.4 release
 
 Aad-pod-identity has a new flag immutableUserMSIs which can be used to prevent deletetion of spcecified identitites from VM/VMSS.
-The list is comma separated.
+The list is comma separated. Example: 8307b873-f775-461a-9f16-45fa644b806a,9127b123-a116-654a-3f25-54af766a795b
