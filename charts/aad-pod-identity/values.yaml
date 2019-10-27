@@ -63,7 +63,10 @@ mic:
   syncRetryDuration: ""
 
   # Override the defult value of immutable identities. Note: the list should be comma separated
-  immutableUserMSIs: ""
+  immutableUserMSIs: []
+    # Example of MSIs (should be replaced with the real ids)
+    #- "00000000-0000-0000-0000-000000000000"
+    #- "11111111-1111-1111-1111-111111111111"
 
   # https://github.com/Azure/aad-pod-identity/blob/master/docs/readmes/README.featureflags.md#batch-create-delete-flag
   # default value is 20

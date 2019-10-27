@@ -61,9 +61,9 @@ spec:
           {{- end }}
           {{- if .Values.mic.clientQps }}
           - --clientQps={{ .Values.mic.clientQps }}
-          {{- end }}
+          {{- end }}          
           {{- if .Values.mic.immutableUserMSIs }}
-          - --immutableUserMSIs={{ .Values.mic.immutableUserMSIs }}
+          - "--immutableUserMSIs={{- join "," .Values.mic.immutableUserMSIs}}"
           {{- end }}
         env:
           - name: FORCENAMESPACED
