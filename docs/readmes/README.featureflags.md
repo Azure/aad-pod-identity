@@ -47,4 +47,4 @@ their use cases.
 > Available from 1.5.4 release
 
 Aad-pod-identity has a new flag immutableUserMSIs which can be used to prevent deletetion of spcecified identitites from VM/VMSS.
-The list is comma separated. Example: 8307b873-f775-461a-9f16-45fa644b806a,9127b123-a116-654a-3f25-54af766a795b
+The list is comma separated. Example: 00000000-0000-0000-0000-000000000000,11111111-1111-1111-1111-111111111111
