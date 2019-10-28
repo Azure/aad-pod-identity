@@ -62,7 +62,7 @@ mic:
   # Override interval in seconds at which sync loop should periodically check for errors and reconcile (default is 3600s)
   syncRetryDuration: ""
 
-  # Override the defult value of immutable identities. Note: the list should be comma separated
+  # Override the defult value of immutable identities. 
   immutableUserMSIs: []
     # Example of MSIs (should be replaced with the real ids)
     #- "00000000-0000-0000-0000-000000000000"
