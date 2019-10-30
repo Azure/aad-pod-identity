@@ -1,6 +1,7 @@
 package main
 
 import (
+	goflag "flag"
 	"os"
 
 	"net/http"
@@ -45,6 +46,9 @@ var (
 )
 
 func main() {
+	// this is done for glog used by client-go underneath
+	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
+
 	pflag.Parse()
 	if *versionInfo {
 		version.PrintVersionAndExit()
