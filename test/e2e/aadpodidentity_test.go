@@ -39,6 +39,7 @@ const (
 	keyvaultIdentity  = "keyvault-identity"
 	identityValidator = "identity-validator"
 	nmiDaemonSet      = "nmi"
+	immutableIdentity = "immutable-identity"
 )
 
 var (
@@ -60,7 +61,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	cfg = *c
 	fmt.Printf("System MSI enabled: %v\n", cfg.SystemMSICluster)
-	setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures)
+	setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures, cfg.ImmutableUserMSIs)
 })
 
 var _ = AfterSuite(func() {
@@ -131,6 +132,21 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(ok).To(Equal(true))
 
 		deleteAllIdentityValidator()
+	})
+
+	It("should not delete the Immutable Identity from vmss when the deployment is deleted", func() {
+		setUpIdentityAndDeployment(immutableIdentity, "", "1")
+
+		waitForDeployDeletion(identityValidator)
+
+		ok, err := azureassignedidentity.WaitOnLengthMatched(0)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		clientID, err := azureidentity.GetClientID(cfg.ResourceGroup, immutableIdentity)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(clientID).NotTo(Equal(""))
+
 	})
 
 	It("should pass the identity validating test", func() {
@@ -498,7 +514,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		}
 
 		// reset the infra to previous state
-		setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures)
+		setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures, cfg.ImmutableUserMSIs)
 	})
 
 	It("should not alter the system assigned identity after creating and deleting pod identity", func() {
@@ -594,7 +610,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(ok).To(Equal(true))
 
 		// setup mic and nmi with old releases
-		setupInfraOld("mcr.microsoft.com/k8s/aad-pod-identity", "1.4", "1.3")
+		setupInfraOld("mcr.microsoft.com/k8s/aad-pod-identity", "1.4", "1.3", "")
 
 		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
@@ -603,7 +619,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(ok).To(Equal(true))
 
 		// update the infra to use latest mic and nmi images
-		setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures)
+		setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures, cfg.ImmutableUserMSIs)
 
 		ok, err = daemonset.WaitOnReady(nmiDaemonSet)
 		Expect(err).NotTo(HaveOccurred())
@@ -1165,17 +1181,17 @@ func checkInfra() {
 }
 
 // setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
-func setupInfraOld(registry, nmiVersion, micVersion string) {
+func setupInfraOld(registry, nmiVersion, micVersion string, immutableUserMSIs string) {
 	// Install CRDs and deploy MIC and NMI
-	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, true, false)
+	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, true, false, immutableUserMSIs)
 	Expect(err).NotTo(HaveOccurred())
 	checkInfra()
 }
 
 // setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
-func setupInfra(registry, nmiVersion, micVersion string, enableScaleFeatures bool) {
+func setupInfra(registry, nmiVersion, micVersion string, enableScaleFeatures bool, immutableUserMSIs string) {
 	// Install CRDs and deploy MIC and NMI
-	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, false, enableScaleFeatures)
+	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, false, enableScaleFeatures, immutableUserMSIs)
 	Expect(err).NotTo(HaveOccurred())
 	checkInfra()
 }

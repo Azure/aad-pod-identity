@@ -16,6 +16,7 @@ type Config struct {
 	IdentityValidatorVersion string `envconfig:"IDENTITY_VALIDATOR_VERSION" default:"1.5.3"`
 	SystemMSICluster         bool   `envconfig:"SYSTEM_MSI_CLUSTER" default:"false"`
 	EnableScaleFeatures      bool   `envconfig:"ENABLE_SCALE_FEATURES" default:"false"`
+	ImmutableUserMSIs        string `envconfig:"IMMUTABLE_IDENTITY_CLIENT_ID"`
 }
 
 // ParseConfig will parse needed environment variables for running the tests
