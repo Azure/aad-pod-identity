@@ -135,7 +135,18 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 
 	It("should not delete the Immutable Identity from vmss when the deployment is deleted", func() {
-		setUpIdentityAndDeployment(immutableIdentity, "", "1")
+		nodeList, err := node.GetAll()
+		Expect(err).NotTo(HaveOccurred())
+
+		vmss, vmssID := GetVMSS(nodeList)
+		if vmssID == "" {
+			Skip("Skipping test since there is no vmss with more than 1 node")
+			return
+		}
+
+		setUpIdentityAndDeployment(immutableIdentity, "", "1", func(d *infra.IdentityValidatorTemplateData) {
+			d.NodeName = vmss[0].Name
+		})
 
 		waitForDeployDeletion(identityValidator)
 
@@ -143,9 +154,9 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
-		clientID, err := azureidentity.GetClientID(cfg.ResourceGroup, immutableIdentity)
+		exists, err := azure.UserIdentityAssignedToVMSS(cfg.ResourceGroup, vmssID, immutableIdentity)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(clientID).NotTo(Equal(""))
+		Expect(exists).To(Equal(true))
 
 	})
 
@@ -648,29 +659,12 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		nodeList, err := node.GetAll()
 		Expect(err).NotTo(HaveOccurred())
 
-		vmssNodes := make(map[string][]node.Node)
-		for _, n := range nodeList.Nodes {
-			r, _ := cloudprovider.ParseResourceID(n.Spec.ProviderID)
-			if r.ResourceType == cloudprovider.VMSSResourceType {
-				ls := vmssNodes[r.ResourceName]
-				vmssNodes[r.ResourceName] = append(ls, n)
-			}
-		}
-
-		var vmssID string
-		for id, ls := range vmssNodes {
-			if len(ls) > 1 {
-				vmssID = id
-				break
-			}
-		}
-
+		vmss, vmssID := GetVMSS(nodeList)
 		if vmssID == "" {
 			Skip("Skipping test since there is no vmss with more than 1 node")
 			return
 		}
 
-		vmss := vmssNodes[vmssID]
 
 		setUpIdentityAndDeployment(keyvaultIdentity, "", "1", func(d *infra.IdentityValidatorTemplateData) {
 			d.NodeName = vmss[0].Name
@@ -959,6 +953,29 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 })
+
+func GetVMSS(nodeList *node.List) ([]node.Node, string) {
+	vmssNodes := make(map[string][]node.Node)
+	for _, n := range nodeList.Nodes {
+		r, _ := cloudprovider.ParseResourceID(n.Spec.ProviderID)
+		if r.ResourceType == cloudprovider.VMSSResourceType {
+			ls := vmssNodes[r.ResourceName]
+			vmssNodes[r.ResourceName] = append(ls, n)
+		}
+	}
+	var vmssID string
+	for id, ls := range vmssNodes {
+		if len(ls) > 1 {
+			vmssID = id
+			break
+		}
+	}
+	if vmssID == "" {
+		return nil, ""
+	}
+	vmss := vmssNodes[vmssID]
+	return vmss, vmssID
+}
 
 func runValidatorTest(iterations int) {
 	defer GinkgoRecover()
