@@ -134,32 +134,6 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		deleteAllIdentityValidator()
 	})
 
-	It("should not delete the Immutable Identity from vmss when the deployment is deleted", func() {
-		nodeList, err := node.GetAll()
-		Expect(err).NotTo(HaveOccurred())
-
-		vmss, vmssID := GetVMSS(nodeList)
-		if vmssID == "" {
-			Skip("Skipping test since there is no vmss with more than 1 node")
-			return
-		}
-
-		setUpIdentityAndDeployment(immutableIdentity, "", "1", func(d *infra.IdentityValidatorTemplateData) {
-			d.NodeName = vmss[0].Name
-		})
-
-		waitForDeployDeletion(identityValidator)
-
-		ok, err := azureassignedidentity.WaitOnLengthMatched(0)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(ok).To(Equal(true))
-
-		exists, err := azure.UserIdentityAssignedToVMSS(cfg.ResourceGroup, vmssID, immutableIdentity)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(exists).To(Equal(true))
-
-	})
-
 	It("should pass the identity validating test", func() {
 		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
@@ -700,6 +674,45 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		exists, err = azure.UserIdentityAssignedToVMSS(cfg.ResourceGroup, vmssID, keyvaultIdentity)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(exists).To(Equal(true))
+	})
+
+	It("should not delete the Immutable Identity from vmss when the deployment is deleted", func() {
+		nodeList, err := node.GetAll()
+		Expect(err).NotTo(HaveOccurred())
+
+		vmss, vmssID := GetVMSS(nodeList)
+		if vmssID == "" {
+			Skip("Skipping test since there is no vmss with more than 1 node")
+			return
+		}
+
+		// Explicitly assign identity to the underlying VMSS:
+		enableUserAssignedIdentityOnCluster(nodeList, immutableIdentity)
+
+		setUpIdentityAndDeployment(immutableIdentity, "", "1", func(d *infra.IdentityValidatorTemplateData) {
+			d.NodeName = vmss[0].Name
+		})
+
+		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Ensure that the identity validator is able to get the token
+		validateAzureAssignedIdentity(azureAssignedIdentity, immutableIdentity)
+
+		waitForDeployDeletion(identityValidator)
+
+		ok, err = azureassignedidentity.WaitOnLengthMatched(0)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		exists, err := azure.UserIdentityAssignedToVMSS(cfg.ResourceGroup, vmssID, immutableIdentity)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(exists).To(Equal(true))
+
 	})
 
 	It("should pass liveness probe test", func() {
