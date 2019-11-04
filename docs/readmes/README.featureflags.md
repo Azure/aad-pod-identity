@@ -42,3 +42,9 @@ endpoint from Pods which are not using host networking and return an HTTP 403
 Forbidden response. This flag is disabled by default to maximize compatibility.
 Users are encouraged to determine if this option is relevant and beneficial for
 their use cases.
+
+## ImmutableUserMSIs flag
+> Available from 1.5.4 release
+
+Aad-pod-identity has a new flag immutableUserMSIs which can be used to prevent deletetion of spcecified identitites from VM/VMSS.
+The list is comma separated. Example: 00000000-0000-0000-0000-000000000000,11111111-1111-1111-1111-111111111111

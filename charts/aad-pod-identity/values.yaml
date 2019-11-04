@@ -62,6 +62,12 @@ mic:
   # Override interval in seconds at which sync loop should periodically check for errors and reconcile (default is 3600s)
   syncRetryDuration: ""
 
+  # Override the defult value of immutable identities. 
+  immutableUserMSIs: []
+    # Example of MSIs (should be replaced with the real ids)
+    #- "00000000-0000-0000-0000-000000000000"
+    #- "11111111-1111-1111-1111-111111111111"
+
   # https://github.com/Azure/aad-pod-identity/blob/master/docs/readmes/README.featureflags.md#batch-create-delete-flag
   # default value is 20
   createDeleteBatch: ""
