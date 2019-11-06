@@ -16,6 +16,7 @@ import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	crd "github.com/Azure/aad-pod-identity/pkg/crd"
 	inlog "github.com/Azure/aad-pod-identity/pkg/logger"
+	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/version"
 	"github.com/golang/glog"
 	log "github.com/sirupsen/logrus"
@@ -175,6 +176,7 @@ func (c *KubeClient) getPodListRetry(podip string, retries int, sleeptime time.D
 		if err == nil {
 			return podList, nil
 		}
+		recordError("get_pod_list")
 		if i >= retries {
 			break
 		}
@@ -218,6 +220,7 @@ func (c *KubeClient) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodI
 func (c *KubeClient) GetSecret(secretRef *v1.SecretReference) (*v1.Secret, error) {
 	secret, err := c.ClientSet.CoreV1().Secrets(secretRef.Namespace).Get(secretRef.Name, metav1.GetOptions{})
 	if err != nil {
+		recordError("get_secret")
 		return nil, err
 	}
 	return secret, nil
@@ -241,4 +244,9 @@ func buildConfig() (*rest.Config, error) {
 	}
 
 	return rest.InClusterConfig()
+}
+
+// recordError records the error in appropriate metric
+func recordError(operation string) {
+	metrics.KubernetesAPIOperationsErrorsCount.WithLabelValues(operation).Inc()
 }

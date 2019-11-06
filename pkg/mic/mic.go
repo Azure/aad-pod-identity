@@ -143,6 +143,9 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 // Run - Initiates the leader election run call to find if its leader and run it
 func (c *Client) Run() {
 	glog.Infof("Initiating MIC Leader election")
+	// counter to track number of mic election
+	metrics.ManagedIdentityControllerNewLeaderElectionCount.Inc()
+
 	c.leaderElector.Run()
 }
 

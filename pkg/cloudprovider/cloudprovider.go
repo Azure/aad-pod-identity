@@ -11,6 +11,7 @@ import (
 	"time"
 
 	config "github.com/Azure/aad-pod-identity/pkg/config"
+	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/aad-pod-identity/version"
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
@@ -336,4 +337,9 @@ func ParseResourceID(resourceID string) (azure.Resource, error) {
 	}
 
 	return result, nil
+}
+
+// recordError records the error in appropriate metric
+func recordError(operation string) {
+	metrics.CloudProviderOperationsErrorsCount.WithLabelValues(operation).Inc()
 }

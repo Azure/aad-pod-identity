@@ -21,18 +21,47 @@ The following Prometheus metrics are exposed in AAD pod identity system.
 
 Histogram that tracks the duration (in seconds) it takes to Assigned identity addition operations.
 
-**2. assigned_identity_deletion_duration_seconds**
+**2. assigned_identity_addition_count**
+
+Counter that tracks the cumulative number of assigned identity addition operations.
+
+**3. assigned_identity_deletion_duration_seconds**
 
 Histogram that tracks the duration (in seconds) it takes to Assigned identity deletion operations.
 
-**3. nodemanagedidentity_operations_latency_nanoseconds**
+**4. assigned_identity_deletion_count**
+
+Counter that tracks the cumulative number of assigned identity deletion operations.
+
+
+**5. nodemanagedidentity_operations_latency_nanoseconds**
 
 Histogram that tracks the latency (in nanoseconds) of Node Managed Identity operations to complete. Broken down by operation type, status code.
 
-**4. managedidentitycontroller_cycle_duration_seconds**
+**6. managedidentitycontroller_cycle_duration_seconds**
 
 Histogram that tracks the duration (in seconds) it takes for a single cycle in Managed Identity Controller.
 
-**5. managedidentitycontroller_cycle_count**
+**7. managedidentitycontroller_cycle_count**
 
 Counter that tracks the number of cycles executed in Managed Identity Controller.
+
+**8. managedidentitycontroller_cycle_duration_seconds**
+
+Histogram that tracks the duration (in seconds) it takes for a single cycle in Managed Identity Controller.
+
+**9. managedidentitycontroller_cycle_count**
+
+Counter that tracks the number of cycles executed in Managed Identity Controller.
+
+**10. managedidentitycontroller_new_leader_election_count**
+
+Counter that tracks the cumulative number of new leader election in Managed Identity Controller.
+
+**11. cloud_provider_operations_errors_count**
+
+Counter that tracks the cumulative number of cloud provider operations errors.Broken down by operation type.
+
+**12. kubernetes_api_operations_errors_count**
+
+Counter that tracks the cumulative number of kubernetes api operations errors.Broken down by operation type.

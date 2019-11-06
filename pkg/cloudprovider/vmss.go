@@ -55,12 +55,14 @@ func (c *VMSSClient) CreateOrUpdate(rg string, vmssName string, vm compute.Virtu
 	future, err := c.client.CreateOrUpdate(ctx, rg, vmssName, vm)
 	if err != nil {
 		glog.Error(err)
+		recordError("vmss_create_or_update")
 		return err
 	}
 
 	err = future.WaitForCompletionRef(ctx, c.client.Client)
 	if err != nil {
 		glog.Error(err)
+		recordError("vmss_create_or_update")
 		return err
 	}
 	stats.UpdateCount(stats.TotalPutCalls, 1)
@@ -75,6 +77,7 @@ func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMac
 	vm, err := c.client.Get(ctx, rgName, vmssName)
 	if err != nil {
 		glog.Error(err)
+		recordError("vmss_get")
 		return vm, err
 	}
 	stats.UpdateCount(stats.TotalGetCalls, 1)

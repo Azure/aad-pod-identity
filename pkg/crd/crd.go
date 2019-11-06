@@ -306,7 +306,13 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	err := c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Name(assignedIdentity.Name).Do().Error()
 	glog.V(5).Infof("Deletion %s took: %v", assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDDel, time.Since(begin))
-	metrics.AssignedIdentityDeletion.WithLabelValues(assignedIdentity.Namespace).Observe(metrics.SinceInSeconds(begin))
+	metrics.AssignedIdentityDeletionDuration.WithLabelValues(assignedIdentity.Namespace).Observe(metrics.SinceInSeconds(begin))
+	metrics.AssignedIdentityDeletionCount.WithLabelValues(assignedIdentity.Namespace).Inc()
+
+	if err != nil {
+		recordError("assigned_identity_deletion")
+	}
+
 	return err
 }
 
@@ -321,13 +327,14 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	err := c.rest.Post().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Body(assignedIdentity).Do().Into(&res)
 	if err != nil {
 		glog.Error(err)
+		recordError("assigned_identity_addition")
 		return err
 	}
 
 	glog.V(5).Infof("Time take to create %s: %v", assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDAdd, time.Since(begin))
-	metrics.AssignedIdentityAddition.WithLabelValues(assignedIdentity.Namespace).Observe(metrics.SinceInSeconds(begin))
-
+	metrics.AssignedIdentityAdditionDuration.WithLabelValues(assignedIdentity.Namespace).Observe(metrics.SinceInSeconds(begin))
+	metrics.AssignedIdentityAdditionCount.WithLabelValues(assignedIdentity.Namespace).Inc()
 	//TODO: Update the status of the assign identity to indicate that the node assignment got done.
 	return nil
 }
@@ -525,5 +532,13 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 		Error()
 	glog.V(5).Infof("Patch of %s took: %v", assignedIdentity.Name, time.Since(begin))
 
+	if err != nil {
+		recordError("update_azure_assigned_identity_Status")
+	}
 	return err
+}
+
+// recordError records the error in appropriate metric
+func recordError(operation string) {
+	metrics.KubernetesAPIOperationsErrorsCount.WithLabelValues(operation).Inc()
 }

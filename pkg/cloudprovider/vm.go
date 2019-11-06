@@ -49,12 +49,14 @@ func (c *VMClient) CreateOrUpdate(rg string, nodeName string, vm compute.Virtual
 	future, err := c.client.CreateOrUpdate(ctx, rg, nodeName, vm)
 	if err != nil {
 		glog.Error(err)
+		recordError("vm_create_or_update")
 		return err
 	}
 
 	err = future.WaitForCompletionRef(ctx, c.client.Client)
 	if err != nil {
 		glog.Error(err)
+		recordError("vm_create_or_update")
 		return err
 	}
 	stats.UpdateCount(stats.TotalPutCalls, 1)
@@ -68,6 +70,7 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 	vm, err := c.client.Get(ctx, rgName, nodeName, "")
 	if err != nil {
 		glog.Error(err)
+		recordError("vm_get")
 		return vm, err
 	}
 	stats.UpdateCount(stats.TotalGetCalls, 1)
