@@ -248,5 +248,5 @@ func buildConfig() (*rest.Config, error) {
 
 // recordError records the error in appropriate metric
 func recordError(operation string) {
-	metrics.KubernetesAPIOperationsErrorsCount.WithLabelValues(operation).Inc()
+	metrics.RecordK8SAPIOperationError(operation)
 }

@@ -15,53 +15,44 @@ State "Active" is being returned if the component has started successfully and "
 
 [Prometheus](https://github.com/prometheus/prometheus) is a systems and service monitoring system. It collects metrics from configured targets at given intervals, evaluates rule expressions,displays the results, and can trigger alerts if some condition is observed to be true.
 
-The following Prometheus metrics are exposed in AAD pod identity system.  
+The following [OpenCensus](https://opencensus.io/) metrics are exposed in AAD pod identity system via prometheus exporter.  
 
-**1. assigned_identity_addition_duration_seconds**
+**1. aadpodidentity_assigned_identity_addition_duration_seconds**
 
-Histogram that tracks the duration (in seconds) it takes to Assigned identity addition operations.
+Histogram that tracks the duration (in seconds) it takes for Assigned identity addition operations.
 
-**2. assigned_identity_addition_count**
+**2. aadpodidentity_assigned_identity_addition_count**
 
 Counter that tracks the cumulative number of assigned identity addition operations.
 
-**3. assigned_identity_deletion_duration_seconds**
+**3. aadpodidentity_assigned_identity_deletion_duration_seconds**
 
-Histogram that tracks the duration (in seconds) it takes to Assigned identity deletion operations.
+Histogram that tracks the duration (in seconds) it takes for Assigned identity deletion operations.
 
-**4. assigned_identity_deletion_count**
+**4. aadpodidentity_assigned_identity_deletion_count**
 
 Counter that tracks the cumulative number of assigned identity deletion operations.
 
+**5. aadpodidentity_nodemanagedidentity_operations_duration_seconds**
 
-**5. nodemanagedidentity_operations_latency_nanoseconds**
+Histogram that tracks the latency (in seconds) of Node Managed Identity operations to complete. Broken down by operation type, status code.
 
-Histogram that tracks the latency (in nanoseconds) of Node Managed Identity operations to complete. Broken down by operation type, status code.
-
-**6. managedidentitycontroller_cycle_duration_seconds**
-
-Histogram that tracks the duration (in seconds) it takes for a single cycle in Managed Identity Controller.
-
-**7. managedidentitycontroller_cycle_count**
-
-Counter that tracks the number of cycles executed in Managed Identity Controller.
-
-**8. managedidentitycontroller_cycle_duration_seconds**
+**6. aadpodidentity_managedidentitycontroller_cycle_duration_seconds**
 
 Histogram that tracks the duration (in seconds) it takes for a single cycle in Managed Identity Controller.
 
-**9. managedidentitycontroller_cycle_count**
+**7. aadpodidentity_managedidentitycontroller_cycle_count**
 
 Counter that tracks the number of cycles executed in Managed Identity Controller.
 
-**10. managedidentitycontroller_new_leader_election_count**
+**8. aadpodidentity_managedidentitycontroller_new_leader_election_count**
 
 Counter that tracks the cumulative number of new leader election in Managed Identity Controller.
 
-**11. cloud_provider_operations_errors_count**
+**9. aadpodidentity_cloud_provider_operations_errors_count**
 
 Counter that tracks the cumulative number of cloud provider operations errors.Broken down by operation type.
 
-**12. kubernetes_api_operations_errors_count**
+**10. aadpodidentity_kubernetes_api_operations_errors_count**
 
 Counter that tracks the cumulative number of kubernetes api operations errors.Broken down by operation type.

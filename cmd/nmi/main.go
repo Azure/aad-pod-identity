@@ -43,6 +43,7 @@ var (
 	enableProfile                      = pflag.Bool("enableProfile", false, "Enable/Disable pprof profiling")
 	enableScaleFeatures                = pflag.Bool("enableScaleFeatures", false, "Enable/Disable features for scale clusters")
 	blockInstanceMetadata              = pflag.Bool("block-instance-metadata", false, "Block instance metadata endpoints")
+	prometheusPort                     = pflag.String("prometheus-port", "9090", "Prometheus port for metrics")
 )
 
 func main() {
@@ -93,8 +94,8 @@ func main() {
 	// will report "Active" once the iptables rules are set
 	probes.InitAndStart(*httpProbePort, &s.Initialized, logger)
 
-	// Register prometheus metrics.
-	metrics.Register()
+	// Register and expose metrics views
+	metrics.RegisterAndExport(*prometheusPort, logger)
 
 	if err := s.Run(); err != nil {
 		log.Fatalf("%s", err)

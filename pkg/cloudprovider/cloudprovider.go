@@ -341,5 +341,5 @@ func ParseResourceID(resourceID string) (azure.Resource, error) {
 
 // recordError records the error in appropriate metric
 func recordError(operation string) {
-	metrics.CloudProviderOperationsErrorsCount.WithLabelValues(operation).Inc()
+	metrics.RecordCloudProviderOperationError(operation)
 }

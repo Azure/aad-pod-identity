@@ -144,8 +144,7 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 func (c *Client) Run() {
 	glog.Infof("Initiating MIC Leader election")
 	// counter to track number of mic election
-	metrics.ManagedIdentityControllerNewLeaderElectionCount.Inc()
-
+	metrics.NewReporterAndReport(metrics.ManagedIdentityControllerNewLeaderElectionCountM.M(1))
 	c.leaderElector.Run()
 }
 
@@ -241,6 +240,13 @@ func (c *Client) Sync(exit <-chan struct{}) {
 	var event aadpodid.EventType
 	totalWorkDoneCycles := 0
 	totalSyncCycles := 0
+
+	reporter, reporterError := metrics.NewReporter()
+
+	if reporterError != nil {
+		glog.Error(reporterError)
+	}
+
 	for {
 		select {
 		case <-exit:
@@ -348,8 +354,13 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			glog.Infof("Work done: %v. Found %d pods, %d ids, %d bindings", workDone, len(listPods), idsFound, bindingsFound)
 			glog.Infof("Total work cycles: %d, out of which work was done in: %d.", totalSyncCycles, totalWorkDoneCycles)
 			stats.Put(stats.Total, time.Since(begin))
-			metrics.ManagedIdentityControllerCycleDuration.Observe(metrics.SinceInSeconds(begin))
-			metrics.ManagedIdentityControllerCycleCount.Inc()
+
+			if reporter != nil {
+				reporter.Report(
+					metrics.ManagedIdentityControllerCycleCountM.M(1),
+					metrics.ManagedIdentityControllerCycleDurationM.M(metrics.SinceInSeconds(begin)))
+			}
+
 			stats.PrintSync()
 			if workDone {
 				// We need to synchornize the cache inorder to get the latest updates. Sync cache has a bug in the current go client which caused thread leak.

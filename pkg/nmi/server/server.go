@@ -177,7 +177,17 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fn(logger, rw, r)
 	latency := time.Since(start)
 	logger.Infof("Status (%d) took %d ns", rw.statusCode, latency.Nanoseconds())
-	metrics.NodeManagedIdentityOperationsLatency.WithLabelValues(r.URL.Path, strconv.Itoa(rw.statusCode)).Observe(metrics.SinceInMicroseconds(start))
+
+	reporter, reporterError := metrics.NewReporter()
+
+	if reporterError != nil {
+		logger.Error(reporterError)
+	} else {
+		reporter.ReportOperationAndStatus(
+			r.URL.Path,
+			strconv.Itoa(rw.statusCode),
+			metrics.NodeManagedIdentityOperationsDurationM.M(metrics.SinceInSeconds(start)))
+	}
 }
 
 func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {

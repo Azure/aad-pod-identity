@@ -28,6 +28,7 @@ var (
 	enableScaleFeatures bool
 	createDeleteBatch   int64
 	clientQPS           float64
+	prometheusPort      string
 )
 
 func main() {
@@ -50,6 +51,9 @@ func main() {
 
 	//Probe port
 	flag.StringVar(&httpProbePort, "http-probe-port", "8080", "http liveliness probe port")
+
+	// Prometheus port
+	flag.StringVar(&prometheusPort, "prometheus-port", "8888", "Prometheus port for metrics")
 
 	// Profile
 	flag.BoolVar(&enableProfile, "enableProfile", false, "Enable/Disable pprof profiling")
@@ -109,8 +113,8 @@ func main() {
 	// and starts the sync loop.
 	probes.InitAndStart(httpProbePort, &micClient.SyncLoopStarted, &mic.Log{})
 
-	// Register prometheus metrics.
-	metrics.Register()
+	// Register and expose metrics views
+	metrics.RegisterAndExport(prometheusPort, &mic.Log{})
 
 	// Starts the leader election loop
 	micClient.Run()

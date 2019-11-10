@@ -306,8 +306,10 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	err := c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Name(assignedIdentity.Name).Do().Error()
 	glog.V(5).Infof("Deletion %s took: %v", assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDDel, time.Since(begin))
-	metrics.AssignedIdentityDeletionDuration.WithLabelValues(assignedIdentity.Namespace).Observe(metrics.SinceInSeconds(begin))
-	metrics.AssignedIdentityDeletionCount.WithLabelValues(assignedIdentity.Namespace).Inc()
+
+	metrics.NewReporterAndReport(
+		metrics.AssignedIdentityDeletionCountM.M(1),
+		metrics.AssignedIdentityDeletionDurationM.M(metrics.SinceInSeconds(begin)))
 
 	if err != nil {
 		recordError("assigned_identity_deletion")
@@ -325,6 +327,11 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	var res aadpodid.AzureAssignedIdentity
 	// TODO: Ensure that the status reflects the corresponding
 	err := c.rest.Post().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Body(assignedIdentity).Do().Into(&res)
+
+	metrics.NewReporterAndReport(
+		metrics.AssignedIdentityAdditionCountM.M(1),
+		metrics.AssignedIdentityAdditionDurationM.M(metrics.SinceInSeconds(begin)))
+
 	if err != nil {
 		glog.Error(err)
 		recordError("assigned_identity_addition")
@@ -333,8 +340,6 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 
 	glog.V(5).Infof("Time take to create %s: %v", assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDAdd, time.Since(begin))
-	metrics.AssignedIdentityAdditionDuration.WithLabelValues(assignedIdentity.Namespace).Observe(metrics.SinceInSeconds(begin))
-	metrics.AssignedIdentityAdditionCount.WithLabelValues(assignedIdentity.Namespace).Inc()
 	//TODO: Update the status of the assign identity to indicate that the node assignment got done.
 	return nil
 }
@@ -540,5 +545,5 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 
 // recordError records the error in appropriate metric
 func recordError(operation string) {
-	metrics.KubernetesAPIOperationsErrorsCount.WithLabelValues(operation).Inc()
+	metrics.RecordK8SAPIOperationError(operation)
 }
