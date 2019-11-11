@@ -5,6 +5,7 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
@@ -29,6 +30,7 @@ var (
 	createDeleteBatch   int64
 	clientQPS           float64
 	prometheusPort      string
+	immutableUserMSIs   string
 )
 
 func main() {
@@ -67,6 +69,9 @@ func main() {
 	// Client QPS is used to configure the client-go QPS throttling and bursting.
 	flag.Float64Var(&clientQPS, "clientQps", 5, "Client QPS used for throttling of calls to kube-api server")
 
+	//Identities that should be never removed from Azure AD (used defined managed identities)
+	flag.StringVar(&immutableUserMSIs, "immutableUserMSIs", "", "prevent deletion of these IDs from the underlying VM/VMSS")
+
 	flag.Parse()
 	if versionInfo {
 		version.PrintVersionAndExit()
@@ -103,7 +108,10 @@ func main() {
 	config.Burst = int(clientQPS)
 	glog.Infof("Client QPS set to: %v. Burst to: %v", config.QPS, config.Burst)
 
-	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration, &leaderElectionCfg, enableScaleFeatures, createDeleteBatch)
+	immutableUserMSIsList := strings.Split(immutableUserMSIs, ",")
+	glog.Infof("immutable identities are %v", immutableUserMSIsList)
+
+	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration, &leaderElectionCfg, enableScaleFeatures, createDeleteBatch, immutableUserMSIsList)
 	if err != nil {
 		glog.Fatalf("Could not get the MIC client: %+v", err)
 	}

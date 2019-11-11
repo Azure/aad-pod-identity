@@ -39,6 +39,7 @@ const (
 	keyvaultIdentity  = "keyvault-identity"
 	identityValidator = "identity-validator"
 	nmiDaemonSet      = "nmi"
+	immutableIdentity = "immutable-identity"
 )
 
 var (
@@ -60,7 +61,7 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	cfg = *c
 	fmt.Printf("System MSI enabled: %v\n", cfg.SystemMSICluster)
-	setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures)
+	setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures, cfg.ImmutableUserMSIs)
 })
 
 var _ = AfterSuite(func() {
@@ -498,7 +499,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		}
 
 		// reset the infra to previous state
-		setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures)
+		setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures, cfg.ImmutableUserMSIs)
 	})
 
 	It("should not alter the system assigned identity after creating and deleting pod identity", func() {
@@ -594,7 +595,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(ok).To(Equal(true))
 
 		// setup mic and nmi with old releases
-		setupInfraOld("mcr.microsoft.com/k8s/aad-pod-identity", "1.4", "1.3")
+		setupInfraOld("mcr.microsoft.com/k8s/aad-pod-identity", "1.4", "1.3", "")
 
 		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
@@ -603,7 +604,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(ok).To(Equal(true))
 
 		// update the infra to use latest mic and nmi images
-		setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures)
+		setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures, cfg.ImmutableUserMSIs)
 
 		ok, err = daemonset.WaitOnReady(nmiDaemonSet)
 		Expect(err).NotTo(HaveOccurred())
@@ -632,29 +633,12 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		nodeList, err := node.GetAll()
 		Expect(err).NotTo(HaveOccurred())
 
-		vmssNodes := make(map[string][]node.Node)
-		for _, n := range nodeList.Nodes {
-			r, _ := cloudprovider.ParseResourceID(n.Spec.ProviderID)
-			if r.ResourceType == cloudprovider.VMSSResourceType {
-				ls := vmssNodes[r.ResourceName]
-				vmssNodes[r.ResourceName] = append(ls, n)
-			}
-		}
-
-		var vmssID string
-		for id, ls := range vmssNodes {
-			if len(ls) > 1 {
-				vmssID = id
-				break
-			}
-		}
-
+		vmss, vmssID := GetVMSS(nodeList)
 		if vmssID == "" {
 			Skip("Skipping test since there is no vmss with more than 1 node")
 			return
 		}
 
-		vmss := vmssNodes[vmssID]
 
 		setUpIdentityAndDeployment(keyvaultIdentity, "", "1", func(d *infra.IdentityValidatorTemplateData) {
 			d.NodeName = vmss[0].Name
@@ -690,6 +674,45 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		exists, err = azure.UserIdentityAssignedToVMSS(cfg.ResourceGroup, vmssID, keyvaultIdentity)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(exists).To(Equal(true))
+	})
+
+	It("should not delete the Immutable Identity from vmss when the deployment is deleted", func() {
+		nodeList, err := node.GetAll()
+		Expect(err).NotTo(HaveOccurred())
+
+		vmss, vmssID := GetVMSS(nodeList)
+		if vmssID == "" {
+			Skip("Skipping test since there is no vmss with more than 1 node")
+			return
+		}
+
+		// Explicitly assign identity to the underlying VMSS:
+		enableUserAssignedIdentityOnCluster(nodeList, immutableIdentity)
+
+		setUpIdentityAndDeployment(immutableIdentity, "", "1", func(d *infra.IdentityValidatorTemplateData) {
+			d.NodeName = vmss[0].Name
+		})
+
+		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Ensure that the identity validator is able to get the token
+		validateAzureAssignedIdentity(azureAssignedIdentity, immutableIdentity)
+
+		waitForDeployDeletion(identityValidator)
+
+		ok, err = azureassignedidentity.WaitOnLengthMatched(0)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		exists, err := azure.UserIdentityAssignedToVMSS(cfg.ResourceGroup, vmssID, immutableIdentity)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(exists).To(Equal(true))
+
 	})
 
 	It("should pass liveness probe test", func() {
@@ -944,6 +967,29 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	})
 })
 
+func GetVMSS(nodeList *node.List) ([]node.Node, string) {
+	vmssNodes := make(map[string][]node.Node)
+	for _, n := range nodeList.Nodes {
+		r, _ := cloudprovider.ParseResourceID(n.Spec.ProviderID)
+		if r.ResourceType == cloudprovider.VMSSResourceType {
+			ls := vmssNodes[r.ResourceName]
+			vmssNodes[r.ResourceName] = append(ls, n)
+		}
+	}
+	var vmssID string
+	for id, ls := range vmssNodes {
+		if len(ls) > 1 {
+			vmssID = id
+			break
+		}
+	}
+	if vmssID == "" {
+		return nil, ""
+	}
+	vmss := vmssNodes[vmssID]
+	return vmss, vmssID
+}
+
 func runValidatorTest(iterations int) {
 	defer GinkgoRecover()
 	replicas := "1"
@@ -1165,17 +1211,17 @@ func checkInfra() {
 }
 
 // setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
-func setupInfraOld(registry, nmiVersion, micVersion string) {
+func setupInfraOld(registry, nmiVersion, micVersion string, immutableUserMSIs string) {
 	// Install CRDs and deploy MIC and NMI
-	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, true, false)
+	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, true, false, immutableUserMSIs)
 	Expect(err).NotTo(HaveOccurred())
 	checkInfra()
 }
 
 // setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
-func setupInfra(registry, nmiVersion, micVersion string, enableScaleFeatures bool) {
+func setupInfra(registry, nmiVersion, micVersion string, enableScaleFeatures bool, immutableUserMSIs string) {
 	// Install CRDs and deploy MIC and NMI
-	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, false, enableScaleFeatures)
+	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, false, enableScaleFeatures, immutableUserMSIs)
 	Expect(err).NotTo(HaveOccurred())
 	checkInfra()
 }

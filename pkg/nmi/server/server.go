@@ -154,6 +154,9 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"req.path":   r.URL.Path,
 		"req.remote": parseRemoteAddr(r.RemoteAddr),
 	})
+	// Set the header in advance so that both success as well
+	// as error paths have it set as application/json content type.
+	w.Header().Set("Content-Type", "application/json")
 	start := time.Now()
 	defer func() {
 		var err error
@@ -472,7 +475,6 @@ func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r 
 		logger.Errorf("failed io operation of reading response body, %+v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	w.Header().Set("Content-Type", "application/json")
 	w.Write(body)
 }
 
@@ -570,7 +572,7 @@ func (s *Server) listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client,
 			err = ctx.Err()
 			return nil, true, err
 		}
-		logger.Warningf("failed to get assigned ids for pod:%s/%s in ASSIGNED state, retrying attempt: %d", podns, podname, attempt)
+		logger.Debugf("failed to get assigned ids for pod:%s/%s in ASSIGNED state, retrying attempt: %d", podns, podname, attempt)
 	}
 	return nil, true, fmt.Errorf("getting assigned identities for pod %s/%s in ASSIGNED state failed after %d attempts, retry duration [%d]s. Error: %v",
 		podns, podname, s.ListPodIDsRetryAttemptsForCreated+s.ListPodIDsRetryAttemptsForAssigned, s.ListPodIDsRetryIntervalInSeconds, err)
