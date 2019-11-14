@@ -1,4 +1,4 @@
-FROM golang:1.11 AS build
+FROM golang:1.13.4 AS build
 ENV GO111MODULE=on
 WORKDIR /go/src/github.com/Azure/aad-pod-identity
 COPY go.mod go.mod
