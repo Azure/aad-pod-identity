@@ -53,6 +53,10 @@ Counter that tracks the cumulative number of new leader election in Managed Iden
 
 Counter that tracks the cumulative number of cloud provider operations errors.Broken down by operation type.
 
-**10. aadpodidentity_kubernetes_api_operations_errors_count**
+**10. aadpodidentity_cloud_provider_operations_duration_seconds**
+
+Histogram that tracks the duration (in seconds) it takes for cloud provider operations.Broken down by operation type.
+
+**11. aadpodidentity_kubernetes_api_operations_errors_count**
 
 Counter that tracks the cumulative number of kubernetes api operations errors.Broken down by operation type.

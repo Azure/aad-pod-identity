@@ -340,6 +340,20 @@ func ParseResourceID(resourceID string) (azure.Resource, error) {
 }
 
 // recordError records the error in appropriate metric
-func recordError(operation string) {
-	metrics.RecordCloudProviderOperationError(operation)
+func recordError(reporter *metrics.Reporter, operation string) {
+	if reporter != nil {
+		reporter.ReportOperation(
+			operation,
+			metrics.CloudProviderOperationsErrorsCountM.M(1))
+	}
+}
+
+// recordDuration records the duration
+func recordDuration(reporter *metrics.Reporter, operation string, duration time.Duration) {
+
+	if reporter != nil {
+		reporter.ReportOperation(
+			operation,
+			metrics.CloudProviderOperationsDurationM.M(duration.Seconds()))
+	}
 }

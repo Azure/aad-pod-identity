@@ -9,7 +9,7 @@ import (
 )
 
 // newPrometheusExporter creates prometheus exporter and run the same on given port
-func newPrometheusExporter(namespace string, portNumber string, log log.Logger) error {
+func newPrometheusExporter(namespace string, portNumber string, log log.Logger) (*prometheus.Exporter, error) {
 
 	prometheusExporter, err := prometheus.NewExporter(prometheus.Options{
 		Namespace: namespace,
@@ -17,7 +17,7 @@ func newPrometheusExporter(namespace string, portNumber string, log log.Logger) 
 
 	if err != nil {
 		log.Errorf("Failed to create the Prometheus exporter. error: %+v", err)
-		return err
+		return nil, err
 	}
 	log.Info("Starting Prometheus exporter")
 	// Run the Prometheus exporter as a scrape endpoint.
@@ -29,5 +29,5 @@ func newPrometheusExporter(namespace string, portNumber string, log log.Logger) 
 			log.Errorf("Failed to run Prometheus scrape endpoint: %v", err)
 		}
 	}()
-	return nil
+	return prometheusExporter, nil
 }

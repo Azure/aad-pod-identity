@@ -52,6 +52,7 @@ type Server struct {
 	ListPodIDsRetryAttemptsForCreated  int
 	ListPodIDsRetryAttemptsForAssigned int
 	ListPodIDsRetryIntervalInSeconds   int
+	Reporter                           *metrics.Reporter
 }
 
 // NMIResponse is the response returned to caller
@@ -62,10 +63,17 @@ type NMIResponse struct {
 
 // NewServer will create a new Server with default values.
 func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata bool) *Server {
+	reporter, err := metrics.NewReporter()
+	// keeping this reference to be used in ServeHTTP, as server is not accessible in ServeHTTP
+	appHandlerReporter = reporter
+	if err != nil {
+		log.Errorf("Error creating new reporter to emit metrics: %v", err)
+	}
 	return &Server{
 		IsNamespaced:          isNamespaced,
 		MICNamespace:          micNamespace,
 		BlockInstanceMetadata: blockInstanceMetadata,
+		Reporter:              reporter,
 	}
 }
 
@@ -146,6 +154,8 @@ func newResponseWriter(w http.ResponseWriter) *responseWriter {
 	return &responseWriter{w, http.StatusOK}
 }
 
+var appHandlerReporter *metrics.Reporter
+
 // ServeHTTP implements the net/http server handler interface
 // and recovers from panics.
 func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -181,12 +191,8 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	latency := time.Since(start)
 	logger.Infof("Status (%d) took %d ns", rw.statusCode, latency.Nanoseconds())
 
-	reporter, reporterError := metrics.NewReporter()
-
-	if reporterError != nil {
-		logger.Error(reporterError)
-	} else {
-		reporter.ReportOperationAndStatus(
+	if appHandlerReporter != nil {
+		appHandlerReporter.ReportOperationAndStatus(
 			r.URL.Path,
 			strconv.Itoa(rw.statusCode),
 			metrics.NodeManagedIdentityOperationsDurationM.M(metrics.SinceInSeconds(start)))

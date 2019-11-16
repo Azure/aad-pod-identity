@@ -5,7 +5,6 @@ import (
 	"time"
 
 	log "github.com/Azure/aad-pod-identity/pkg/logger"
-	"github.com/golang/glog"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
@@ -22,6 +21,7 @@ const (
 	managedIdentityControllerCycleCountName             = "managedidentitycontroller_cycle_count"
 	managedIdentityControllerNewLeaderElectionCountName = "managedidentitycontroller_new_leader_election_count"
 	cloudProviderOperationsErrorsCountName              = "cloud_provider_operations_errors_count"
+	cloudProviderOperationsDurationName                 = "cloud_provider_operations_duration_seconds"
 	kubernetesAPIOperationsErrorsCountName              = "kubernetes_api_operations_errors_count"
 )
 
@@ -51,7 +51,7 @@ var (
 		"Total number of assigned identity deletion operations",
 		stats.UnitDimensionless)
 
-	// NodeManagedIdentityOperationsDurationM is a measure that tracks the duration in seconds of odemanagedidentity operations.
+	// NodeManagedIdentityOperationsDurationM is a measure that tracks the duration in seconds of nodemanagedidentity operations.
 	NodeManagedIdentityOperationsDurationM = stats.Float64(
 		nodeManagedIdentityOperationsDurationName,
 		"Duration in seconds of node managed identity operations",
@@ -83,6 +83,13 @@ var (
 		stats.UnitDimensionless)
 	// operation_type
 
+	// CloudProviderOperationsDurationM is a measure that tracks the duration in seconds of CloudProviderOperations operations.
+	CloudProviderOperationsDurationM = stats.Float64(
+		cloudProviderOperationsDurationName,
+		"Duration in seconds of cloudprovider operations",
+		stats.UnitMilliseconds)
+	// operation_type
+
 	// KubernetesAPIOperationsErrorsCountM is a measure that tracks the cumulative number of errors in cloud provider operations.
 	KubernetesAPIOperationsErrorsCountM = stats.Int64(
 		kubernetesAPIOperationsErrorsCountName,
@@ -110,7 +117,7 @@ func registerViews() error {
 		&view.View{
 			Description: AssignedIdentityAdditionDurationM.Description(),
 			Measure:     AssignedIdentityAdditionDurationM,
-			Aggregation: view.Distribution(0, 1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 97),
+			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
 		},
 		&view.View{
 			Description: AssignedIdentityAdditionCountM.Description(),
@@ -120,7 +127,7 @@ func registerViews() error {
 		&view.View{
 			Description: AssignedIdentityDeletionDurationM.Description(),
 			Measure:     AssignedIdentityDeletionDurationM,
-			Aggregation: view.Distribution(0, 1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 97),
+			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
 		},
 		&view.View{
 			Description: AssignedIdentityDeletionCountM.Description(),
@@ -130,13 +137,13 @@ func registerViews() error {
 		&view.View{
 			Description: NodeManagedIdentityOperationsDurationM.Description(),
 			Measure:     NodeManagedIdentityOperationsDurationM,
-			Aggregation: view.Distribution(0, 1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 97),
+			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
 			TagKeys:     []tag.Key{operationTypeKey, statusCodeKey},
 		},
 		&view.View{
 			Description: ManagedIdentityControllerCycleDurationM.Description(),
 			Measure:     ManagedIdentityControllerCycleDurationM,
-			Aggregation: view.Distribution(0, 1, 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 97),
+			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
 		},
 		&view.View{
 			Description: ManagedIdentityControllerCycleCountM.Description(),
@@ -155,13 +162,18 @@ func registerViews() error {
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
 		&view.View{
+			Description: CloudProviderOperationsDurationM.Description(),
+			Measure:     CloudProviderOperationsDurationM,
+			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
+			TagKeys:     []tag.Key{operationTypeKey},
+		},
+		&view.View{
 			Description: KubernetesAPIOperationsErrorsCountM.Description(),
 			Measure:     KubernetesAPIOperationsErrorsCountM,
 			Aggregation: view.Count(),
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
 	}
-
 	err := view.Register(views...)
 	return err
 }
@@ -171,41 +183,29 @@ func record(ctx context.Context, ms ...stats.Measurement) {
 	stats.Record(ctx, ms...)
 }
 
-// reporter is stats reporter in the context
-type reporter struct {
+// Reporter is stats reporter in the context
+type Reporter struct {
 	ctx context.Context
 }
 
-// Report records the given measure
-func (r *reporter) Report(ms ...stats.Measurement) {
-	record(r.ctx, ms...)
-}
-
 // NewReporter creates a reporter with new context
-func NewReporter() (*reporter, error) {
+func NewReporter() (*Reporter, error) {
 	ctx, err := tag.New(
 		context.Background(),
 	)
 	if err != nil {
 		return nil, err
 	}
-	return &reporter{ctx: ctx}, nil
+	return &Reporter{ctx: ctx}, nil
 }
 
-// NewReporterAndReport creates a new instance of reporter and report given measurements
-func NewReporterAndReport(ms ...stats.Measurement) {
-
-	reporter, reporterError := NewReporter()
-
-	if reporterError != nil {
-		glog.Error(reporterError)
-	} else {
-		reporter.Report(ms...)
-	}
+// Report records the given measure
+func (r *Reporter) Report(ms ...stats.Measurement) {
+	record(r.ctx, ms...)
 }
 
-// ReportOperationStatusCount
-func (r *reporter) ReportOperationAndStatus(operationType string, statusCode string, ms ...stats.Measurement) error {
+// ReportOperationAndStatus records given measurements by operation type and status code.
+func (r *Reporter) ReportOperationAndStatus(operationType string, statusCode string, ms ...stats.Measurement) error {
 
 	ctx, err := tag.New(
 		r.ctx,
@@ -219,8 +219,8 @@ func (r *reporter) ReportOperationAndStatus(operationType string, statusCode str
 	return nil
 }
 
-// ReportMeasurementWithOperation records given measurement by operation type.
-func (r *reporter) ReportMeasurementWithOperation(operationType string, measurement stats.Measurement) error {
+// ReportOperation records given measurement by operation type.
+func (r *Reporter) ReportOperation(operationType string, measurement stats.Measurement) error {
 
 	ctx, err := tag.New(
 		r.ctx,
@@ -233,43 +233,22 @@ func (r *reporter) ReportMeasurementWithOperation(operationType string, measurem
 	return nil
 }
 
-// RecordK8SAPIOperationError records the error in KubernetesAPIOperationsErrorsCountM
-func RecordK8SAPIOperationError(operation string) {
-
-	reporter, reporterError := NewReporter()
-	if reporterError != nil {
-		glog.Error(reporterError)
-	} else {
-		reporter.ReportMeasurementWithOperation(operation, KubernetesAPIOperationsErrorsCountM.M(1))
-	}
-}
-
-// RecordCloudProviderOperationError records the error in CloudProviderOperationsErrorsCountM
-func RecordCloudProviderOperationError(operation string) {
-
-	reporter, reporterError := NewReporter()
-	if reporterError != nil {
-		glog.Error(reporterError)
-	} else {
-		reporter.ReportMeasurementWithOperation(operation, CloudProviderOperationsErrorsCountM.M(1))
-	}
-}
-
-// RegisterAndExport register the views for the measures and exposeas  prometheus
-func RegisterAndExport(port string, log log.Logger) {
+// RegisterAndExport register the views for the measures and expose via prometheus exporter
+func RegisterAndExport(port string, log log.Logger) error {
 
 	err := registerViews()
-
 	if err != nil {
 		log.Errorf("Failed to register views for metrics. error:%v", err)
+		return err
 	}
 
 	log.Infof("Registered views for metric")
-	err = newPrometheusExporter(componentNamespace, port, log)
+	exporter, err := newPrometheusExporter(componentNamespace, port, log)
 	if err != nil {
 		log.Errorf("Prometheus exporter error: %+v", err)
-	} else {
-		log.Infof("Exported metrics on port %s", port)
+		return err
 	}
-
+	view.RegisterExporter(exporter)
+	log.Infof("Registered and exported metrics on port %s", port)
+	return nil
 }
