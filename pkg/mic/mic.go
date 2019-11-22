@@ -51,18 +51,18 @@ type LeaderElectionConfig struct {
 // Client has the required pointers to talk to the api server
 // and interact with the CRD related datastructure.
 type Client struct {
-	CRDClient           crd.ClientInt
-	CloudClient         cloudprovider.ClientInt
-	PodClient           pod.ClientInt
-	EventRecorder       record.EventRecorder
-	EventChannel        chan aadpodid.EventType
-	NodeClient          NodeGetter
-	IsNamespaced        bool
-	SyncLoopStarted     bool
-	syncRetryInterval   time.Duration
-	enableScaleFeatures bool
-	createDeleteBatch   int64
-	ImmutableUserMSIs   map[string]bool
+	CRDClient            crd.ClientInt
+	CloudClient          cloudprovider.ClientInt
+	PodClient            pod.ClientInt
+	EventRecorder        record.EventRecorder
+	EventChannel         chan aadpodid.EventType
+	NodeClient           NodeGetter
+	IsNamespaced         bool
+	SyncLoopStarted      bool
+	syncRetryInterval    time.Duration
+	enableScaleFeatures  bool
+	createDeleteBatch    int64
+	ImmutableUserMSIsMap map[string]bool
 
 	syncing int32 // protect against conucrrent sync's
 
@@ -129,17 +129,17 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 	}
 
 	c := &Client{
-		CRDClient:           crdClient,
-		CloudClient:         cloudClient,
-		PodClient:           podClient,
-		EventRecorder:       recorder,
-		EventChannel:        eventCh,
-		NodeClient:          &NodeClient{informer.Core().V1().Nodes()},
-		IsNamespaced:        isNamespaced,
-		syncRetryInterval:   syncRetryInterval,
-		enableScaleFeatures: enableScaleFeatures,
-		createDeleteBatch:   createDeleteBatch,
-		ImmutableUserMSIs:   immutableUserMSIsMap,
+		CRDClient:            crdClient,
+		CloudClient:          cloudClient,
+		PodClient:            podClient,
+		EventRecorder:        recorder,
+		EventChannel:         eventCh,
+		NodeClient:           &NodeClient{informer.Core().V1().Nodes()},
+		IsNamespaced:         isNamespaced,
+		syncRetryInterval:    syncRetryInterval,
+		enableScaleFeatures:  enableScaleFeatures,
+		createDeleteBatch:    createDeleteBatch,
+		ImmutableUserMSIsMap: immutableUserMSIsMap,
 	}
 	leaderElector, err := c.NewLeaderElector(clientSet, recorder, leaderElectionConfig)
 	if err != nil {
@@ -1042,11 +1042,11 @@ func (c *Client) consolidateVMSSNodes(nodeMap map[string]trackUserAssignedMSIIds
 // returns true if identity is immutable
 func (c *Client) checkIfIdentityImmutable(id string) bool {
 	// no immutable identity list defined, then identity is not immutable and can be safely removed
-	if c.ImmutableUserMSIs == nil {
+	if c.ImmutableUserMSIsMap == nil {
 		return false
 	}
 	// identity is immutable, so should not be deleted from the underlying node/vmss
-	if _, exists := c.ImmutableUserMSIs[id]; exists {
+	if _, exists := c.ImmutableUserMSIsMap[id]; exists {
 		return true
 	}
 	return false
