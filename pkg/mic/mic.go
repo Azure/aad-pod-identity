@@ -51,18 +51,18 @@ type LeaderElectionConfig struct {
 // Client has the required pointers to talk to the api server
 // and interact with the CRD related datastructure.
 type Client struct {
-	CRDClient           crd.ClientInt
-	CloudClient         cloudprovider.ClientInt
-	PodClient           pod.ClientInt
-	EventRecorder       record.EventRecorder
-	EventChannel        chan aadpodid.EventType
-	NodeClient          NodeGetter
-	IsNamespaced        bool
-	SyncLoopStarted     bool
-	syncRetryInterval   time.Duration
-	enableScaleFeatures bool
-	createDeleteBatch   int64
-	ImmutableUserMSIs   map[string]bool
+	CRDClient            crd.ClientInt
+	CloudClient          cloudprovider.ClientInt
+	PodClient            pod.ClientInt
+	EventRecorder        record.EventRecorder
+	EventChannel         chan aadpodid.EventType
+	NodeClient           NodeGetter
+	IsNamespaced         bool
+	SyncLoopStarted      bool
+	syncRetryInterval    time.Duration
+	enableScaleFeatures  bool
+	createDeleteBatch    int64
+	ImmutableUserMSIsMap map[string]bool
 
 	syncing int32 // protect against conucrrent sync's
 
@@ -120,7 +120,8 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 
 	var immutableUserMSIsMap map[string]bool
 
-	if immutableUserMSIsList != nil {
+	if len(immutableUserMSIsList) > 0 {
+		// this map contains list of identities that are configured by user as immutable.
 		immutableUserMSIsMap = make(map[string]bool)
 		for _, item := range immutableUserMSIsList {
 			immutableUserMSIsMap[strings.ToLower(item)] = true
@@ -128,17 +129,17 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 	}
 
 	c := &Client{
-		CRDClient:           crdClient,
-		CloudClient:         cloudClient,
-		PodClient:           podClient,
-		EventRecorder:       recorder,
-		EventChannel:        eventCh,
-		NodeClient:          &NodeClient{informer.Core().V1().Nodes()},
-		IsNamespaced:        isNamespaced,
-		syncRetryInterval:   syncRetryInterval,
-		enableScaleFeatures: enableScaleFeatures,
-		createDeleteBatch:   createDeleteBatch,
-		ImmutableUserMSIs:   immutableUserMSIsMap,
+		CRDClient:            crdClient,
+		CloudClient:          cloudClient,
+		PodClient:            podClient,
+		EventRecorder:        recorder,
+		EventChannel:         eventCh,
+		NodeClient:           &NodeClient{informer.Core().V1().Nodes()},
+		IsNamespaced:         isNamespaced,
+		syncRetryInterval:    syncRetryInterval,
+		enableScaleFeatures:  enableScaleFeatures,
+		createDeleteBatch:    createDeleteBatch,
+		ImmutableUserMSIsMap: immutableUserMSIsMap,
 	}
 	leaderElector, err := c.NewLeaderElector(clientSet, recorder, leaderElectionConfig)
 	if err != nil {
@@ -470,12 +471,16 @@ func (c *Client) getListOfIdsToDelete(deleteList map[string]aadpodid.AzureAssign
 			glog.Error(err)
 			continue
 		}
+
 		id := delID.Spec.AzureIdentityRef
 		isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
+		isImmutableIdentity := c.checkIfIdentityImmutable(id.Spec.ResourceID)
 
 		// this case includes Assigned state and empty state to ensure backward compatability
 		if delID.Status.Status == aadpodid.AssignedIDAssigned || delID.Status.Status == "" {
-			if !inUse && isUserAssignedMSI {
+			// only user assigned identities that are not in use and are not defined as
+			// immutable will be removed from underlying node/vmss
+			if !inUse && isUserAssignedMSI && !isImmutableIdentity {
 				c.appendToRemoveListForNode(id.Spec.ResourceID, delID.Spec.NodeName, nodeMap)
 			}
 		}
@@ -805,20 +810,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 	addUserAssignedMSIIDs := c.getUniqueIDs(nodeTrackList.addUserAssignedMSIIDs)
 	removeUserAssignedMSIIDs := c.getUniqueIDs(nodeTrackList.removeUserAssignedMSIIDs)
 
-	// The the list of identities (user-defined managed identities) shouldn't be deleted from VM/VMSS, but only from Kubernetes
-	var approvedRemoveUserAssignedMSIIDs []string
-	if c.ImmutableUserMSIs != nil {
-		approvedRemoveUserAssignedMSIIDs := make([]string, 0)
-		for _, item := range removeUserAssignedMSIIDs {
-			if _, ok := c.ImmutableUserMSIs[item]; !ok {
-				approvedRemoveUserAssignedMSIIDs = append(approvedRemoveUserAssignedMSIIDs, item)
-			}
-		}
-	} else {
-		approvedRemoveUserAssignedMSIIDs = removeUserAssignedMSIIDs
-	}
-
-	err := c.CloudClient.UpdateUserMSI(addUserAssignedMSIIDs, approvedRemoveUserAssignedMSIIDs, nodeOrVMSSName, nodeTrackList.isvmss)
+	err := c.CloudClient.UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs, nodeOrVMSSName, nodeTrackList.isvmss)
 	if err != nil {
 		glog.Errorf("Updating msis on node %s, add [%d], del [%d] failed with error %v", nodeOrVMSSName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete), err)
 		idList, getErr := c.getUserMSIListForNode(nodeOrVMSSName, nodeTrackList.isvmss)
@@ -1043,4 +1035,19 @@ func (c *Client) consolidateVMSSNodes(nodeMap map[string]trackUserAssignedMSIIds
 			nodeMap[getVMSSName(vmssName)] = vmssTrackList
 		}
 	}
+}
+
+// checkIfIdentityImmutable checks if the identity is immutable
+// if identity is immutable, then it will not be removed from underlying node/vmss
+// returns true if identity is immutable
+func (c *Client) checkIfIdentityImmutable(id string) bool {
+	// no immutable identity list defined, then identity is not immutable and can be safely removed
+	if c.ImmutableUserMSIsMap == nil {
+		return false
+	}
+	// identity is immutable, so should not be deleted from the underlying node/vmss
+	if _, exists := c.ImmutableUserMSIsMap[id]; exists {
+		return true
+	}
+	return false
 }

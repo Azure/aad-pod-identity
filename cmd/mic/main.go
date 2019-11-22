@@ -103,7 +103,10 @@ func main() {
 	config.Burst = int(clientQPS)
 	glog.Infof("Client QPS set to: %v. Burst to: %v", config.QPS, config.Burst)
 
-	immutableUserMSIsList := strings.Split(immutableUserMSIs, ",")
+	var immutableUserMSIsList []string
+	if immutableUserMSIs != "" {
+		immutableUserMSIsList = strings.Split(immutableUserMSIs, ",")
+	}
 	glog.Infof("immutable identities are %v", immutableUserMSIsList)
 
 	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration, &leaderElectionCfg, enableScaleFeatures, createDeleteBatch, immutableUserMSIsList)
