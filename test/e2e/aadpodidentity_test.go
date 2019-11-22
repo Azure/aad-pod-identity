@@ -194,11 +194,32 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	It("should delete the AzureAssignedIdentity if the deployment is deleted", func() {
 		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
+		podName, err := pod.GetNameByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(podName).NotTo(Equal(""))
+
+		// Get the name of the node to assign the identity to
+		nodeName, err := pod.GetNodeName(podName)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(nodeName).NotTo(Equal(""))
+
+		n, err := node.Get(nodeName)
+		Expect(err).NotTo(HaveOccurred())
+
 		waitForDeployDeletion(identityValidator)
 
+		// Check for AzureAssignedIdentities.
 		ok, err := azureassignedidentity.WaitOnLengthMatched(0)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
+
+		resourceManager, err := getResourceManager(n)
+		Expect(err).NotTo(HaveOccurred())
+
+		userAssignedIdentities, err := resourceManager.GetUserAssignedIdentities()
+		Expect(err).NotTo(HaveOccurred())
+		// Check if the user assigned Identity has been removed from the underlying VM/VMSS.
+		Expect(len(userAssignedIdentities)).To(Equal(0))
 	})
 
 	It("should establish a new AzureAssignedIdentity and remove the old one when draining the node containing identity validator", func() {
@@ -638,7 +659,6 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 			Skip("Skipping test since there is no vmss with more than 1 node")
 			return
 		}
-
 
 		setUpIdentityAndDeployment(keyvaultIdentity, "", "1", func(d *infra.IdentityValidatorTemplateData) {
 			d.NodeName = vmss[0].Name
