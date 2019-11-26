@@ -605,16 +605,16 @@ func NewMICTestClient(eventCh chan aadpodid.EventType,
 	immutableUserMSIs map[string]bool) *TestMICClient {
 
 	realMICClient := &Client{
-		CloudClient:       cpClient,
-		CRDClient:         crdClient,
-		EventRecorder:     eventRecorder,
-		PodClient:         podClient,
-		EventChannel:      eventCh,
-		NodeClient:        nodeClient,
-		syncRetryInterval: 120 * time.Second,
-		IsNamespaced:      isNamespaced,
-		createDeleteBatch: createDeleteBatch,
-		ImmutableUserMSIs: immutableUserMSIs,
+		CloudClient:          cpClient,
+		CRDClient:            crdClient,
+		EventRecorder:        eventRecorder,
+		PodClient:            podClient,
+		EventChannel:         eventCh,
+		NodeClient:           nodeClient,
+		syncRetryInterval:    120 * time.Second,
+		IsNamespaced:         isNamespaced,
+		createDeleteBatch:    createDeleteBatch,
+		ImmutableUserMSIsMap: immutableUserMSIs,
 	}
 
 	return &TestMICClient{

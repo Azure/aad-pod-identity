@@ -639,7 +639,6 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 			return
 		}
 
-
 		setUpIdentityAndDeployment(keyvaultIdentity, "", "1", func(d *infra.IdentityValidatorTemplateData) {
 			d.NodeName = vmss[0].Name
 		})
