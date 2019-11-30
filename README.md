@@ -160,7 +160,7 @@ For more information please refer to the [AKS docs].
 az role assignment create --role "Managed Identity Operator" --assignee <sp id> --scope <full id of the managed identity>
 ```
 
-Where `<full id of the managed identity>` is the `id` of the identity created in [2. Create an Azure Identity](#2.-create-an-azure-identity)
+Where `<full id of the managed identity>` is the `id` of the identity created in [2. Create an Azure Identity](#2-create-an-azure-identity)
 
 ### Uninstall Notes
 
