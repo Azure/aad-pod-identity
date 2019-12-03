@@ -6,6 +6,7 @@ import (
 
 	"github.com/Azure/aad-pod-identity/pkg/config"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
+	"github.com/Azure/aad-pod-identity/version"
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
@@ -36,6 +37,8 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 	client.BaseURI = azureEnv.ResourceManagerEndpoint
 	client.Authorizer = autorest.NewBearerAuthorizer(spt)
 	client.PollingDelay = 5 * time.Second
+	client.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
+
 	return &VMSSClient{
 		client: client,
 	}, nil
@@ -60,12 +63,7 @@ func (c *VMSSClient) CreateOrUpdate(rg string, vmssName string, vm compute.Virtu
 		glog.Error(err)
 		return err
 	}
-
-	vm, err = future.Result(c.client)
-	if err != nil {
-		glog.Error(err)
-		return err
-	}
+	stats.UpdateCount(stats.TotalPutCalls, 1)
 	stats.Update(stats.CloudPut, time.Since(begin))
 	return nil
 }
@@ -79,6 +77,7 @@ func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMac
 		glog.Error(err)
 		return vm, err
 	}
+	stats.UpdateCount(stats.TotalGetCalls, 1)
 	stats.Update(stats.CloudGet, time.Since(beginGetTime))
 	return vm, nil
 }
@@ -129,5 +128,8 @@ func (i *vmssIdentityInfo) AppendUserIdentity(id string) bool {
 }
 
 func (i *vmssIdentityInfo) GetUserIdentityList() []string {
+	if i.info.IdentityIds == nil {
+		return []string{}
+	}
 	return *i.info.IdentityIds
 }

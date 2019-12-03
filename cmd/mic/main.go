@@ -2,7 +2,10 @@ package main
 
 import (
 	"flag"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/mic"
@@ -14,13 +17,18 @@ import (
 )
 
 var (
-	kubeconfig        string
-	cloudconfig       string
-	forceNamespaced   bool
-	versionInfo       bool
-	syncRetryDuration time.Duration
-	leaderElectionCfg mic.LeaderElectionConfig
-	httpProbePort     string
+	kubeconfig          string
+	cloudconfig         string
+	forceNamespaced     bool
+	versionInfo         bool
+	syncRetryDuration   time.Duration
+	leaderElectionCfg   mic.LeaderElectionConfig
+	httpProbePort       string
+	enableProfile       bool
+	enableScaleFeatures bool
+	createDeleteBatch   int64
+	clientQPS           float64
+	immutableUserMSIs   string
 )
 
 func main() {
@@ -44,6 +52,21 @@ func main() {
 	//Probe port
 	flag.StringVar(&httpProbePort, "http-probe-port", "8080", "http liveliness probe port")
 
+	// Profile
+	flag.BoolVar(&enableProfile, "enableProfile", false, "Enable/Disable pprof profiling")
+
+	// Enable scale features handles the label based azureassignedidentity.
+	flag.BoolVar(&enableScaleFeatures, "enableScaleFeatures", false, "Enable/Disable new features used for clusters at scale")
+
+	// createDeleteBatch can be used for tuning the number of outstanding api server operations we do per node/VMSS.
+	flag.Int64Var(&createDeleteBatch, "createDeleteBatch", 20, "Per node/VMSS create/delete batches")
+
+	// Client QPS is used to configure the client-go QPS throttling and bursting.
+	flag.Float64Var(&clientQPS, "clientQps", 5, "Client QPS used for throttling of calls to kube-api server")
+
+	//Identities that should be never removed from Azure AD (used defined managed identities)
+	flag.StringVar(&immutableUserMSIs, "immutableUserMSIs", "", "prevent deletion of these IDs from the underlying VM/VMSS")
+
 	flag.Parse()
 	if versionInfo {
 		version.PrintVersionAndExit()
@@ -55,16 +78,38 @@ func main() {
 	if kubeconfig == "" {
 		glog.Warningf("--kubeconfig not passed will use InClusterConfig")
 	}
+	if enableProfile {
+		profilePort := "6060"
+		glog.Infof("Starting profiling on port %s", profilePort)
+		go func() {
+			glog.Error(http.ListenAndServe("localhost:"+profilePort, nil))
+		}()
+	}
+
+	if enableScaleFeatures {
+		glog.Infof("Enabling features for scale clusters")
+	}
 
 	glog.Infof("kubeconfig (%s) cloudconfig (%s)", kubeconfig, cloudconfig)
 	config, err := buildConfig(kubeconfig)
 	if err != nil {
 		glog.Fatalf("Could not read config properly. Check the k8s config file, %+v", err)
 	}
+	config.UserAgent = version.GetUserAgent("MIC", version.MICVersion)
 
 	forceNamespaced = forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
 
-	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration, &leaderElectionCfg)
+	config.QPS = float32(clientQPS)
+	config.Burst = int(clientQPS)
+	glog.Infof("Client QPS set to: %v. Burst to: %v", config.QPS, config.Burst)
+
+	var immutableUserMSIsList []string
+	if immutableUserMSIs != "" {
+		immutableUserMSIsList = strings.Split(immutableUserMSIs, ",")
+	}
+	glog.Infof("immutable identities are %v", immutableUserMSIsList)
+
+	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration, &leaderElectionCfg, enableScaleFeatures, createDeleteBatch, immutableUserMSIsList)
 	if err != nil {
 		glog.Fatalf("Could not get the MIC client: %+v", err)
 	}

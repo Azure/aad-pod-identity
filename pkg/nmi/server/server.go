@@ -22,6 +22,7 @@ import (
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
+	utils "github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/go-autorest/autorest/adal"
 
 	log "github.com/sirupsen/logrus"
@@ -44,6 +45,7 @@ type Server struct {
 	IsNamespaced                       bool
 	MICNamespace                       string
 	Initialized                        bool
+	BlockInstanceMetadata              bool
 
 	ListPodIDsRetryAttemptsForCreated  int
 	ListPodIDsRetryAttemptsForAssigned int
@@ -57,10 +59,11 @@ type NMIResponse struct {
 }
 
 // NewServer will create a new Server with default values.
-func NewServer(isNamespaced bool, micNamespace string) *Server {
+func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata bool) *Server {
 	return &Server{
-		IsNamespaced: isNamespaced,
-		MICNamespace: micNamespace,
+		IsNamespaced:          isNamespaced,
+		MICNamespace:          micNamespace,
+		BlockInstanceMetadata: blockInstanceMetadata,
 	}
 }
 
@@ -73,6 +76,9 @@ func (s *Server) Run() error {
 	mux.Handle("/metadata/identity/oauth2/token/", appHandler(s.msiHandler))
 	mux.Handle("/host/token", appHandler(s.hostHandler))
 	mux.Handle("/host/token/", appHandler(s.hostHandler))
+	if s.BlockInstanceMetadata {
+		mux.Handle("/metadata/instance", http.HandlerFunc(forbiddenHandler))
+	}
 	mux.Handle("/", appHandler(s.defaultPathHandler))
 
 	log.Infof("Listening on port %s", s.NMIPort)
@@ -83,7 +89,7 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) updateIPTableRulesInternal() {
-	log.Infof("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, s.MetadataIP, s.MetadataPort, s.NMIPort)
+	log.Debugf("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, s.MetadataIP, s.MetadataPort, s.NMIPort)
 
 	if err := iptables.AddCustomChain(s.MetadataIP, s.MetadataPort, s.HostIP, s.NMIPort); err != nil {
 		log.Fatalf("%s", err)
@@ -146,6 +152,9 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		"req.path":   r.URL.Path,
 		"req.remote": parseRemoteAddr(r.RemoteAddr),
 	})
+	// Set the header in advance so that both success as well
+	// as error paths have it set as application/json content type.
+	w.Header().Set("Content-Type", "application/json")
 	start := time.Now()
 	defer func() {
 		var err error
@@ -367,12 +376,12 @@ func getTokenForMatchingID(kubeClient k8s.Client, logger *log.Entry, rqClientID 
 		idType := v.Spec.Type
 		switch idType {
 		case aadpodid.UserAssignedMSI:
-			logger.Infof("matched identityType:%v clientid:%s resource:%s", idType, redactClientID(clientID), rqResource)
+			logger.Infof("matched identityType:%v clientid:%s resource:%s", idType, utils.RedactClientID(clientID), rqResource)
 			token, err := auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, rqResource)
 			return token, clientID, err
 		case aadpodid.ServicePrincipal:
 			tenantid := v.Spec.TenantID
-			logger.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantid, redactClientID(clientID), rqResource)
+			logger.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantid, utils.RedactClientID(clientID), rqResource)
 			secret, err := kubeClient.GetSecret(&v.Spec.ClientPassword)
 			if err != nil {
 				return nil, clientID, err
@@ -456,6 +465,11 @@ func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r 
 	w.Write(body)
 }
 
+// forbiddenHandler responds to any request with HTTP 403 Forbidden
+func forbiddenHandler(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "Request blocked by AAD Pod Identity NMI", http.StatusForbidden)
+}
+
 func copyHeader(dst, src http.Header) {
 	for k, vv := range src {
 		for _, v := range vv {
@@ -470,7 +484,7 @@ func handleTermination() {
 	exitCode := 0
 	// clean up iptables
 	if err := iptables.DeleteCustomChain(); err != nil {
-		log.Infof("Error cleaning up during shutdown: %v", err)
+		log.Errorf("Error cleaning up during shutdown: %v", err)
 		exitCode = 1
 	}
 
@@ -545,7 +559,7 @@ func (s *Server) listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client,
 			err = ctx.Err()
 			return nil, true, err
 		}
-		logger.Warningf("failed to get assigned ids for pod:%s/%s in ASSIGNED state, retrying attempt: %d", podns, podname, attempt)
+		logger.Debugf("failed to get assigned ids for pod:%s/%s in ASSIGNED state, retrying attempt: %d", podns, podname, attempt)
 	}
 	return nil, true, fmt.Errorf("getting assigned identities for pod %s/%s in ASSIGNED state failed after %d attempts, retry duration [%d]s. Error: %v",
 		podns, podname, s.ListPodIDsRetryAttemptsForCreated+s.ListPodIDsRetryAttemptsForAssigned, s.ListPodIDsRetryIntervalInSeconds, err)

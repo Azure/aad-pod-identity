@@ -1,3 +1,25 @@
+# v1.5.3
+
+### Bug Fixes
+
+- Fix concurrent map read and map write while updating stats ([#344](https://github.com/Azure/aad-pod-identity/pull/344))
+- Fix list calls to use local cache inorder to reduce api server load ([#358](https://github.com/Azure/aad-pod-identity/pull/358))
+- Clean up assigned identities if node not found ([#367](https://github.com/Azure/aad-pod-identity/pull/367))
+- Fixes to identity operations on VMSS ([#379](https://github.com/Azure/aad-pod-identity/pull/379))
+- Fix namespaced multiple binding/identity handling and verbose logs ([#388](https://github.com/Azure/aad-pod-identity/pull/388))
+- Fix panic issues while identity ids is nil ([#403](https://github.com/Azure/aad-pod-identity/pull/403))
+
+### Other Improvements
+
+- Set Content-Type on token response ([#341](https://github.com/Azure/aad-pod-identity/pull/341))
+- Redact client id in NMI logs ([#343](https://github.com/Azure/aad-pod-identity/pull/343))
+- Add user agent to kube-api calls ([#353](https://github.com/Azure/aad-pod-identity/pull/353))
+- Add resource and request limits ([#372](https://github.com/Azure/aad-pod-identity/pull/372))
+- Add user agent to ARM calls ([#387](https://github.com/Azure/aad-pod-identity/pull/387))
+- Scale and performance improvements ([#408](https://github.com/Azure/aad-pod-identity/pull/408))
+- Remove unused GET in CreateOrUpdate ([#411](https://github.com/Azure/aad-pod-identity/pull/411))
+- Remove deprecated API Version usages ([#416](https://github.com/Azure/aad-pod-identity/pull/416))
+
 # v1.5.2
 
 ### Bug Fixes

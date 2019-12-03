@@ -55,7 +55,7 @@ func LogCustomChain() error {
 	if err != nil {
 		return err
 	}
-	log.Infof("Rules for table(%s) chain(%s) rules(%+v)", tablename, customchainname, strings.Join(rules, ", "))
+	log.Debugf("Rules for table(%s) chain(%s) rules(%+v)", tablename, customchainname, strings.Join(rules, ", "))
 
 	return nil
 }

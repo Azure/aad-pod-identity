@@ -39,7 +39,7 @@ func Start(port string, log log.Logger) {
 // InitAndStart - Initialize the default probes and starts the http listening port.
 func InitAndStart(port string, condition *bool, log log.Logger) {
 	InitHealthProbe(condition)
-	log.Info("Initialized health probe")
+	log.Infof("Initialized health probe on port %s", port)
 	// start the probe.
 	Start(port, log)
 	log.Info("Started health probe")

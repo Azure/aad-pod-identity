@@ -37,3 +37,8 @@ func (c *FakeClient) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodI
 func (c *FakeClient) GetSecret(secretRef *v1.SecretReference) (*v1.Secret, error) {
 	return nil, nil
 }
+
+// Start - for starting informer clients in the fake Client
+func (c *FakeClient) Start(exit <-chan struct{}) {
+
+}
