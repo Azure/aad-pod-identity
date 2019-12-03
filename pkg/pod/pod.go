@@ -6,28 +6,29 @@ import (
 
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
-
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
-	"github.com/golang/glog"
-
-	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/klog"
+
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 )
 
+// Client represents new pod client
 type Client struct {
 	PodWatcher informersv1.PodInformer
 }
 
+// ClientInt represents pod client interface
 type ClientInt interface {
-	GetPods() (pods []*corev1.Pod, err error)
+	GetPods() (pods []*v1.Pod, err error)
 	Start(exit <-chan struct{})
 }
 
+// NewPodClient returns new pod client
 func NewPodClient(i informers.SharedInformerFactory, eventCh chan aadpodid.EventType) (c ClientInt) {
 	podInformer := i.Core().V1().Pods()
 	addPodHandler(podInformer, eventCh)
@@ -41,12 +42,12 @@ func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType) {
 	i.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				glog.V(6).Infof("Pod Created")
+				klog.V(6).Infof("Pod Created")
 				eventCh <- aadpodid.PodCreated
 
 			},
 			DeleteFunc: func(obj interface{}) {
-				glog.V(6).Infof("Pod Deleted")
+				klog.V(6).Infof("Pod Deleted")
 				eventCh <- aadpodid.PodDeleted
 
 			},
@@ -55,7 +56,7 @@ func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType) {
 				// Having this check will ensure that mic sync loop does not do extra work
 				// for every pod update.
 				if (OldObj.(*v1.Pod)).Spec.NodeName != (newObj.(*v1.Pod)).Spec.NodeName {
-					glog.V(6).Infof("Pod Updated")
+					klog.V(6).Infof("Pod Updated")
 					eventCh <- aadpodid.PodUpdated
 				}
 			},
@@ -65,27 +66,27 @@ func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType) {
 
 func (c *Client) syncCache(exit <-chan struct{}) {
 	cacheSyncStarted := time.Now()
-	glog.V(6).Infof("Wait for cache to sync")
+	klog.V(6).Infof("Wait for cache to sync")
 	if !cache.WaitForCacheSync(exit, c.PodWatcher.Informer().HasSynced) {
-		glog.Error("Wait for pod cache sync failed")
+		klog.Error("Wait for pod cache sync failed")
 		return
 	}
-	glog.Infof("Pod cache synchronized. Took %s", time.Since(cacheSyncStarted).String())
+	klog.Infof("Pod cache synchronized. Took %s", time.Since(cacheSyncStarted).String())
 }
 
 // Start ...
 func (c *Client) Start(exit <-chan struct{}) {
 	go c.PodWatcher.Informer().Run(exit)
 	c.syncCache(exit)
-	glog.Info("Pod watcher started !!")
+	klog.Info("Pod watcher started !!")
 }
 
 // GetPods returns list of all pods
-func (c *Client) GetPods() (pods []*corev1.Pod, err error) {
+func (c *Client) GetPods() (pods []*v1.Pod, err error) {
 	begin := time.Now()
 	crdReq, err := labels.NewRequirement(aadpodid.CRDLabelKey, selection.Exists, nil)
 	if err != nil {
-		glog.Error(err)
+		klog.Error(err)
 		return nil, err
 	}
 	crdSelector := labels.NewSelector().Add(*crdReq)
