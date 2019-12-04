@@ -209,6 +209,11 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 		http.Error(w, msg, http.StatusInternalServerError)
 		return
 	}
+	if !validateResourceParamExists(rqResource) {
+		logger.Warning("parameter resource cannot be empty")
+		http.Error(w, "parameter resource cannot be empty", http.StatusBadRequest)
+		return
+	}
 	podns, podname := parseRequestHeader(r)
 	if podns == "" || podname == "" {
 		logger.Errorf("missing podname and podns from request")
@@ -332,6 +337,11 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		msg := "request remote address is empty"
 		logger.Error(msg)
 		http.Error(w, msg, http.StatusInternalServerError)
+		return
+	}
+	if !validateResourceParamExists(rqResource) {
+		logger.Warning("parameter resource cannot be empty")
+		http.Error(w, "parameter resource cannot be empty", http.StatusBadRequest)
 		return
 	}
 	podns, podname, rsName, selectors, err := s.KubeClient.GetPodInfo(podIP)
@@ -595,4 +605,15 @@ func getErrorResponseStatusCode(identityFound bool) int {
 	// current ongoing sync cycle. So we return 403 which a non-retriable error code so we give mic enough time to
 	// finish current sync cycle and process identity in the next sync cycle.
 	return http.StatusForbidden
+}
+
+func validateResourceParamExists(resource string) bool {
+	// check if resource exists in the request
+	// if resource doesn't exist in the request, then adal libraries will return the same error
+	// IMDS also returns an error with 400 response code if resource parameter is empty
+	// this is done to emulate same behavior observed while requesting token from IMDS
+	if len(resource) == 0 {
+		return false
+	}
+	return true
 }
