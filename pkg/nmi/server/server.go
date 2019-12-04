@@ -191,7 +191,7 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 		return
 	}
 	if !validateResourceParamExists(rqResource) {
-		logger.Error("parameter resource cannot be empty")
+		logger.Warning("parameter resource cannot be empty")
 		http.Error(w, "parameter resource cannot be empty", http.StatusBadRequest)
 		return
 	}
@@ -321,7 +321,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		return
 	}
 	if !validateResourceParamExists(rqResource) {
-		logger.Error("parameter resource cannot be empty")
+		logger.Warning("parameter resource cannot be empty")
 		http.Error(w, "parameter resource cannot be empty", http.StatusBadRequest)
 		return
 	}
