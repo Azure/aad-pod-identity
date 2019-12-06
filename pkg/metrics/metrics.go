@@ -101,6 +101,8 @@ var (
 var (
 	operationTypeKey = tag.MustNewKey("operation_type")
 	statusCodeKey    = tag.MustNewKey("status_code")
+	namespaceKey     = tag.MustNewKey("namespace")
+	resourceKey      = tag.MustNewKey("resource")
 )
 
 const componentNamespace = "aadpodidentity"
@@ -138,7 +140,7 @@ func registerViews() error {
 			Description: NodeManagedIdentityOperationsDurationM.Description(),
 			Measure:     NodeManagedIdentityOperationsDurationM,
 			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
-			TagKeys:     []tag.Key{operationTypeKey, statusCodeKey},
+			TagKeys:     []tag.Key{operationTypeKey, statusCodeKey, namespaceKey, resourceKey},
 		},
 		&view.View{
 			Description: ManagedIdentityControllerCycleDurationM.Description(),
@@ -204,13 +206,14 @@ func (r *Reporter) Report(ms ...stats.Measurement) {
 	record(r.ctx, ms...)
 }
 
-// ReportOperationAndStatus records given measurements by operation type and status code.
-func (r *Reporter) ReportOperationAndStatus(operationType string, statusCode string, ms ...stats.Measurement) error {
-
+// ReportOperationAndStatus records given measurements by operation type, status code for the given namespace and resource.
+func (r *Reporter) ReportOperationAndStatus(operationType string, statusCode string, namespace string, resource string, ms ...stats.Measurement) error {
 	ctx, err := tag.New(
 		r.ctx,
 		tag.Insert(operationTypeKey, operationType),
 		tag.Insert(statusCodeKey, statusCode),
+		tag.Insert(namespaceKey, namespace),
+		tag.Insert(resourceKey, resource),
 	)
 	if err != nil {
 		return err
@@ -221,7 +224,6 @@ func (r *Reporter) ReportOperationAndStatus(operationType string, statusCode str
 
 // ReportOperation records given measurement by operation type.
 func (r *Reporter) ReportOperation(operationType string, measurement stats.Measurement) error {
-
 	ctx, err := tag.New(
 		r.ctx,
 		tag.Insert(operationTypeKey, operationType),
@@ -235,13 +237,11 @@ func (r *Reporter) ReportOperation(operationType string, measurement stats.Measu
 
 // RegisterAndExport register the views for the measures and expose via prometheus exporter
 func RegisterAndExport(port string, log log.Logger) error {
-
 	err := registerViews()
 	if err != nil {
 		log.Errorf("Failed to register views for metrics. error:%v", err)
 		return err
 	}
-
 	log.Infof("Registered views for metric")
 	exporter, err := newPrometheusExporter(componentNamespace, port, log)
 	if err != nil {

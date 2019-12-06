@@ -45,7 +45,6 @@ func NewVirtualMachinesClient(config config.AzureConfig, spt *adal.ServicePrinci
 	client.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
 
 	reporter, err := metrics.NewReporter()
-
 	if err != nil {
 		glog.Errorf("New reporter error: %+v", err)
 		return nil, err

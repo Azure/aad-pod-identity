@@ -64,10 +64,12 @@ type NMIResponse struct {
 // NewServer will create a new Server with default values.
 func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata bool) *Server {
 	reporter, err := metrics.NewReporter()
-	// keeping this reference to be used in ServeHTTP, as server is not accessible in ServeHTTP
-	appHandlerReporter = reporter
 	if err != nil {
 		log.Errorf("Error creating new reporter to emit metrics: %v", err)
+	} else {
+		// keeping this reference to be used in ServeHTTP, as server is not accessible in ServeHTTP
+		appHandlerReporter = reporter
+		auth.InitReporter(reporter)
 	}
 	return &Server{
 		IsNamespaced:          isNamespaced,
@@ -191,10 +193,15 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	latency := time.Since(start)
 	logger.Infof("Status (%d) took %d ns", rw.statusCode, latency.Nanoseconds())
 
+	namespace, _ := parseRequestHeader(r)
+	_, resource := parseRequestClientIDAndResource(r)
+
 	if appHandlerReporter != nil {
 		appHandlerReporter.ReportOperationAndStatus(
 			r.URL.Path,
 			strconv.Itoa(rw.statusCode),
+			namespace,
+			resource,
 			metrics.NodeManagedIdentityOperationsDurationM.M(metrics.SinceInSeconds(start)))
 	}
 }
