@@ -40,7 +40,7 @@ func GetServicePrincipalTokenFromMSI(resource string) (*adal.Token, error) {
 		return nil, err
 	}
 	token := spt.Token()
-	recordDuration(adalTokenOperationName, time.Since(begin))
+	recordDuration(adalTokenFromMSIOperationName, time.Since(begin))
 	return &token, nil
 }
 
