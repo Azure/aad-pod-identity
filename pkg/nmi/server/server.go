@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"runtime"
 	"runtime/debug"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -20,6 +21,7 @@ import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
+	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	utils "github.com/Azure/aad-pod-identity/pkg/utils"
@@ -50,6 +52,7 @@ type Server struct {
 	ListPodIDsRetryAttemptsForCreated  int
 	ListPodIDsRetryAttemptsForAssigned int
 	ListPodIDsRetryIntervalInSeconds   int
+	Reporter                           *metrics.Reporter
 }
 
 // NMIResponse is the response returned to caller
@@ -60,10 +63,19 @@ type NMIResponse struct {
 
 // NewServer will create a new Server with default values.
 func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata bool) *Server {
+	reporter, err := metrics.NewReporter()
+	if err != nil {
+		log.Errorf("Error creating new reporter to emit metrics: %v", err)
+	} else {
+		// keeping this reference to be used in ServeHTTP, as server is not accessible in ServeHTTP
+		appHandlerReporter = reporter
+		auth.InitReporter(reporter)
+	}
 	return &Server{
 		IsNamespaced:          isNamespaced,
 		MICNamespace:          micNamespace,
 		BlockInstanceMetadata: blockInstanceMetadata,
+		Reporter:              reporter,
 	}
 }
 
@@ -144,6 +156,8 @@ func newResponseWriter(w http.ResponseWriter) *responseWriter {
 	return &responseWriter{w, http.StatusOK}
 }
 
+var appHandlerReporter *metrics.Reporter
+
 // ServeHTTP implements the net/http server handler interface
 // and recovers from panics.
 func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -178,6 +192,18 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	fn(logger, rw, r)
 	latency := time.Since(start)
 	logger.Infof("Status (%d) took %d ns", rw.statusCode, latency.Nanoseconds())
+
+	namespace, _ := parseRequestHeader(r)
+	_, resource := parseRequestClientIDAndResource(r)
+
+	if appHandlerReporter != nil {
+		appHandlerReporter.ReportOperationAndStatus(
+			r.URL.Path,
+			strconv.Itoa(rw.statusCode),
+			namespace,
+			resource,
+			metrics.NodeManagedIdentityOperationsDurationM.M(metrics.SinceInSeconds(start)))
+	}
 }
 
 func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {

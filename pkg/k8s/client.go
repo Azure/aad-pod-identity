@@ -16,6 +16,7 @@ import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	crd "github.com/Azure/aad-pod-identity/pkg/crd"
 	inlog "github.com/Azure/aad-pod-identity/pkg/logger"
+	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/version"
 	"github.com/golang/glog"
 	log "github.com/sirupsen/logrus"
@@ -27,6 +28,8 @@ import (
 const (
 	getPodListRetries               = 4
 	getPodListSleepTimeMilliseconds = 300
+	getPodListOperationName         = "get_pod_list"
+	getSecretOperationName          = "get_secret"
 )
 
 // Client api client
@@ -51,6 +54,7 @@ type KubeClient struct {
 	CrdClient   *crd.Client
 	PodInformer cache.SharedIndexInformer
 	log         inlog.Logger
+	reporter    *metrics.Reporter
 }
 
 // NewKubeClient new kubernetes api client
@@ -69,6 +73,12 @@ func NewKubeClient(log inlog.Logger, nodeName string, scale bool) (Client, error
 		return nil, err
 	}
 
+	reporter, err := metrics.NewReporter()
+
+	if err != nil {
+		return nil, err
+	}
+
 	podInformer := informersv1.NewFilteredPodInformer(clientset, v1.NamespaceAll, 10*time.Minute,
 		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc},
 		NodeNameFilter(nodeName))
@@ -78,6 +88,7 @@ func NewKubeClient(log inlog.Logger, nodeName string, scale bool) (Client, error
 		ClientSet:   clientset,
 		PodInformer: podInformer,
 		log:         log,
+		reporter:    reporter,
 	}
 
 	return kubeClient, nil
@@ -175,6 +186,7 @@ func (c *KubeClient) getPodListRetry(podip string, retries int, sleeptime time.D
 		if err == nil {
 			return podList, nil
 		}
+		recordError(c.reporter, getPodListOperationName)
 		if i >= retries {
 			break
 		}
@@ -218,6 +230,7 @@ func (c *KubeClient) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodI
 func (c *KubeClient) GetSecret(secretRef *v1.SecretReference) (*v1.Secret, error) {
 	secret, err := c.ClientSet.CoreV1().Secrets(secretRef.Namespace).Get(secretRef.Name, metav1.GetOptions{})
 	if err != nil {
+		recordError(c.reporter, getSecretOperationName)
 		return nil, err
 	}
 	return secret, nil
@@ -241,4 +254,13 @@ func buildConfig() (*rest.Config, error) {
 	}
 
 	return rest.InClusterConfig()
+}
+
+// recordError records the error in appropriate metric
+func recordError(reporter *metrics.Reporter, operation string) {
+	if reporter != nil {
+		reporter.ReportOperation(
+			operation,
+			metrics.KubernetesAPIOperationsErrorsCountM.M(1))
+	}
 }

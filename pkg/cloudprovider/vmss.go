@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/config"
+	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	"github.com/Azure/aad-pod-identity/version"
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
@@ -14,9 +15,15 @@ import (
 	"github.com/golang/glog"
 )
 
+const (
+	getVmssOperationName = "vmss_get"
+	putVmssOperationName = "vmss_create_or_update"
+)
+
 // VMSSClient is used to interact with Azure virtual machine scale sets.
 type VMSSClient struct {
-	client compute.VirtualMachineScaleSetsClient
+	client   compute.VirtualMachineScaleSetsClient
+	reporter *metrics.Reporter
 }
 
 // VMSSClientInt is the interface used by "cloudprovider" for interacting with Azure vmss
@@ -39,8 +46,15 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 	client.PollingDelay = 5 * time.Second
 	client.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
 
+	reporter, err := metrics.NewReporter()
+
+	if err != nil {
+		glog.Errorf("New reporter error: %+v", err)
+		return nil, err
+	}
 	return &VMSSClient{
-		client: client,
+		client:   client,
+		reporter: reporter,
 	}, nil
 }
 
@@ -55,14 +69,17 @@ func (c *VMSSClient) CreateOrUpdate(rg string, vmssName string, vm compute.Virtu
 	future, err := c.client.CreateOrUpdate(ctx, rg, vmssName, vm)
 	if err != nil {
 		glog.Error(err)
+		recordError(c.reporter, putVmssOperationName)
 		return err
 	}
 
 	err = future.WaitForCompletionRef(ctx, c.client.Client)
 	if err != nil {
 		glog.Error(err)
+		recordError(c.reporter, putVmssOperationName)
 		return err
 	}
+	recordDuration(c.reporter, putVmssOperationName, time.Since(begin))
 	stats.UpdateCount(stats.TotalPutCalls, 1)
 	stats.Update(stats.CloudPut, time.Since(begin))
 	return nil
@@ -75,8 +92,10 @@ func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMac
 	vm, err := c.client.Get(ctx, rgName, vmssName)
 	if err != nil {
 		glog.Error(err)
+		recordError(c.reporter, getVmssOperationName)
 		return vm, err
 	}
+	recordDuration(c.reporter, getVmssOperationName, time.Since(beginGetTime))
 	stats.UpdateCount(stats.TotalGetCalls, 1)
 	stats.Update(stats.CloudGet, time.Since(beginGetTime))
 	return vm, nil

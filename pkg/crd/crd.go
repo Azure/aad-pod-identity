@@ -10,8 +10,8 @@ import (
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	inlog "github.com/Azure/aad-pod-identity/pkg/logger"
+	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
-
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,6 +31,7 @@ type Client struct {
 	AssignedIDInformer           cache.SharedInformer
 	PodIdentityExceptionInformer cache.SharedInformer
 	log                          inlog.Logger
+	reporter                     *metrics.Reporter
 }
 
 // ClientInt ...
@@ -77,11 +78,18 @@ func NewCRDClientLite(config *rest.Config, log inlog.Logger, nodeName string, sc
 		return nil, err
 	}
 
+	reporter, err := metrics.NewReporter()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
 	return &Client{
 		AssignedIDInformer:           assignedIDListInformer,
 		PodIdentityExceptionInformer: podIdentityExceptionInformer,
 		rest:                         restClient,
 		log:                          log,
+		reporter:                     reporter,
 	}, nil
 }
 
@@ -114,12 +122,19 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType, log inlo
 		return nil, err
 	}
 
+	reporter, err := metrics.NewReporter()
+	if err != nil {
+		log.Error(err)
+		return nil, err
+	}
+
 	return &Client{
 		rest:               restClient,
 		BindingInformer:    bindingInformer,
 		IDInformer:         idInformer,
 		AssignedIDInformer: assignedIDListInformer,
 		log:                log,
+		reporter:           reporter,
 	}, nil
 }
 
@@ -306,6 +321,14 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	err := c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Name(assignedIdentity.Name).Do().Error()
 	glog.V(5).Infof("Deletion %s took: %v", assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDDel, time.Since(begin))
+
+	c.reporter.Report(
+		metrics.AssignedIdentityDeletionCountM.M(1),
+		metrics.AssignedIdentityDeletionDurationM.M(metrics.SinceInSeconds(begin)))
+
+	if err != nil {
+		recordError(c.reporter, "assigned_identity_deletion")
+	}
 	return err
 }
 
@@ -318,8 +341,14 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	var res aadpodid.AzureAssignedIdentity
 	// TODO: Ensure that the status reflects the corresponding
 	err := c.rest.Post().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Body(assignedIdentity).Do().Into(&res)
+
+	c.reporter.Report(
+		metrics.AssignedIdentityAdditionCountM.M(1),
+		metrics.AssignedIdentityAdditionDurationM.M(metrics.SinceInSeconds(begin)))
+
 	if err != nil {
 		glog.Error(err)
+		recordError(c.reporter, "assigned_identity_addition")
 		return err
 	}
 
@@ -522,5 +551,15 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 		Error()
 	glog.V(5).Infof("Patch of %s took: %v", assignedIdentity.Name, time.Since(begin))
 
+	if err != nil {
+		recordError(c.reporter, "update_azure_assigned_identity_status")
+	}
 	return err
+}
+
+// recordError records the error in appropriate metric
+func recordError(r *metrics.Reporter, operation string) {
+	if r != nil {
+		r.ReportOperation(operation, metrics.KubernetesAPIOperationsErrorsCountM.M(1))
+	}
 }

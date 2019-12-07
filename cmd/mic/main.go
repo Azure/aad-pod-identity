@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/mic"
 	"github.com/Azure/aad-pod-identity/pkg/probes"
 	"github.com/Azure/aad-pod-identity/version"
@@ -28,6 +29,7 @@ var (
 	enableScaleFeatures bool
 	createDeleteBatch   int64
 	clientQPS           float64
+	prometheusPort      string
 	immutableUserMSIs   string
 )
 
@@ -51,6 +53,9 @@ func main() {
 
 	//Probe port
 	flag.StringVar(&httpProbePort, "http-probe-port", "8080", "http liveliness probe port")
+
+	// Prometheus port
+	flag.StringVar(&prometheusPort, "prometheus-port", "8888", "Prometheus port for metrics")
 
 	// Profile
 	flag.BoolVar(&enableProfile, "enableProfile", false, "Enable/Disable pprof profiling")
@@ -119,6 +124,12 @@ func main() {
 	// and starts the sync loop.
 	probes.InitAndStart(httpProbePort, &micClient.SyncLoopStarted, &mic.Log{})
 
+	// Register and expose metrics views
+	metricErr := metrics.RegisterAndExport(prometheusPort, &mic.Log{})
+
+	if metricErr != nil {
+		glog.Fatalf("Could not register and export metrics: %+v", metricErr)
+	}
 	// Starts the leader election loop
 	micClient.Run()
 	glog.Info("AAD Pod identity controller initialized!!")

@@ -8,6 +8,7 @@ import (
 	_ "net/http/pprof"
 
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
+	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
 	"github.com/Azure/aad-pod-identity/pkg/probes"
 	"github.com/Azure/aad-pod-identity/version"
@@ -43,6 +44,7 @@ var (
 	enableProfile                      = pflag.Bool("enableProfile", false, "Enable/Disable pprof profiling")
 	enableScaleFeatures                = pflag.Bool("enableScaleFeatures", false, "Enable/Disable features for scale clusters")
 	blockInstanceMetadata              = pflag.Bool("block-instance-metadata", false, "Block instance metadata endpoints")
+	prometheusPort                     = pflag.String("prometheus-port", "9090", "Prometheus port for metrics")
 )
 
 func main() {
@@ -95,6 +97,13 @@ func main() {
 	// Health probe will always report success once its started. The contents
 	// will report "Active" once the iptables rules are set
 	probes.InitAndStart(*httpProbePort, &s.Initialized, logger)
+
+	// Register and expose metrics views
+	metricErr := metrics.RegisterAndExport(*prometheusPort, logger)
+
+	if metricErr != nil {
+		log.Fatalf("Could not register and export metrics: %+v", metricErr)
+	}
 
 	if err := s.Run(); err != nil {
 		log.Fatalf("%s", err)
