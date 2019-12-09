@@ -310,7 +310,7 @@ func (r *Reporter) ReportIMDSOperationDuration(operation string, duration time.D
 
 // ReportCloudProviderOperationError reports cloud provider operation error count
 func (r *Reporter) ReportCloudProviderOperationError(operation string) error {
-	return r.ReportOperation(operation, ImdsOperationsErrorsCountM.M(1))
+	return r.ReportOperation(operation, CloudProviderOperationsErrorsCountM.M(1))
 }
 
 // ReportCloudProviderOperationDuration reports cloud provider operation duration
