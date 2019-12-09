@@ -94,10 +94,10 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportCloudProviderOperationError(metrics.PutVMOperationName)
+			c.reporter.ReportCloudProviderOperationError(metrics.GetVMOperationName)
 			return
 		}
-		c.reporter.ReportCloudProviderOperationDuration(metrics.PutVMOperationName, time.Since(begin))
+		c.reporter.ReportCloudProviderOperationDuration(metrics.GetVMOperationName, time.Since(begin))
 	}()
 
 	vm, err := c.client.Get(ctx, rgName, nodeName, "")

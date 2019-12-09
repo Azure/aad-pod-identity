@@ -93,10 +93,10 @@ func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMac
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportCloudProviderOperationError(metrics.PutVmssOperationName)
+			c.reporter.ReportCloudProviderOperationError(metrics.GetVmssOperationName)
 			return
 		}
-		c.reporter.ReportCloudProviderOperationDuration(metrics.PutVmssOperationName, time.Since(begin))
+		c.reporter.ReportCloudProviderOperationDuration(metrics.GetVmssOperationName, time.Since(begin))
 	}()
 	vm, err := c.client.Get(ctx, rgName, vmssName)
 	if err != nil {
