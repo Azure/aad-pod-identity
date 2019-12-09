@@ -374,7 +374,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 			stats.PrintSync()
 			if workDone {
-				// We need to synchornize the cache inorder to get the latest updates. Sync cache has a bug in the current go client which caused thread leak.
+				// We need to synchronize the cache inorder to get the latest updates. Sync cache has a bug in the current go client which caused thread leak.
 				// Updating of go client has issues with case sensitivity. Avoid this issue by sleping for 500 milliseconds to reduce the chance
 				// of cache misses for assignedidentities updated in the previous cycle.
 				time.Sleep(time.Millisecond * 200)

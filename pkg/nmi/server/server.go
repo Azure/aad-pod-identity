@@ -189,18 +189,17 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 	rw := newResponseWriter(w)
-	fn(logger, rw, r)
+	ns := fn(logger, rw, r)
 	latency := time.Since(start)
 	logger.Infof("Status (%d) took %d ns", rw.statusCode, latency.Nanoseconds())
 
-	namespace, _ := parseRequestHeader(r)
 	_, resource := parseRequestClientIDAndResource(r)
 
 	if appHandlerReporter != nil {
 		appHandlerReporter.ReportOperationAndStatus(
 			r.URL.Path,
 			strconv.Itoa(rw.statusCode),
-			namespace,
+			ns,
 			resource,
 			metrics.NMIOperationsDurationM.M(metrics.SinceInSeconds(start)))
 	}

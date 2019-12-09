@@ -172,13 +172,13 @@ func registerViews() error {
 		&view.View{
 			Description: NMIOperationsDurationM.Description(),
 			Measure:     NMIOperationsDurationM,
-			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
+			Aggregation: view.Distribution(0.1, 0.2, 0.5, 1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100),
 			TagKeys:     []tag.Key{operationTypeKey, statusCodeKey, namespaceKey, resourceKey},
 		},
 		&view.View{
 			Description: MICCycleDurationM.Description(),
 			Measure:     MICCycleDurationM,
-			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
+			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40),
 		},
 		&view.View{
 			Description: MICCycleCountM.Description(),
@@ -199,13 +199,25 @@ func registerViews() error {
 		&view.View{
 			Description: CloudProviderOperationsDurationM.Description(),
 			Measure:     CloudProviderOperationsDurationM,
-			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
+			Aggregation: view.Distribution(0.1, 0.2, 0.5, 1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40),
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
 		&view.View{
 			Description: KubernetesAPIOperationsErrorsCountM.Description(),
 			Measure:     KubernetesAPIOperationsErrorsCountM,
 			Aggregation: view.Count(),
+			TagKeys:     []tag.Key{operationTypeKey},
+		},
+		&view.View{
+			Description: ImdsOperationsErrorsCountM.Description(),
+			Measure:     ImdsOperationsErrorsCountM,
+			Aggregation: view.Count(),
+			TagKeys:     []tag.Key{operationTypeKey},
+		},
+		&view.View{
+			Description: ImdsOperationsDurationM.Description(),
+			Measure:     ImdsOperationsDurationM,
+			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
 	}
@@ -303,10 +315,10 @@ func (r *Reporter) ReportCloudProviderOperationError(operation string) error {
 
 // ReportCloudProviderOperationDuration reports cloud provider operation duration
 func (r *Reporter) ReportCloudProviderOperationDuration(operation string, duration time.Duration) error {
-	return r.ReportOperation(operation, ImdsOperationsDurationM.M(duration.Seconds()))
+	return r.ReportOperation(operation, CloudProviderOperationsDurationM.M(duration.Seconds()))
 }
 
 // ReportKubernetesAPIOperationError reports kubernetes operation error count
 func (r *Reporter) ReportKubernetesAPIOperationError(operation string) error {
-	return r.ReportOperation(operation, ImdsOperationsErrorsCountM.M(1))
+	return r.ReportOperation(operation, KubernetesAPIOperationsErrorsCountM.M(1))
 }
