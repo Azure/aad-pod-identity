@@ -16,12 +16,12 @@ func TestBasicAndDurationReport(t *testing.T) {
 
 	testCounterMetric(t, reporter, AssignedIdentityAdditionCountM)
 	testCounterMetric(t, reporter, AssignedIdentityDeletionCountM)
-	testCounterMetric(t, reporter, ManagedIdentityControllerCycleCountM)
-	testCounterMetric(t, reporter, ManagedIdentityControllerNewLeaderElectionCountM)
+	testCounterMetric(t, reporter, MICCycleCountM)
+	testCounterMetric(t, reporter, MICNewLeaderElectionCountM)
 	testCounterMetric(t, reporter, CloudProviderOperationsErrorsCountM)
 	testCounterMetric(t, reporter, KubernetesAPIOperationsErrorsCountM)
 	testOperationDurationMetric(t, reporter, CloudProviderOperationsDurationM)
-	testOperationDurationMetric(t, reporter, NodeManagedIdentityOperationsDurationM)
+	testOperationDurationMetric(t, reporter, NMIOperationsDurationM)
 }
 
 // testOperationDurationMetric tests the duration metric and related tags

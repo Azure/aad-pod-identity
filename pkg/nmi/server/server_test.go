@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
+	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,6 +16,11 @@ import (
 
 func TestGetTokenForMatchingIDBySP(t *testing.T) {
 	fakeClient := fake.NewSimpleClientset()
+	reporter, err := metrics.NewReporter()
+	if err != nil {
+		t.Fatalf("expected nil error, got: %+v", err)
+	}
+	auth.InitReporter(reporter)
 
 	secret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "clientSecret"}, Data: make(map[string][]byte)}
 	val, _ := base64.StdEncoding.DecodeString("YWJjZA==")

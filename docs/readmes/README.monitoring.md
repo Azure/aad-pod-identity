@@ -33,21 +33,21 @@ Histogram that tracks the duration (in seconds) it takes for Assigned identity d
 
 Counter that tracks the cumulative number of assigned identity deletion operations.
 
-**5. aadpodidentity_nodemanagedidentity_operations_duration_seconds**
+**5. aadpodidentity_nmi_operations_duration_seconds**
 
-Histogram that tracks the latency (in seconds) of Node Managed Identity operations to complete. Broken down by operation type, status code.
+Histogram that tracks the latency (in seconds) of NMI operations to complete. Broken down by operation type, status code.
 
-**6. aadpodidentity_managedidentitycontroller_cycle_duration_seconds**
+**6. aadpodidentity_mic_cycle_duration_seconds**
 
-Histogram that tracks the duration (in seconds) it takes for a single cycle in Managed Identity Controller.
+Histogram that tracks the duration (in seconds) it takes for a single cycle in MIC.
 
-**7. aadpodidentity_managedidentitycontroller_cycle_count**
+**7. aadpodidentity_mic_cycle_count**
 
-Counter that tracks the number of cycles executed in Managed Identity Controller.
+Counter that tracks the number of cycles executed in MIC.
 
-**8. aadpodidentity_managedidentitycontroller_new_leader_election_count**
+**8. aadpodidentity_mic_new_leader_election_count**
 
-Counter that tracks the cumulative number of new leader election in Managed Identity Controller.
+Counter that tracks the cumulative number of new leader election in MIC.
 
 **9. aadpodidentity_cloud_provider_operations_errors_count**
 

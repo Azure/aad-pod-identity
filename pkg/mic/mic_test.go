@@ -10,6 +10,7 @@ import (
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/config"
+	"github.com/Azure/aad-pod-identity/pkg/metrics"
 
 	"github.com/golang/glog"
 
@@ -604,6 +605,8 @@ func NewMICTestClient(eventCh chan aadpodid.EventType,
 	createDeleteBatch int64,
 	immutableUserMSIs map[string]bool) *TestMICClient {
 
+	reporter, _ := metrics.NewReporter()
+
 	realMICClient := &Client{
 		CloudClient:          cpClient,
 		CRDClient:            crdClient,
@@ -615,6 +618,7 @@ func NewMICTestClient(eventCh chan aadpodid.EventType,
 		IsNamespaced:         isNamespaced,
 		createDeleteBatch:    createDeleteBatch,
 		ImmutableUserMSIsMap: immutableUserMSIs,
+		Reporter:             reporter,
 	}
 
 	return &TestMICClient{

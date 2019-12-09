@@ -163,9 +163,7 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 func (c *Client) Run() {
 	glog.Infof("Initiating MIC Leader election")
 	// counter to track number of mic election
-	if c.Reporter != nil {
-		c.Reporter.Report(metrics.ManagedIdentityControllerNewLeaderElectionCountM.M(1))
-	}
+	c.Reporter.Report(metrics.MICNewLeaderElectionCountM.M(1))
 	c.leaderElector.Run()
 }
 
@@ -370,11 +368,9 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			glog.Infof("Total work cycles: %d, out of which work was done in: %d.", totalSyncCycles, totalWorkDoneCycles)
 			stats.Put(stats.Total, time.Since(begin))
 
-			if c.Reporter != nil {
-				c.Reporter.Report(
-					metrics.ManagedIdentityControllerCycleCountM.M(1),
-					metrics.ManagedIdentityControllerCycleDurationM.M(metrics.SinceInSeconds(begin)))
-			}
+			c.Reporter.Report(
+				metrics.MICCycleCountM.M(1),
+				metrics.MICCycleDurationM.M(metrics.SinceInSeconds(begin)))
 
 			stats.PrintSync()
 			if workDone {

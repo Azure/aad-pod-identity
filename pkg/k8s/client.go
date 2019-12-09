@@ -28,8 +28,6 @@ import (
 const (
 	getPodListRetries               = 4
 	getPodListSleepTimeMilliseconds = 300
-	getPodListOperationName         = "get_pod_list"
-	getSecretOperationName          = "get_secret"
 )
 
 // Client api client
@@ -72,9 +70,7 @@ func NewKubeClient(log inlog.Logger, nodeName string, scale bool) (Client, error
 	if err != nil {
 		return nil, err
 	}
-
 	reporter, err := metrics.NewReporter()
-
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +182,8 @@ func (c *KubeClient) getPodListRetry(podip string, retries int, sleeptime time.D
 		if err == nil {
 			return podList, nil
 		}
-		recordError(c.reporter, getPodListOperationName)
+		c.reporter.ReportKubernetesAPIOperationError(metrics.GetPodListOperationName)
+
 		if i >= retries {
 			break
 		}
@@ -230,7 +227,7 @@ func (c *KubeClient) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodI
 func (c *KubeClient) GetSecret(secretRef *v1.SecretReference) (*v1.Secret, error) {
 	secret, err := c.ClientSet.CoreV1().Secrets(secretRef.Namespace).Get(secretRef.Name, metav1.GetOptions{})
 	if err != nil {
-		recordError(c.reporter, getSecretOperationName)
+		c.reporter.ReportKubernetesAPIOperationError(metrics.GetSecretOperationName)
 		return nil, err
 	}
 	return secret, nil
