@@ -315,46 +315,54 @@ func (c *Client) syncCache(exit <-chan struct{}, initial bool, cacheSyncs ...cac
 }
 
 // RemoveAssignedIdentity removes the assigned identity
-func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
+func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
 	glog.V(6).Infof("Deletion of assigned id named: %s", assignedIdentity.Name)
 	begin := time.Now()
-	err := c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Name(assignedIdentity.Name).Do().Error()
+
+	defer func() {
+		if err != nil {
+			c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityDeletionOperationName)
+			return
+		}
+		c.reporter.Report(
+			metrics.AssignedIdentityDeletionCountM.M(1),
+			metrics.AssignedIdentityDeletionDurationM.M(metrics.SinceInSeconds(begin)))
+
+	}()
+
+	err = c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Name(assignedIdentity.Name).Do().Error()
 	glog.V(5).Infof("Deletion %s took: %v", assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDDel, time.Since(begin))
-
-	c.reporter.Report(
-		metrics.AssignedIdentityDeletionCountM.M(1),
-		metrics.AssignedIdentityDeletionDurationM.M(metrics.SinceInSeconds(begin)))
-
-	if err != nil {
-		recordError(c.reporter, "assigned_identity_deletion")
-	}
 	return err
 }
 
 // CreateAssignedIdentity creates new assigned identity
-func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
+func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
 	glog.Infof("Got assigned id %s to assign", assignedIdentity.Name)
 	begin := time.Now()
-	// Create a new AzureAssignedIdentity which maps the relationship between
-	// id and pod
+
+	defer func() {
+		if err != nil {
+			c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityAdditionOperationName)
+			return
+		}
+		c.reporter.Report(
+			metrics.AssignedIdentityAdditionCountM.M(1),
+			metrics.AssignedIdentityAdditionDurationM.M(metrics.SinceInSeconds(begin)))
+
+	}()
+
+	// Create a new AzureAssignedIdentity which maps the relationship between id and pod
 	var res aadpodid.AzureAssignedIdentity
 	// TODO: Ensure that the status reflects the corresponding
-	err := c.rest.Post().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Body(assignedIdentity).Do().Into(&res)
-
-	c.reporter.Report(
-		metrics.AssignedIdentityAdditionCountM.M(1),
-		metrics.AssignedIdentityAdditionDurationM.M(metrics.SinceInSeconds(begin)))
-
+	err = c.rest.Post().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Body(assignedIdentity).Do().Into(&res)
 	if err != nil {
 		glog.Error(err)
-		recordError(c.reporter, "assigned_identity_addition")
 		return err
 	}
 
 	glog.V(5).Infof("Time take to create %s: %v", assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDAdd, time.Since(begin))
-	//TODO: Update the status of the assign identity to indicate that the node assignment got done.
 	return nil
 }
 
@@ -527,8 +535,14 @@ type patchStatusOps struct {
 }
 
 // UpdateAzureAssignedIdentityStatus updates the status field in AzureAssignedIdentity to indicate current status
-func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error {
+func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) (err error) {
 	glog.Infof("Updating assigned identity %s/%s status to %s", assignedIdentity.Namespace, assignedIdentity.Name, status)
+
+	defer func() {
+		if err != nil {
+			c.reporter.ReportKubernetesAPIOperationError(metrics.UpdateAzureAssignedIdentityStatusOperationName)
+		}
+	}()
 
 	ops := make([]patchStatusOps, 1)
 	ops[0].Op = "replace"
@@ -550,16 +564,5 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 		Do().
 		Error()
 	glog.V(5).Infof("Patch of %s took: %v", assignedIdentity.Name, time.Since(begin))
-
-	if err != nil {
-		recordError(c.reporter, "update_azure_assigned_identity_status")
-	}
 	return err
-}
-
-// recordError records the error in appropriate metric
-func recordError(r *metrics.Reporter, operation string) {
-	if r != nil {
-		r.ReportOperation(operation, metrics.KubernetesAPIOperationsErrorsCountM.M(1))
-	}
 }

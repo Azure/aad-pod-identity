@@ -140,7 +140,7 @@ loop:
 	}
 }
 
-type appHandler func(*log.Entry, http.ResponseWriter, *http.Request)
+type appHandler func(*log.Entry, http.ResponseWriter, *http.Request) string
 
 type responseWriter struct {
 	http.ResponseWriter
@@ -189,27 +189,34 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 	rw := newResponseWriter(w)
-	fn(logger, rw, r)
+	ns := fn(logger, rw, r)
 	latency := time.Since(start)
 	logger.Infof("Status (%d) took %d ns", rw.statusCode, latency.Nanoseconds())
 
-	namespace, _ := parseRequestHeader(r)
 	_, resource := parseRequestClientIDAndResource(r)
 
 	if appHandlerReporter != nil {
 		appHandlerReporter.ReportOperationAndStatus(
 			r.URL.Path,
 			strconv.Itoa(rw.statusCode),
-			namespace,
+			ns,
 			resource,
-			metrics.NodeManagedIdentityOperationsDurationM.M(metrics.SinceInSeconds(start)))
+			metrics.NMIOperationsDurationM.M(metrics.SinceInSeconds(start)))
 	}
 }
 
-func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
+func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) (ns string) {
 	hostIP := parseRemoteAddr(r.RemoteAddr)
 	rqClientID, rqResource := parseRequestClientIDAndResource(r)
 
+	podns, podname := parseRequestHeader(r)
+	if podns == "" || podname == "" {
+		logger.Errorf("missing podname and podns from request")
+		http.Error(w, "missing 'podname' and 'podns' from request header", http.StatusBadRequest)
+		return
+	}
+	// set the ns so it can be used for metrics
+	ns = podns
 	if hostIP != localhost {
 		msg := "request remote address is not from a host"
 		logger.Error(msg)
@@ -219,12 +226,6 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 	if !validateResourceParamExists(rqResource) {
 		logger.Warning("parameter resource cannot be empty")
 		http.Error(w, "parameter resource cannot be empty", http.StatusBadRequest)
-		return
-	}
-	podns, podname := parseRequestHeader(r)
-	if podns == "" || podname == "" {
-		logger.Errorf("missing podname and podns from request")
-		http.Error(w, "missing 'podname' and 'podns' from request header", http.StatusBadRequest)
 		return
 	}
 	podIDs, identityInCreatedStateFound, err := s.listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID)
@@ -270,6 +271,7 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 		return
 	}
 	w.Write(response)
+	return
 }
 
 // msiResponse marshals in a format that matches the underlying
@@ -336,7 +338,7 @@ func (s *Server) getTokenForExceptedPod(logger *log.Entry, rqClientID, rqResourc
 // AAD using adal
 // if the requests contains client id it validates it against the admin
 // configured id.
-func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
+func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) (ns string) {
 	podIP := parseRemoteAddr(r.RemoteAddr)
 	rqClientID, rqResource := parseRequestClientIDAndResource(r)
 
@@ -357,6 +359,8 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	// set ns for using in metrics
+	ns = podns
 	exceptionList, err := s.KubeClient.ListPodIdentityExceptions(podns)
 	if err != nil {
 		logger.Errorf("getting list of azurepodidentityexceptions failed with error: %+v", err)
@@ -398,6 +402,7 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		return
 	}
 	w.Write(response)
+	return
 }
 
 func getTokenForMatchingID(kubeClient k8s.Client, logger *log.Entry, rqClientID string, rqResource string, podIDs []aadpodid.AzureIdentity) (token *adal.Token, clientID string, err error) {
@@ -467,7 +472,7 @@ func parseRequestClientIDAndResource(r *http.Request) (clientID string, resource
 }
 
 // defaultPathHandler creates a new request and returns the response body and code
-func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) {
+func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) (ns string) {
 	client := &http.Client{}
 	req, err := http.NewRequest(r.Method, r.URL.String(), r.Body)
 	if err != nil || req == nil {
@@ -499,6 +504,7 @@ func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	w.Write(body)
+	return
 }
 
 // forbiddenHandler responds to any request with HTTP 403 Forbidden

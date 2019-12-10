@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	log "github.com/Azure/aad-pod-identity/pkg/logger"
@@ -12,22 +13,48 @@ import (
 
 // This const block defines the metric names.
 const (
-	assignedIdentityAdditionDurationName                = "assigned_identity_addition_duration_seconds"
-	assignedIdentityAdditionCountName                   = "assigned_identity_addition_count"
-	assignedIdentityDeletionDurationName                = "assigned_identity_deletion_duration_seconds"
-	assignedIdentityDeletionCountName                   = "assigned_identity_deletion_count"
-	nodeManagedIdentityOperationsDurationName           = "nodemanagedidentity_operations_duration_seconds"
-	managedIdentityControllerCycleDurationName          = "managedidentitycontroller_cycle_duration_seconds"
-	managedIdentityControllerCycleCountName             = "managedidentitycontroller_cycle_count"
-	managedIdentityControllerNewLeaderElectionCountName = "managedidentitycontroller_new_leader_election_count"
-	cloudProviderOperationsErrorsCountName              = "cloud_provider_operations_errors_count"
-	cloudProviderOperationsDurationName                 = "cloud_provider_operations_duration_seconds"
-	kubernetesAPIOperationsErrorsCountName              = "kubernetes_api_operations_errors_count"
+	assignedIdentityAdditionDurationName   = "assigned_identity_addition_duration_seconds"
+	assignedIdentityAdditionCountName      = "assigned_identity_addition_count"
+	assignedIdentityDeletionDurationName   = "assigned_identity_deletion_duration_seconds"
+	assignedIdentityDeletionCountName      = "assigned_identity_deletion_count"
+	nmiOperationsDurationName              = "nmi_operations_duration_seconds"
+	micCycleDurationName                   = "mic_cycle_duration_seconds"
+	micCycleCountName                      = "mic_cycle_count"
+	micNewLeaderElectionCountName          = "mic_new_leader_election_count"
+	cloudProviderOperationsErrorsCountName = "cloud_provider_operations_errors_count"
+	cloudProviderOperationsDurationName    = "cloud_provider_operations_duration_seconds"
+	kubernetesAPIOperationsErrorsCountName = "kubernetes_api_operations_errors_count"
+	imdsOperationsErrorsCountName          = "imds_operations_errors_count"
+	imdsOperationsDurationName             = "imds_operations_duration_seconds"
+
+	// AdalTokenFromMSIOperationName ...
+	AdalTokenFromMSIOperationName = "adal_token_msi"
+	// AdalTokenFromMSIWithUserAssignedIDOperationName ...
+	AdalTokenFromMSIWithUserAssignedIDOperationName = "adal_token_msi_userassignedid"
+	// AdalTokenOperationName ...
+	AdalTokenOperationName = "adal_token"
+	// GetVmssOperationName ...
+	GetVmssOperationName = "vmss_get"
+	// PutVmssOperationName ...
+	PutVmssOperationName = "vmss_create_or_update"
+	// GetVMOperationName ...
+	GetVMOperationName = "vm_get"
+	// PutVMOperationName ...
+	PutVMOperationName = "vm_create_or_update"
+	// AssignedIdentityDeletionOperationName ...
+	AssignedIdentityDeletionOperationName = "assigned_identity_deletion"
+	// AssignedIdentityAdditionOperationName ...
+	AssignedIdentityAdditionOperationName = "assigned_identity_addition"
+	// UpdateAzureAssignedIdentityStatusOperationName ...
+	UpdateAzureAssignedIdentityStatusOperationName = "update_azure_assigned_identity_status"
+	// GetPodListOperationName
+	GetPodListOperationName = "get_pod_list"
+	// GetSecretOperationName
+	GetSecretOperationName = "get_secret"
 )
 
 // The following variables are measures
 var (
-
 	// AssignedIdentityAdditionDurationM is a measure that tracks the duration in seconds of assigned_identity_addition operations.
 	AssignedIdentityAdditionDurationM = stats.Float64(
 		assignedIdentityAdditionDurationName,
@@ -51,29 +78,28 @@ var (
 		"Total number of assigned identity deletion operations",
 		stats.UnitDimensionless)
 
-	// NodeManagedIdentityOperationsDurationM is a measure that tracks the duration in seconds of nodemanagedidentity operations.
-	NodeManagedIdentityOperationsDurationM = stats.Float64(
-		nodeManagedIdentityOperationsDurationName,
-		"Duration in seconds of node managed identity operations",
-		stats.UnitMilliseconds)
-	// "operation_type", "status_code"
-
-	// ManagedIdentityControllerCycleDurationM is a measure that tracks the duration in seconds of single cycle in Managed Identity Controller.
-	ManagedIdentityControllerCycleDurationM = stats.Float64(
-		managedIdentityControllerCycleDurationName,
-		"Duration in seconds of single cycle in managed identity controller",
+	// NMIOperationsDurationM is a measure that tracks the duration in seconds of nmi operations.
+	NMIOperationsDurationM = stats.Float64(
+		nmiOperationsDurationName,
+		"Duration in seconds for nmi operations",
 		stats.UnitMilliseconds)
 
-	// ManagedIdentityControllerCycleCountM is a measure that tracks the cumulative number of cycles executed in managed identity controller.
-	ManagedIdentityControllerCycleCountM = stats.Int64(
-		managedIdentityControllerCycleCountName,
-		"Total number of cycles executed in managed identity controller",
+	// MICCycleDurationM is a measure that tracks the duration in seconds for single mic sync cycle.
+	MICCycleDurationM = stats.Float64(
+		micCycleDurationName,
+		"Duration in seconds for single mic sync cycle",
+		stats.UnitMilliseconds)
+
+	// MICCycleCountM is a measure that tracks the cumulative number of cycles executed in mic.
+	MICCycleCountM = stats.Int64(
+		micCycleCountName,
+		"Total number of cycles executed in mic",
 		stats.UnitDimensionless)
 
-	// ManagedIdentityControllerCycleCountM is a measure that tracks the cumulative number of new leader election in managed identity controller.
-	ManagedIdentityControllerNewLeaderElectionCountM = stats.Int64(
-		managedIdentityControllerNewLeaderElectionCountName,
-		"Total number of new leader election in managed identity controller",
+	// MICNewLeaderElectionCountM is a measure that tracks the cumulative number of new leader election in mic.
+	MICNewLeaderElectionCountM = stats.Int64(
+		micNewLeaderElectionCountName,
+		"Total number of new leader election in mic",
 		stats.UnitDimensionless)
 
 	// CloudProviderOperationsErrorsCountM is a measure that tracks the cumulative number of errors in cloud provider operations.
@@ -81,21 +107,30 @@ var (
 		cloudProviderOperationsErrorsCountName,
 		"Total number of errors in cloud provider operations",
 		stats.UnitDimensionless)
-	// operation_type
 
 	// CloudProviderOperationsDurationM is a measure that tracks the duration in seconds of CloudProviderOperations operations.
 	CloudProviderOperationsDurationM = stats.Float64(
 		cloudProviderOperationsDurationName,
 		"Duration in seconds of cloudprovider operations",
 		stats.UnitMilliseconds)
-	// operation_type
 
 	// KubernetesAPIOperationsErrorsCountM is a measure that tracks the cumulative number of errors in cloud provider operations.
 	KubernetesAPIOperationsErrorsCountM = stats.Int64(
 		kubernetesAPIOperationsErrorsCountName,
 		"Total number of errors in kubernetes api operations",
 		stats.UnitDimensionless)
-	// operation_type
+
+	// ImdsOperationsErrorsCountM is a measure that tracks the cumulative number of errors in imds operations.
+	ImdsOperationsErrorsCountM = stats.Int64(
+		imdsOperationsErrorsCountName,
+		"Total number of errors in imds token operations",
+		stats.UnitDimensionless)
+
+	// ImdsOperationsDurationM is a measure that tracks the duration in seconds of imds operations.
+	ImdsOperationsDurationM = stats.Float64(
+		imdsOperationsDurationName,
+		"Duration in seconds of imds token operations",
+		stats.UnitMilliseconds)
 )
 
 var (
@@ -114,7 +149,6 @@ func SinceInSeconds(start time.Time) float64 {
 
 // registerViews register views to be collected by exporter
 func registerViews() error {
-
 	views := []*view.View{
 		&view.View{
 			Description: AssignedIdentityAdditionDurationM.Description(),
@@ -137,24 +171,24 @@ func registerViews() error {
 			Aggregation: view.Count(),
 		},
 		&view.View{
-			Description: NodeManagedIdentityOperationsDurationM.Description(),
-			Measure:     NodeManagedIdentityOperationsDurationM,
-			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
+			Description: NMIOperationsDurationM.Description(),
+			Measure:     NMIOperationsDurationM,
+			Aggregation: view.Distribution(0.5, 1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100),
 			TagKeys:     []tag.Key{operationTypeKey, statusCodeKey, namespaceKey, resourceKey},
 		},
 		&view.View{
-			Description: ManagedIdentityControllerCycleDurationM.Description(),
-			Measure:     ManagedIdentityControllerCycleDurationM,
-			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
+			Description: MICCycleDurationM.Description(),
+			Measure:     MICCycleDurationM,
+			Aggregation: view.Distribution(0.5, 1, 5, 10, 30, 60, 120, 300, 600, 900, 1200),
 		},
 		&view.View{
-			Description: ManagedIdentityControllerCycleCountM.Description(),
-			Measure:     ManagedIdentityControllerCycleCountM,
+			Description: MICCycleCountM.Description(),
+			Measure:     MICCycleCountM,
 			Aggregation: view.Count(),
 		},
 		&view.View{
-			Description: ManagedIdentityControllerNewLeaderElectionCountM.Description(),
-			Measure:     ManagedIdentityControllerNewLeaderElectionCountM,
+			Description: MICNewLeaderElectionCountM.Description(),
+			Measure:     MICNewLeaderElectionCountM,
 			Aggregation: view.Count(),
 		},
 		&view.View{
@@ -166,13 +200,25 @@ func registerViews() error {
 		&view.View{
 			Description: CloudProviderOperationsDurationM.Description(),
 			Measure:     CloudProviderOperationsDurationM,
-			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
+			Aggregation: view.Distribution(0.5, 1, 5, 10, 30, 60, 120, 300, 600, 900, 1200),
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
 		&view.View{
 			Description: KubernetesAPIOperationsErrorsCountM.Description(),
 			Measure:     KubernetesAPIOperationsErrorsCountM,
 			Aggregation: view.Count(),
+			TagKeys:     []tag.Key{operationTypeKey},
+		},
+		&view.View{
+			Description: ImdsOperationsErrorsCountM.Description(),
+			Measure:     ImdsOperationsErrorsCountM,
+			Aggregation: view.Count(),
+			TagKeys:     []tag.Key{operationTypeKey},
+		},
+		&view.View{
+			Description: ImdsOperationsDurationM.Description(),
+			Measure:     ImdsOperationsDurationM,
+			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
 	}
@@ -187,6 +233,10 @@ func record(ctx context.Context, ms ...stats.Measurement) {
 
 // Reporter is stats reporter in the context
 type Reporter struct {
+	// adding mutex lock to ensure thread safety
+	// TODO (aramase) remove this lock after confirming opencensus report
+	// call is thread-safe
+	mu  sync.Mutex
 	ctx context.Context
 }
 
@@ -198,16 +248,21 @@ func NewReporter() (*Reporter, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Reporter{ctx: ctx}, nil
+	return &Reporter{ctx: ctx, mu: sync.Mutex{}}, nil
 }
 
 // Report records the given measure
 func (r *Reporter) Report(ms ...stats.Measurement) {
+	r.mu.Lock()
 	record(r.ctx, ms...)
+	r.mu.Unlock()
 }
 
 // ReportOperationAndStatus records given measurements by operation type, status code for the given namespace and resource.
-func (r *Reporter) ReportOperationAndStatus(operationType string, statusCode string, namespace string, resource string, ms ...stats.Measurement) error {
+func (r *Reporter) ReportOperationAndStatus(operationType, statusCode, namespace, resource string, ms ...stats.Measurement) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	ctx, err := tag.New(
 		r.ctx,
 		tag.Insert(operationTypeKey, operationType),
@@ -224,6 +279,9 @@ func (r *Reporter) ReportOperationAndStatus(operationType string, statusCode str
 
 // ReportOperation records given measurement by operation type.
 func (r *Reporter) ReportOperation(operationType string, measurement stats.Measurement) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	ctx, err := tag.New(
 		r.ctx,
 		tag.Insert(operationTypeKey, operationType),
@@ -251,4 +309,29 @@ func RegisterAndExport(port string, log log.Logger) error {
 	view.RegisterExporter(exporter)
 	log.Infof("Registered and exported metrics on port %s", port)
 	return nil
+}
+
+// ReportIMDSOperationError reports IMDS error count
+func (r *Reporter) ReportIMDSOperationError(operation string) error {
+	return r.ReportOperation(operation, ImdsOperationsErrorsCountM.M(1))
+}
+
+// ReportIMDSOperationDuration reports IMDS operation duration
+func (r *Reporter) ReportIMDSOperationDuration(operation string, duration time.Duration) error {
+	return r.ReportOperation(operation, ImdsOperationsDurationM.M(duration.Seconds()))
+}
+
+// ReportCloudProviderOperationError reports cloud provider operation error count
+func (r *Reporter) ReportCloudProviderOperationError(operation string) error {
+	return r.ReportOperation(operation, CloudProviderOperationsErrorsCountM.M(1))
+}
+
+// ReportCloudProviderOperationDuration reports cloud provider operation duration
+func (r *Reporter) ReportCloudProviderOperationDuration(operation string, duration time.Duration) error {
+	return r.ReportOperation(operation, CloudProviderOperationsDurationM.M(duration.Seconds()))
+}
+
+// ReportKubernetesAPIOperationError reports kubernetes operation error count
+func (r *Reporter) ReportKubernetesAPIOperationError(operation string) error {
+	return r.ReportOperation(operation, KubernetesAPIOperationsErrorsCountM.M(1))
 }

@@ -99,10 +99,8 @@ func main() {
 	probes.InitAndStart(*httpProbePort, &s.Initialized, logger)
 
 	// Register and expose metrics views
-	metricErr := metrics.RegisterAndExport(*prometheusPort, logger)
-
-	if metricErr != nil {
-		log.Fatalf("Could not register and export metrics: %+v", metricErr)
+	if err = metrics.RegisterAndExport(*prometheusPort, logger); err != nil {
+		log.Fatalf("Could not register and export metrics: %+v", err)
 	}
 
 	if err := s.Run(); err != nil {

@@ -15,11 +15,6 @@ import (
 	"github.com/golang/glog"
 )
 
-const (
-	getVmssOperationName = "vmss_get"
-	putVmssOperationName = "vmss_create_or_update"
-)
-
 // VMSSClient is used to interact with Azure virtual machine scale sets.
 type VMSSClient struct {
 	client   compute.VirtualMachineScaleSetsClient
@@ -47,11 +42,11 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 	client.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
 
 	reporter, err := metrics.NewReporter()
-
 	if err != nil {
 		glog.Errorf("New reporter error: %+v", err)
 		return nil, err
 	}
+
 	return &VMSSClient{
 		client:   client,
 		reporter: reporter,
@@ -63,23 +58,29 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 func (c *VMSSClient) CreateOrUpdate(rg string, vmssName string, vm compute.VirtualMachineScaleSet) error {
 	// Set the read-only property of extension to null.
 	//vm.Resources = nil
-
 	ctx := context.Background()
 	begin := time.Now()
+	var err error
+
+	defer func() {
+		if err != nil {
+			c.reporter.ReportCloudProviderOperationError(metrics.PutVmssOperationName)
+			return
+		}
+		c.reporter.ReportCloudProviderOperationDuration(metrics.PutVmssOperationName, time.Since(begin))
+	}()
+
 	future, err := c.client.CreateOrUpdate(ctx, rg, vmssName, vm)
 	if err != nil {
 		glog.Error(err)
-		recordError(c.reporter, putVmssOperationName)
 		return err
 	}
 
 	err = future.WaitForCompletionRef(ctx, c.client.Client)
 	if err != nil {
 		glog.Error(err)
-		recordError(c.reporter, putVmssOperationName)
 		return err
 	}
-	recordDuration(c.reporter, putVmssOperationName, time.Since(begin))
 	stats.UpdateCount(stats.TotalPutCalls, 1)
 	stats.Update(stats.CloudPut, time.Since(begin))
 	return nil
@@ -88,16 +89,22 @@ func (c *VMSSClient) CreateOrUpdate(rg string, vmssName string, vm compute.Virtu
 // Get gets the passed in vmss.
 func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMachineScaleSet, err error) {
 	ctx := context.Background()
-	beginGetTime := time.Now()
+	begin := time.Now()
+
+	defer func() {
+		if err != nil {
+			c.reporter.ReportCloudProviderOperationError(metrics.GetVmssOperationName)
+			return
+		}
+		c.reporter.ReportCloudProviderOperationDuration(metrics.GetVmssOperationName, time.Since(begin))
+	}()
 	vm, err := c.client.Get(ctx, rgName, vmssName)
 	if err != nil {
 		glog.Error(err)
-		recordError(c.reporter, getVmssOperationName)
 		return vm, err
 	}
-	recordDuration(c.reporter, getVmssOperationName, time.Since(beginGetTime))
 	stats.UpdateCount(stats.TotalGetCalls, 1)
-	stats.Update(stats.CloudGet, time.Since(beginGetTime))
+	stats.Update(stats.CloudGet, time.Since(begin))
 	return vm, nil
 }
 

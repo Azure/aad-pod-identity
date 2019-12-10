@@ -15,22 +15,19 @@ import (
 	"github.com/golang/glog"
 )
 
-const (
-	getVmOperationName = "vm_get"
-	putVmOperationName = "vm_create_or_update"
-)
-
 // VMClient client for VirtualMachines
 type VMClient struct {
 	client   compute.VirtualMachinesClient
 	reporter *metrics.Reporter
 }
 
+// VMClientInt is the interface used by "cloudprovider" for interacting with Azure vmas
 type VMClientInt interface {
 	CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachine) error
 	Get(rgName string, nodeName string) (compute.VirtualMachine, error)
 }
 
+// NewVirtualMachinesClient creates a new vm client.
 func NewVirtualMachinesClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (c *VMClient, e error) {
 	client := compute.NewVirtualMachinesClient(config.SubscriptionID)
 
@@ -56,42 +53,60 @@ func NewVirtualMachinesClient(config config.AzureConfig, spt *adal.ServicePrinci
 	}, nil
 }
 
+// CreateOrUpdate creates a new vm, or if the vm already exists it updates the existing one.
+// This is used by "cloudprovider" to *update* add/remove identities from an already existing vm.
 func (c *VMClient) CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachine) error {
 	// Set the read-only property of extension to null.
 	vm.Resources = nil
 	ctx := context.Background()
 	begin := time.Now()
+	var err error
+
+	defer func() {
+		if err != nil {
+			c.reporter.ReportCloudProviderOperationError(metrics.PutVMOperationName)
+			return
+		}
+		c.reporter.ReportCloudProviderOperationDuration(metrics.PutVMOperationName, time.Since(begin))
+	}()
+
 	future, err := c.client.CreateOrUpdate(ctx, rg, nodeName, vm)
 	if err != nil {
 		glog.Error(err)
-		recordError(c.reporter, putVmOperationName)
 		return err
 	}
 
 	err = future.WaitForCompletionRef(ctx, c.client.Client)
 	if err != nil {
 		glog.Error(err)
-		recordError(c.reporter, putVmOperationName)
 		return err
 	}
-	recordDuration(c.reporter, putVmOperationName, time.Since(begin))
 	stats.UpdateCount(stats.TotalPutCalls, 1)
 	stats.Update(stats.CloudPut, time.Since(begin))
 	return nil
 }
 
+// Get gets the passed in vm.
 func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, error) {
 	ctx := context.Background()
-	beginGetTime := time.Now()
+	begin := time.Now()
+	var err error
+
+	defer func() {
+		if err != nil {
+			c.reporter.ReportCloudProviderOperationError(metrics.GetVMOperationName)
+			return
+		}
+		c.reporter.ReportCloudProviderOperationDuration(metrics.GetVMOperationName, time.Since(begin))
+	}()
+
 	vm, err := c.client.Get(ctx, rgName, nodeName, "")
 	if err != nil {
 		glog.Error(err)
-		recordError(c.reporter, getVmOperationName)
 		return vm, err
 	}
-	recordDuration(c.reporter, getVmOperationName, time.Since(beginGetTime))
 	stats.UpdateCount(stats.TotalGetCalls, 1)
-	stats.Update(stats.CloudGet, time.Since(beginGetTime))
+	stats.Update(stats.CloudGet, time.Since(begin))
 	return vm, nil
 }
 

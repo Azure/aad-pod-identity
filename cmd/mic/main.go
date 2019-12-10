@@ -125,11 +125,10 @@ func main() {
 	probes.InitAndStart(httpProbePort, &micClient.SyncLoopStarted, &mic.Log{})
 
 	// Register and expose metrics views
-	metricErr := metrics.RegisterAndExport(prometheusPort, &mic.Log{})
-
-	if metricErr != nil {
-		glog.Fatalf("Could not register and export metrics: %+v", metricErr)
+	if err = metrics.RegisterAndExport(prometheusPort, &mic.Log{}); err != nil {
+		glog.Fatalf("Could not register and export metrics: %+v", err)
 	}
+
 	// Starts the leader election loop
 	micClient.Run()
 	glog.Info("AAD Pod identity controller initialized!!")
