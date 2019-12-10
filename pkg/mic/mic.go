@@ -490,7 +490,7 @@ func (c *Client) getListOfIdsToDelete(deleteList map[string]aadpodid.AzureAssign
 
 		id := delID.Spec.AzureIdentityRef
 		isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
-		isImmutableIdentity := c.checkIfIdentityImmutable(id.Spec.ResourceID)
+		isImmutableIdentity := c.checkIfIdentityImmutable(id.Spec.ClientID)
 
 		// this case includes Assigned state and empty state to ensure backward compatability
 		if delID.Status.Status == aadpodid.AssignedIDAssigned || delID.Status.Status == "" {

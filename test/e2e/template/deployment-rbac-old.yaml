@@ -191,7 +191,6 @@ spec:
         args:
           {{if .MICArg}}- mic {{ end }}
           - "--cloudconfig=/etc/kubernetes/azure.json"
-          {{if .ImmutableUserMSIs}}- "--immutableUserMSIs={{.ImmutableUserMSIs}}" {{end}}
           - "--logtostderr"
         volumeMounts:
           - name: k8s-azure-file

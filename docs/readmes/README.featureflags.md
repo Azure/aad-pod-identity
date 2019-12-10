@@ -46,5 +46,5 @@ their use cases.
 ## ImmutableUserMSIs flag
 > Available from 1.5.4 release
 
-Aad-pod-identity has a new flag `immutableUserMSIs` which can be used to prevent deletion of specified identities from VM/VMSS.
+Aad-pod-identity has a new flag `immutable-user-msis` which can be used to prevent deletion of specified identities from VM/VMSS.
 The list is comma separated. Example: 00000000-0000-0000-0000-000000000000,11111111-1111-1111-1111-111111111111
