@@ -172,13 +172,13 @@ func registerViews() error {
 		&view.View{
 			Description: NMIOperationsDurationM.Description(),
 			Measure:     NMIOperationsDurationM,
-			Aggregation: view.Distribution(0.1, 0.2, 0.5, 1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100),
+			Aggregation: view.Distribution(0.5, 1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100),
 			TagKeys:     []tag.Key{operationTypeKey, statusCodeKey, namespaceKey, resourceKey},
 		},
 		&view.View{
 			Description: MICCycleDurationM.Description(),
 			Measure:     MICCycleDurationM,
-			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40),
+			Aggregation: view.Distribution(0.5, 1, 5, 10, 30, 60, 120, 300, 600, 900, 1200),
 		},
 		&view.View{
 			Description: MICCycleCountM.Description(),
@@ -199,7 +199,7 @@ func registerViews() error {
 		&view.View{
 			Description: CloudProviderOperationsDurationM.Description(),
 			Measure:     CloudProviderOperationsDurationM,
-			Aggregation: view.Distribution(0.1, 0.2, 0.5, 1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40),
+			Aggregation: view.Distribution(0.5, 1, 5, 10, 30, 60, 120, 300, 600, 900, 1200),
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
 		&view.View{
@@ -252,7 +252,7 @@ func (r *Reporter) Report(ms ...stats.Measurement) {
 }
 
 // ReportOperationAndStatus records given measurements by operation type, status code for the given namespace and resource.
-func (r *Reporter) ReportOperationAndStatus(operationType string, statusCode string, namespace string, resource string, ms ...stats.Measurement) error {
+func (r *Reporter) ReportOperationAndStatus(operationType, statusCode, namespace, resource string, ms ...stats.Measurement) error {
 	ctx, err := tag.New(
 		r.ctx,
 		tag.Insert(operationTypeKey, operationType),

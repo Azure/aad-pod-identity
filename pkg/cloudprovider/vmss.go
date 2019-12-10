@@ -42,11 +42,11 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 	client.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
 
 	reporter, err := metrics.NewReporter()
-
 	if err != nil {
 		glog.Errorf("New reporter error: %+v", err)
 		return nil, err
 	}
+
 	return &VMSSClient{
 		client:   client,
 		reporter: reporter,
