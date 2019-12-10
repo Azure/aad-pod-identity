@@ -70,7 +70,7 @@ func main() {
 	flag.Float64Var(&clientQPS, "clientQps", 5, "Client QPS used for throttling of calls to kube-api server")
 
 	//Identities that should be never removed from Azure AD (used defined managed identities)
-	flag.StringVar(&immutableUserMSIs, "immutableUserMSIs", "", "prevent deletion of these IDs from the underlying VM/VMSS")
+	flag.StringVar(&immutableUserMSIs, "immutable-user-msis", "", "prevent deletion of these IDs from the underlying VM/VMSS")
 
 	flag.Parse()
 	if versionInfo {
@@ -112,7 +112,6 @@ func main() {
 	if immutableUserMSIs != "" {
 		immutableUserMSIsList = strings.Split(immutableUserMSIs, ",")
 	}
-	glog.Infof("immutable identities are %v", immutableUserMSIsList)
 
 	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration, &leaderElectionCfg, enableScaleFeatures, createDeleteBatch, immutableUserMSIsList)
 	if err != nil {

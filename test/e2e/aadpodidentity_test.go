@@ -1288,15 +1288,13 @@ func validateAzureAssignedIdentity(azureAssignedIdentity aadpodid.AzureAssignedI
 	Expect(azureAssignedIdentity.Spec.AzureIdentityRef.ObjectMeta.Name).To(Equal(identityName))
 	Expect(azureAssignedIdentity.Spec.AzureIdentityRef.ObjectMeta.Namespace).To(Equal("default"))
 
-	if strings.HasPrefix(identityName, keyvaultIdentity) {
-		cmdOutput, err := validateUserAssignedIdentityOnPod(podName, identityClientID)
-		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
-	} else if strings.HasPrefix(identityName, clusterIdentity) {
+	if strings.HasPrefix(identityName, clusterIdentity) {
 		cmdOutput, err := validateClusterWideUserAssignedIdentity(podName, identityClientID)
 		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
 	} else {
-		err := errors.Errorf("Invalid identity name: %s", identityName)
-		Expect(err).NotTo(HaveOccurred())
+		// validates user assigned identity - this includes keyvault identities and immutable identities
+		cmdOutput, err := validateUserAssignedIdentityOnPod(podName, identityClientID)
+		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
 	}
 
 	fmt.Printf("# %s validated!\n", identityName)

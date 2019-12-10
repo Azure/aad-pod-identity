@@ -1440,8 +1440,8 @@ func TestMicAddDelVMSSwithImmutableIdentities(t *testing.T) {
 	evtRecorder.lastEvent = new(LastEvent)
 	evtRecorder.eventChannel = make(chan bool, 100)
 	var immutableUserMSIs = map[string]bool{
-		"zero-test":                true,
-		"test-user-msi-resourceid": true,
+		"zero-test":              true,
+		"test-user-msi-clientid": true,
 	}
 
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, immutableUserMSIs)
