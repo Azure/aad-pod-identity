@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	log "github.com/Azure/aad-pod-identity/pkg/logger"
@@ -232,6 +233,10 @@ func record(ctx context.Context, ms ...stats.Measurement) {
 
 // Reporter is stats reporter in the context
 type Reporter struct {
+	// adding mutex lock to ensure thread safety
+	// TODO (aramase) remove this lock after confirming opencensus report
+	// call is thread-safe
+	mu  sync.Mutex
 	ctx context.Context
 }
 
@@ -243,16 +248,21 @@ func NewReporter() (*Reporter, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Reporter{ctx: ctx}, nil
+	return &Reporter{ctx: ctx, mu: sync.Mutex{}}, nil
 }
 
 // Report records the given measure
 func (r *Reporter) Report(ms ...stats.Measurement) {
+	r.mu.Lock()
 	record(r.ctx, ms...)
+	r.mu.Unlock()
 }
 
 // ReportOperationAndStatus records given measurements by operation type, status code for the given namespace and resource.
 func (r *Reporter) ReportOperationAndStatus(operationType, statusCode, namespace, resource string, ms ...stats.Measurement) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	ctx, err := tag.New(
 		r.ctx,
 		tag.Insert(operationTypeKey, operationType),
@@ -269,6 +279,9 @@ func (r *Reporter) ReportOperationAndStatus(operationType, statusCode, namespace
 
 // ReportOperation records given measurement by operation type.
 func (r *Reporter) ReportOperation(operationType string, measurement stats.Measurement) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	ctx, err := tag.New(
 		r.ctx,
 		tag.Insert(operationTypeKey, operationType),
