@@ -92,8 +92,8 @@ az identity create -g <resource-group> -n <id-name>
 
 #### Installing charts
 
-* If you need the `AzureIdentity` and `AzureIdentityBinding` resources to be created as part of the chart installation, update the values.yml to enable the azureIdentity and replace the resourceID, clientID using the values for the user identity.
-* If you need the aad-pod-identity deployment to use it's own service principal credentials instead of the cluster service prinicipal '/etc/kubernetes/azure.json`, then uncomment this section and add the appropriate values for each required field.
+* If you need one or more `AzureIdentity` and `AzureIdentityBinding` resources to be created as part of the chart installation, add them to the azureidentities list in the values.yaml and replace the resourceID, clientID using the values for the respective user identities.
+* If you need the aad-pod-identity deployment to use its own service principal credentials instead of the cluster service prinicipal '/etc/kubernetes/azure.json`, then uncomment this section and add the appropriate values for each required field.
 
 ```
 adminsecret:
@@ -176,14 +176,7 @@ The following tables list the configurable parameters of the aad-pod-identity ch
 | `nmi.findIdentityRetryIntervalInSeconds` | Override retry interval to find assigned identities in seconds                                                                                                                                                   | If not provided, default is  `5`                         |
 | `rbac.enabled`                           | Create and use RBAC for all aad-pod-identity resources                                                                                                                                                           | `true`                                                   |
 | `rbac.allowAccessToSecrets`              | NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity. If using only MSI (type: 0) in AzureIdentity, secret get permission can be disabled by setting this to false. | `true`                                                   |
-| `azureIdentity.enabled`                  | Create azure identity and azure identity binding resource                                                                                                                                                        | `false`                                                  |
-| `azureIdentity.name`                     | Azure identity resource name                                                                                                                                                                                     | `azure-identity`                                         |
-| `azureIdentity.namespace`                | Azure identity resource namespace. Default value is release namespace                                                                                                                                            | ` `                                                      |
-| `azureIdentity.type`                     | Azure identity type - type 0: MSI, type 1: Service Principal                                                                                                                                                     | `0`                                                      |
-| `azureIdentity.resourceID`               | Azure identity resource ID                                                                                                                                                                                       | ` `                                                      |
-| `azureIdentity.clientID`                 | Azure identity client ID                                                                                                                                                                                         | ` `                                                      |
-| `azureIdentityBinding.name`              | Azure identity binding name                                                                                                                                                                                      | `azure-identity-binding`                                 |
-| `azureIdentityBinding.selector`          | Azure identity binding selector. The selector defined here will also need to be included in labels for app deployment.                                                                                           | `demo`                                                   |
+| `azureIdentities`                        | List of azure identities and azure identity bindings resources to create                                                                                                                                         | `[]`                                                     |
 
 ## Troubleshooting
 
