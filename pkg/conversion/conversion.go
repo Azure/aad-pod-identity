@@ -110,3 +110,15 @@ func ConvertInternalAssignedIdentityToV1AssignedIdentity(assignedIdentity aadpod
 		Status: aadpodidv1.AzureAssignedIdentityStatus(assignedIdentity.Status),
 	}
 }
+
+func ConvertV1AzurePodIdentityExceptionToInternalAzurePodIdentityException(idException aadpodidv1.AzurePodIdentityException) (residException aadpodid.AzurePodIdentityException) {
+	return aadpodid.AzurePodIdentityException{
+		TypeMeta:   idException.TypeMeta,
+		ObjectMeta: idException.ObjectMeta,
+		Spec: aadpodid.AzurePodIdentityExceptionSpec{
+			ObjectMeta: idException.Spec.ObjectMeta,
+			PodLabels:  idException.Spec.PodLabels,
+		},
+		Status: aadpodid.AzurePodIdentityExceptionStatus(idException.Status),
+	}
+}

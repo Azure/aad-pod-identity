@@ -45,8 +45,8 @@ type ClientInt interface {
 	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
 	ListAssignedIDsInMap() (res map[string]aadpodid.AzureAssignedIdentity, err error)
 	ListIds() (res *[]aadpodid.AzureIdentity, err error)
-	ListPodIds(podns, podname string) (map[string][]aadpodv1.AzureIdentity, error)
-	ListPodIdentityExceptions(ns string) (res *[]aadpodv1.AzurePodIdentityException, err error)
+	ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error)
+	ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error)
 }
 
 // NewCRDClientLite ...
@@ -92,7 +92,7 @@ func NewCRDClientLite(config *rest.Config, nodeName string, scale bool) (crdClie
 }
 
 // NewCRDClient returns a new crd client and error if any
-func NewCRDClient(config *rest.Config, eventCh chan aadpodv1.EventType) (crdClient *Client, err error) {
+func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
 		klog.Error(err)
@@ -166,7 +166,7 @@ func newBindingListWatch(r *rest.RESTClient) *cache.ListWatch {
 	return cache.NewListWatchFromClient(r, aadpodv1.AzureIDBindingResource, v1.NamespaceAll, fields.Everything())
 }
 
-func newBindingInformer(r *rest.RESTClient, eventCh chan aadpodv1.EventType, lw *cache.ListWatch) (cache.SharedInformer, error) {
+func newBindingInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cache.ListWatch) (cache.SharedInformer, error) {
 	azBindingInformer := cache.NewSharedInformer(
 		lw,
 		&aadpodv1.AzureIdentityBinding{},
@@ -178,15 +178,15 @@ func newBindingInformer(r *rest.RESTClient, eventCh chan aadpodv1.EventType, lw 
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				klog.V(6).Infof("Binding created")
-				eventCh <- aadpodv1.BindingCreated
+				eventCh <- aadpodid.BindingCreated
 			},
 			DeleteFunc: func(obj interface{}) {
 				klog.V(6).Infof("Binding deleted")
-				eventCh <- aadpodv1.BindingDeleted
+				eventCh <- aadpodid.BindingDeleted
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
 				klog.V(6).Infof("Binding updated")
-				eventCh <- aadpodv1.BindingUpdated
+				eventCh <- aadpodid.BindingUpdated
 			},
 		},
 	)
@@ -197,7 +197,7 @@ func newIDListWatch(r *rest.RESTClient) *cache.ListWatch {
 	return cache.NewListWatchFromClient(r, aadpodv1.AzureIDResource, v1.NamespaceAll, fields.Everything())
 }
 
-func newIDInformer(r *rest.RESTClient, eventCh chan aadpodv1.EventType, lw *cache.ListWatch) (cache.SharedInformer, error) {
+func newIDInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cache.ListWatch) (cache.SharedInformer, error) {
 	azIDInformer := cache.NewSharedInformer(
 		lw,
 		&aadpodv1.AzureIdentity{},
@@ -209,15 +209,15 @@ func newIDInformer(r *rest.RESTClient, eventCh chan aadpodv1.EventType, lw *cach
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				klog.V(6).Infof("Identity created")
-				eventCh <- aadpodv1.IdentityCreated
+				eventCh <- aadpodid.IdentityCreated
 			},
 			DeleteFunc: func(obj interface{}) {
 				klog.V(6).Infof("Identity deleted")
-				eventCh <- aadpodv1.IdentityDeleted
+				eventCh <- aadpodid.IdentityDeleted
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
 				klog.V(6).Infof("Identity updated")
-				eventCh <- aadpodv1.IdentityUpdated
+				eventCh <- aadpodid.IdentityUpdated
 			},
 		},
 	)
@@ -489,16 +489,16 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 }
 
 // ListPodIdentityExceptions returns list of azurepodidentityexceptions
-func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodv1.AzurePodIdentityException, err error) {
+func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error) {
 	begin := time.Now()
 
-	var resList []aadpodv1.AzurePodIdentityException
+	var resList []aadpodid.AzurePodIdentityException
 
 	list := c.PodIdentityExceptionInformer.GetStore().List()
 	for _, binding := range list {
 		o, ok := binding.(*aadpodv1.AzurePodIdentityException)
 		if !ok {
-			err := fmt.Errorf("could not cast %T to %s", binding, aadpodv1.AzureIdentityExceptionResource)
+			err := fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureIdentityExceptionResource)
 			klog.Error(err)
 			return nil, err
 		}
@@ -509,7 +509,9 @@ func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodv1.AzurePodI
 				Group:   aadpodv1.CRDGroup,
 				Version: aadpodv1.CRDVersion,
 				Kind:    reflect.TypeOf(*o).String()})
-			resList = append(resList, *o)
+			out := conversion.ConvertV1AzurePodIdentityExceptionToInternalAzurePodIdentityException(*o)
+
+			resList = append(resList, out)
 			klog.V(6).Infof("Appending exception: %s/%s to list.", o.Namespace, o.Name)
 		}
 	}
@@ -520,17 +522,16 @@ func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodv1.AzurePodI
 
 // ListPodIds - given a pod with pod name space
 // returns a map with list of azure identities in each state
-func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodv1.AzureIdentity, error) {
+func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
 	list, err := c.ListAssignedIDs()
 	if err != nil {
 		return nil, err
 	}
 
-	idStateMap := make(map[string][]aadpodv1.AzureIdentity)
+	idStateMap := make(map[string][]aadpodid.AzureIdentity)
 	for _, v := range *list {
 		if v.Spec.Pod == podname && v.Spec.PodNamespace == podns {
-			out := conversion.ConvertInternalAssignedIdentityToV1AssignedIdentity(v)
-			idStateMap[out.Status.Status] = append(idStateMap[out.Status.Status], *out.Spec.AzureIdentityRef)
+			idStateMap[v.Status.Status] = append(idStateMap[v.Status.Status], *v.Spec.AzureIdentityRef)
 		}
 	}
 	return idStateMap, nil

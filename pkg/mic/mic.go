@@ -57,7 +57,7 @@ type Client struct {
 	CloudClient          cloudprovider.ClientInt
 	PodClient            pod.ClientInt
 	EventRecorder        record.EventRecorder
-	EventChannel         chan aadpodv1.EventType
+	EventChannel         chan aadpodid.EventType
 	NodeClient           NodeGetter
 	IsNamespaced         bool
 	SyncLoopStarted      bool
@@ -107,7 +107,7 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 	}
 	klog.V(1).Infof("Cloud provider initialized")
 
-	eventCh := make(chan aadpodv1.EventType, 100)
+	eventCh := make(chan aadpodid.EventType, 100)
 	crdClient, err := crd.NewCRDClient(config, eventCh)
 	if err != nil {
 		return nil, err
@@ -257,7 +257,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 	klog.Info("Sync thread started.")
 	c.SyncLoopStarted = true
-	var event aadpodv1.EventType
+	var event aadpodid.EventType
 	totalWorkDoneCycles := 0
 	totalSyncCycles := 0
 
