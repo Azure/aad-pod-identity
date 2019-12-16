@@ -6,7 +6,9 @@ import (
 	"reflect"
 	"time"
 
+	aadpodinternal "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	conversion "github.com/Azure/aad-pod-identity/pkg/conversion"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -36,13 +38,13 @@ type ClientInt interface {
 	Start(exit <-chan struct{})
 	SyncCache(exit <-chan struct{})
 	SyncCacheLite(exit <-chan struct{})
-	RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
-	CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
-	UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error
-	ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error)
-	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
-	ListAssignedIDsInMap() (res map[string]aadpodid.AzureAssignedIdentity, err error)
-	ListIds() (res *[]aadpodid.AzureIdentity, err error)
+	RemoveAssignedIdentity(assignedIdentity *aadpodinternal.AzureAssignedIdentity) error
+	CreateAssignedIdentity(assignedIdentity *aadpodinternal.AzureAssignedIdentity) error
+	UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodinternal.AzureAssignedIdentity, status string) error
+	ListBindings() (res *[]aadpodinternal.AzureIdentityBinding, err error)
+	ListAssignedIDs() (res *[]aadpodinternal.AzureAssignedIdentity, err error)
+	ListAssignedIDsInMap() (res map[string]aadpodinternal.AzureAssignedIdentity, err error)
+	ListIds() (res *[]aadpodinternal.AzureIdentity, err error)
 	ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error)
 	ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error)
 }
@@ -310,7 +312,7 @@ func (c *Client) syncCache(exit <-chan struct{}, initial bool, cacheSyncs ...cac
 }
 
 // RemoveAssignedIdentity removes the assigned identity
-func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
+func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodinternal.AzureAssignedIdentity) (err error) {
 	klog.V(6).Infof("Deletion of assigned id named: %s", assignedIdentity.Name)
 	begin := time.Now()
 
@@ -332,7 +334,7 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 }
 
 // CreateAssignedIdentity creates new assigned identity
-func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
+func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodinternal.AzureAssignedIdentity) (err error) {
 	klog.Infof("Got assigned id %s to assign", assignedIdentity.Name)
 	begin := time.Now()
 
@@ -348,7 +350,7 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	}()
 
 	// Create a new AzureAssignedIdentity which maps the relationship between id and pod
-	var res aadpodid.AzureAssignedIdentity
+	var res aadpodinternal.AzureAssignedIdentity
 	// TODO: Ensure that the status reflects the corresponding
 	err = c.rest.Post().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Body(assignedIdentity).Do().Into(&res)
 	if err != nil {
@@ -362,10 +364,10 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 }
 
 // ListBindings returns a list of azureidentitybindings
-func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
+func (c *Client) ListBindings() (res *[]aadpodinternal.AzureIdentityBinding, err error) {
 	begin := time.Now()
 
-	var resList []aadpodid.AzureIdentityBinding
+	var resList []aadpodinternal.AzureIdentityBinding
 
 	list := c.BindingInformer.GetStore().List()
 	for _, binding := range list {
@@ -381,7 +383,25 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 			Group:   aadpodid.CRDGroup,
 			Version: aadpodid.CRDVersion,
 			Kind:    reflect.TypeOf(*o).String()})
-		resList = append(resList, *o)
+
+		// scheme := runtime.NewScheme()
+		// var GroupName = "aadpodidentity.k8s.io"
+		// var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: "v1"}
+		// var InternalSchemGroupVersion = schema.GroupVersion{Group: GroupName, Version: runtime.APIVersionInternal}
+		// scheme.AddKnownTypes(SchemeGroupVersion,
+		// 	&aadpodid.AzureIdentityBinding{})
+		// scheme.AddKnownTypes(InternalSchemGroupVersion, &aadpodinternal.AzureIdentityBinding{})
+
+		// aadpodid.RegisterConversions(scheme)
+		// var internal = &aadpodinternal.AzureIdentityBinding{}
+		// scheme.Convert(*o, internal, nil)
+
+		// glog.Infof("Internal Type %+v", internal)
+		// glog.Infof("External Type %+v", *o)
+
+		internalBinding := conversion.ConvertV1BindingToInternalBinding(*o)
+
+		resList = append(resList, internalBinding)
 		klog.V(6).Infof("Appending binding: %s/%s to list.", o.Namespace, o.Name)
 	}
 
@@ -390,10 +410,10 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 }
 
 // ListAssignedIDs returns a list of azureassignedidentities
-func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
+func (c *Client) ListAssignedIDs() (res *[]aadpodinternal.AzureAssignedIdentity, err error) {
 	begin := time.Now()
 
-	var resList []aadpodid.AzureAssignedIdentity
+	var resList []aadpodinternal.AzureAssignedIdentity
 
 	list := c.AssignedIDInformer.GetStore().List()
 	for _, assignedID := range list {
@@ -409,7 +429,8 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 			Group:   aadpodid.CRDGroup,
 			Version: aadpodid.CRDVersion,
 			Kind:    reflect.TypeOf(*o).String()})
-		resList = append(resList, *o)
+		out := conversion.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o)
+		resList = append(resList, out)
 		klog.V(6).Infof("Appending Assigned ID: %s/%s to list.", o.Namespace, o.Name)
 	}
 
@@ -419,10 +440,10 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 
 // ListAssignedIDsInMap gets the list of current assigned ids, adds it to a map
 // with assigned identity name as key and assigned identity as value.
-func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdentity, error) {
+func (c *Client) ListAssignedIDsInMap() (map[string]aadpodinternal.AzureAssignedIdentity, error) {
 	begin := time.Now()
 
-	result := make(map[string]aadpodid.AzureAssignedIdentity)
+	result := make(map[string]aadpodinternal.AzureAssignedIdentity)
 	list := c.AssignedIDInformer.GetStore().List()
 
 	for _, assignedID := range list {
@@ -440,8 +461,10 @@ func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdenti
 			Version: aadpodid.CRDVersion,
 			Kind:    reflect.TypeOf(*o).String()})
 
+		out := conversion.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o)
+
 		// assigned identities names are unique across namespaces as we use pod name-<id ns>-<id name>
-		result[o.Name] = *o
+		result[o.Name] = out
 	}
 
 	stats.Update(stats.AssignedIDList, time.Since(begin))
@@ -449,10 +472,10 @@ func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdenti
 }
 
 // ListIds returns a list of azureidentities
-func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
+func (c *Client) ListIds() (res *[]aadpodinternal.AzureIdentity, err error) {
 	begin := time.Now()
 
-	var resList []aadpodid.AzureIdentity
+	var resList []aadpodinternal.AzureIdentity
 
 	list := c.IDInformer.GetStore().List()
 	for _, id := range list {
@@ -468,7 +491,10 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 			Group:   aadpodid.CRDGroup,
 			Version: aadpodid.CRDVersion,
 			Kind:    reflect.TypeOf(*o).String()})
-		resList = append(resList, *o)
+
+		out := conversion.ConvertV1IdentityToInternalIdentity(*o)
+
+		resList = append(resList, out)
 		klog.V(6).Infof("Appending Identity: %s/%s to list.", o.Namespace, o.Name)
 	}
 
@@ -517,7 +543,8 @@ func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureI
 	idStateMap := make(map[string][]aadpodid.AzureIdentity)
 	for _, v := range *list {
 		if v.Spec.Pod == podname && v.Spec.PodNamespace == podns {
-			idStateMap[v.Status.Status] = append(idStateMap[v.Status.Status], *v.Spec.AzureIdentityRef)
+			out := conversion.ConvertInternalAssignedIdentityToV1AssignedIdentity(v)
+			idStateMap[out.Status.Status] = append(idStateMap[out.Status.Status], *out.Spec.AzureIdentityRef)
 		}
 	}
 	return idStateMap, nil
@@ -530,7 +557,7 @@ type patchStatusOps struct {
 }
 
 // UpdateAzureAssignedIdentityStatus updates the status field in AzureAssignedIdentity to indicate current status
-func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) (err error) {
+func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodinternal.AzureAssignedIdentity, status string) (err error) {
 	klog.Infof("Updating assigned identity %s/%s status to %s", assignedIdentity.Namespace, assignedIdentity.Name, status)
 
 	defer func() {

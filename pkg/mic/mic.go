@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	aadpodinternal "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	"github.com/Azure/aad-pod-identity/pkg/crd"
@@ -81,8 +82,8 @@ type ClientInt interface {
 type trackUserAssignedMSIIds struct {
 	addUserAssignedMSIIDs    []string
 	removeUserAssignedMSIIDs []string
-	assignedIDsToCreate      []aadpodid.AzureAssignedIdentity
-	assignedIDsToDelete      []aadpodid.AzureAssignedIdentity
+	assignedIDsToCreate      []aadpodinternal.AzureAssignedIdentity
+	assignedIDsToDelete      []aadpodinternal.AzureAssignedIdentity
 	isvmss                   bool
 }
 
@@ -383,7 +384,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 	}
 }
 
-func (c *Client) convertAssignedIDListToMap(addList, deleteList map[string]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
+func (c *Client) convertAssignedIDListToMap(addList, deleteList map[string]aadpodinternal.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
 	if addList != nil {
 		for _, createID := range addList {
 			if trackList, ok := nodeMap[createID.Spec.NodeName]; ok {
@@ -391,7 +392,7 @@ func (c *Client) convertAssignedIDListToMap(addList, deleteList map[string]aadpo
 				nodeMap[createID.Spec.NodeName] = trackList
 				continue
 			}
-			nodeMap[createID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToCreate: []aadpodid.AzureAssignedIdentity{createID}}
+			nodeMap[createID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToCreate: []aadpodinternal.AzureAssignedIdentity{createID}}
 		}
 	}
 
@@ -402,19 +403,19 @@ func (c *Client) convertAssignedIDListToMap(addList, deleteList map[string]aadpo
 				nodeMap[delID.Spec.NodeName] = trackList
 				continue
 			}
-			nodeMap[delID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToDelete: []aadpodid.AzureAssignedIdentity{delID}}
+			nodeMap[delID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToDelete: []aadpodinternal.AzureAssignedIdentity{delID}}
 		}
 	}
 }
 
 func (c *Client) createDesiredAssignedIdentityList(
-	listPods []*corev1.Pod, listBindings *[]aadpodid.AzureIdentityBinding, idMap map[string]aadpodid.AzureIdentity) (map[string]aadpodid.AzureAssignedIdentity, map[string]bool, error) {
+	listPods []*corev1.Pod, listBindings *[]aadpodinternal.AzureIdentityBinding, idMap map[string]aadpodinternal.AzureIdentity) (map[string]aadpodinternal.AzureAssignedIdentity, map[string]bool, error) {
 	//For each pod, check what bindings are matching. For each binding create volatile azure assigned identity.
 	//Compare this list with the current list of azure assigned identities.
 	//For any new assigned identities found in this volatile list, create assigned identity and assign user assigned msis.
 	//For any assigned ids not present the volatile list, proceed with the deletion.
 	nodeRefs := make(map[string]bool)
-	newAssignedIDs := make(map[string]aadpodid.AzureAssignedIdentity)
+	newAssignedIDs := make(map[string]aadpodinternal.AzureAssignedIdentity)
 
 	for _, pod := range listPods {
 		if pod.Spec.NodeName == "" {
@@ -422,13 +423,13 @@ func (c *Client) createDesiredAssignedIdentityList(
 			klog.V(2).Infof("Pod %s/%s has no assigned node yet. it will be ignored", pod.Namespace, pod.Name)
 			continue
 		}
-		crdPodLabelVal := pod.Labels[aadpodid.CRDLabelKey]
+		crdPodLabelVal := pod.Labels[aadpodinternal.CRDLabelKey]
 		if crdPodLabelVal == "" {
 			//No binding mentioned in the label. Just continue to the next pod
 			klog.V(2).Infof("Pod %s/%s has correct %s label but with no value. it will be ignored", pod.Namespace, pod.Name, aadpodid.CRDLabelKey)
 			continue
 		}
-		var matchedBindings []aadpodid.AzureIdentityBinding
+		var matchedBindings []aadpodinternal.AzureIdentityBinding
 		for _, allBinding := range *listBindings {
 			if allBinding.Spec.Selector == crdPodLabelVal {
 				klog.V(5).Infof("Found binding match for pod %s/%s with binding %s/%s", pod.Namespace, pod.Name, allBinding.Namespace, allBinding.Name)
@@ -441,7 +442,7 @@ func (c *Client) createDesiredAssignedIdentityList(
 			klog.V(5).Infof("Looking up id map: %s/%s", binding.Namespace, binding.Spec.AzureIdentity)
 			if azureID, idPresent := idMap[getIDKey(binding.Namespace, binding.Spec.AzureIdentity)]; idPresent {
 				// working in Namespaced mode or this specific identity is namespaced
-				if c.IsNamespaced || aadpodid.IsNamespacedIdentity(&azureID) {
+				if c.IsNamespaced || aadpodinternal.IsNamespacedIdentity(&azureID) {
 					// They have to match all
 					if !(azureID.Namespace == binding.Namespace && binding.Namespace == pod.Namespace) {
 						klog.V(5).Infof("identity %s/%s was matched via binding %s/%s to %s/%s but namespaced identity is enforced, so it will be ignored",
@@ -471,8 +472,8 @@ func (c *Client) createDesiredAssignedIdentityList(
 
 // getListOfIdsToDelete will go over the delete list to determine if the id is required to be deleted
 // only user assigned identity not in use are added to the remove list for the node
-func (c *Client) getListOfIdsToDelete(deleteList map[string]aadpodid.AzureAssignedIdentity,
-	newAssignedIDs map[string]aadpodid.AzureAssignedIdentity,
+func (c *Client) getListOfIdsToDelete(deleteList map[string]aadpodinternal.AzureAssignedIdentity,
+	newAssignedIDs map[string]aadpodinternal.AzureAssignedIdentity,
 	nodeMap map[string]trackUserAssignedMSIIds,
 	nodeRefs map[string]bool) {
 	vmssGroups, err := getVMSSGroups(c.NodeClient, nodeRefs)
@@ -505,7 +506,7 @@ func (c *Client) getListOfIdsToDelete(deleteList map[string]aadpodid.AzureAssign
 }
 
 // getListOfIdsToAssign will add the id to the append list for node if it's user assigned identity
-func (c *Client) getListOfIdsToAssign(addList map[string]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
+func (c *Client) getListOfIdsToAssign(addList map[string]aadpodinternal.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
 	for _, createID := range addList {
 		id := createID.Spec.AzureIdentityRef
 		isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
@@ -519,7 +520,7 @@ func (c *Client) getListOfIdsToAssign(addList map[string]aadpodid.AzureAssignedI
 	}
 }
 
-func (c *Client) matchAssignedID(x aadpodid.AzureAssignedIdentity, y aadpodid.AzureAssignedIdentity) (ret bool) {
+func (c *Client) matchAssignedID(x aadpodinternal.AzureAssignedIdentity, y aadpodinternal.AzureAssignedIdentity) (ret bool) {
 	bindingX := x.Spec.AzureBindingRef
 	bindingY := y.Spec.AzureBindingRef
 
@@ -544,13 +545,13 @@ func (c *Client) matchAssignedID(x aadpodid.AzureAssignedIdentity, y aadpodid.Az
 		x.Spec.NodeName == y.Spec.NodeName
 }
 
-func (c *Client) getAzureAssignedIDsToCreate(old, new map[string]aadpodid.AzureAssignedIdentity) (map[string]aadpodid.AzureAssignedIdentity, error) {
+func (c *Client) getAzureAssignedIDsToCreate(old, new map[string]aadpodinternal.AzureAssignedIdentity) (map[string]aadpodinternal.AzureAssignedIdentity, error) {
 	// everything in new needs to be created
 	if len(old) == 0 {
 		return new, nil
 	}
 
-	create := make(map[string]aadpodid.AzureAssignedIdentity)
+	create := make(map[string]aadpodinternal.AzureAssignedIdentity)
 	begin := time.Now()
 
 	for assignedIDName, newAssignedID := range new {
@@ -559,7 +560,7 @@ func (c *Client) getAzureAssignedIDsToCreate(old, new map[string]aadpodid.AzureA
 		if exists {
 			idMatch = c.matchAssignedID(oldAssignedID, newAssignedID)
 		}
-		if idMatch && oldAssignedID.Status.Status == aadpodid.AssignedIDCreated {
+		if idMatch && oldAssignedID.Status.Status == aadpodinternal.AssignedIDCreated {
 			// if the old assigned id is in created state, then the identity assignment to the node
 			// is not done. Adding to the list will ensure we retry identity assignment to node for
 			// this assigned identity.
@@ -577,8 +578,8 @@ func (c *Client) getAzureAssignedIDsToCreate(old, new map[string]aadpodid.AzureA
 	return create, nil
 }
 
-func (c *Client) getAzureAssignedIDsToDelete(old, new map[string]aadpodid.AzureAssignedIdentity) (map[string]aadpodid.AzureAssignedIdentity, error) {
-	delete := make(map[string]aadpodid.AzureAssignedIdentity)
+func (c *Client) getAzureAssignedIDsToDelete(old, new map[string]aadpodinternal.AzureAssignedIdentity) (map[string]aadpodinternal.AzureAssignedIdentity, error) {
+	delete := make(map[string]aadpodinternal.AzureAssignedIdentity)
 	// nothing to delete
 	if len(old) == 0 {
 		return delete, nil
@@ -608,7 +609,7 @@ func (c *Client) getAzureAssignedIDsToDelete(old, new map[string]aadpodid.AzureA
 	return delete, nil
 }
 
-func (c *Client) makeAssignedIDs(azID aadpodid.AzureIdentity, azBinding aadpodid.AzureIdentityBinding, podName, podNameSpace, nodeName string) (res *aadpodid.AzureAssignedIdentity, err error) {
+func (c *Client) makeAssignedIDs(azID aadpodinternal.AzureIdentity, azBinding aadpodinternal.AzureIdentityBinding, podName, podNameSpace, nodeName string) (res *aadpodinternal.AzureAssignedIdentity, err error) {
 	binding := azBinding
 	id := azID
 
@@ -621,21 +622,21 @@ func (c *Client) makeAssignedIDs(azID aadpodid.AzureIdentity, azBinding aadpodid
 		Name:   c.getAssignedIDName(podName, podNameSpace, azID.Name),
 		Labels: labels,
 	}
-	assignedID := &aadpodid.AzureAssignedIdentity{
+	assignedID := &aadpodinternal.AzureAssignedIdentity{
 		ObjectMeta: oMeta,
-		Spec: aadpodid.AzureAssignedIdentitySpec{
+		Spec: aadpodinternal.AzureAssignedIdentitySpec{
 			AzureIdentityRef: &id,
 			AzureBindingRef:  &binding,
 			Pod:              podName,
 			PodNamespace:     podNameSpace,
 			NodeName:         nodeName,
 		},
-		Status: aadpodid.AzureAssignedIdentityStatus{
+		Status: aadpodinternal.AzureAssignedIdentityStatus{
 			AvailableReplicas: 1,
 		},
 	}
 	// if we are in namespaced mode (or az identity is namespaced)
-	if c.IsNamespaced || aadpodid.IsNamespacedIdentity(&id) {
+	if c.IsNamespaced || aadpodinternal.IsNamespacedIdentity(&id) {
 		assignedID.Namespace = azID.Namespace
 	} else {
 		// eventually this should be identity namespace
@@ -649,7 +650,7 @@ func (c *Client) makeAssignedIDs(azID aadpodid.AzureIdentity, azBinding aadpodid
 	return assignedID, nil
 }
 
-func (c *Client) createAssignedIdentity(assignedID *aadpodid.AzureAssignedIdentity) error {
+func (c *Client) createAssignedIdentity(assignedID *aadpodinternal.AzureAssignedIdentity) error {
 	err := c.CRDClient.CreateAssignedIdentity(assignedID)
 	if err != nil {
 		return err
@@ -657,7 +658,7 @@ func (c *Client) createAssignedIdentity(assignedID *aadpodid.AzureAssignedIdenti
 	return nil
 }
 
-func (c *Client) removeAssignedIdentity(assignedID *aadpodid.AzureAssignedIdentity) error {
+func (c *Client) removeAssignedIdentity(assignedID *aadpodinternal.AzureAssignedIdentity) error {
 	err := c.CRDClient.RemoveAssignedIdentity(assignedID)
 	if err != nil {
 		return err
@@ -683,15 +684,15 @@ func (c *Client) appendToAddListForNode(resourceID, nodeName string, nodeMap map
 	nodeMap[nodeName] = trackUserAssignedMSIIds{addUserAssignedMSIIDs: []string{resourceID}}
 }
 
-func (c *Client) checkIfUserAssignedMSI(id *aadpodid.AzureIdentity) bool {
-	return id.Spec.Type == aadpodid.UserAssignedMSI
+func (c *Client) checkIfUserAssignedMSI(id *aadpodinternal.AzureIdentity) bool {
+	return id.Spec.Type == aadpodinternal.UserAssignedMSI
 }
 
 func (c *Client) getAssignedIDName(podName, podNameSpace, idName string) string {
 	return podName + "-" + podNameSpace + "-" + idName
 }
 
-func (c *Client) checkIfMSIExistsOnNode(id *aadpodid.AzureIdentity, nodeName string, nodeMSIList []string) bool {
+func (c *Client) checkIfMSIExistsOnNode(id *aadpodinternal.AzureIdentity, nodeName string, nodeMSIList []string) bool {
 	for _, userAssignedMSI := range nodeMSIList {
 		if userAssignedMSI == id.Spec.ResourceID {
 			return true
@@ -708,22 +709,22 @@ func getIDKey(ns, name string) string {
 	return strings.Join([]string{ns, name}, "/")
 }
 
-func (c *Client) convertIDListToMap(arr []aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
-	m = make(map[string]aadpodid.AzureIdentity, len(arr))
+func (c *Client) convertIDListToMap(arr []aadpodinternal.AzureIdentity) (m map[string]aadpodinternal.AzureIdentity, err error) {
+	m = make(map[string]aadpodinternal.AzureIdentity, len(arr))
 	for _, element := range arr {
 		m[getIDKey(element.Namespace, element.Name)] = element
 	}
 	return m, nil
 }
 
-func (c *Client) checkIfInUse(checkAssignedID aadpodid.AzureAssignedIdentity, assignedIDMap map[string]aadpodid.AzureAssignedIdentity, vmssGroups *vmssGroupList) (bool, error) {
+func (c *Client) checkIfInUse(checkAssignedID aadpodinternal.AzureAssignedIdentity, assignedIDMap map[string]aadpodinternal.AzureAssignedIdentity, vmssGroups *vmssGroupList) (bool, error) {
 	for _, assignedID := range assignedIDMap {
 		checkID := checkAssignedID.Spec.AzureIdentityRef
 		id := assignedID.Spec.AzureIdentityRef
 		// If they have the same client id, reside on the same node but the pod name is different, then the
 		// assigned id is in use.
 		// This is applicable only for user assigned MSI since that is node specific. Ignore other cases.
-		if checkID.Spec.Type != aadpodid.UserAssignedMSI {
+		if checkID.Spec.Type != aadpodinternal.UserAssignedMSI {
 			continue
 		}
 
@@ -770,18 +771,18 @@ func (c *Client) getUniqueIDs(idList []string) []string {
 	return uniqueList
 }
 
-func (c *Client) updateAssignedIdentityStatus(assignedID *aadpodid.AzureAssignedIdentity, status string) error {
+func (c *Client) updateAssignedIdentityStatus(assignedID *aadpodinternal.AzureAssignedIdentity, status string) error {
 	return c.CRDClient.UpdateAzureAssignedIdentityStatus(assignedID, status)
 }
 
-func (c *Client) updateNodeAndDeps(newAssignedIDs map[string]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
+func (c *Client) updateNodeAndDeps(newAssignedIDs map[string]aadpodinternal.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
 	for nodeName, nodeTrackList := range nodeMap {
 		wg.Add(1)
 		go c.updateUserMSI(newAssignedIDs, nodeName, nodeTrackList, nodeRefs, wg)
 	}
 }
 
-func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedIdentity, nodeOrVMSSName string, nodeTrackList trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
+func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodinternal.AzureAssignedIdentity, nodeOrVMSSName string, nodeTrackList trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 	beginAdding := time.Now()
 	klog.Infof("Processing node %s, add [%d], del [%d]", nodeOrVMSSName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete))
@@ -798,7 +799,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 			klog.Errorf("Failed to acquire semaphore in the create loop: %v", err)
 			return
 		}
-		go func(assignedID aadpodid.AzureAssignedIdentity) {
+		go func(assignedID aadpodinternal.AzureAssignedIdentity) {
 			defer semCreate.Release(1)
 			if assignedID.Status.Status == "" {
 				binding := assignedID.Spec.AzureBindingRef
@@ -806,7 +807,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 				// this is the state when the azure assigned identity is yet to be created
 				klog.V(5).Infof("Initiating assigned id creation for pod - %s, binding - %s", assignedID.Spec.Pod, binding.Name)
 
-				assignedID.Status.Status = aadpodid.AssignedIDCreated
+				assignedID.Status.Status = aadpodinternal.AssignedIDCreated
 				err := c.createAssignedIdentity(&assignedID)
 				if err != nil {
 					c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error",
@@ -910,11 +911,11 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 			klog.Errorf("Failed to acquire semaphore in the update loop: %v", err)
 			return
 		}
-		go func(assignedID aadpodid.AzureAssignedIdentity) {
+		go func(assignedID aadpodinternal.AzureAssignedIdentity) {
 			defer semUpdate.Release(1)
 			binding := assignedID.Spec.AzureBindingRef
 			// update the status to assigned for assigned identity as identity was successfully assigned to node.
-			err := c.updateAssignedIdentityStatus(&assignedID, aadpodid.AssignedIDAssigned)
+			err := c.updateAssignedIdentityStatus(&assignedID, aadpodinternal.AssignedIDAssigned)
 			if err != nil {
 				message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", assignedID.Name, aadpodid.AssignedIDAssigned, assignedID.Spec.Pod, err.Error())
 				c.EventRecorder.Event(&assignedID, corev1.EventTypeWarning, "status update error", message)
@@ -939,12 +940,12 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 			klog.Errorf("Failed to acquire semaphore in the delete loop: %v", err)
 			return
 		}
-		go func(assignedID aadpodid.AzureAssignedIdentity) {
+		go func(assignedID aadpodinternal.AzureAssignedIdentity) {
 			defer semDel.Release(1)
 			removedBinding := assignedID.Spec.AzureBindingRef
 			// update the status for the assigned identity to Unassigned as the identity has been successfully removed from node.
 			// this will ensure on next sync loop we only try to delete the assigned identity instead of doing everything.
-			err := c.updateAssignedIdentityStatus(&assignedID, aadpodid.AssignedIDUnAssigned)
+			err := c.updateAssignedIdentityStatus(&assignedID, aadpodinternal.AssignedIDUnAssigned)
 			if err != nil {
 				message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", assignedID.Name, aadpodid.AssignedIDUnAssigned, assignedID.Spec.Pod, err.Error())
 				c.EventRecorder.Event(&assignedID, corev1.EventTypeWarning, "status update error", message)
