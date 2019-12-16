@@ -837,9 +837,6 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 		}
 
 		for _, createID := range nodeTrackList.assignedIDsToCreate {
-			//CLAUDIATODO
-			glog.Infof("testing")
-			glog.Infof("createID, %+v", createID)
 			id := createID.Spec.AzureIdentityRef
 			binding := createID.Spec.AzureBindingRef
 
@@ -867,9 +864,6 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 		}
 
 		for _, delID := range nodeTrackList.assignedIDsToDelete {
-			//CLAUDIATODO
-			glog.Infof("testing")
-			glog.Infof("delID, %+v", delID)
 			id := delID.Spec.AzureIdentityRef
 			removedBinding := delID.Spec.AzureBindingRef
 			isUserAssignedMSI := c.checkIfUserAssignedMSI(id)

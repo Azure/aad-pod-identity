@@ -352,12 +352,8 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	// Create a new AzureAssignedIdentity which maps the relationship between id and pod
 	var res aadpodv1.AzureAssignedIdentity
 	v1AssignedID := conversion.ConvertInternalAssignedIdentityToV1AssignedIdentity(*assignedIdentity)
-	//CLAUDIATODO
-	glog.Infof("testing")
-	glog.Infof("v1AssignedID, %+v", v1AssignedID)
-	glog.Infof("assignedIdentity, %+v", assignedIdentity)
 	// TODO: Ensure that the status reflects the corresponding
-	err = c.rest.Post().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Body(v1AssignedID).Do().Into(&res)
+	err = c.rest.Post().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Body(&v1AssignedID).Do().Into(&res)
 	if err != nil {
 		klog.Error(err)
 		return err
@@ -390,10 +386,6 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 			Kind:    reflect.TypeOf(*o).String()})
 
 		internalBinding := conversion.ConvertV1BindingToInternalBinding(*o)
-
-		//CLAUDIATODO
-		glog.Infof("testing")
-		glog.Infof("internalBinding, %+v", internalBinding)
 
 		resList = append(resList, internalBinding)
 		klog.V(6).Infof("Appending binding: %s/%s to list.", o.Namespace, o.Name)
