@@ -65,6 +65,9 @@ spec:
           {{- if .Values.mic.immutableUserMSIs }}
           - "--immutable-user-msis={{- join "," .Values.mic.immutableUserMSIs}}"
           {{- end }}
+          {{- if .Values.mic.prometheusPort }}
+          - --prometheus-port={{ .Values.mic.prometheusPort }}
+          {{- end }}  
         env:
           - name: FORCENAMESPACED
             value: "{{ .Values.forceNameSpaced }}"
