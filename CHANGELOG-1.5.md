@@ -1,3 +1,23 @@
+# v1.5.4
+
+### Features
+
+- Add block-instance-metadata flag ([#396](https://github.com/Azure/aad-pod-identity/pull/396))
+- Add metrics ([#429](https://github.com/Azure/aad-pod-identity/pull/429))
+- Adding support for whitelisting of user-defined managed identities ([#431](https://github.com/Azure/aad-pod-identity/pull/431))
+
+### Bug Fixes
+
+- Fix glog flag parse error in nmi ([#435](https://github.com/Azure/aad-pod-identity/pull/435))
+
+### Other Improvements
+
+- Add application/json header for all return paths ([#424](https://github.com/Azure/aad-pod-identity/pull/424))
+- Update golang used to build binaries ([#426](https://github.com/Azure/aad-pod-identity/pull/426))
+- Reduce log verbosity for debug log ([#433](https://github.com/Azure/aad-pod-identity/pull/433))
+- Move to latest Alpine 3.10.4 ([#446](https://github.com/Azure/aad-pod-identity/pull/446))
+- Validate resource param exists in request ([#450](https://github.com/Azure/aad-pod-identity/pull/450))
+
 # v1.5.3
 
 ### Bug Fixes
