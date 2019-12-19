@@ -12,8 +12,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ template "aad-pod-identity.name" . }}
-      app.kubernetes.io/instance: {{ .Release.Name }}
+      {{- include "aad-pod-identity.labels" . | nindent 6 }}
       app.kubernetes.io/component: nmi
   template:
     metadata:
