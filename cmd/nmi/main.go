@@ -45,6 +45,7 @@ var (
 	enableScaleFeatures                = pflag.Bool("enableScaleFeatures", false, "Enable/Disable features for scale clusters")
 	blockInstanceMetadata              = pflag.Bool("block-instance-metadata", false, "Block instance metadata endpoints")
 	prometheusPort                     = pflag.String("prometheus-port", "9090", "Prometheus port for metrics")
+	nmiMode                            = pflag.String("nmi-mode", "standard", "NMI operation mode")
 )
 
 func main() {
@@ -74,6 +75,7 @@ func main() {
 	if err != nil {
 		klog.Fatalf("%+v", err)
 	}
+
 	exit := make(<-chan struct{})
 	client.Start(exit)
 	*forceNamespaced = *forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
@@ -88,6 +90,11 @@ func main() {
 	s.ListPodIDsRetryAttemptsForCreated = *retryAttemptsForCreated
 	s.ListPodIDsRetryAttemptsForAssigned = *retryAttemptsForAssigned
 	s.ListPodIDsRetryIntervalInSeconds = *findIdentityRetryIntervalInSeconds
+	s.TokenClient = getTokenClient(*nmiMode)
+
+	if s.TokenClient == nil {
+		log.Fatalf("failed to initialize token client")
+	}
 
 	// Health probe will always report success once its started. The contents
 	// will report "Active" once the iptables rules are set
@@ -100,5 +107,14 @@ func main() {
 
 	if err := s.Run(); err != nil {
 		klog.Fatalf("%s", err)
+	}
+}
+
+func getTokenClient(nmiMode string) server.TokenClient {
+	switch server.NMIMode(nmiMode) {
+	case server.StandardNMIMode:
+		return server.NewStandardTokenClient()
+	default:
+		return nil
 	}
 }
