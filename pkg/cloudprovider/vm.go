@@ -12,7 +12,6 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
-	"k8s.io/klog"
 )
 
 // VMClient client for VirtualMachines
@@ -33,7 +32,6 @@ func NewVirtualMachinesClient(config config.AzureConfig, spt *adal.ServicePrinci
 
 	azureEnv, err := azure.EnvironmentFromName(config.Cloud)
 	if err != nil {
-		klog.Errorf("Get cloud env error: %+v", err)
 		return nil, err
 	}
 	client.BaseURI = azureEnv.ResourceManagerEndpoint
@@ -43,7 +41,6 @@ func NewVirtualMachinesClient(config config.AzureConfig, spt *adal.ServicePrinci
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		klog.Errorf("New reporter error: %+v", err)
 		return nil, err
 	}
 
@@ -72,13 +69,11 @@ func (c *VMClient) CreateOrUpdate(rg string, nodeName string, vm compute.Virtual
 
 	future, err := c.client.CreateOrUpdate(ctx, rg, nodeName, vm)
 	if err != nil {
-		klog.Error(err)
 		return err
 	}
 
 	err = future.WaitForCompletionRef(ctx, c.client.Client)
 	if err != nil {
-		klog.Error(err)
 		return err
 	}
 	stats.UpdateCount(stats.TotalPutCalls, 1)
@@ -102,7 +97,6 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 
 	vm, err := c.client.Get(ctx, rgName, nodeName, "")
 	if err != nil {
-		klog.Error(err)
 		return vm, err
 	}
 	stats.UpdateCount(stats.TotalGetCalls, 1)

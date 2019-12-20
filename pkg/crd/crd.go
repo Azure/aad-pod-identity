@@ -51,7 +51,6 @@ type ClientInt interface {
 func NewCRDClientLite(config *rest.Config, nodeName string, scale bool) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 
@@ -65,19 +64,16 @@ func NewCRDClientLite(config *rest.Config, nodeName string, scale bool) (crdClie
 
 	assignedIDListInformer, err := newAssignedIDInformer(assignedIDListWatch)
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 	podIdentityExceptionListWatch := newPodIdentityExceptionListWatch(restClient)
 	podIdentityExceptionInformer, err := newPodIdentityExceptionInformer(podIdentityExceptionListWatch)
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 
@@ -93,34 +89,29 @@ func NewCRDClientLite(config *rest.Config, nodeName string, scale bool) (crdClie
 func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 
 	bindingListWatch := newBindingListWatch(restClient)
 	bindingInformer, err := newBindingInformer(restClient, eventCh, bindingListWatch)
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 
 	idListWatch := newIDListWatch(restClient)
 	idInformer, err := newIDInformer(restClient, eventCh, idListWatch)
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 
 	assignedIDListWatch := newAssignedIDListWatch(restClient)
 	assignedIDListInformer, err := newAssignedIDInformer(assignedIDListWatch)
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 
@@ -371,8 +362,7 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 	for _, binding := range list {
 		o, ok := binding.(*aadpodid.AzureIdentityBinding)
 		if !ok {
-			err := fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureIDBindingResource)
-			klog.Error(err)
+			err := fmt.Errorf("failed to cast %T to %s", binding, aadpodid.AzureIDBindingResource)
 			return nil, err
 		}
 		// Note: List items returned from cache have empty Kind and API version..
@@ -399,8 +389,7 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 	for _, assignedID := range list {
 		o, ok := assignedID.(*aadpodid.AzureAssignedIdentity)
 		if !ok {
-			err := fmt.Errorf("could not cast %T to %s", assignedID, aadpodid.AzureAssignedIDResource)
-			klog.Error(err)
+			err := fmt.Errorf("failed to cast %T to %s", assignedID, aadpodid.AzureAssignedIDResource)
 			return nil, err
 		}
 		// Note: List items returned from cache have empty Kind and API version..
@@ -429,8 +418,7 @@ func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdenti
 
 		o, ok := assignedID.(*aadpodid.AzureAssignedIdentity)
 		if !ok {
-			err := fmt.Errorf("could not cast %T to %s", assignedID, aadpodid.AzureAssignedIDResource)
-			klog.Error(err)
+			err := fmt.Errorf("failed to cast %T to %s", assignedID, aadpodid.AzureAssignedIDResource)
 			return nil, err
 		}
 		// Note: List items returned from cache have empty Kind and API version..
@@ -458,8 +446,7 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 	for _, id := range list {
 		o, ok := id.(*aadpodid.AzureIdentity)
 		if !ok {
-			err := fmt.Errorf("could not cast %T to %s", id, aadpodid.AzureIDResource)
-			klog.Error(err)
+			err := fmt.Errorf("failed to cast %T to %s", id, aadpodid.AzureIDResource)
 			return nil, err
 		}
 		// Note: List items returned from cache have empty Kind and API version..
@@ -486,8 +473,7 @@ func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodI
 	for _, binding := range list {
 		o, ok := binding.(*aadpodid.AzurePodIdentityException)
 		if !ok {
-			err := fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureIdentityExceptionResource)
-			klog.Error(err)
+			err := fmt.Errorf("failed to cast %T to %s", binding, aadpodid.AzureIdentityExceptionResource)
 			return nil, err
 		}
 		if o.Namespace == ns {

@@ -44,12 +44,10 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 		klog.V(6).Info("Populate AzureConfig from azure.json")
 		bytes, err := ioutil.ReadFile(configFile)
 		if err != nil {
-			klog.Errorf("Read file (%s) error: %+v", configFile, err)
-			return nil, err
+			return nil, fmt.Errorf("failed to read file %s file, error %+v", configFile, err)
 		}
 		if err = yaml.Unmarshal(bytes, &azureConfig); err != nil {
-			klog.Errorf("Unmarshall error: %v", err)
-			return nil, err
+			return nil, fmt.Errorf("failed to unmarshall azure config, error %+v", err)
 		}
 	} else {
 		klog.V(6).Info("Populate AzureConfig from secret/environment variables")
@@ -66,19 +64,17 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 
 	azureEnv, err := azure.EnvironmentFromName(azureConfig.Cloud)
 	if err != nil {
-		klog.Errorf("Get cloud env error: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get cloud env, error: %+v", err)
 	}
 
 	err = adal.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to add user agent to adal for MIC, error %+v", err)
 	}
 
 	oauthConfig, err := adal.NewOAuthConfig(azureEnv.ActiveDirectoryEndpoint, azureConfig.TenantID)
 	if err != nil {
-		klog.Errorf("Create OAuth config error: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create oauth config, error: %+v", err)
 	}
 
 	var spt *adal.ServicePrincipalToken
@@ -86,23 +82,20 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 		// MSI endpoint is required for both types of MSI - system assigned and user assigned.
 		msiEndpoint, err := adal.GetMSIVMEndpoint()
 		if err != nil {
-			klog.Errorf("Failed to get MSI endpoint. Error: %+v", err)
-			return nil, err
+			return nil, fmt.Errorf("failed to get MSI VM endpoint, error: %+v", err)
 		}
 		// UserAssignedIdentityID is empty, so we are going to use system assigned MSI
 		if azureConfig.UserAssignedIdentityID == "" {
 			klog.Infof("MIC using system assigned identity for authentication.")
 			spt, err = adal.NewServicePrincipalTokenFromMSI(msiEndpoint, azureEnv.ResourceManagerEndpoint)
 			if err != nil {
-				klog.Errorf("Get token from system assigned MSI error: %+v", err)
-				return nil, err
+				return nil, fmt.Errorf("failed to get token from system assigned MSI, error: %+v", err)
 			}
 		} else { // User assigned identity usage.
 			klog.Infof("MIC using user assigned identity: %s for authentication.", utils.RedactClientID(azureConfig.UserAssignedIdentityID))
 			spt, err = adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(msiEndpoint, azureEnv.ResourceManagerEndpoint, azureConfig.UserAssignedIdentityID)
 			if err != nil {
-				klog.Errorf("Get token from user assigned MSI error: %+v", err)
-				return nil, err
+				return nil, fmt.Errorf("failed to token from user assigned MSI, error: %+v", err)
 			}
 		}
 	} else { // This is the default scenario - use service principal to get the token.
@@ -113,8 +106,7 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 			azureEnv.ResourceManagerEndpoint,
 		)
 		if err != nil {
-			klog.Errorf("Get service principal token error: %+v", err)
-			return nil, err
+			return nil, fmt.Errorf("failed to get service principal token, error: %+v", err)
 		}
 	}
 
@@ -130,13 +122,11 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 
 	client.VMSSClient, err = NewVMSSClient(azureConfig, spt)
 	if err != nil {
-		klog.Errorf("Create VMSS Client error: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create VMSS Client, error: %+v", err)
 	}
 	client.VMClient, err = NewVirtualMachinesClient(azureConfig, spt)
 	if err != nil {
-		klog.Errorf("Create VM Client error: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create VM Client, error: %+v", err)
 	}
 
 	return client, nil
@@ -156,8 +146,7 @@ func withInspection() autorest.PrepareDecorator {
 func (c *Client) GetUserMSIs(name string, isvmss bool) ([]string, error) {
 	idH, _, err := c.getIdentityResource(name, isvmss)
 	if err != nil {
-		klog.Errorf("GetUserMSIs: get identity resource failed with error %v", err)
-		return nil, err
+		return nil, fmt.Errorf("[GetUserMSIs] failed to get identity resource, error %+v", err)
 	}
 	info := idH.IdentityInfo()
 	if info == nil {
@@ -184,7 +173,7 @@ func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs [
 	for _, userAssignedMSIID := range removeUserAssignedMSIIDs {
 		requiresUpdate = true
 		if err := info.RemoveUserIdentity(userAssignedMSIID); err != nil {
-			return fmt.Errorf("could not remove identity from node %s: %v", name, err)
+			return fmt.Errorf("failed to remove identity from node %s, error: %+v", name, err)
 		}
 	}
 	// add new ids to the list
@@ -215,12 +204,11 @@ func (c *Client) RemoveUserMSI(userAssignedMSIID, name string, isvmss bool) erro
 
 	info := idH.IdentityInfo()
 	if info == nil {
-		klog.Errorf("Identity null for vm: %s ", name)
-		return fmt.Errorf("identity null for vm: %s ", name)
+		return fmt.Errorf("identity nil for vm: %s ", name)
 	}
 
 	if err := info.RemoveUserIdentity(userAssignedMSIID); err != nil {
-		return fmt.Errorf("could not remove identity from node %s: %v", name, err)
+		return fmt.Errorf("failed to remove identity from node %s, error: %+v", name, err)
 	}
 
 	if err := updateFunc(); err != nil {

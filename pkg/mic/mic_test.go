@@ -741,8 +741,7 @@ func TestSimpleMICClient(t *testing.T) {
 	testPass := false
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 
 	if listAssignedIDs != nil {
@@ -769,7 +768,6 @@ func TestSimpleMICClient(t *testing.T) {
 
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
 		t.Fatalf("list assigned failed")
 	}
 
@@ -797,8 +795,7 @@ func TestSimpleMICClient(t *testing.T) {
 
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Fatalf("list assigned failed")
+		t.Fatalf("list assigned failed, error: %v", err)
 	}
 
 	if (*listAssignedIDs)[0].Status.Status != aadpodid.AssignedIDCreated {
@@ -880,8 +877,7 @@ func TestAddDelMICClient(t *testing.T) {
 
 	//One id should be left around. Rest should be removed
 	if gotLen != expectedLen {
-		klog.Errorf("Expected len: %d. Got: %d", expectedLen, gotLen)
-		t.Fatalf("Add and delete id at same time mismatch")
+		t.Fatalf("Add and delete id at same time mismatch, Expected len: %d. Got: %d", expectedLen, gotLen)
 	}
 
 	// Delete the pod
@@ -907,22 +903,19 @@ func TestAddDelMICClient(t *testing.T) {
 
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Fatalf("list assigned failed")
+		t.Fatalf("list assigned failed, error %+v", err)
 	}
 
 	expectedLen = 1
 	gotLen = len(*listAssignedIDs)
 	//One id should be left around. Rest should be removed
 	if gotLen != expectedLen {
-		klog.Errorf("Expected len: %d. Got: %d", expectedLen, gotLen)
-		t.Fatalf("Add and delete id at same time mismatch")
+		t.Fatalf("Add and delete id at same time mismatch, Expected len: %d. Got: %d", expectedLen, gotLen)
 	} else {
 		gotID := (*listAssignedIDs)[0].Name
 		expectedID := "test-pod3-default-test-id3"
 		if gotID != expectedID {
-			klog.Errorf("Expected %s. Got: %s", expectedID, gotID)
-			t.Fatalf("Add and delete id at same time. Found wrong id")
+			t.Fatalf("Add and delete id at same time. Found wrong id, Expected len: %d. Got: %d", expectedLen, gotLen)
 		}
 	}
 }
@@ -970,8 +963,7 @@ func TestMicAddDelVMSS(t *testing.T) {
 	}
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 3) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 3, len(*listAssignedIDs))
@@ -992,8 +984,7 @@ func TestMicAddDelVMSS(t *testing.T) {
 	}
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 2) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 2, len(*listAssignedIDs))
@@ -1015,8 +1006,7 @@ func TestMicAddDelVMSS(t *testing.T) {
 	}
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 1) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
@@ -1058,8 +1048,7 @@ func TestMICStateFlow(t *testing.T) {
 
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 1) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
@@ -1081,8 +1070,7 @@ func TestMICStateFlow(t *testing.T) {
 
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 1) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
@@ -1108,8 +1096,7 @@ func TestMICStateFlow(t *testing.T) {
 	}
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 2) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 2, len(*listAssignedIDs))
@@ -1136,8 +1123,7 @@ func TestMICStateFlow(t *testing.T) {
 	}
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 0) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 0, len(*listAssignedIDs))
@@ -1170,8 +1156,7 @@ func TestForceNamespaced(t *testing.T) {
 	}
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 1) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
@@ -1194,8 +1179,7 @@ func TestForceNamespaced(t *testing.T) {
 
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 2) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
@@ -1240,8 +1224,7 @@ func TestSyncRetryLoop(t *testing.T) {
 	}
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 1) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
@@ -1262,8 +1245,7 @@ func TestSyncRetryLoop(t *testing.T) {
 
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 1) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
@@ -1279,8 +1261,7 @@ func TestSyncRetryLoop(t *testing.T) {
 
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 0) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 0, len(*listAssignedIDs))
@@ -1317,8 +1298,7 @@ func TestSyncNodeNotFound(t *testing.T) {
 
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 10) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 10, len(*listAssignedIDs))
@@ -1346,8 +1326,7 @@ func TestSyncNodeNotFound(t *testing.T) {
 
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 6) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 6, len(*listAssignedIDs))
@@ -1389,8 +1368,7 @@ func TestProcessingTimeForScale(t *testing.T) {
 
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 20000) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 20000, len(*listAssignedIDs))
@@ -1406,8 +1384,7 @@ func TestProcessingTimeForScale(t *testing.T) {
 	}
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 10000) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 10000, len(*listAssignedIDs))
@@ -1476,8 +1453,7 @@ func TestMicAddDelVMSSwithImmutableIdentities(t *testing.T) {
 	}
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 3) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 3, len(*listAssignedIDs))
@@ -1498,8 +1474,7 @@ func TestMicAddDelVMSSwithImmutableIdentities(t *testing.T) {
 	}
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 2) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 2, len(*listAssignedIDs))
@@ -1521,8 +1496,7 @@ func TestMicAddDelVMSSwithImmutableIdentities(t *testing.T) {
 	}
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		klog.Error(err)
-		t.Errorf("list assigned failed")
+		t.Errorf("list assigned failed, error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 1) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))

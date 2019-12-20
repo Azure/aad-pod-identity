@@ -145,15 +145,13 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 	}
 	leaderElector, err := c.NewLeaderElector(clientSet, recorder, leaderElectionConfig)
 	if err != nil {
-		klog.Errorf("New leader elector failure. Error: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed leader election, error: %+v", err)
 	}
 	c.leaderElector = leaderElector
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		klog.Errorf("Not able to create New Reporter. Error: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create metrics reporter, error: %+v", err)
 	}
 	c.Reporter = reporter
 	return c, nil
@@ -178,7 +176,6 @@ func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder reco
 			Identity:      c.Instance,
 			EventRecorder: recorder})
 	if err != nil {
-		klog.Errorf("Resource lock creation for leader election failed with error : %v", err)
 		return nil, err
 	}
 	config := leaderelection.LeaderElectionConfig{

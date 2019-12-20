@@ -151,8 +151,7 @@ func (c *KubeClient) getPodList(podip string) ([]*v1.Pod, error) {
 	for _, o := range list {
 		pod, ok := o.(*v1.Pod)
 		if !ok {
-			err := fmt.Errorf("could not cast %T to %s", pod, "v1.Pod")
-			klog.Error(err)
+			err := fmt.Errorf("failed to cast %T to %s", pod, "v1.Pod")
 			return nil, err
 		}
 		if pod.Status.PodIP == podip && isPhaseValid(pod.Status.Phase) {
@@ -161,7 +160,6 @@ func (c *KubeClient) getPodList(podip string) ([]*v1.Pod, error) {
 	}
 	if len(podList) == 0 {
 		err := fmt.Errorf("pod list empty")
-		klog.Error(err)
 		return nil, err
 	}
 	return podList, nil
