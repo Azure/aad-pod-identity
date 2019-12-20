@@ -42,7 +42,7 @@ func (c *TestKubeClient) ListPodIds(podns, podname string) (map[string][]aadpodi
 }
 
 func TestGetTokenForMatchingIDBySP(t *testing.T) {
-	s := NewServer(false, "default", false)
+	s := NewServer("default", false)
 	fakeClient := fake.NewSimpleClientset()
 	reporter, err := metrics.NewReporter()
 	if err != nil {
@@ -57,7 +57,7 @@ func TestGetTokenForMatchingIDBySP(t *testing.T) {
 
 	kubeClient := &k8s.KubeClient{ClientSet: fakeClient}
 	s.KubeClient = kubeClient
-	s.TokenClient = NewStandardTokenClient()
+	s.TokenClient = NewStandardTokenClient(kubeClient, 2, 1, 1, false)
 
 	secretRef := v1.SecretReference{
 		Name:      "clientSecret",
@@ -72,7 +72,7 @@ func TestGetTokenForMatchingIDBySP(t *testing.T) {
 			ClientPassword: secretRef,
 		},
 	}
-	s.GetToken(context.Background(), podID.Spec.ClientID, "https://management.azure.com/", podID)
+	s.TokenClient.GetToken(context.Background(), podID.Spec.ClientID, "https://management.azure.com/", podID)
 }
 
 func TestGetIdentities(t *testing.T) {
@@ -83,6 +83,7 @@ func TestGetIdentities(t *testing.T) {
 		expectedFoundInCreatedState bool
 		expectedErr                 bool
 		expectedAzureIdentity       aadpodid.AzureIdentity
+		isNamespaced                bool
 	}{
 		{
 			name:            "no azure identities",
@@ -190,20 +191,14 @@ func TestGetIdentities(t *testing.T) {
 		},
 	}
 
-	s := NewServer(false, "default", false)
-	s.TokenClient = NewStandardTokenClient()
-	s.ListPodIDsRetryAttemptsForCreated = 2
-	s.ListPodIDsRetryAttemptsForAssigned = 1
-	s.ListPodIDsRetryIntervalInSeconds = 1
-
 	for i, tc := range cases {
 		t.Log(i, tc.name)
-		s.KubeClient = NewTestKubeClient(tc.azureIdentities)
+		tokenClient := NewStandardTokenClient(NewTestKubeClient(tc.azureIdentities), 2, 1, 1, tc.isNamespaced)
 
 		testPodName := fmt.Sprintf("testpod%d", i)
 		testPodNs := fmt.Sprintf("testpodns%d", i)
 
-		azIdentity, foundInCreatedState, err := s.GetIdentities(context.Background(), testPodName, testPodNs, tc.clientID)
+		azIdentity, foundInCreatedState, err := tokenClient.GetIdentities(context.Background(), testPodName, testPodNs, tc.clientID)
 		assert.Equal(t, err != nil, tc.expectedErr)
 		assert.Equal(t, foundInCreatedState, tc.expectedFoundInCreatedState)
 		assert.True(t, reflect.DeepEqual(tc.expectedAzureIdentity, azIdentity))
