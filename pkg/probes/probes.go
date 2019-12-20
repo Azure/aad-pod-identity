@@ -3,7 +3,7 @@ package probes
 import (
 	"net/http"
 
-	log "github.com/Azure/aad-pod-identity/pkg/logger"
+	"k8s.io/klog"
 )
 
 // InitHealthProbe - sets up a health probe which responds with success (200 - OK) once its initialized.
@@ -21,26 +21,26 @@ func InitHealthProbe(condition *bool) {
 	})
 }
 
-func startAsync(port string, log log.Logger) {
+func startAsync(port string) {
 	err := http.ListenAndServe(":"+port, nil)
 	if err != nil {
-		log.Errorf("Http listen and serve error: %+v", err)
+		klog.Errorf("Http listen and serve error: %+v", err)
 		panic(err)
 	} else {
-		log.Info("Http listen and serve started !")
+		klog.Info("Http listen and serve started !")
 	}
 }
 
 //Start - Starts the required http server to start the probe to respond.
-func Start(port string, log log.Logger) {
-	go startAsync(port, log)
+func Start(port string) {
+	go startAsync(port)
 }
 
 // InitAndStart - Initialize the default probes and starts the http listening port.
-func InitAndStart(port string, condition *bool, log log.Logger) {
+func InitAndStart(port string, condition *bool) {
 	InitHealthProbe(condition)
-	log.Infof("Initialized health probe on port %s", port)
+	klog.Infof("Initialized health probe on port %s", port)
 	// start the probe.
-	Start(port, log)
-	log.Info("Started health probe")
+	Start(port)
+	klog.Info("Started health probe")
 }

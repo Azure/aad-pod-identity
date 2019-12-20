@@ -5,10 +5,11 @@ import (
 	"sync"
 	"time"
 
-	log "github.com/Azure/aad-pod-identity/pkg/logger"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
+
+	"k8s.io/klog"
 )
 
 // This const block defines the metric names.
@@ -294,20 +295,20 @@ func (r *Reporter) ReportOperation(operationType string, measurement stats.Measu
 }
 
 // RegisterAndExport register the views for the measures and expose via prometheus exporter
-func RegisterAndExport(port string, log log.Logger) error {
+func RegisterAndExport(port string) error {
 	err := registerViews()
 	if err != nil {
-		log.Errorf("Failed to register views for metrics. error:%v", err)
+		klog.Errorf("Failed to register views for metrics. error:%v", err)
 		return err
 	}
-	log.Infof("Registered views for metric")
-	exporter, err := newPrometheusExporter(componentNamespace, port, log)
+	klog.Infof("Registered views for metric")
+	exporter, err := newPrometheusExporter(componentNamespace, port)
 	if err != nil {
-		log.Errorf("Prometheus exporter error: %+v", err)
+		klog.Errorf("Prometheus exporter error: %+v", err)
 		return err
 	}
 	view.RegisterExporter(exporter)
-	log.Infof("Registered and exported metrics on port %s", port)
+	klog.Infof("Registered and exported metrics on port %s", port)
 	return nil
 }
 

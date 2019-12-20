@@ -4,8 +4,9 @@ import (
 	"errors"
 	"strings"
 
+	"k8s.io/klog"
+
 	"github.com/coreos/go-iptables/iptables"
-	log "github.com/sirupsen/logrus"
 )
 
 var (
@@ -55,7 +56,7 @@ func LogCustomChain() error {
 	if err != nil {
 		return err
 	}
-	log.Debugf("Rules for table(%s) chain(%s) rules(%+v)", tablename, customchainname, strings.Join(rules, ", "))
+	klog.V(5).Infof("Rules for table(%s) chain(%s) rules(%+v)", tablename, customchainname, strings.Join(rules, ", "))
 
 	return nil
 }

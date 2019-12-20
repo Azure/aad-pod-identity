@@ -26,8 +26,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	utils "github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/go-autorest/autorest/adal"
-
-	log "github.com/sirupsen/logrus"
+	"k8s.io/klog"
 )
 
 const (
@@ -65,7 +64,7 @@ type NMIResponse struct {
 func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata bool) *Server {
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		log.Errorf("Error creating new reporter to emit metrics: %v", err)
+		klog.Errorf("Error creating new reporter to emit metrics: %v", err)
 	} else {
 		// keeping this reference to be used in ServeHTTP, as server is not accessible in ServeHTTP
 		appHandlerReporter = reporter
@@ -93,21 +92,21 @@ func (s *Server) Run() error {
 	}
 	mux.Handle("/", appHandler(s.defaultPathHandler))
 
-	log.Infof("Listening on port %s", s.NMIPort)
+	klog.Infof("Listening on port %s", s.NMIPort)
 	if err := http.ListenAndServe(":"+s.NMIPort, mux); err != nil {
-		log.Fatalf("Error creating http server: %+v", err)
+		klog.Fatalf("Error creating http server: %+v", err)
 	}
 	return nil
 }
 
 func (s *Server) updateIPTableRulesInternal() {
-	log.Debugf("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, s.MetadataIP, s.MetadataPort, s.NMIPort)
+	klog.V(5).Infof("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, s.MetadataIP, s.MetadataPort, s.NMIPort)
 
 	if err := iptables.AddCustomChain(s.MetadataIP, s.MetadataPort, s.HostIP, s.NMIPort); err != nil {
-		log.Fatalf("%s", err)
+		klog.Fatalf("%s", err)
 	}
 	if err := iptables.LogCustomChain(); err != nil {
-		log.Fatalf("%s", err)
+		klog.Fatalf("%s", err)
 	}
 }
 
@@ -140,7 +139,7 @@ loop:
 	}
 }
 
-type appHandler func(*log.Entry, http.ResponseWriter, *http.Request) string
+type appHandler func(http.ResponseWriter, *http.Request) string
 
 type responseWriter struct {
 	http.ResponseWriter
@@ -161,11 +160,8 @@ var appHandlerReporter *metrics.Reporter
 // ServeHTTP implements the net/http server handler interface
 // and recovers from panics.
 func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logger := log.WithFields(log.Fields{
-		"req.method": r.Method,
-		"req.path":   r.URL.Path,
-		"req.remote": parseRemoteAddr(r.RemoteAddr),
-	})
+	tracker := fmt.Sprintf("req.method=%s reg.path=%s req.remote=%s", r.Method, r.URL.Path, parseRemoteAddr(r.RemoteAddr))
+
 	// Set the header in advance so that both success as well
 	// as error paths have it set as application/json content type.
 	w.Header().Set("Content-Type", "application/json")
@@ -183,15 +179,14 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			default:
 				err = errors.New("Unknown error")
 			}
-			logger.WithField("res.status", http.StatusInternalServerError).
-				Errorf("Panic processing request: %+v, file: %s, line: %d, stacktrace: '%s'", r, file, line, stack)
+			klog.Errorf("Panic processing request: %+v, file: %s, line: %d, stacktrace: '%s' %s res.status=%d", r, file, line, stack, tracker, http.StatusInternalServerError)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}()
 	rw := newResponseWriter(w)
-	ns := fn(logger, rw, r)
+	ns := fn(rw, r)
 	latency := time.Since(start)
-	logger.Infof("Status (%d) took %d ns", rw.statusCode, latency.Nanoseconds())
+	klog.Infof("Status (%d) took %d ns", rw.statusCode, latency.Nanoseconds())
 
 	_, resource := parseRequestClientIDAndResource(r)
 
@@ -205,33 +200,32 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) (ns string) {
+func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string) {
 	hostIP := parseRemoteAddr(r.RemoteAddr)
 	rqClientID, rqResource := parseRequestClientIDAndResource(r)
 
 	podns, podname := parseRequestHeader(r)
 	if podns == "" || podname == "" {
-		logger.Errorf("missing podname and podns from request")
+		klog.Error("missing podname and podns from request")
 		http.Error(w, "missing 'podname' and 'podns' from request header", http.StatusBadRequest)
 		return
 	}
 	// set the ns so it can be used for metrics
 	ns = podns
 	if hostIP != localhost {
-		msg := "request remote address is not from a host"
-		logger.Error(msg)
-		http.Error(w, msg, http.StatusInternalServerError)
+		klog.Errorf("request remote address is not from a host")
+		http.Error(w, "request remote address is not from a host", http.StatusInternalServerError)
 		return
 	}
 	if !validateResourceParamExists(rqResource) {
-		logger.Warning("parameter resource cannot be empty")
+		klog.Warning("parameter resource cannot be empty")
 		http.Error(w, "parameter resource cannot be empty", http.StatusBadRequest)
 		return
 	}
-	podIDs, identityInCreatedStateFound, err := s.listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID)
+	podIDs, identityInCreatedStateFound, err := s.listPodIDsWithRetry(r.Context(), s.KubeClient, podns, podname, rqClientID)
 	if err != nil {
-		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
-		logger.Errorf("%s, %+v", msg, err)
+		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in desired state", podns, podname)
+		klog.Errorf("%s, %+v", msg, err)
 		http.Error(w, msg, getErrorResponseStatusCode(identityInCreatedStateFound))
 		return
 	}
@@ -246,7 +240,7 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 				filterPodIdentities = append(filterPodIdentities, val)
 			} else {
 				// unmatched namespaced
-				logger.Errorf("pod:%s/%s has identity %s/%s but identity is namespaced will be ignored", podns, podname, val.Name, val.Namespace)
+				klog.Errorf("pod:%s/%s has identity %s/%s but identity is namespaced will be ignored", podns, podname, val.Name, val.Namespace)
 			}
 		} else {
 			// not in namespaced mode
@@ -254,9 +248,9 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 		}
 	}
 	podIDs = filterPodIdentities
-	token, clientID, err := getTokenForMatchingID(s.KubeClient, logger, rqClientID, rqResource, podIDs)
+	token, clientID, err := getTokenForMatchingID(s.KubeClient, rqClientID, rqResource, podIDs)
 	if err != nil {
-		logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
+		klog.Errorf("failed to get service principal token for pod:%s/%s, err: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
@@ -266,7 +260,7 @@ func (s *Server) hostHandler(logger *log.Entry, w http.ResponseWriter, r *http.R
 	}
 	response, err := json.Marshal(nmiResp)
 	if err != nil {
-		logger.Errorf("failed to marshal service principal token and clientid for pod:%s/%s, %+v", podns, podname, err)
+		klog.Errorf("failed to marshal service principal token and clientid for pod:%s/%s, err: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -309,25 +303,25 @@ func (s *Server) isMIC(podNS, rsName string) bool {
 	return false
 }
 
-func (s *Server) getTokenForExceptedPod(logger *log.Entry, rqClientID, rqResource string) ([]byte, int, error) {
+func (s *Server) getTokenForExceptedPod(rqClientID, rqResource string) ([]byte, int, error) {
 	var token *adal.Token
 	var err error
 	// ClientID is empty, so we are going to use System assigned MSI
 	if rqClientID == "" {
-		logger.Infof("Fetching token for system assigned MSI")
+		klog.Infof("Fetching token for system assigned MSI")
 		token, err = auth.GetServicePrincipalTokenFromMSI(rqResource)
 	} else { // User assigned identity usage.
-		logger.Infof("Fetching token for user assigned MSI for id: %s", rqResource)
+		klog.Infof("Fetching token for user assigned MSI for resource: %s", rqResource)
 		token, err = auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(rqClientID, rqResource)
 	}
 	if err != nil {
-		logger.Errorf("Failed to get service principal token. Error: %+v", err)
+		klog.Errorf("Failed to get service principal token, err: %+v", err)
 		// TODO: return the right status code based on the error we got from adal.
 		return nil, http.StatusForbidden, err
 	}
 	response, err := json.Marshal(newMSIResponse(*token))
 	if err != nil {
-		logger.Errorf("Failed to marshal service principal token. Error: %+v", err)
+		klog.Errorf("Failed to marshal service principal token, err: %+v", err)
 		return nil, http.StatusInternalServerError, err
 	}
 	return response, http.StatusOK, nil
@@ -338,24 +332,23 @@ func (s *Server) getTokenForExceptedPod(logger *log.Entry, rqClientID, rqResourc
 // AAD using adal
 // if the requests contains client id it validates it against the admin
 // configured id.
-func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) (ns string) {
+func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) {
 	podIP := parseRemoteAddr(r.RemoteAddr)
 	rqClientID, rqResource := parseRequestClientIDAndResource(r)
 
 	if podIP == "" {
-		msg := "request remote address is empty"
-		logger.Error(msg)
-		http.Error(w, msg, http.StatusInternalServerError)
+		klog.Error("request remote address is empty")
+		http.Error(w, "request remote address is empty", http.StatusInternalServerError)
 		return
 	}
 	if !validateResourceParamExists(rqResource) {
-		logger.Warning("parameter resource cannot be empty")
+		klog.Warning("parameter resource cannot be empty")
 		http.Error(w, "parameter resource cannot be empty", http.StatusBadRequest)
 		return
 	}
 	podns, podname, rsName, selectors, err := s.KubeClient.GetPodInfo(podIP)
 	if err != nil {
-		logger.Errorf("missing podname for podip:%s, %+v", podIP, err)
+		klog.Errorf("missing podname for podip:%s, %+v", podIP, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -363,17 +356,17 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	ns = podns
 	exceptionList, err := s.KubeClient.ListPodIdentityExceptions(podns)
 	if err != nil {
-		logger.Errorf("getting list of azurepodidentityexceptions failed with error: %+v", err)
+		klog.Errorf("getting list of azurepodidentityexceptions in %s namespace failed with error: %+v", podns, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// If its mic, then just directly get the token and pass back.
 	if pod.IsPodExcepted(selectors.MatchLabels, *exceptionList) || s.isMIC(podns, rsName) {
-		logger.Infof("Exception pod %s/%s token handling", podns, podname)
-		response, errorCode, err := s.getTokenForExceptedPod(logger, rqClientID, rqResource)
+		klog.Infof("Exception pod %s/%s token handling", podns, podname)
+		response, errorCode, err := s.getTokenForExceptedPod(rqClientID, rqResource)
 		if err != nil {
-			logger.Errorf("failed to get service principal token for pod:%s/%s.  Error code: %d. Error: %+v", podns, podname, errorCode, err)
+			klog.Errorf("failed to get service principal token for pod:%s/%s.  Error code: %d. Error: %+v", podns, podname, errorCode, err)
 			http.Error(w, err.Error(), errorCode)
 			return
 		}
@@ -381,23 +374,23 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	podIDs, identityInCreatedStateFound, err := s.listPodIDsWithRetry(r.Context(), s.KubeClient, logger, podns, podname, rqClientID)
+	podIDs, identityInCreatedStateFound, err := s.listPodIDsWithRetry(r.Context(), s.KubeClient, podns, podname, rqClientID)
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
-		logger.Errorf("%s, %+v", msg, err)
+		klog.Errorf("%s, %+v", msg, err)
 		http.Error(w, msg, getErrorResponseStatusCode(identityInCreatedStateFound))
 		return
 	}
 
-	token, _, err := getTokenForMatchingID(s.KubeClient, logger, rqClientID, rqResource, podIDs)
+	token, _, err := getTokenForMatchingID(s.KubeClient, rqClientID, rqResource, podIDs)
 	if err != nil {
-		logger.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
+		klog.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 	response, err := json.Marshal(newMSIResponse(*token))
 	if err != nil {
-		logger.Errorf("failed to marshal service principal token for pod:%s/%s, %+v", podns, podname, err)
+		klog.Errorf("failed to marshal service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -405,24 +398,24 @@ func (s *Server) msiHandler(logger *log.Entry, w http.ResponseWriter, r *http.Re
 	return
 }
 
-func getTokenForMatchingID(kubeClient k8s.Client, logger *log.Entry, rqClientID string, rqResource string, podIDs []aadpodid.AzureIdentity) (token *adal.Token, clientID string, err error) {
+func getTokenForMatchingID(kubeClient k8s.Client, rqClientID, rqResource string, podIDs []aadpodid.AzureIdentity) (token *adal.Token, clientID string, err error) {
 	rqHasClientID := len(rqClientID) != 0
 	for _, v := range podIDs {
 		clientID := v.Spec.ClientID
 		if rqHasClientID && !strings.EqualFold(rqClientID, clientID) {
-			logger.Warningf("clientid mismatch, requested:%s available:%s", rqClientID, clientID)
+			klog.Warningf("clientid mismatch, requested:%s available:%s", rqClientID, clientID)
 			continue
 		}
 
 		idType := v.Spec.Type
 		switch idType {
 		case aadpodid.UserAssignedMSI:
-			logger.Infof("matched identityType:%v clientid:%s resource:%s", idType, utils.RedactClientID(clientID), rqResource)
+			klog.Infof("matched identityType:%v clientid:%s resource:%s", idType, utils.RedactClientID(clientID), rqResource)
 			token, err := auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, rqResource)
 			return token, clientID, err
 		case aadpodid.ServicePrincipal:
 			tenantid := v.Spec.TenantID
-			logger.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantid, utils.RedactClientID(clientID), rqResource)
+			klog.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantid, utils.RedactClientID(clientID), rqResource)
 			secret, err := kubeClient.GetSecret(&v.Spec.ClientPassword)
 			if err != nil {
 				return nil, clientID, err
@@ -472,11 +465,11 @@ func parseRequestClientIDAndResource(r *http.Request) (clientID string, resource
 }
 
 // defaultPathHandler creates a new request and returns the response body and code
-func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r *http.Request) (ns string) {
+func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) (ns string) {
 	client := &http.Client{}
 	req, err := http.NewRequest(r.Method, r.URL.String(), r.Body)
 	if err != nil || req == nil {
-		logger.Errorf("failed creating a new request, %s %+v", r.URL.String(), err)
+		klog.Errorf("failed creating a new request for %s, err: %+v", r.URL.String(), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -489,7 +482,7 @@ func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r 
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		logger.Errorf("failed executing request, %s %+v", req.URL.String(), err)
+		klog.Errorf("failed executing request for %s, err: %+v", req.URL.String(), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -500,7 +493,7 @@ func (s *Server) defaultPathHandler(logger *log.Entry, w http.ResponseWriter, r 
 	}()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		logger.Errorf("failed io operation of reading response body, %+v", err)
+		klog.Errorf("failed io operation of reading response body for %s, %+v", req.URL.String(), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	w.Write(body)
@@ -521,25 +514,25 @@ func copyHeader(dst, src http.Header) {
 }
 
 func handleTermination() {
-	log.Info("Received SIGTERM, shutting down")
+	klog.Info("Received SIGTERM, shutting down")
 
 	exitCode := 0
 	// clean up iptables
 	if err := iptables.DeleteCustomChain(); err != nil {
-		log.Errorf("Error cleaning up during shutdown: %v", err)
+		klog.Errorf("Error cleaning up during shutdown: %v", err)
 		exitCode = 1
 	}
 
 	// wait for pod to delete
-	log.Info("Handled termination, awaiting pod deletion")
+	klog.Info("Handled termination, awaiting pod deletion")
 	time.Sleep(10 * time.Second)
 
-	log.Infof("Exiting with %v", exitCode)
+	klog.Infof("Exiting with %v", exitCode)
 	os.Exit(exitCode)
 }
 
 // listPodIDsWithRetry returns a list of matched identities in Assigned state, boolean indicating if at least an identity was found in Created state and error if any
-func (s *Server) listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, logger *log.Entry, podns, podname, rqClientID string) ([]aadpodid.AzureIdentity, bool, error) {
+func (s *Server) listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, podns, podname, rqClientID string) ([]aadpodid.AzureIdentity, bool, error) {
 	attempt := 0
 	var err error
 	var idStateMap map[string][]aadpodid.AzureIdentity
@@ -555,7 +548,7 @@ func (s *Server) listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client,
 				// assigned identites created with old version of mic will not contain a state. So first we check to see if an assigned identity with
 				// no state exists that matches req client id.
 				if len(idStateMap[""]) != 0 {
-					logger.Warningf("found assignedIDs with no state for pod:%s/%s. AssignedIDs created with old version of mic.", podns, podname)
+					klog.Warningf("found assignedIDs with no state for pod:%s/%s. AssignedIDs created with old version of mic.", podns, podname)
 					return idStateMap[""], true, nil
 				}
 				if len(idStateMap[aadpodid.AssignedIDAssigned]) != 0 {
@@ -571,7 +564,7 @@ func (s *Server) listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client,
 				// check to ensure backward compatability with assignedIDs that have no state
 				for _, podID := range idStateMap[""] {
 					if strings.EqualFold(rqClientID, podID.Spec.ClientID) {
-						logger.Warningf("found assignedIDs with no state for pod:%s/%s. AssignedIDs created with old version of mic.", podns, podname)
+						klog.Warningf("found assignedIDs with no state for pod:%s/%s. AssignedIDs created with old version of mic.", podns, podname)
 						return idStateMap[""], true, nil
 					}
 				}
@@ -601,7 +594,7 @@ func (s *Server) listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client,
 			err = ctx.Err()
 			return nil, true, err
 		}
-		logger.Debugf("failed to get assigned ids for pod:%s/%s in ASSIGNED state, retrying attempt: %d", podns, podname, attempt)
+		klog.V(4).Infof("failed to get assigned ids for pod:%s/%s in ASSIGNED state, retrying attempt: %d", podns, podname, attempt)
 	}
 	return nil, true, fmt.Errorf("getting assigned identities for pod %s/%s in ASSIGNED state failed after %d attempts, retry duration [%d]s. Error: %v",
 		podns, podname, s.ListPodIDsRetryAttemptsForCreated+s.ListPodIDsRetryAttemptsForAssigned, s.ListPodIDsRetryIntervalInSeconds, err)
