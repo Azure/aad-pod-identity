@@ -2,6 +2,9 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+nameOverride: ""
+fullnameOverride: ""
+
 image:
   repository: mcr.microsoft.com/k8s/aad-pod-identity
   imagePullPolicy: Always
@@ -13,7 +16,7 @@ forceNameSpaced: "false"
 
 ## If using a separate service principal for aad-pod-identity instead of cluster service principal specify the following
 ## (The chart will perform the base64 encoding for you for values that are stored in secrets.)
-# adminsecret:
+adminsecret: {}
 #   cloud: <cloud environment name>
 #   subscriptionID: <subscription id>
 #   resourceGroup: <cluster resource group>
@@ -27,7 +30,7 @@ mic:
   tag: 1.5.4
 
   # log level. Uses V logs (glog)
-  # logVerbosity: 0
+  logVerbosity: 0
 
   resources:
     limits:
