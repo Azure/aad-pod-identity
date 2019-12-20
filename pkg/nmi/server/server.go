@@ -70,9 +70,9 @@ type NMIResponse struct {
 type TokenClient interface {
 	//GetIdentities gets the list of identities which match the
 	// given pod in the form of AzureIdentity.
-	GetIdentities(ctx context.Context, podns, podname, rqClientID string) ([]aadpodid.AzureIdentity, bool, error)
+	GetIdentities(ctx context.Context, podns, podname, rqClientID string) (aadpodid.AzureIdentity, bool, error)
 	// GetToken acquires a token by using the AzureIdentity.
-	GetToken(ctx context.Context, rqClientID, rqResource string, podIDs []aadpodid.AzureIdentity) (token *adal.Token, clientID string, err error)
+	GetToken(ctx context.Context, rqClientID, rqResource string, podID aadpodid.AzureIdentity) (token *adal.Token, clientID string, err error)
 }
 
 // NewServer will create a new Server with default values.
@@ -244,25 +244,6 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 		http.Error(w, msg, getErrorResponseStatusCode(identityInCreatedStateFound))
 		return
 	}
-
-	// filter out if we are in namespaced mode
-	filterPodIdentities := []aadpodid.AzureIdentity{}
-	for _, val := range podIDs {
-		if s.IsNamespaced || aadpodid.IsNamespacedIdentity(&val) {
-			// namespaced mode
-			if val.Namespace == podns {
-				// matched namespace
-				filterPodIdentities = append(filterPodIdentities, val)
-			} else {
-				// unmatched namespaced
-				klog.Errorf("pod:%s/%s has identity %s/%s but identity is namespaced will be ignored", podns, podname, val.Name, val.Namespace)
-			}
-		} else {
-			// not in namespaced mode
-			filterPodIdentities = append(filterPodIdentities, val)
-		}
-	}
-	podIDs = filterPodIdentities
 	token, clientID, err := s.GetToken(r.Context(), rqClientID, rqResource, podIDs)
 	if err != nil {
 		klog.Errorf("failed to get service principal token for pod:%s/%s, err: %+v", podns, podname, err)
