@@ -41,7 +41,6 @@ const (
 // Server encapsulates all of the parameters necessary for starting up
 // the server. These can be set via command line.
 type Server struct {
-	TokenClient
 	KubeClient                         k8s.Client
 	NMIPort                            string
 	MetadataIP                         string
@@ -49,15 +48,12 @@ type Server struct {
 	HostIP                             string
 	NodeName                           string
 	IPTableUpdateTimeIntervalInSeconds int
-	IsNamespaced                       bool
 	MICNamespace                       string
 	Initialized                        bool
 	BlockInstanceMetadata              bool
+	TokenClient                        TokenClient
 
-	ListPodIDsRetryAttemptsForCreated  int
-	ListPodIDsRetryAttemptsForAssigned int
-	ListPodIDsRetryIntervalInSeconds   int
-	Reporter                           *metrics.Reporter
+	Reporter *metrics.Reporter
 }
 
 // NMIResponse is the response returned to caller
@@ -76,7 +72,7 @@ type TokenClient interface {
 }
 
 // NewServer will create a new Server with default values.
-func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata bool) *Server {
+func NewServer(micNamespace string, blockInstanceMetadata bool) *Server {
 	reporter, err := metrics.NewReporter()
 	if err != nil {
 		klog.Errorf("Error creating new reporter to emit metrics: %v", err)
@@ -86,7 +82,6 @@ func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata boo
 		auth.InitReporter(reporter)
 	}
 	return &Server{
-		IsNamespaced:          isNamespaced,
 		MICNamespace:          micNamespace,
 		BlockInstanceMetadata: blockInstanceMetadata,
 		Reporter:              reporter,
@@ -237,14 +232,14 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 		http.Error(w, "parameter resource cannot be empty", http.StatusBadRequest)
 		return
 	}
-	podIDs, identityInCreatedStateFound, err := s.GetIdentities(r.Context(), podns, podname, rqClientID)
+	podIDs, identityInCreatedStateFound, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in desired state", podns, podname)
 		klog.Errorf("%s, %+v", msg, err)
 		http.Error(w, msg, getErrorResponseStatusCode(identityInCreatedStateFound))
 		return
 	}
-	token, clientID, err := s.GetToken(r.Context(), rqClientID, rqResource, podIDs)
+	token, clientID, err := s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, podIDs)
 	if err != nil {
 		klog.Errorf("failed to get service principal token for pod:%s/%s, err: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
@@ -370,7 +365,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 		return
 	}
 
-	podIDs, identityInCreatedStateFound, err := s.GetIdentities(r.Context(), podns, podname, rqClientID)
+	podIDs, identityInCreatedStateFound, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
 		klog.Errorf("%s, %+v", msg, err)
@@ -378,7 +373,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 		return
 	}
 
-	token, _, err := s.GetToken(r.Context(), rqClientID, rqResource, podIDs)
+	token, _, err := s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, podIDs)
 	if err != nil {
 		klog.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)

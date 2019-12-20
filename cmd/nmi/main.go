@@ -78,7 +78,7 @@ func main() {
 	exit := make(<-chan struct{})
 	client.Start(exit)
 	*forceNamespaced = *forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
-	s := server.NewServer(*forceNamespaced, *micNamespace, *blockInstanceMetadata)
+	s := server.NewServer(*micNamespace, *blockInstanceMetadata)
 	s.KubeClient = client
 	s.MetadataIP = *metadataIP
 	s.MetadataPort = *metadataPort
@@ -86,10 +86,7 @@ func main() {
 	s.HostIP = *hostIP
 	s.NodeName = *nodename
 	s.IPTableUpdateTimeIntervalInSeconds = *ipTableUpdateTimeIntervalInSeconds
-	s.ListPodIDsRetryAttemptsForCreated = *retryAttemptsForCreated
-	s.ListPodIDsRetryAttemptsForAssigned = *retryAttemptsForAssigned
-	s.ListPodIDsRetryIntervalInSeconds = *findIdentityRetryIntervalInSeconds
-	s.TokenClient = getTokenClient(*nmiMode)
+	s.TokenClient = getTokenClient(client)
 
 	if s.TokenClient == nil {
 		klog.Fatalf("failed to initialize token client")
@@ -109,10 +106,14 @@ func main() {
 	}
 }
 
-func getTokenClient(nmiMode string) server.TokenClient {
-	switch server.NMIMode(nmiMode) {
+func getTokenClient(client k8s.Client) server.TokenClient {
+	switch server.NMIMode(*nmiMode) {
 	case server.StandardNMIMode:
-		return server.NewStandardTokenClient()
+		return server.NewStandardTokenClient(client,
+			*retryAttemptsForCreated,
+			*retryAttemptsForAssigned,
+			*findIdentityRetryIntervalInSeconds,
+			*forceNamespaced)
 	default:
 		return nil
 	}
