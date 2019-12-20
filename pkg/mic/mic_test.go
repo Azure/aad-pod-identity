@@ -11,6 +11,7 @@ import (
 	internalaadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/config"
+	"github.com/Azure/aad-pod-identity/pkg/crd"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
@@ -327,7 +328,7 @@ func (c *TestPodClient) DeletePod(podName string, podNs string) {
 /****************** CRD MOCK ****************************/
 
 type TestCrdClient struct {
-	*Client
+	*crd.Client
 	mu            sync.Mutex
 	assignedIDMap map[string]*internalaadpodid.AzureAssignedIdentity
 	bindingMap    map[string]*aadpodid.AzureIdentityBinding

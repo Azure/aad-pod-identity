@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
+	"reflect"
 	"testing"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
@@ -10,10 +12,34 @@ import (
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
+	"github.com/stretchr/testify/assert"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
+
+/****************** CRD MOCK ****************************/
+
+type TestKubeClient struct {
+	k8s.Client
+	azureIdentities map[string][]aadpodid.AzureIdentity
+	err             error
+}
+
+func NewTestKubeClient(azids map[string][]aadpodid.AzureIdentity) *TestKubeClient {
+	return &TestKubeClient{
+		azureIdentities: azids,
+	}
+}
+
+func (c *TestKubeClient) setError(err error) {
+	c.err = err
+}
+
+func (c *TestKubeClient) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
+	return c.azureIdentities, c.err
+}
 
 func TestGetTokenForMatchingIDBySP(t *testing.T) {
 	s := NewServer(false, "default", false)
@@ -46,6 +72,140 @@ func TestGetTokenForMatchingIDBySP(t *testing.T) {
 			ClientPassword: secretRef,
 		},
 	}
-	podIDs := []aadpodid.AzureIdentity{podID}
-	s.GetToken(context.Background(), podID.Spec.ClientID, "https://management.azure.com/", podIDs)
+	s.GetToken(context.Background(), podID.Spec.ClientID, "https://management.azure.com/", podID)
+}
+
+func TestGetIdentities(t *testing.T) {
+	cases := []struct {
+		name                        string
+		azureIdentities             map[string][]aadpodid.AzureIdentity
+		clientID                    string
+		expectedFoundInCreatedState bool
+		expectedErr                 bool
+		expectedAzureIdentity       aadpodid.AzureIdentity
+	}{
+		{
+			name:            "no azure identities",
+			azureIdentities: make(map[string][]aadpodid.AzureIdentity),
+			expectedErr:     true,
+		},
+		{
+			name: "azure identities with old 1.3/1.4, no request client id",
+			azureIdentities: map[string][]aadpodid.AzureIdentity{
+				"": []aadpodid.AzureIdentity{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "azid1",
+							Namespace: "default",
+						},
+						Spec: aadpodid.AzureIdentitySpec{
+							ClientID: "clientid1",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "azid2",
+							Namespace: "default",
+						},
+						Spec: aadpodid.AzureIdentitySpec{
+							ClientID: "clientid2",
+						},
+					},
+				},
+			},
+			expectedFoundInCreatedState: true,
+			expectedErr:                 false,
+			expectedAzureIdentity: aadpodid.AzureIdentity{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "azid1",
+					Namespace: "default",
+				},
+				Spec: aadpodid.AzureIdentitySpec{
+					ClientID: "clientid1",
+				},
+			},
+		},
+		{
+			name: "no request client id, found in created state only",
+			azureIdentities: map[string][]aadpodid.AzureIdentity{
+				aadpodid.AssignedIDCreated: []aadpodid.AzureIdentity{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "azid3",
+							Namespace: "default",
+						},
+						Spec: aadpodid.AzureIdentitySpec{
+							ClientID: "clientid3",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "azid4",
+							Namespace: "default",
+						},
+						Spec: aadpodid.AzureIdentitySpec{
+							ClientID: "clientid4",
+						},
+					},
+				},
+			},
+			expectedFoundInCreatedState: true,
+			expectedErr:                 true,
+		},
+		{
+			name: "no request client id, found in assigned state",
+			azureIdentities: map[string][]aadpodid.AzureIdentity{
+				aadpodid.AssignedIDAssigned: []aadpodid.AzureIdentity{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "azid5",
+							Namespace: "default",
+						},
+						Spec: aadpodid.AzureIdentitySpec{
+							ClientID: "clientid5",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "azid6",
+							Namespace: "default",
+						},
+						Spec: aadpodid.AzureIdentitySpec{
+							ClientID: "clientid6",
+						},
+					},
+				},
+			},
+			expectedFoundInCreatedState: true,
+			expectedErr:                 false,
+			expectedAzureIdentity: aadpodid.AzureIdentity{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "azid5",
+					Namespace: "default",
+				},
+				Spec: aadpodid.AzureIdentitySpec{
+					ClientID: "clientid5",
+				},
+			},
+		},
+	}
+
+	s := NewServer(false, "default", false)
+	s.TokenClient = NewStandardTokenClient()
+	s.ListPodIDsRetryAttemptsForCreated = 2
+	s.ListPodIDsRetryAttemptsForAssigned = 1
+	s.ListPodIDsRetryIntervalInSeconds = 1
+
+	for i, tc := range cases {
+		t.Log(i, tc.name)
+		s.KubeClient = NewTestKubeClient(tc.azureIdentities)
+
+		testPodName := fmt.Sprintf("testpod%d", i)
+		testPodNs := fmt.Sprintf("testpodns%d", i)
+
+		azIdentity, foundInCreatedState, err := s.GetIdentities(context.Background(), testPodName, testPodNs, tc.clientID)
+		assert.Equal(t, err != nil, tc.expectedErr)
+		assert.Equal(t, foundInCreatedState, tc.expectedFoundInCreatedState)
+		assert.True(t, reflect.DeepEqual(tc.expectedAzureIdentity, azIdentity))
+	}
 }

@@ -92,7 +92,7 @@ func main() {
 	s.TokenClient = getTokenClient(*nmiMode)
 
 	if s.TokenClient == nil {
-		log.Fatalf("failed to initialize token client")
+		klog.Fatalf("failed to initialize token client")
 	}
 
 	// Health probe will always report success once its started. The contents

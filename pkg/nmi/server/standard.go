@@ -25,7 +25,36 @@ func NewStandardTokenClient() *StandardClient {
 }
 
 // GetIdentities ...
-func (s *Server) GetIdentities(ctx context.Context, podns, podname, rqClientID string) ([]aadpodid.AzureIdentity, bool, error) {
+func (s *Server) GetIdentities(ctx context.Context, podns, podname, rqClientID string) (aadpodid.AzureIdentity, bool, error) {
+	var podID aadpodid.AzureIdentity
+	podIDs, identityInCreatedStateFound, err := s.listPodIDsWithRetry(ctx, podns, podname, rqClientID)
+	if err == nil {
+		// filter out if we are in namespaced mode
+		filterPodIdentities := []aadpodid.AzureIdentity{}
+		for _, val := range podIDs {
+			if s.IsNamespaced || aadpodid.IsNamespacedIdentity(&val) {
+				// namespaced mode
+				if val.Namespace == podns {
+					// matched namespace
+					filterPodIdentities = append(filterPodIdentities, val)
+				} else {
+					// unmatched namespaced
+					log.Errorf("pod:%s/%s has identity %s/%s but identity is namespaced will be ignored", podns, podname, val.Name, val.Namespace)
+				}
+			} else {
+				// not in namespaced mode
+				filterPodIdentities = append(filterPodIdentities, val)
+			}
+		}
+		if len(podIDs) > 0 {
+			podID = podIDs[0]
+		}
+	}
+	return podID, identityInCreatedStateFound, err
+}
+
+// listPodIDsWithRetry returns a list of matched identities in Assigned state, boolean indicating if at least an identity was found in Created state and error if any
+func (s *Server) listPodIDsWithRetry(ctx context.Context, podns, podname, rqClientID string) ([]aadpodid.AzureIdentity, bool, error) {
 	attempt := 0
 	var err error
 	var idStateMap map[string][]aadpodid.AzureIdentity
@@ -94,38 +123,35 @@ func (s *Server) GetIdentities(ctx context.Context, podns, podname, rqClientID s
 }
 
 // GetToken ...
-func (s *Server) GetToken(ctx context.Context, rqClientID, rqResource string, podIDs []aadpodid.AzureIdentity) (token *adal.Token, clientID string, err error) {
+func (s *Server) GetToken(ctx context.Context, rqClientID, rqResource string, podID aadpodid.AzureIdentity) (token *adal.Token, clientID string, err error) {
 	rqHasClientID := len(rqClientID) != 0
-	for _, v := range podIDs {
-		clientID := v.Spec.ClientID
-		if rqHasClientID && !strings.EqualFold(rqClientID, clientID) {
-			log.Warningf("clientid mismatch, requested:%s available:%s", rqClientID, clientID)
-			continue
-		}
+	clientID = podID.Spec.ClientID
+	if rqHasClientID && !strings.EqualFold(rqClientID, clientID) {
+		log.Warningf("clientid mismatch, requested:%s available:%s", rqClientID, clientID)
+	}
 
-		idType := v.Spec.Type
-		switch idType {
-		case aadpodid.UserAssignedMSI:
-			log.Infof("matched identityType:%v clientid:%s resource:%s", idType, utils.RedactClientID(clientID), rqResource)
-			token, err := auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, rqResource)
-			return token, clientID, err
-		case aadpodid.ServicePrincipal:
-			tenantid := v.Spec.TenantID
-			log.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantid, utils.RedactClientID(clientID), rqResource)
-			secret, err := s.KubeClient.GetSecret(&v.Spec.ClientPassword)
-			if err != nil {
-				return nil, clientID, err
-			}
-			clientSecret := ""
-			for _, v := range secret.Data {
-				clientSecret = string(v)
-				break
-			}
-			token, err := auth.GetServicePrincipalToken(tenantid, clientID, clientSecret, rqResource)
-			return token, clientID, err
-		default:
-			return nil, clientID, fmt.Errorf("unsupported identity type %+v", idType)
+	idType := podID.Spec.Type
+	switch idType {
+	case aadpodid.UserAssignedMSI:
+		log.Infof("matched identityType:%v clientid:%s resource:%s", idType, utils.RedactClientID(clientID), rqResource)
+		token, err := auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, rqResource)
+		return token, clientID, err
+	case aadpodid.ServicePrincipal:
+		tenantid := podID.Spec.TenantID
+		log.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantid, utils.RedactClientID(clientID), rqResource)
+		secret, err := s.KubeClient.GetSecret(&podID.Spec.ClientPassword)
+		if err != nil {
+			return nil, clientID, err
 		}
+		clientSecret := ""
+		for _, v := range secret.Data {
+			clientSecret = string(v)
+			break
+		}
+		token, err := auth.GetServicePrincipalToken(tenantid, clientID, clientSecret, rqResource)
+		return token, clientID, err
+	default:
+		return nil, clientID, fmt.Errorf("unsupported identity type %+v", idType)
 	}
 
 	// We have not yet returned, so pass up an error
