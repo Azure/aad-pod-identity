@@ -12,14 +12,12 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	crd "github.com/Azure/aad-pod-identity/pkg/crd"
-	inlog "github.com/Azure/aad-pod-identity/pkg/logger"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/version"
-	"github.com/golang/glog"
-	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/informers/internalinterfaces"
@@ -51,12 +49,11 @@ type KubeClient struct {
 	// Crd client used to access our CRD resources.
 	CrdClient   *crd.Client
 	PodInformer cache.SharedIndexInformer
-	log         inlog.Logger
 	reporter    *metrics.Reporter
 }
 
 // NewKubeClient new kubernetes api client
-func NewKubeClient(log inlog.Logger, nodeName string, scale bool) (Client, error) {
+func NewKubeClient(nodeName string, scale bool) (Client, error) {
 	config, err := buildConfig()
 	if err != nil {
 		return nil, err
@@ -66,7 +63,7 @@ func NewKubeClient(log inlog.Logger, nodeName string, scale bool) (Client, error
 	if err != nil {
 		return nil, err
 	}
-	crdclient, err := crd.NewCRDClientLite(config, log, nodeName, scale)
+	crdclient, err := crd.NewCRDClientLite(config, nodeName, scale)
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +80,6 @@ func NewKubeClient(log inlog.Logger, nodeName string, scale bool) (Client, error
 		CrdClient:   crdclient,
 		ClientSet:   clientset,
 		PodInformer: podInformer,
-		log:         log,
 		reporter:    reporter,
 	}
 
@@ -92,7 +88,7 @@ func NewKubeClient(log inlog.Logger, nodeName string, scale bool) (Client, error
 
 func (c *KubeClient) Sync(exit <-chan struct{}) {
 	if !cache.WaitForCacheSync(exit, c.PodInformer.HasSynced) {
-		c.log.Errorf("Pod cache could not be synchronized")
+		klog.Errorf("Pod cache could not be synchronized")
 	}
 	c.CrdClient.SyncCacheLite(exit)
 }
@@ -156,7 +152,7 @@ func (c *KubeClient) getPodList(podip string) ([]*v1.Pod, error) {
 		pod, ok := o.(*v1.Pod)
 		if !ok {
 			err := fmt.Errorf("could not cast %T to %s", pod, "v1.Pod")
-			glog.Error(err)
+			klog.Error(err)
 			return nil, err
 		}
 		if pod.Status.PodIP == podip && isPhaseValid(pod.Status.Phase) {
@@ -165,7 +161,7 @@ func (c *KubeClient) getPodList(podip string) ([]*v1.Pod, error) {
 	}
 	if len(podList) == 0 {
 		err := fmt.Errorf("pod list empty")
-		glog.Error(err)
+		klog.Error(err)
 		return nil, err
 	}
 	return podList, nil
@@ -188,7 +184,7 @@ func (c *KubeClient) getPodListRetry(podip string, retries int, sleeptime time.D
 			break
 		}
 		i++
-		log.Warningf("List pod error: %+v. Retrying, attempt number: %d", err, i)
+		klog.Warningf("List pod error: %+v. Retrying, attempt number: %d", err, i)
 		time.Sleep(sleeptime * time.Millisecond)
 	}
 	// We reach here only if there is an error and we have exhausted all retries.

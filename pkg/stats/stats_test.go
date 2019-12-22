@@ -7,11 +7,9 @@ import (
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/stats"
-	"github.com/golang/glog"
 )
 
 func TestBasics(t *testing.T) {
-	glog.Infof("Test started")
 	validateMap := make(map[stats.StatsType]time.Duration)
 	stats.Init()
 	stats.Put(stats.Total, time.Second*20)
@@ -34,7 +32,6 @@ func TestBasics(t *testing.T) {
 }
 
 func TestConcurrency(t *testing.T) {
-	glog.Infof("Concurrency test starting")
 	stats.Init()
 	var wg sync.WaitGroup
 	var startWg sync.WaitGroup

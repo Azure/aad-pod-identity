@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/glog"
+	"k8s.io/klog"
 )
 
 var GlobalStats map[StatsType]time.Duration
@@ -78,14 +78,14 @@ func Print(key StatsType) {
 	Mutex.RLock()
 	defer Mutex.RUnlock()
 
-	glog.Infof("%s: %s", key, GlobalStats[key])
+	klog.Infof("%s: %s", key, GlobalStats[key])
 }
 
 func PrintCount(key StatsType) {
 	Mutex.RLock()
 	defer Mutex.RUnlock()
 
-	glog.Infof("%s: %d", key, CountStats[key])
+	klog.Infof("%s: %d", key, CountStats[key])
 }
 
 func UpdateCount(key StatsType, val int) {
@@ -95,7 +95,7 @@ func UpdateCount(key StatsType, val int) {
 }
 
 func PrintSync() {
-	glog.Infof("** Stats collected **")
+	klog.Infof("** Stats collected **")
 	if GlobalStats != nil {
 		//first we list the
 		Print(PodList)
@@ -124,7 +124,7 @@ func PrintSync() {
 		Print(EventRecord)
 		Print(Total)
 	}
-	glog.Infof("*********************")
+	klog.Infof("*********************")
 }
 
 func GetAll() map[StatsType]time.Duration {
@@ -132,12 +132,3 @@ func GetAll() map[StatsType]time.Duration {
 	defer Mutex.RUnlock()
 	return GlobalStats
 }
-
-/*
-//More sophisticated stats
-type MICStat struct {
-	msg        string
-	timeTaken  time.Duration
-	operations int64
-}
-*/

@@ -38,3 +38,13 @@ Create chart name and version as used by the chart label.
 {{- define "aad-pod-identity.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
 {{- end -}}
+
+{{/*
+Common labels.
+*/}}
+{{- define "aad-pod-identity.labels" -}}
+app.kubernetes.io/name: {{ template "aad-pod-identity.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+helm.sh/chart: {{ template "aad-pod-identity.chart" . }}
+{{- end -}}

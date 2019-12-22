@@ -2,6 +2,9 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+nameOverride: ""
+fullnameOverride: ""
+
 image:
   repository: mcr.microsoft.com/k8s/aad-pod-identity
   imagePullPolicy: Always
@@ -13,7 +16,7 @@ forceNameSpaced: "false"
 
 ## If using a separate service principal for aad-pod-identity instead of cluster service principal specify the following
 ## (The chart will perform the base64 encoding for you for values that are stored in secrets.)
-# adminsecret:
+adminsecret: {}
 #   cloud: <cloud environment name>
 #   subscriptionID: <subscription id>
 #   resourceGroup: <cluster resource group>
@@ -24,10 +27,10 @@ forceNameSpaced: "false"
 
 mic:
   image: mic
-  tag: 1.5.3
+  tag: 1.5.4
 
   # log level. Uses V logs (glog)
-  # logVerbosity: 0
+  logVerbosity: 0
 
   resources:
     limits:
@@ -64,7 +67,7 @@ mic:
 
   # Override the defult value of immutable identities. 
   immutableUserMSIs: []
-    # Example of MSIs (should be replaced with the real ids)
+    # Example of MSIs (should be replaced with the real client ids)
     #- "00000000-0000-0000-0000-000000000000"
     #- "11111111-1111-1111-1111-111111111111"
 
@@ -76,9 +79,13 @@ mic:
   # default value is 5
   clientQps: ""
 
+  # default value is 8888
+  # prometheus port for metrics
+  prometheusPort: ""
+
 nmi:
   image: nmi
-  tag: 1.5.3
+  tag: 1.5.4
 
   resources:
     limits:
@@ -118,6 +125,14 @@ nmi:
   # Enable scale features - https://github.com/Azure/aad-pod-identity/blob/master/docs/readmes/README.featureflags.md#enable-scale-features-flag
   # Accepted values are true/false. Default is false.
   enableScaleFeatures: ""
+
+  # default value is 9090
+  # prometheus port for metrics
+  prometheusPort: ""
+
+  # https://github.com/Azure/aad-pod-identity/blob/master/docs/readmes/README.featureflags.md#block-instance-metadata-flag
+  # default is false
+  blockInstanceMetadata: ""
 
 rbac:
   enabled: true

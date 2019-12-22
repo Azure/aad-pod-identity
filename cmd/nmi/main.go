@@ -12,8 +12,8 @@ import (
 	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
 	"github.com/Azure/aad-pod-identity/pkg/probes"
 	"github.com/Azure/aad-pod-identity/version"
-	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"k8s.io/klog"
 )
 
 const (
@@ -56,28 +56,22 @@ func main() {
 		version.PrintVersionAndExit()
 	}
 
-	log.SetLevel(log.InfoLevel)
-	if *debug {
-		log.SetLevel(log.DebugLevel)
-	}
-	log.Infof("Starting nmi process. Version: %v. Build date: %v. Log level: %s.", version.NMIVersion, version.BuildDate, log.GetLevel())
+	klog.Infof("Starting nmi process. Version: %v. Build date: %v.", version.NMIVersion, version.BuildDate)
 
 	if *enableProfile {
 		profilePort := "6060"
-		log.Infof("Starting profiling on port %s", profilePort)
+		klog.Infof("Starting profiling on port %s", profilePort)
 		go func() {
-			log.Error(http.ListenAndServe("localhost:"+profilePort, nil))
+			klog.Error(http.ListenAndServe("localhost:"+profilePort, nil))
 		}()
 	}
 	if *enableScaleFeatures {
-		log.Infof("Features for scale clusters enabled")
+		klog.Infof("Features for scale clusters enabled")
 	}
 
-	logger := &server.Log{}
-
-	client, err := k8s.NewKubeClient(logger, *nodename, *enableScaleFeatures)
+	client, err := k8s.NewKubeClient(*nodename, *enableScaleFeatures)
 	if err != nil {
-		log.Fatalf("%+v", err)
+		klog.Fatalf("%+v", err)
 	}
 	exit := make(<-chan struct{})
 	client.Start(exit)
@@ -96,14 +90,14 @@ func main() {
 
 	// Health probe will always report success once its started. The contents
 	// will report "Active" once the iptables rules are set
-	probes.InitAndStart(*httpProbePort, &s.Initialized, logger)
+	probes.InitAndStart(*httpProbePort, &s.Initialized)
 
 	// Register and expose metrics views
-	if err = metrics.RegisterAndExport(*prometheusPort, logger); err != nil {
-		log.Fatalf("Could not register and export metrics: %+v", err)
+	if err = metrics.RegisterAndExport(*prometheusPort); err != nil {
+		klog.Fatalf("Could not register and export metrics: %+v", err)
 	}
 
 	if err := s.Run(); err != nil {
-		log.Fatalf("%s", err)
+		klog.Fatalf("%s", err)
 	}
 }

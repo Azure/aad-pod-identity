@@ -8,10 +8,7 @@ items:
       name: {{ .name }}
       namespace: {{ default $.Release.Namespace .namespace }}
       labels:
-        app.kubernetes.io/name: {{ template "aad-pod-identity.name" $ }}
-        app.kubernetes.io/instance: {{ $.Release.Name }}
-        app.kubernetes.io/managed-by: {{ $.Release.Service }}
-        helm.sh/chart: {{ template "aad-pod-identity.chart" $ }}
+        {{- include "aad-pod-identity.labels" $ | nindent 8 }}
     spec:
       type: {{ .type }}
       ResourceID: {{ required "resourceID is required!" .resourceID }}
@@ -22,10 +19,7 @@ items:
       name: {{ .binding.name }}
       namespace: {{ default $.Release.Namespace .namespace }}
       labels:
-        app.kubernetes.io/name: {{ template "aad-pod-identity.name" $ }}
-        app.kubernetes.io/instance: {{ $.Release.Name }}
-        app.kubernetes.io/managed-by: {{ $.Release.Service }}
-        helm.sh/chart: {{ template "aad-pod-identity.chart" $ }}
+        {{- include "aad-pod-identity.labels" $ | nindent 8 }}
     spec:
       AzureIdentity: {{ .name }}
       Selector: {{ required "binding.selector is required!" .binding.selector }}
