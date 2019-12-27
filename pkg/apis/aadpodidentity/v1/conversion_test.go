@@ -1,10 +1,9 @@
-package conversion
+package v1
 
 import (
 	"testing"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
-	aadpodidv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/google/go-cmp/cmp"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -13,59 +12,72 @@ var objectMetaName string = "objectMetaName"
 var identityName string = "identityName"
 var selectorName string = "selectorName"
 var idTypeInternal aadpodid.IdentityType = aadpodid.UserAssignedMSI
-var idTypeV1 aadpodidv1.IdentityType = aadpodidv1.UserAssignedMSI
+var idTypeV1 IdentityType = UserAssignedMSI
 var rID string = "resourceId"
 var assignedIDPod string = "assignedIDPod"
 var replicas int32 = 3
 var weight int = 1
+var podLabels = map[string]string{"testkey1": "testval1", "testkey2": "testval2"}
 
-func CreateV1Binding() (retV1Binding aadpodidv1.AzureIdentityBinding) {
-	return aadpodidv1.AzureIdentityBinding{
+func CreateV1Binding() (retV1Binding AzureIdentityBinding) {
+	return AzureIdentityBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: objectMetaName,
 		},
-		Spec: aadpodidv1.AzureIdentityBindingSpec{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AzureIdentityBinding",
+			APIVersion: "aadpodidentity.k8s.io/v1",
+		},
+		Spec: AzureIdentityBindingSpec{
 			AzureIdentity: identityName,
 			Selector:      selectorName,
 			Weight:        weight,
 		},
-		Status: aadpodidv1.AzureIdentityBindingStatus{
+		Status: AzureIdentityBindingStatus{
 			AvailableReplicas: replicas,
 		},
 	}
 }
 
-func CreateV1Identity() (retV1Identity aadpodidv1.AzureIdentity) {
-	return aadpodidv1.AzureIdentity{
+func CreateV1Identity() (retV1Identity AzureIdentity) {
+	return AzureIdentity{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: objectMetaName,
 		},
-		Spec: aadpodidv1.AzureIdentitySpec{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AzureIdentity",
+			APIVersion: "aadpodidentity.k8s.io/v1",
+		},
+		Spec: AzureIdentitySpec{
 			Type:       idTypeV1,
 			ResourceID: rID,
 			Replicas:   &replicas,
 		},
-		Status: aadpodidv1.AzureIdentityStatus{
+		Status: AzureIdentityStatus{
 			AvailableReplicas: replicas,
 		},
 	}
 }
 
-func CreateV1AssignedIdentity() (retV1AssignedIdentity aadpodidv1.AzureAssignedIdentity) {
+func CreateV1AssignedIdentity() (retV1AssignedIdentity AzureAssignedIdentity) {
 	v1Identity := CreateV1Identity()
 	v1Binding := CreateV1Binding()
 
-	return aadpodidv1.AzureAssignedIdentity{
+	return AzureAssignedIdentity{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: objectMetaName,
 		},
-		Spec: aadpodidv1.AzureAssignedIdentitySpec{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AzureAssignedIdentity",
+			APIVersion: "aadpodidentity.k8s.io/v1",
+		},
+		Spec: AzureAssignedIdentitySpec{
 			AzureIdentityRef: &v1Identity,
 			AzureBindingRef:  &v1Binding,
 			Pod:              assignedIDPod,
 			Replicas:         &replicas,
 		},
-		Status: aadpodidv1.AzureAssignedIdentityStatus{
+		Status: AzureAssignedIdentityStatus{
 			AvailableReplicas: replicas,
 		},
 	}
@@ -75,6 +87,10 @@ func CreateInternalBinding() (retV1Binding aadpodid.AzureIdentityBinding) {
 	return aadpodid.AzureIdentityBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: objectMetaName,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AzureIdentityBinding",
+			APIVersion: "aadpodidentity.k8s.io/v1",
 		},
 		Spec: aadpodid.AzureIdentityBindingSpec{
 			AzureIdentity: identityName,
@@ -91,6 +107,10 @@ func CreateInternalIdentity() (retInternalIdentity aadpodid.AzureIdentity) {
 	return aadpodid.AzureIdentity{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: objectMetaName,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AzureIdentity",
+			APIVersion: "aadpodidentity.k8s.io/v1",
 		},
 		Spec: aadpodid.AzureIdentitySpec{
 			Type:       idTypeInternal,
@@ -111,6 +131,10 @@ func CreateInternalAssignedIdentity() (retInternalAssignedIdentity aadpodid.Azur
 		ObjectMeta: metav1.ObjectMeta{
 			Name: objectMetaName,
 		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AzureAssignedIdentity",
+			APIVersion: "aadpodidentity.k8s.io/v1",
+		},
 		Spec: aadpodid.AzureAssignedIdentitySpec{
 			AzureIdentityRef: &internalIdentity,
 			AzureBindingRef:  &internalBinding,
@@ -120,6 +144,30 @@ func CreateInternalAssignedIdentity() (retInternalAssignedIdentity aadpodid.Azur
 		Status: aadpodid.AzureAssignedIdentityStatus{
 			AvailableReplicas: replicas,
 		},
+	}
+}
+
+func CreateInternalPodIdentityException() (retPodIdentityException aadpodid.AzurePodIdentityException) {
+	return aadpodid.AzurePodIdentityException{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: objectMetaName,
+		},
+		Spec: aadpodid.AzurePodIdentityExceptionSpec{
+			PodLabels: podLabels,
+		},
+		Status: aadpodid.AzurePodIdentityExceptionStatus{},
+	}
+}
+
+func CreateV1PodIdentityException() (retPodIdentityException AzurePodIdentityException) {
+	return AzurePodIdentityException{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: objectMetaName,
+		},
+		Spec: AzurePodIdentityExceptionSpec{
+			PodLabels: podLabels,
+		},
+		Status: AzurePodIdentityExceptionStatus{},
 	}
 }
 
@@ -181,6 +229,17 @@ func TestConvertInternalAssignedIdentityToV1AssignedIdentity(t *testing.T) {
 	assignedIDV1 := CreateV1AssignedIdentity()
 
 	if !cmp.Equal(assignedIDV1, convertedAssignedIDV1) {
+		t.Errorf("Failed to convert from v1 to internal AzureAssignedIdentity")
+	}
+}
+
+func TestConvertV1PodIdentityExceptionToInternalPodIdentityException(t *testing.T) {
+	podExceptionV1 := CreateV1PodIdentityException()
+
+	convertedPodExceptionInternal := ConvertV1PodIdentityExceptionToInternalPodIdentityException(podExceptionV1)
+	podExceptionInternal := CreateInternalPodIdentityException()
+
+	if !cmp.Equal(convertedPodExceptionInternal, podExceptionInternal) {
 		t.Errorf("Failed to convert from v1 to internal AzureAssignedIdentity")
 	}
 }

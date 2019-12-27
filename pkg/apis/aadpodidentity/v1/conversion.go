@@ -1,11 +1,13 @@
-package conversion
+package v1
 
 import (
+	"reflect"
+
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
-	aadpodidv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-func ConvertV1BindingToInternalBinding(identityBinding aadpodidv1.AzureIdentityBinding) (resIdentityBinding aadpodid.AzureIdentityBinding) {
+func ConvertV1BindingToInternalBinding(identityBinding AzureIdentityBinding) (resIdentityBinding aadpodid.AzureIdentityBinding) {
 	return aadpodid.AzureIdentityBinding{
 		TypeMeta:   identityBinding.TypeMeta,
 		ObjectMeta: identityBinding.ObjectMeta,
@@ -19,7 +21,7 @@ func ConvertV1BindingToInternalBinding(identityBinding aadpodidv1.AzureIdentityB
 	}
 }
 
-func ConvertV1IdentityToInternalIdentity(identity aadpodidv1.AzureIdentity) (resIdentity aadpodid.AzureIdentity) {
+func ConvertV1IdentityToInternalIdentity(identity AzureIdentity) (resIdentity aadpodid.AzureIdentity) {
 	return aadpodid.AzureIdentity{
 		TypeMeta:   identity.TypeMeta,
 		ObjectMeta: identity.ObjectMeta,
@@ -38,7 +40,7 @@ func ConvertV1IdentityToInternalIdentity(identity aadpodidv1.AzureIdentity) (res
 	}
 }
 
-func ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIdentity aadpodidv1.AzureAssignedIdentity) (resAssignedIdentity aadpodid.AzureAssignedIdentity) {
+func ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIdentity AzureAssignedIdentity) (resAssignedIdentity aadpodid.AzureAssignedIdentity) {
 	retIdentity := ConvertV1IdentityToInternalIdentity(*assignedIdentity.Spec.AzureIdentityRef)
 	retBinding := ConvertV1BindingToInternalBinding(*assignedIdentity.Spec.AzureBindingRef)
 
@@ -58,60 +60,7 @@ func ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIdentity aadpod
 	}
 }
 
-func ConvertInternalBindingToV1Binding(identityBinding aadpodid.AzureIdentityBinding) (resIdentityBinding aadpodidv1.AzureIdentityBinding) {
-	return aadpodidv1.AzureIdentityBinding{
-		TypeMeta:   identityBinding.TypeMeta,
-		ObjectMeta: identityBinding.ObjectMeta,
-		Spec: aadpodidv1.AzureIdentityBindingSpec{
-			ObjectMeta:    identityBinding.Spec.ObjectMeta,
-			AzureIdentity: identityBinding.Spec.AzureIdentity,
-			Selector:      identityBinding.Spec.Selector,
-			Weight:        identityBinding.Spec.Weight,
-		},
-		Status: aadpodidv1.AzureIdentityBindingStatus(identityBinding.Status),
-	}
-}
-
-func ConvertInternalIdentityToV1Identity(identity aadpodid.AzureIdentity) (resIdentity aadpodidv1.AzureIdentity) {
-	return aadpodidv1.AzureIdentity{
-		TypeMeta:   identity.TypeMeta,
-		ObjectMeta: identity.ObjectMeta,
-		Spec: aadpodidv1.AzureIdentitySpec{
-			ObjectMeta:     identity.Spec.ObjectMeta,
-			Type:           aadpodidv1.IdentityType(identity.Spec.Type),
-			ResourceID:     identity.Spec.ResourceID,
-			ClientID:       identity.Spec.ClientID,
-			ClientPassword: identity.Spec.ClientPassword,
-			TenantID:       identity.Spec.TenantID,
-			ADResourceID:   identity.Spec.ADResourceID,
-			ADEndpoint:     identity.Spec.ADEndpoint,
-			Replicas:       identity.Spec.Replicas,
-		},
-		Status: aadpodidv1.AzureIdentityStatus(identity.Status),
-	}
-}
-
-func ConvertInternalAssignedIdentityToV1AssignedIdentity(assignedIdentity aadpodid.AzureAssignedIdentity) (resAssignedIdentity aadpodidv1.AzureAssignedIdentity) {
-	retIdentity := ConvertInternalIdentityToV1Identity(*assignedIdentity.Spec.AzureIdentityRef)
-	retBinding := ConvertInternalBindingToV1Binding(*assignedIdentity.Spec.AzureBindingRef)
-
-	return aadpodidv1.AzureAssignedIdentity{
-		TypeMeta:   assignedIdentity.TypeMeta,
-		ObjectMeta: assignedIdentity.ObjectMeta,
-		Spec: aadpodidv1.AzureAssignedIdentitySpec{
-			ObjectMeta:       assignedIdentity.Spec.ObjectMeta,
-			AzureIdentityRef: &retIdentity,
-			AzureBindingRef:  &retBinding,
-			Pod:              assignedIdentity.Spec.Pod,
-			PodNamespace:     assignedIdentity.Spec.PodNamespace,
-			NodeName:         assignedIdentity.Spec.NodeName,
-			Replicas:         assignedIdentity.Spec.Replicas,
-		},
-		Status: aadpodidv1.AzureAssignedIdentityStatus(assignedIdentity.Status),
-	}
-}
-
-func ConvertV1AzurePodIdentityExceptionToInternalAzurePodIdentityException(idException aadpodidv1.AzurePodIdentityException) (residException aadpodid.AzurePodIdentityException) {
+func ConvertV1PodIdentityExceptionToInternalPodIdentityException(idException AzurePodIdentityException) (residException aadpodid.AzurePodIdentityException) {
 	return aadpodid.AzurePodIdentityException{
 		TypeMeta:   idException.TypeMeta,
 		ObjectMeta: idException.ObjectMeta,
@@ -122,3 +71,79 @@ func ConvertV1AzurePodIdentityExceptionToInternalAzurePodIdentityException(idExc
 		Status: aadpodid.AzurePodIdentityExceptionStatus(idException.Status),
 	}
 }
+
+func ConvertInternalBindingToV1Binding(identityBinding aadpodid.AzureIdentityBinding) (resIdentityBinding AzureIdentityBinding) {
+	out := AzureIdentityBinding{
+		TypeMeta:   identityBinding.TypeMeta,
+		ObjectMeta: identityBinding.ObjectMeta,
+		Spec: AzureIdentityBindingSpec{
+			ObjectMeta:    identityBinding.Spec.ObjectMeta,
+			AzureIdentity: identityBinding.Spec.AzureIdentity,
+			Selector:      identityBinding.Spec.Selector,
+			Weight:        identityBinding.Spec.Weight,
+		},
+		Status: AzureIdentityBindingStatus(identityBinding.Status),
+	}
+
+	out.TypeMeta.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   CRDGroup,
+		Version: CRDVersion,
+		Kind:    reflect.TypeOf(out).Name()})
+
+	return out
+}
+
+func ConvertInternalIdentityToV1Identity(identity aadpodid.AzureIdentity) (resIdentity AzureIdentity) {
+	out := AzureIdentity{
+		TypeMeta:   identity.TypeMeta,
+		ObjectMeta: identity.ObjectMeta,
+		Spec: AzureIdentitySpec{
+			ObjectMeta:     identity.Spec.ObjectMeta,
+			Type:           IdentityType(identity.Spec.Type),
+			ResourceID:     identity.Spec.ResourceID,
+			ClientID:       identity.Spec.ClientID,
+			ClientPassword: identity.Spec.ClientPassword,
+			TenantID:       identity.Spec.TenantID,
+			ADResourceID:   identity.Spec.ADResourceID,
+			ADEndpoint:     identity.Spec.ADEndpoint,
+			Replicas:       identity.Spec.Replicas,
+		},
+		Status: AzureIdentityStatus(identity.Status),
+	}
+
+	out.TypeMeta.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   CRDGroup,
+		Version: CRDVersion,
+		Kind:    reflect.TypeOf(out).Name()})
+
+	return out
+}
+
+func ConvertInternalAssignedIdentityToV1AssignedIdentity(assignedIdentity aadpodid.AzureAssignedIdentity) (resAssignedIdentity AzureAssignedIdentity) {
+	retIdentity := ConvertInternalIdentityToV1Identity(*assignedIdentity.Spec.AzureIdentityRef)
+	retBinding := ConvertInternalBindingToV1Binding(*assignedIdentity.Spec.AzureBindingRef)
+
+	out := AzureAssignedIdentity{
+		TypeMeta:   assignedIdentity.TypeMeta,
+		ObjectMeta: assignedIdentity.ObjectMeta,
+		Spec: AzureAssignedIdentitySpec{
+			ObjectMeta:       assignedIdentity.Spec.ObjectMeta,
+			AzureIdentityRef: &retIdentity,
+			AzureBindingRef:  &retBinding,
+			Pod:              assignedIdentity.Spec.Pod,
+			PodNamespace:     assignedIdentity.Spec.PodNamespace,
+			NodeName:         assignedIdentity.Spec.NodeName,
+			Replicas:         assignedIdentity.Spec.Replicas,
+		},
+		Status: AzureAssignedIdentityStatus(assignedIdentity.Status),
+	}
+
+	out.TypeMeta.SetGroupVersionKind(schema.GroupVersionKind{
+		Group:   CRDGroup,
+		Version: CRDVersion,
+		Kind:    reflect.TypeOf(out).Name()})
+
+	return out
+}
+
+// ConvertInternalPodIdentityExceptionToV1PodIdentityException is currently not needed, as AzurePodIdentityException are only listed and not created within the project

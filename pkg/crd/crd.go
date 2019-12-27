@@ -8,7 +8,6 @@ import (
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
-	conversion "github.com/Azure/aad-pod-identity/pkg/conversion"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -351,7 +350,7 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 
 	// Create a new AzureAssignedIdentity which maps the relationship between id and pod
 	var res aadpodv1.AzureAssignedIdentity
-	v1AssignedID := conversion.ConvertInternalAssignedIdentityToV1AssignedIdentity(*assignedIdentity)
+	v1AssignedID := aadpodv1.ConvertInternalAssignedIdentityToV1AssignedIdentity(*assignedIdentity)
 	// TODO: Ensure that the status reflects the corresponding
 	err = c.rest.Post().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Body(&v1AssignedID).Do().Into(&res)
 	if err != nil {
@@ -385,7 +384,7 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 			Version: aadpodv1.CRDVersion,
 			Kind:    reflect.TypeOf(*o).String()})
 
-		internalBinding := conversion.ConvertV1BindingToInternalBinding(*o)
+		internalBinding := aadpodv1.ConvertV1BindingToInternalBinding(*o)
 
 		resList = append(resList, internalBinding)
 		klog.V(6).Infof("Appending binding: %s/%s to list.", o.Namespace, o.Name)
@@ -415,7 +414,7 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 			Group:   aadpodv1.CRDGroup,
 			Version: aadpodv1.CRDVersion,
 			Kind:    reflect.TypeOf(*o).String()})
-		out := conversion.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o)
+		out := aadpodv1.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o)
 		resList = append(resList, out)
 		klog.V(6).Infof("Appending Assigned ID: %s/%s to list.", o.Namespace, o.Name)
 	}
@@ -447,7 +446,7 @@ func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdenti
 			Version: aadpodv1.CRDVersion,
 			Kind:    reflect.TypeOf(*o).String()})
 
-		out := conversion.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o)
+		out := aadpodv1.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o)
 
 		// assigned identities names are unique across namespaces as we use pod name-<id ns>-<id name>
 		result[o.Name] = out
@@ -478,7 +477,7 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 			Version: aadpodv1.CRDVersion,
 			Kind:    reflect.TypeOf(*o).String()})
 
-		out := conversion.ConvertV1IdentityToInternalIdentity(*o)
+		out := aadpodv1.ConvertV1IdentityToInternalIdentity(*o)
 
 		resList = append(resList, out)
 		klog.V(6).Infof("Appending Identity: %s/%s to list.", o.Namespace, o.Name)
@@ -509,7 +508,7 @@ func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodI
 				Group:   aadpodv1.CRDGroup,
 				Version: aadpodv1.CRDVersion,
 				Kind:    reflect.TypeOf(*o).String()})
-			out := conversion.ConvertV1AzurePodIdentityExceptionToInternalAzurePodIdentityException(*o)
+			out := aadpodv1.ConvertV1PodIdentityExceptionToInternalPodIdentityException(*o)
 
 			resList = append(resList, out)
 			klog.V(6).Infof("Appending exception: %s/%s to list.", o.Namespace, o.Name)
@@ -544,7 +543,7 @@ type patchStatusOps struct {
 }
 
 // UpdateAzureAssignedIdentityStatus updates the status field in AzureAssignedIdentity to indicate current status
-func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodv1.AzureAssignedIdentity, status string) (err error) {
+func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) (err error) {
 	klog.Infof("Updating assigned identity %s/%s status to %s", assignedIdentity.Namespace, assignedIdentity.Name, status)
 
 	defer func() {

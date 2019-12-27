@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	"github.com/Azure/aad-pod-identity/test/common/azure"
 	"github.com/Azure/aad-pod-identity/test/common/k8s/azureassignedidentity"
