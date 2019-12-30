@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "aad-pod-identity.mic.fullname" . }}
+  namespace: {{ template "aad-pod-identity.mic.namespace" . }}
   labels:
     {{- include "aad-pod-identity.labels" . | nindent 4 }}
     app.kubernetes.io/component: mic
@@ -54,13 +55,13 @@ spec:
           {{- end }}
           {{- if .Values.mic.clientQps }}
           - --clientQps={{ .Values.mic.clientQps }}
-          {{- end }}          
+          {{- end }}
           {{- if .Values.mic.immutableUserMSIs }}
           - "--immutable-user-msis={{- join "," .Values.mic.immutableUserMSIs}}"
           {{- end }}
           {{- if .Values.mic.prometheusPort }}
           - --prometheus-port={{ .Values.mic.prometheusPort }}
-          {{- end }}  
+          {{- end }}
         env:
           - name: FORCENAMESPACED
             value: "{{ .Values.forceNameSpaced }}"
