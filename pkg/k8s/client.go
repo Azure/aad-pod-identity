@@ -14,7 +14,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	crd "github.com/Azure/aad-pod-identity/pkg/crd"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/version"

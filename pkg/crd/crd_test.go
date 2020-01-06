@@ -4,6 +4,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
+	internalaadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	api "k8s.io/api/core/v1"
 )
@@ -30,7 +31,7 @@ func (c *TestCrdClient) SyncCache(exit <-chan struct{}) {
 
 }
 
-func (c *TestCrdClient) CreateCrdWatchers(eventCh chan aadpodid.EventType) (err error) {
+func (c *TestCrdClient) CreateCrdWatchers(eventCh chan internalaadpodid.EventType) (err error) {
 	return nil
 }
 
@@ -85,10 +86,11 @@ func (c *TestCrdClient) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 	return &idList, nil
 }
 
-func (c *TestCrdClient) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
-	bindingList := make([]aadpodid.AzureIdentityBinding, 0)
+func (c *TestCrdClient) ListBindings() (res *[]internalaadpodid.AzureIdentityBinding, err error) {
+	bindingList := make([]internalaadpodid.AzureIdentityBinding, 0)
 	for _, v := range c.bindingMap {
-		bindingList = append(bindingList, *v)
+		newBinding := aadpodid.ConvertV1BindingToInternalBinding(*v)
+		bindingList = append(bindingList, newBinding)
 	}
 	return &bindingList, nil
 }

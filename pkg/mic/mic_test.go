@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	internalaadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/config"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
@@ -328,7 +329,7 @@ func (c *TestPodClient) DeletePod(podName string, podNs string) {
 type TestCrdClient struct {
 	*Client
 	mu            sync.Mutex
-	assignedIDMap map[string]*aadpodid.AzureAssignedIdentity
+	assignedIDMap map[string]*internalaadpodid.AzureAssignedIdentity
 	bindingMap    map[string]*aadpodid.AzureIdentityBinding
 	idMap         map[string]*aadpodid.AzureIdentity
 	err           *error
@@ -336,7 +337,7 @@ type TestCrdClient struct {
 
 func NewTestCrdClient(config *rest.Config) *TestCrdClient {
 	return &TestCrdClient{
-		assignedIDMap: make(map[string]*aadpodid.AzureAssignedIdentity),
+		assignedIDMap: make(map[string]*internalaadpodid.AzureAssignedIdentity),
 		bindingMap:    make(map[string]*aadpodid.AzureIdentityBinding),
 		idMap:         make(map[string]*aadpodid.AzureIdentity),
 	}
@@ -353,11 +354,11 @@ func (c *TestCrdClient) SyncCacheLite(exit <-chan struct{}) {
 
 }
 
-func (c *TestCrdClient) CreateCrdWatchers(eventCh chan aadpodid.EventType) (err error) {
+func (c *TestCrdClient) CreateCrdWatchers(eventCh chan internalaadpodid.EventType) (err error) {
 	return nil
 }
 
-func (c *TestCrdClient) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
+func (c *TestCrdClient) RemoveAssignedIdentity(assignedIdentity *internalaadpodid.AzureAssignedIdentity) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -370,7 +371,7 @@ func (c *TestCrdClient) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureA
 
 // This function is not used currently
 // TODO: consider remove
-func (c *TestCrdClient) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error {
+func (c *TestCrdClient) CreateAssignedIdentity(assignedIdentity *internalaadpodid.AzureAssignedIdentity) error {
 	assignedIdentityToStore := *assignedIdentity //Make a copy to store in the map.
 	c.mu.Lock()
 	c.assignedIDMap[assignedIdentity.Name] = &assignedIdentityToStore
@@ -378,7 +379,7 @@ func (c *TestCrdClient) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureA
 	return nil
 }
 
-func (c *TestCrdClient) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error {
+func (c *TestCrdClient) UpdateAzureAssignedIdentityStatus(assignedIdentity *internalaadpodid.AzureAssignedIdentity, status string) error {
 	assignedIdentity.Status.Status = status
 	assignedIdentityToStore := *assignedIdentity //Make a copy to store in the map.
 	c.mu.Lock()
@@ -425,28 +426,30 @@ func (c *TestCrdClient) CreateID(idName, ns string, t aadpodid.IdentityType, rID
 	c.mu.Unlock()
 }
 
-func (c *TestCrdClient) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
-	idList := make([]aadpodid.AzureIdentity, 0)
+func (c *TestCrdClient) ListIds() (res *[]internalaadpodid.AzureIdentity, err error) {
+	idList := make([]internalaadpodid.AzureIdentity, 0)
 	c.mu.Lock()
 	for _, v := range c.idMap {
-		idList = append(idList, *v)
+		currID := aadpodid.ConvertV1IdentityToInternalIdentity(*v)
+		idList = append(idList, currID)
 	}
 	c.mu.Unlock()
 	return &idList, nil
 }
 
-func (c *TestCrdClient) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
-	bindingList := make([]aadpodid.AzureIdentityBinding, 0)
+func (c *TestCrdClient) ListBindings() (res *[]internalaadpodid.AzureIdentityBinding, err error) {
+	bindingList := make([]internalaadpodid.AzureIdentityBinding, 0)
 	c.mu.Lock()
 	for _, v := range c.bindingMap {
-		bindingList = append(bindingList, *v)
+		newBinding := aadpodid.ConvertV1BindingToInternalBinding(*v)
+		bindingList = append(bindingList, newBinding)
 	}
 	c.mu.Unlock()
 	return &bindingList, nil
 }
 
-func (c *TestCrdClient) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
-	assignedIDList := make([]aadpodid.AzureAssignedIdentity, 0)
+func (c *TestCrdClient) ListAssignedIDs() (res *[]internalaadpodid.AzureAssignedIdentity, err error) {
+	assignedIDList := make([]internalaadpodid.AzureAssignedIdentity, 0)
 	c.mu.Lock()
 	for _, v := range c.assignedIDMap {
 		assignedIDList = append(assignedIDList, *v)
@@ -455,8 +458,8 @@ func (c *TestCrdClient) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity
 	return &assignedIDList, nil
 }
 
-func (c *TestCrdClient) ListAssignedIDsInMap() (res map[string]aadpodid.AzureAssignedIdentity, err error) {
-	assignedIDMap := make(map[string]aadpodid.AzureAssignedIdentity)
+func (c *TestCrdClient) ListAssignedIDsInMap() (res map[string]internalaadpodid.AzureAssignedIdentity, err error) {
+	assignedIDMap := make(map[string]internalaadpodid.AzureAssignedIdentity)
 	c.mu.Lock()
 	for k, v := range c.assignedIDMap {
 		assignedIDMap[k] = *v
@@ -465,12 +468,12 @@ func (c *TestCrdClient) ListAssignedIDsInMap() (res map[string]aadpodid.AzureAss
 	return assignedIDMap, nil
 }
 
-func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
-	return map[string][]aadpodid.AzureIdentity{}, nil
+func (c *Client) ListPodIds(podns, podname string) (map[string][]internalaadpodid.AzureIdentity, error) {
+	return map[string][]internalaadpodid.AzureIdentity{}, nil
 }
 
 // ListPodIdentityExceptions ...
-func (c *Client) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodIdentityException, error) {
+func (c *Client) ListPodIdentityExceptions(ns string) (*[]internalaadpodid.AzurePodIdentityException, error) {
 	return nil, nil
 }
 
@@ -595,7 +598,7 @@ func (c *TestEventRecorder) AnnotatedEventf(object runtime.Object, annotations m
 }
 
 /************************ MIC MOC *************************************/
-func NewMICTestClient(eventCh chan aadpodid.EventType,
+func NewMICTestClient(eventCh chan internalaadpodid.EventType,
 	cpClient *TestCloudClient,
 	crdClient *TestCrdClient,
 	podClient *TestPodClient,
@@ -635,9 +638,9 @@ func TestMapMICClient(t *testing.T) {
 	defaultNS := "default"
 	micClient := &TestMICClient{}
 
-	idList := make([]aadpodid.AzureIdentity, 0)
+	idList := make([]internalaadpodid.AzureIdentity, 0)
 
-	id := new(aadpodid.AzureIdentity)
+	id := new(internalaadpodid.AzureIdentity)
 	id.Namespace = "default"
 	id.Name = "test-azure-identity"
 	id.Namespace = defaultNS
@@ -715,7 +718,7 @@ func (c *TestMICClient) testRunSync() func(t *testing.T) {
 }
 
 func TestSimpleMICClient(t *testing.T) {
-	eventCh := make(chan aadpodid.EventType, 100)
+	eventCh := make(chan internalaadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
 	crdClient := NewTestCrdClient(nil)
 	podClient := NewTestPodClient()
@@ -732,7 +735,7 @@ func TestSimpleMICClient(t *testing.T) {
 	nodeClient.AddNode("test-node")
 	podClient.AddPod("test-pod", "default", "test-node", "test-select")
 
-	eventCh <- aadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
 
 	defer micClient.testRunSync()(t)
 
@@ -762,7 +765,7 @@ func TestSimpleMICClient(t *testing.T) {
 	//Test2: Remove assigned id event test
 	podClient.DeletePod("test-pod", "default")
 
-	eventCh <- aadpodid.PodDeleted
+	eventCh <- internalaadpodid.PodDeleted
 	if !evtRecorder.WaitForEvents(1) {
 		t.Fatal("timeout waiting for event sync")
 	}
@@ -792,7 +795,7 @@ func TestSimpleMICClient(t *testing.T) {
 
 	podClient.AddPod("test-pod", "default", "test-node", "test-select")
 
-	eventCh <- aadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
 	evtRecorder.WaitForEvents(1)
 
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
@@ -818,13 +821,13 @@ func TestSimpleMICClient(t *testing.T) {
 	cloudClient.UnSetError()
 
 	//podClient.AddPod("test-pod", "default", "test-node", "test-select")
-	eventCh <- aadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
 
 	err = errors.New("remove error returned from cloud provider")
 	cloudClient.SetError(err)
 
 	podClient.DeletePod("test-pod", "default")
-	eventCh <- aadpodid.PodDeleted
+	eventCh <- internalaadpodid.PodDeleted
 	/*
 		testPass = evtRecorder.Validate(&LastEvent{Type: "Warning", Reason: "binding remove error",
 			Message: "Binding testbinding removal from node test-node for pod test-pod resulted in error remove error returned from cloud provider"})
@@ -836,7 +839,7 @@ func TestSimpleMICClient(t *testing.T) {
 }
 
 func TestAddDelMICClient(t *testing.T) {
-	eventCh := make(chan aadpodid.EventType, 100)
+	eventCh := make(chan internalaadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
 	crdClient := NewTestCrdClient(nil)
 	podClient := NewTestPodClient()
@@ -861,8 +864,8 @@ func TestAddDelMICClient(t *testing.T) {
 	podClient.AddPod("test-pod4", "default", "test-node2", "test-select4")
 	podClient.GetPods()
 
-	eventCh <- aadpodid.PodCreated
-	eventCh <- aadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
 
 	stopSync1 := micClient.testRunSync()
 	defer stopSync1(t)
@@ -894,9 +897,9 @@ func TestAddDelMICClient(t *testing.T) {
 	podClient.AddPod("test-pod3", "default", "test-node2", "test-select3")
 	podClient.GetPods()
 
-	eventCh <- aadpodid.PodCreated
-	eventCh <- aadpodid.PodDeleted
-	eventCh <- aadpodid.PodDeleted
+	eventCh <- internalaadpodid.PodCreated
+	eventCh <- internalaadpodid.PodDeleted
+	eventCh <- internalaadpodid.PodDeleted
 
 	stopSync1(t)
 	defer micClient.testRunSync()(t)
@@ -928,7 +931,7 @@ func TestAddDelMICClient(t *testing.T) {
 }
 
 func TestMicAddDelVMSS(t *testing.T) {
-	eventCh := make(chan aadpodid.EventType, 100)
+	eventCh := make(chan internalaadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{VMType: "vmss"})
 	crdClient := NewTestCrdClient(nil)
 	podClient := NewTestPodClient()
@@ -962,9 +965,9 @@ func TestMicAddDelVMSS(t *testing.T) {
 
 	defer micClient.testRunSync()(t)
 
-	eventCh <- aadpodid.PodCreated
-	eventCh <- aadpodid.PodCreated
-	eventCh <- aadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
 	if !evtRecorder.WaitForEvents(3) {
 		t.Fatalf("Timeout waiting for mic sync cycles")
 	}
@@ -985,7 +988,7 @@ func TestMicAddDelVMSS(t *testing.T) {
 	}
 
 	podClient.DeletePod("test-pod1", "default")
-	eventCh <- aadpodid.PodDeleted
+	eventCh <- internalaadpodid.PodDeleted
 
 	if !evtRecorder.WaitForEvents(1) {
 		t.Fatal("Timeout waiting for mic sync cycles")
@@ -1008,7 +1011,7 @@ func TestMicAddDelVMSS(t *testing.T) {
 
 	podClient.DeletePod("test-pod2", "default")
 
-	eventCh <- aadpodid.PodDeleted
+	eventCh <- internalaadpodid.PodDeleted
 
 	if !evtRecorder.WaitForEvents(1) {
 		t.Fatal("Timeout waiting for mic sync cycles")
@@ -1031,7 +1034,7 @@ func TestMicAddDelVMSS(t *testing.T) {
 }
 
 func TestMICStateFlow(t *testing.T) {
-	eventCh := make(chan aadpodid.EventType, 100)
+	eventCh := make(chan internalaadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
 	crdClient := NewTestCrdClient(nil)
 	podClient := NewTestPodClient()
@@ -1049,7 +1052,7 @@ func TestMICStateFlow(t *testing.T) {
 	nodeClient.AddNode("test-node1")
 	podClient.AddPod("test-pod1", "default", "test-node1", "test-select1")
 
-	eventCh <- aadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
 	defer micClient.testRunSync()(t)
 
 	if !evtRecorder.WaitForEvents(1) {
@@ -1074,7 +1077,7 @@ func TestMICStateFlow(t *testing.T) {
 	cloudClient.SetError(errors.New("error removing identity from node"))
 	cloudClient.testVMClient.identity = &compute.VirtualMachineIdentity{IdentityIds: &[]string{"test-user-msi-resourceid"}}
 
-	eventCh <- aadpodid.PodDeleted
+	eventCh <- internalaadpodid.PodDeleted
 	if !evtRecorder.WaitForEvents(1) {
 		t.Fatalf("Timeout waiting for mic sync cycles")
 	}
@@ -1102,7 +1105,7 @@ func TestMICStateFlow(t *testing.T) {
 	nodeClient.AddNode("test-node2")
 	podClient.AddPod("test-pod2", "default", "test-node2", "test-select2")
 
-	eventCh <- aadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
 	if !evtRecorder.WaitForEvents(2) {
 		t.Fatalf("Timeout waiting for mic sync cycles")
 	}
@@ -1130,7 +1133,7 @@ func TestMICStateFlow(t *testing.T) {
 
 	// delete pod2 and everything should be cleaned up now
 	podClient.DeletePod("test-pod2", "default")
-	eventCh <- aadpodid.PodDeleted
+	eventCh <- internalaadpodid.PodDeleted
 	if !evtRecorder.WaitForEvents(2) {
 		t.Fatalf("Timeout waiting for mic sync cycles")
 	}
@@ -1145,7 +1148,7 @@ func TestMICStateFlow(t *testing.T) {
 }
 
 func TestForceNamespaced(t *testing.T) {
-	eventCh := make(chan aadpodid.EventType, 100)
+	eventCh := make(chan internalaadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
 	crdClient := NewTestCrdClient(nil)
 	podClient := NewTestPodClient()
@@ -1162,7 +1165,7 @@ func TestForceNamespaced(t *testing.T) {
 	nodeClient.AddNode("test-node1")
 	podClient.AddPod("test-pod1", "default", "test-node1", "test-select1")
 
-	eventCh <- aadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
 	defer micClient.testRunSync()(t)
 
 	if !evtRecorder.WaitForEvents(1) {
@@ -1184,9 +1187,9 @@ func TestForceNamespaced(t *testing.T) {
 	crdClient.CreateBinding("testbinding1", "default2", "test-id1", "test-select1", "bindingrv2")
 	podClient.AddPod("test-pod2", "default2", "test-node1", "test-select1")
 
-	eventCh <- aadpodid.IdentityCreated
-	eventCh <- aadpodid.BindingCreated
-	eventCh <- aadpodid.PodCreated
+	eventCh <- internalaadpodid.IdentityCreated
+	eventCh <- internalaadpodid.BindingCreated
+	eventCh <- internalaadpodid.PodCreated
 
 	if !evtRecorder.WaitForEvents(1) {
 		t.Fatalf("Timeout waiting for mic sync cycles")
@@ -1209,7 +1212,7 @@ func TestForceNamespaced(t *testing.T) {
 }
 
 func TestSyncRetryLoop(t *testing.T) {
-	eventCh := make(chan aadpodid.EventType, 100)
+	eventCh := make(chan internalaadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
 	crdClient := NewTestCrdClient(nil)
 	podClient := NewTestPodClient()
@@ -1232,7 +1235,7 @@ func TestSyncRetryLoop(t *testing.T) {
 	nodeClient.AddNode("test-node1")
 	podClient.AddPod("test-pod1", "default", "test-node1", "test-select1")
 
-	eventCh <- aadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
 	defer micClient.testRunSync()(t)
 
 	if !evtRecorder.WaitForEvents(1) {
@@ -1255,7 +1258,7 @@ func TestSyncRetryLoop(t *testing.T) {
 	cloudClient.SetError(errors.New("error removing identity from node"))
 	cloudClient.testVMClient.identity = &compute.VirtualMachineIdentity{IdentityIds: &[]string{"test-user-msi-resourceid"}}
 
-	eventCh <- aadpodid.PodDeleted
+	eventCh <- internalaadpodid.PodDeleted
 	if !evtRecorder.WaitForEvents(1) {
 		t.Fatalf("Timeout waiting for mic sync cycles")
 	}
@@ -1288,7 +1291,7 @@ func TestSyncRetryLoop(t *testing.T) {
 }
 
 func TestSyncNodeNotFound(t *testing.T) {
-	eventCh := make(chan aadpodid.EventType, 100)
+	eventCh := make(chan internalaadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
 	crdClient := NewTestCrdClient(nil)
 	podClient := NewTestPodClient()
@@ -1306,7 +1309,7 @@ func TestSyncNodeNotFound(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		nodeClient.AddNode(fmt.Sprintf("test-node%d", i))
 		podClient.AddPod(fmt.Sprintf("test-pod%d", i), "default", fmt.Sprintf("test-node%d", i), "test-select1")
-		eventCh <- aadpodid.PodCreated
+		eventCh <- internalaadpodid.PodCreated
 	}
 
 	defer micClient.testRunSync()(t)
@@ -1333,12 +1336,12 @@ func TestSyncNodeNotFound(t *testing.T) {
 	for i := 5; i < 10; i++ {
 		nodeClient.Delete(fmt.Sprintf("test-node%d", i))
 		podClient.DeletePod(fmt.Sprintf("test-pod%d", i), "default")
-		eventCh <- aadpodid.PodDeleted
+		eventCh <- internalaadpodid.PodDeleted
 	}
 
 	nodeClient.AddNode("test-nodex")
 	podClient.AddPod("test-podx", "default", "test-node1", "test-select1")
-	eventCh <- aadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
 
 	if !evtRecorder.WaitForEvents(6) {
 		t.Fatalf("Timeout waiting for mic sync cycles")
@@ -1360,7 +1363,7 @@ func TestSyncNodeNotFound(t *testing.T) {
 }
 
 func TestProcessingTimeForScale(t *testing.T) {
-	eventCh := make(chan aadpodid.EventType, 20000)
+	eventCh := make(chan internalaadpodid.EventType, 20000)
 	cloudClient := NewTestCloudClient(config.AzureConfig{})
 	crdClient := NewTestCrdClient(nil)
 	podClient := NewTestPodClient()
@@ -1379,7 +1382,7 @@ func TestProcessingTimeForScale(t *testing.T) {
 	for i := 0; i < 20000; i++ {
 		podClient.AddPod(fmt.Sprintf("test-pod%d", i), "default", "test-node1", "test-select1")
 	}
-	eventCh <- aadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
 
 	defer micClient.testRunSync()(t)
 
@@ -1399,7 +1402,7 @@ func TestProcessingTimeForScale(t *testing.T) {
 	for i := 10000; i < 20000; i++ {
 		podClient.DeletePod(fmt.Sprintf("test-pod%d", i), "default")
 	}
-	eventCh <- aadpodid.PodDeleted
+	eventCh <- internalaadpodid.PodDeleted
 
 	if !evtRecorder.WaitForEvents(10000) {
 		t.Fatalf("Timeout waiting for mic sync cycles")
@@ -1415,7 +1418,7 @@ func TestProcessingTimeForScale(t *testing.T) {
 }
 
 func TestSyncExit(t *testing.T) {
-	eventCh := make(chan aadpodid.EventType)
+	eventCh := make(chan internalaadpodid.EventType)
 	cloudClient := NewTestCloudClient(config.AzureConfig{VMType: "vmss"})
 	crdClient := NewTestCrdClient(nil)
 	podClient := NewTestPodClient()
@@ -1430,7 +1433,7 @@ func TestSyncExit(t *testing.T) {
 }
 
 func TestMicAddDelVMSSwithImmutableIdentities(t *testing.T) {
-	eventCh := make(chan aadpodid.EventType, 100)
+	eventCh := make(chan internalaadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{VMType: "vmss"})
 	crdClient := NewTestCrdClient(nil)
 	podClient := NewTestPodClient()
@@ -1468,9 +1471,9 @@ func TestMicAddDelVMSSwithImmutableIdentities(t *testing.T) {
 
 	defer micClient.testRunSync()(t)
 
-	eventCh <- aadpodid.PodCreated
-	eventCh <- aadpodid.PodCreated
-	eventCh <- aadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
 	if !evtRecorder.WaitForEvents(3) {
 		t.Fatalf("Timeout waiting for mic sync cycles")
 	}
@@ -1491,7 +1494,7 @@ func TestMicAddDelVMSSwithImmutableIdentities(t *testing.T) {
 	}
 
 	podClient.DeletePod("test-pod1", "default")
-	eventCh <- aadpodid.PodDeleted
+	eventCh <- internalaadpodid.PodDeleted
 
 	if !evtRecorder.WaitForEvents(1) {
 		t.Fatal("Timeout waiting for mic sync cycles")
@@ -1514,7 +1517,7 @@ func TestMicAddDelVMSSwithImmutableIdentities(t *testing.T) {
 
 	podClient.DeletePod("test-pod2", "default")
 
-	eventCh <- aadpodid.PodDeleted
+	eventCh <- internalaadpodid.PodDeleted
 
 	if !evtRecorder.WaitForEvents(1) {
 		t.Fatal("Timeout waiting for mic sync cycles")
