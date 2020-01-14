@@ -9,6 +9,7 @@ import (
 
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
+	"github.com/Azure/aad-pod-identity/pkg/nmi"
 	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
 	"github.com/Azure/aad-pod-identity/pkg/probes"
 	"github.com/Azure/aad-pod-identity/version"
@@ -45,7 +46,7 @@ var (
 	enableScaleFeatures                = pflag.Bool("enableScaleFeatures", false, "Enable/Disable features for scale clusters")
 	blockInstanceMetadata              = pflag.Bool("block-instance-metadata", false, "Block instance metadata endpoints")
 	prometheusPort                     = pflag.String("prometheus-port", "9090", "Prometheus port for metrics")
-	nmiMode                            = pflag.String("nmi-mode", "standard", "NMI operation mode")
+	operationMode                      = pflag.String("operation-mode", "standard", "NMI operation mode")
 )
 
 func main() {
@@ -107,9 +108,9 @@ func main() {
 	}
 }
 
-func getTokenClient(client k8s.Client) server.TokenClient {
-	switch server.NMIMode(*nmiMode) {
-	case server.StandardNMIMode:
+func getTokenClient(client k8s.Client) nmi.TokenClient {
+	switch nmi.OperationMode(*operationMode) {
+	case nmi.StandardMode:
 		return server.NewStandardTokenClient(client,
 			*retryAttemptsForCreated,
 			*retryAttemptsForAssigned,

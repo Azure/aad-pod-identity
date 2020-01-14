@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,24 +17,18 @@ import (
 	"syscall"
 	"time"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
-	iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
+	"github.com/Azure/aad-pod-identity/pkg/nmi"
+	"github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"k8s.io/klog"
 )
 
-// NMIMode is the mode in which NMI is operating
-// allowed values: standard
-type NMIMode string
-
 const (
 	localhost = "127.0.0.1"
-	// StandardNMIMode ...
-	StandardNMIMode NMIMode = "standard"
 )
 
 // Server encapsulates all of the parameters necessary for starting up
@@ -51,7 +44,7 @@ type Server struct {
 	MICNamespace                       string
 	Initialized                        bool
 	BlockInstanceMetadata              bool
-	TokenClient                        TokenClient
+	TokenClient                        nmi.TokenClient
 
 	Reporter *metrics.Reporter
 }
@@ -60,15 +53,6 @@ type Server struct {
 type NMIResponse struct {
 	Token    msiResponse `json:"token"`
 	ClientID string      `json:"clientid"`
-}
-
-// TokenClient ...
-type TokenClient interface {
-	//GetIdentities gets the list of identities which match the
-	// given pod in the form of AzureIdentity.
-	GetIdentities(ctx context.Context, podns, podname, rqClientID string) (aadpodid.AzureIdentity, bool, error)
-	// GetToken acquires a token by using the AzureIdentity.
-	GetToken(ctx context.Context, rqClientID, rqResource string, podID aadpodid.AzureIdentity) (token *adal.Token, clientID string, err error)
 }
 
 // NewServer will create a new Server with default values.
@@ -232,14 +216,14 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 		http.Error(w, "parameter resource cannot be empty", http.StatusBadRequest)
 		return
 	}
-	podIDs, identityInCreatedStateFound, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
+	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in desired state", podns, podname)
 		klog.Errorf("%s, %+v", msg, err)
-		http.Error(w, msg, getErrorResponseStatusCode(identityInCreatedStateFound))
+		http.Error(w, msg, getErrorResponseStatusCode(podID != nil))
 		return
 	}
-	token, clientID, err := s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, podIDs)
+	token, err := s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, *podID)
 	if err != nil {
 		klog.Errorf("failed to get service principal token for pod:%s/%s, err: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
@@ -247,7 +231,7 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 	}
 	nmiResp := NMIResponse{
 		Token:    newMSIResponse(*token),
-		ClientID: clientID,
+		ClientID: podID.Spec.ClientID,
 	}
 	response, err := json.Marshal(nmiResp)
 	if err != nil {
@@ -365,15 +349,15 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 		return
 	}
 
-	podIDs, identityInCreatedStateFound, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
+	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
 		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
 		klog.Errorf("%s, %+v", msg, err)
-		http.Error(w, msg, getErrorResponseStatusCode(identityInCreatedStateFound))
+		http.Error(w, msg, getErrorResponseStatusCode(podID != nil))
 		return
 	}
 
-	token, _, err := s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, podIDs)
+	token, err := s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, *podID)
 	if err != nil {
 		klog.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
