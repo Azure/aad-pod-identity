@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
-	internalaadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
@@ -63,9 +62,9 @@ func TestGetTokenForMatchingIDBySP(t *testing.T) {
 		Namespace: "default",
 	}
 
-	podID := internalaadpodid.AzureIdentity{
-		Spec: internalaadpodid.AzureIdentitySpec{
-			Type:           internalaadpodid.ServicePrincipal,
+	podID := aadpodid.AzureIdentity{
+		Spec: aadpodid.AzureIdentitySpec{
+			Type:           aadpodid.ServicePrincipal,
 			TenantID:       "tid",
 			ClientID:       "aabc0000-a83v-9h4m-000j-2c0a66b0c1f9",
 			ClientPassword: secretRef,

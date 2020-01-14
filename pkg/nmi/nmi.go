@@ -3,7 +3,7 @@ package nmi
 import (
 	"context"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	"github.com/Azure/go-autorest/autorest/adal"
 )
 
