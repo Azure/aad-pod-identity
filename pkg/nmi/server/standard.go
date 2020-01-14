@@ -9,6 +9,7 @@ import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
+	"github.com/Azure/aad-pod-identity/pkg/nmi"
 	utils "github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/go-autorest/autorest/adal"
 
@@ -17,7 +18,7 @@ import (
 
 // StandardClient ...
 type StandardClient struct {
-	TokenClient
+	nmi.TokenClient
 	KubeClient                         k8s.Client
 	ListPodIDsRetryAttemptsForCreated  int
 	ListPodIDsRetryAttemptsForAssigned int
@@ -37,32 +38,50 @@ func NewStandardTokenClient(client k8s.Client, listPodIDsRetryAttemptsForCreated
 }
 
 // GetIdentities ...
-func (sc *StandardClient) GetIdentities(ctx context.Context, podns, podname, rqClientID string) (aadpodid.AzureIdentity, bool, error) {
-	var podID aadpodid.AzureIdentity
-	podIDs, identityInCreatedStateFound, err := sc.listPodIDsWithRetry(ctx, podns, podname, rqClientID)
-	if err == nil {
-		// filter out if we are in namespaced mode
-		filterPodIdentities := []aadpodid.AzureIdentity{}
-		for _, val := range podIDs {
-			if sc.IsNamespaced || aadpodid.IsNamespacedIdentity(&val) {
-				// namespaced mode
-				if val.Namespace == podns {
-					// matched namespace
-					filterPodIdentities = append(filterPodIdentities, val)
-				} else {
-					// unmatched namespaced
-					klog.Errorf("pod:%s/%s has identity %s/%s but identity is namespaced will be ignored", podns, podname, val.Name, val.Namespace)
-				}
-			} else {
-				// not in namespaced mode
-				filterPodIdentities = append(filterPodIdentities, val)
-			}
+func (sc *StandardClient) GetIdentities(ctx context.Context, podns, podname, clientID string) (*aadpodid.AzureIdentity, error) {
+	podIDs, identityInCreatedStateFound, err := sc.listPodIDsWithRetry(ctx, podns, podname, clientID)
+	if err != nil {
+		// if identity not found in created state return nil identity which is then used to send 403 error
+		if !identityInCreatedStateFound {
+			return nil, err
 		}
-		if len(filterPodIdentities) > 0 {
-			podID = filterPodIdentities[0]
+		// identity found in created state but there was an error, then return empty struct which will result in 404 error
+		return &aadpodid.AzureIdentity{}, err
+	}
+
+	// filter out if we are in namespaced mode
+	filterPodIdentities := []aadpodid.AzureIdentity{}
+	for _, val := range podIDs {
+		if sc.IsNamespaced || aadpodid.IsNamespacedIdentity(&val) {
+			// namespaced mode
+			if val.Namespace == podns {
+				// matched namespace
+				filterPodIdentities = append(filterPodIdentities, val)
+			} else {
+				// unmatched namespaced
+				klog.Warningf("pod:%s/%s has identity %s/%s but identity is namespaced will be ignored", podns, podname, val.Name, val.Namespace)
+			}
+		} else {
+			// not in namespaced mode
+			filterPodIdentities = append(filterPodIdentities, val)
 		}
 	}
-	return podID, identityInCreatedStateFound, err
+
+	// if client id exists in the request, then send the first identity that matched the client id
+	if len(clientID) != 0 && len(filterPodIdentities) > 0 {
+		return &filterPodIdentities[0], nil
+	}
+	// if client doesn't exist in the request, then return the first identity in the same namespace as the pod
+	if len(clientID) == 0 && len(filterPodIdentities) > 0 {
+		for _, id := range filterPodIdentities {
+			if strings.EqualFold(id.Namespace, podns) {
+				klog.Infof("No clientID in request. %s/%s has been matched with azure identity %s/%s", podns, podname, id.Namespace, id.Name)
+				return &id, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("no matching azure identity found for pod")
 }
 
 // listPodIDsWithRetry returns a list of matched identities in Assigned state, boolean indicating if at least an identity was found in Created state and error if any
@@ -135,9 +154,9 @@ func (sc *StandardClient) listPodIDsWithRetry(ctx context.Context, podns, podnam
 }
 
 // GetToken ...
-func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource string, podID aadpodid.AzureIdentity) (token *adal.Token, clientID string, err error) {
+func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource string, podID aadpodid.AzureIdentity) (token *adal.Token, err error) {
 	rqHasClientID := len(rqClientID) != 0
-	clientID = podID.Spec.ClientID
+	clientID := podID.Spec.ClientID
 	if rqHasClientID && !strings.EqualFold(rqClientID, clientID) {
 		klog.Warningf("clientid mismatch, requested:%s available:%s", rqClientID, clientID)
 	}
@@ -147,13 +166,13 @@ func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource s
 	case aadpodid.UserAssignedMSI:
 		klog.Infof("matched identityType:%v clientid:%s resource:%s", idType, utils.RedactClientID(clientID), rqResource)
 		token, err := auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, rqResource)
-		return token, clientID, err
+		return token, err
 	case aadpodid.ServicePrincipal:
 		tenantid := podID.Spec.TenantID
 		klog.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantid, utils.RedactClientID(clientID), rqResource)
 		secret, err := sc.KubeClient.GetSecret(&podID.Spec.ClientPassword)
 		if err != nil {
-			return nil, clientID, err
+			return nil, err
 		}
 		clientSecret := ""
 		for _, v := range secret.Data {
@@ -161,11 +180,11 @@ func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource s
 			break
 		}
 		token, err := auth.GetServicePrincipalToken(tenantid, clientID, clientSecret, rqResource)
-		return token, clientID, err
+		return token, err
 	default:
-		return nil, clientID, fmt.Errorf("unsupported identity type %+v", idType)
+		return nil, fmt.Errorf("unsupported identity type %+v", idType)
 	}
 
 	// We have not yet returned, so pass up an error
-	return nil, "", fmt.Errorf("azureidentity is not configured for the pod")
+	return nil, fmt.Errorf("azureidentity is not configured for the pod")
 }

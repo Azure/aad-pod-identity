@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"reflect"
 	"testing"
 
@@ -77,18 +76,22 @@ func TestGetTokenForMatchingIDBySP(t *testing.T) {
 
 func TestGetIdentities(t *testing.T) {
 	cases := []struct {
-		name                        string
-		azureIdentities             map[string][]aadpodid.AzureIdentity
-		clientID                    string
-		expectedFoundInCreatedState bool
-		expectedErr                 bool
-		expectedAzureIdentity       aadpodid.AzureIdentity
-		isNamespaced                bool
+		name                  string
+		azureIdentities       map[string][]aadpodid.AzureIdentity
+		clientID              string
+		expectedErr           bool
+		expectedAzureIdentity *aadpodid.AzureIdentity
+		isNamespaced          bool
+		podName               string
+		podNamespace          string
 	}{
 		{
-			name:            "no azure identities",
-			azureIdentities: make(map[string][]aadpodid.AzureIdentity),
-			expectedErr:     true,
+			name:                  "no azure identities",
+			azureIdentities:       make(map[string][]aadpodid.AzureIdentity),
+			expectedErr:           true,
+			expectedAzureIdentity: nil,
+			podName:               "pod1",
+			podNamespace:          "default",
 		},
 		{
 			name: "azure identities with old 1.3/1.4, no request client id",
@@ -114,9 +117,8 @@ func TestGetIdentities(t *testing.T) {
 					},
 				},
 			},
-			expectedFoundInCreatedState: true,
-			expectedErr:                 false,
-			expectedAzureIdentity: aadpodid.AzureIdentity{
+			expectedErr: false,
+			expectedAzureIdentity: &aadpodid.AzureIdentity{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "azid1",
 					Namespace: "default",
@@ -125,6 +127,8 @@ func TestGetIdentities(t *testing.T) {
 					ClientID: "clientid1",
 				},
 			},
+			podName:      "pod2",
+			podNamespace: "default",
 		},
 		{
 			name: "no request client id, found in created state only",
@@ -150,8 +154,10 @@ func TestGetIdentities(t *testing.T) {
 					},
 				},
 			},
-			expectedFoundInCreatedState: true,
-			expectedErr:                 true,
+			expectedAzureIdentity: &aadpodid.AzureIdentity{},
+			expectedErr:           true,
+			podName:               "pod3",
+			podNamespace:          "default",
 		},
 		{
 			name: "no request client id, found in assigned state",
@@ -177,9 +183,8 @@ func TestGetIdentities(t *testing.T) {
 					},
 				},
 			},
-			expectedFoundInCreatedState: true,
-			expectedErr:                 false,
-			expectedAzureIdentity: aadpodid.AzureIdentity{
+			expectedErr: false,
+			expectedAzureIdentity: &aadpodid.AzureIdentity{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "azid5",
 					Namespace: "default",
@@ -188,6 +193,8 @@ func TestGetIdentities(t *testing.T) {
 					ClientID: "clientid5",
 				},
 			},
+			podName:      "pod4",
+			podNamespace: "default",
 		},
 	}
 
@@ -195,12 +202,8 @@ func TestGetIdentities(t *testing.T) {
 		t.Log(i, tc.name)
 		tokenClient := NewStandardTokenClient(NewTestKubeClient(tc.azureIdentities), 2, 1, 1, tc.isNamespaced)
 
-		testPodName := fmt.Sprintf("testpod%d", i)
-		testPodNs := fmt.Sprintf("testpodns%d", i)
-
-		azIdentity, foundInCreatedState, err := tokenClient.GetIdentities(context.Background(), testPodName, testPodNs, tc.clientID)
+		azIdentity, err := tokenClient.GetIdentities(context.Background(), tc.podNamespace, tc.podName, tc.clientID)
 		assert.Equal(t, err != nil, tc.expectedErr)
-		assert.Equal(t, foundInCreatedState, tc.expectedFoundInCreatedState)
 		assert.True(t, reflect.DeepEqual(tc.expectedAzureIdentity, azIdentity))
 	}
 }
