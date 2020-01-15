@@ -32,7 +32,8 @@ pipeline {
 
 		stage("checkout source") {
 			steps {
-				git changelog: false, credentialsId: env.GIT_REPO_CREDENTIALS, poll: false, url: env.GIT_REPO, branch: env.GIT_BRANCH
+				git changelog: false, credentialsId: env.GIT_REPO_CREDENTIALS, poll: false, url: env.GIT_REPO
+				sh "git checkout -b '${GIT_BRANCH}'"
 				sh "git checkout -f '${GIT_COMMIT}'"
 			}
 		}
