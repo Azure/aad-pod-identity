@@ -3,11 +3,11 @@ package pod
 import (
 	"testing"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	internalaadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 
-	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/klog"
 )
 
 type TestPodClient struct {
@@ -22,7 +22,7 @@ func NewTestPodClient() *TestPodClient {
 }
 
 func (c TestPodClient) Start(exit <-chan struct{}) {
-	glog.Info("Start called from the test interface")
+	klog.Info("Start called from the test interface")
 }
 
 func (c TestPodClient) GetPods() (pods []*corev1.Pod, err error) {
@@ -32,9 +32,9 @@ func (c TestPodClient) GetPods() (pods []*corev1.Pod, err error) {
 
 func (c *TestPodClient) AddPod(podName string, podNs string, nodeName string, binding string) {
 	labels := make(map[string]string)
-	labels[aadpodid.CRDLabelKey] = binding
+	labels[internalaadpodid.CRDLabelKey] = binding
 	pod := &corev1.Pod{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
 			Namespace: podNs,
 			Labels:    labels,
@@ -65,7 +65,7 @@ func (c *TestPodClient) DeletePod(podName string, podNs string) {
 func TestIsPodExcepted(t *testing.T) {
 	cases := []struct {
 		podLabels        map[string]string
-		exceptionList    []aadpodid.AzurePodIdentityException
+		exceptionList    []internalaadpodid.AzurePodIdentityException
 		shouldBeExcepted bool
 	}{
 		{
@@ -75,12 +75,12 @@ func TestIsPodExcepted(t *testing.T) {
 		},
 		{
 			podLabels: map[string]string{"foo": "except"},
-			exceptionList: []aadpodid.AzurePodIdentityException{
+			exceptionList: []internalaadpodid.AzurePodIdentityException{
 				{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name: "exception1",
 					},
-					Spec: aadpodid.AzurePodIdentityExceptionSpec{
+					Spec: internalaadpodid.AzurePodIdentityExceptionSpec{
 						PodLabels: map[string]string{"foo": "notexcept"},
 					},
 				},
@@ -89,20 +89,20 @@ func TestIsPodExcepted(t *testing.T) {
 		},
 		{
 			podLabels: map[string]string{"foo": "except"},
-			exceptionList: []aadpodid.AzurePodIdentityException{
+			exceptionList: []internalaadpodid.AzurePodIdentityException{
 				{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name: "exception1",
 					},
-					Spec: aadpodid.AzurePodIdentityExceptionSpec{
+					Spec: internalaadpodid.AzurePodIdentityExceptionSpec{
 						PodLabels: map[string]string{"foo": "notexcept"},
 					},
 				},
 				{
-					ObjectMeta: v1.ObjectMeta{
+					ObjectMeta: metav1.ObjectMeta{
 						Name: "exception2",
 					},
-					Spec: aadpodid.AzurePodIdentityExceptionSpec{
+					Spec: internalaadpodid.AzurePodIdentityExceptionSpec{
 						PodLabels: map[string]string{"foo": "except"},
 					},
 				},

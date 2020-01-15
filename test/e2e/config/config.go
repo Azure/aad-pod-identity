@@ -1,6 +1,10 @@
 package config
 
-import "github.com/kelseyhightower/envconfig"
+import (
+	"strings"
+
+	"github.com/kelseyhightower/envconfig"
+)
 
 // Config holds global test configuration translated from environment variables
 type Config struct {
@@ -25,6 +29,6 @@ func ParseConfig() (*Config, error) {
 	if err := envconfig.Process("config", c); err != nil {
 		return nil, err
 	}
-
+	c.ResourceGroup = strings.ToLower(c.ResourceGroup)
 	return c, nil
 }
