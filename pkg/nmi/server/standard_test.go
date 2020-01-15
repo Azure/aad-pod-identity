@@ -17,8 +17,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-/****************** CRD MOCK ****************************/
-
 type TestKubeClient struct {
 	k8s.Client
 	azureIdentities map[string][]aadpodid.AzureIdentity
@@ -194,6 +192,133 @@ func TestGetIdentities(t *testing.T) {
 			},
 			podName:      "pod4",
 			podNamespace: "default",
+		},
+		{
+			name: "client id in request, no identity with same client id in assigned state",
+			azureIdentities: map[string][]aadpodid.AzureIdentity{
+				aadpodid.AssignedIDCreated: []aadpodid.AzureIdentity{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "azid1",
+							Namespace: "default",
+						},
+						Spec: aadpodid.AzureIdentitySpec{
+							ClientID: "clientid1",
+						},
+					},
+				},
+				aadpodid.AssignedIDAssigned: []aadpodid.AzureIdentity{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "azid2",
+							Namespace: "default",
+						},
+						Spec: aadpodid.AzureIdentitySpec{
+							ClientID: "clientid2",
+						},
+					},
+				},
+			},
+			expectedErr:           true,
+			expectedAzureIdentity: &aadpodid.AzureIdentity{},
+			podName:               "pod5",
+			podNamespace:          "default",
+			clientID:              "clientid1",
+		},
+		{
+			name: "client id in request, identity in same namespace returned with force namespace mode",
+			azureIdentities: map[string][]aadpodid.AzureIdentity{
+				aadpodid.AssignedIDAssigned: []aadpodid.AzureIdentity{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "azid2",
+							Namespace: "testns",
+						},
+						Spec: aadpodid.AzureIdentitySpec{
+							ClientID: "clientid2",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "azid1",
+							Namespace: "default",
+						},
+						Spec: aadpodid.AzureIdentitySpec{
+							ClientID: "clientid1",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "azid3",
+							Namespace: "default",
+						},
+						Spec: aadpodid.AzureIdentitySpec{
+							ClientID: "clientid3",
+						},
+					},
+				},
+			},
+			expectedErr: false,
+			expectedAzureIdentity: &aadpodid.AzureIdentity{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "azid2",
+					Namespace: "testns",
+				},
+				Spec: aadpodid.AzureIdentitySpec{
+					ClientID: "clientid2",
+				},
+			},
+			podName:      "pod7",
+			podNamespace: "testns",
+			clientID:     "clientid2",
+			isNamespaced: true,
+		},
+		{
+			name: "no client id in request, identity in same namespace returned with force namespace mode",
+			azureIdentities: map[string][]aadpodid.AzureIdentity{
+				aadpodid.AssignedIDAssigned: []aadpodid.AzureIdentity{
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "azid2",
+							Namespace: "default",
+						},
+						Spec: aadpodid.AzureIdentitySpec{
+							ClientID: "clientid2",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "azid1",
+							Namespace: "default",
+						},
+						Spec: aadpodid.AzureIdentitySpec{
+							ClientID: "clientid1",
+						},
+					},
+					{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "azid3",
+							Namespace: "testns",
+						},
+						Spec: aadpodid.AzureIdentitySpec{
+							ClientID: "clientid3",
+						},
+					},
+				},
+			},
+			expectedErr: false,
+			expectedAzureIdentity: &aadpodid.AzureIdentity{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "azid3",
+					Namespace: "testns",
+				},
+				Spec: aadpodid.AzureIdentitySpec{
+					ClientID: "clientid3",
+				},
+			},
+			podName:      "pod8",
+			podNamespace: "testns",
+			isNamespaced: true,
 		},
 	}
 

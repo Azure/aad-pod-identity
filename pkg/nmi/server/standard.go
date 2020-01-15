@@ -16,7 +16,7 @@ import (
 	"k8s.io/klog"
 )
 
-// StandardClient ...
+// StandardClient implements the TokenClient interface
 type StandardClient struct {
 	nmi.TokenClient
 	KubeClient                         k8s.Client
@@ -67,17 +67,15 @@ func (sc *StandardClient) GetIdentities(ctx context.Context, podns, podname, cli
 		}
 	}
 
-	// if client id exists in the request, then send the first identity that matched the client id
-	if len(clientID) != 0 && len(filterPodIdentities) > 0 {
-		return &filterPodIdentities[0], nil
-	}
-	// if client doesn't exist in the request, then return the first identity in the same namespace as the pod
-	if len(clientID) == 0 && len(filterPodIdentities) > 0 {
-		for _, id := range filterPodIdentities {
-			if strings.EqualFold(id.Namespace, podns) {
-				klog.Infof("No clientID in request. %s/%s has been matched with azure identity %s/%s", podns, podname, id.Namespace, id.Name)
-				return &id, nil
-			}
+	for _, id := range filterPodIdentities {
+		// if client id exists in the request, then send the first identity that matched the client id
+		if len(clientID) != 0 && id.Spec.ClientID == clientID {
+			return &id, nil
+		}
+		// if client doesn't exist in the request, then return the first identity in the same namespace as the pod
+		if len(clientID) == 0 && strings.EqualFold(id.Namespace, podns) {
+			klog.Infof("No clientID in request. %s/%s has been matched with azure identity %s/%s", podns, podname, id.Namespace, id.Name)
+			return &id, nil
 		}
 	}
 

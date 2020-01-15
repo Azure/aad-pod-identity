@@ -18,7 +18,7 @@ const (
 
 // TokenClient ...
 type TokenClient interface {
-	//GetIdentities gets the list of identities which match the
+	// GetIdentities gets the list of identities which match the
 	// given pod in the form of AzureIdentity.
 	GetIdentities(ctx context.Context, podns, podname, clientID string) (*aadpodid.AzureIdentity, error)
 	// GetToken acquires a token by using the AzureIdentity.
