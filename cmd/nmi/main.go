@@ -3,6 +3,7 @@ package main
 import (
 	goflag "flag"
 	"os"
+	"strings"
 
 	"net/http"
 	_ "net/http/pprof"
@@ -109,7 +110,9 @@ func main() {
 }
 
 func getTokenClient(client k8s.Client) nmi.TokenClient {
-	switch nmi.OperationMode(*operationMode) {
+	klog.Infof("Initializing in %s mode", strings.ToLower(*operationMode))
+
+	switch nmi.OperationMode(strings.ToLower(*operationMode)) {
 	case nmi.StandardMode:
 		return server.NewStandardTokenClient(client,
 			*retryAttemptsForCreated,
