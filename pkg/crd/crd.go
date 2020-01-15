@@ -49,25 +49,37 @@ type ClientInt interface {
 }
 
 // NewCRDClientLite ...
-func NewCRDClientLite(config *rest.Config, nodeName string, scale bool) (crdClient *Client, err error) {
+func NewCRDClientLite(config *rest.Config, nodeName string, scale, isStandardMode bool) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
 	}
 
-	var assignedIDListWatch *cache.ListWatch
+	var assignedIDListInformer, bindingListInformer, idListInformer cache.SharedInformer
 
-	if scale {
-		assignedIDListWatch = newAssignedIDNodeListWatch(restClient, nodeName)
+	// assigned identity informer is required only for standard mode
+	if isStandardMode {
+		var assignedIDListWatch *cache.ListWatch
+		if scale {
+			assignedIDListWatch = newAssignedIDNodeListWatch(restClient, nodeName)
+		} else {
+			assignedIDListWatch = newAssignedIDListWatch(restClient)
+		}
+
+		assignedIDListInformer, err = newAssignedIDInformer(assignedIDListWatch)
+		if err != nil {
+			klog.Error(err)
+			return nil, err
+		}
 	} else {
-		assignedIDListWatch = newAssignedIDListWatch(restClient)
-	}
-
-	assignedIDListInformer, err := newAssignedIDInformer(assignedIDListWatch)
-	if err != nil {
-		klog.Error(err)
-		return nil, err
+		// creating binding and identity list informers for non standard mode
+		if bindingListInformer, err = newBindingInformerLite(newBindingListWatch(restClient)); err != nil {
+			return nil, err
+		}
+		if idListInformer, err = newIDInformerLite(newIDListWatch(restClient)); err != nil {
+			return nil, err
+		}
 	}
 	podIdentityExceptionListWatch := newPodIdentityExceptionListWatch(restClient)
 	podIdentityExceptionInformer, err := newPodIdentityExceptionInformer(podIdentityExceptionListWatch)
@@ -85,6 +97,8 @@ func NewCRDClientLite(config *rest.Config, nodeName string, scale bool) (crdClie
 	return &Client{
 		AssignedIDInformer:           assignedIDListInformer,
 		PodIdentityExceptionInformer: podIdentityExceptionInformer,
+		BindingInformer:              bindingListInformer,
+		IDInformer:                   idListInformer,
 		rest:                         restClient,
 		reporter:                     reporter,
 	}, nil
@@ -249,8 +263,23 @@ func newAssignedIDInformer(lw *cache.ListWatch) (cache.SharedInformer, error) {
 	if azAssignedIDInformer == nil {
 		return nil, fmt.Errorf("could not create %s informer", aadpodv1.AzureAssignedIDResource)
 	}
-
 	return azAssignedIDInformer, nil
+}
+
+func newBindingInformerLite(lw *cache.ListWatch) (cache.SharedInformer, error) {
+	azBindingInformer := cache.NewSharedInformer(lw, &aadpodv1.AzureIdentityBinding{}, time.Minute*10)
+	if azBindingInformer == nil {
+		return nil, fmt.Errorf("could not create %s informer", aadpodv1.AzureIDBindingResource)
+	}
+	return azBindingInformer, nil
+}
+
+func newIDInformerLite(lw *cache.ListWatch) (cache.SharedInformer, error) {
+	azIDInformer := cache.NewSharedInformer(lw, &aadpodv1.AzureIdentity{}, time.Minute*10)
+	if azIDInformer == nil {
+		return nil, fmt.Errorf("could not create %s informer", aadpodv1.AzureIDResource)
+	}
+	return azIDInformer, nil
 }
 
 func newPodIdentityExceptionListWatch(r *rest.RESTClient) *cache.ListWatch {

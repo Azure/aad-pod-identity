@@ -73,7 +73,7 @@ func main() {
 		klog.Infof("Features for scale clusters enabled")
 	}
 
-	client, err := k8s.NewKubeClient(*nodename, *enableScaleFeatures)
+	client, err := k8s.NewKubeClient(*nodename, *enableScaleFeatures, nmi.OperationMode(strings.ToLower(*operationMode)) == nmi.StandardMode)
 	if err != nil {
 		klog.Fatalf("%+v", err)
 	}

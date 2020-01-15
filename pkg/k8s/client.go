@@ -53,7 +53,7 @@ type KubeClient struct {
 }
 
 // NewKubeClient new kubernetes api client
-func NewKubeClient(nodeName string, scale bool) (Client, error) {
+func NewKubeClient(nodeName string, scale, isStandardMode bool) (Client, error) {
 	config, err := buildConfig()
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func NewKubeClient(nodeName string, scale bool) (Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	crdclient, err := crd.NewCRDClientLite(config, nodeName, scale)
+	crdclient, err := crd.NewCRDClientLite(config, nodeName, scale, isStandardMode)
 	if err != nil {
 		return nil, err
 	}
