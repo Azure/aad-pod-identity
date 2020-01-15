@@ -81,7 +81,16 @@ func ensureCustomChain(ipt *iptables.IPTables, destIP, destPort, targetip, targe
 			return err
 		}
 	}
-	if len(rules) == 2 {
+
+	/*
+		iptables -t nat -S aad-metadata returns 3 rules
+			-N aad-metadata
+			-A aad-metadata ! -s 127.0.0.1/32 -d 169.254.169.254/32 -p tcp -m tcp --dport 80 -j DNAT --to-destination 10.240.3.134:2579
+			-A aad-metadata -j RETURN
+
+		For this reason we check if the length of rules is 3. If not 3, then we flush and create chain again.
+	*/
+	if len(rules) == 3 {
 		return nil
 	}
 	if err := flushCreateCustomChainrules(ipt, destIP, destPort,
@@ -93,6 +102,7 @@ func ensureCustomChain(ipt *iptables.IPTables, destIP, destPort, targetip, targe
 }
 
 func flushCreateCustomChainrules(ipt *iptables.IPTables, destIP, destPort, targetip, targetport string) error {
+	klog.Warning("Flushing iptables to add aad-metadata custom chains")
 	if err := ipt.ClearChain(tablename, customchainname); err != nil {
 		return err
 	}
