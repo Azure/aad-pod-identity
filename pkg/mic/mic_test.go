@@ -22,6 +22,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 )
 
@@ -347,11 +348,7 @@ func NewTestCrdClient(config *rest.Config) *TestCrdClient {
 func (c *TestCrdClient) Start(exit <-chan struct{}) {
 }
 
-func (c *TestCrdClient) SyncCache(exit <-chan struct{}) {
-
-}
-
-func (c *TestCrdClient) SyncCacheLite(exit <-chan struct{}) {
+func (c *TestCrdClient) SyncCache(exit <-chan struct{}, initial bool, cacheSyncs ...cache.InformerSynced) {
 
 }
 

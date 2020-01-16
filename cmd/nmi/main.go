@@ -119,6 +119,8 @@ func getTokenClient(client k8s.Client) nmi.TokenClient {
 			*retryAttemptsForAssigned,
 			*findIdentityRetryIntervalInSeconds,
 			*forceNamespaced)
+	case nmi.ManagedMode:
+		return server.NewManagedTokenClient(client, *forceNamespaced)
 	default:
 		return nil
 	}

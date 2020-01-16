@@ -182,7 +182,4 @@ func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource s
 	default:
 		return nil, fmt.Errorf("unsupported identity type %+v", idType)
 	}
-
-	// We have not yet returned, so pass up an error
-	return nil, fmt.Errorf("azureidentity is not configured for the pod")
 }

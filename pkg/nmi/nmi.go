@@ -8,12 +8,14 @@ import (
 )
 
 // OperationMode is the mode in which NMI is operating
-// allowed values: standard
+// allowed values: standard, managed
 type OperationMode string
 
 const (
 	// StandardMode ...
 	StandardMode OperationMode = "standard"
+	// ManagedMode ...
+	ManagedMode OperationMode = "managed"
 )
 
 // TokenClient ...
