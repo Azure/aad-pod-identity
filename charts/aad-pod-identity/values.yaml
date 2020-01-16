@@ -29,6 +29,8 @@ mic:
   image: mic
   tag: 1.5.4
 
+  priorityClassName: ""
+
   # log level. Uses V logs (glog)
   logVerbosity: 0
 
@@ -65,7 +67,7 @@ mic:
   # Override interval in seconds at which sync loop should periodically check for errors and reconcile (default is 3600s)
   syncRetryDuration: ""
 
-  # Override the defult value of immutable identities. 
+  # Override the defult value of immutable identities.
   immutableUserMSIs: []
     # Example of MSIs (should be replaced with the real client ids)
     #- "00000000-0000-0000-0000-000000000000"
@@ -86,6 +88,8 @@ mic:
 nmi:
   image: nmi
   tag: 1.5.4
+
+  priorityClassName: ""
 
   resources:
     limits:
@@ -139,7 +143,7 @@ rbac:
   # NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity.
   # If using only MSI (type: 0) in AzureIdentity, secret get permission can be disabled by setting this to false.
   allowAccessToSecrets: true
-  
+
 azureIdentity:
   # enabled/disable deployment of azure identity and binding
   enabled: false

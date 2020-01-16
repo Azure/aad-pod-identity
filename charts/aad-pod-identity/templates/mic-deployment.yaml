@@ -22,6 +22,9 @@ spec:
       {{- if .Values.rbac.enabled }}
       serviceAccountName: {{ template "aad-pod-identity.mic.fullname" . }}
       {{- end }}
+      {{- if .Values.mic.priorityClassName }}
+      priorityClassName: {{ .Values.mic.priorityClassName | quote }}
+      {{- end }}
       containers:
       - name: mic
         image: "{{ .Values.image.repository }}/{{ .Values.mic.image }}:{{ .Values.mic.tag }}"
@@ -54,13 +57,13 @@ spec:
           {{- end }}
           {{- if .Values.mic.clientQps }}
           - --clientQps={{ .Values.mic.clientQps }}
-          {{- end }}          
+          {{- end }}
           {{- if .Values.mic.immutableUserMSIs }}
           - "--immutable-user-msis={{- join "," .Values.mic.immutableUserMSIs}}"
           {{- end }}
           {{- if .Values.mic.prometheusPort }}
           - --prometheus-port={{ .Values.mic.prometheusPort }}
-          {{- end }}  
+          {{- end }}
         env:
           - name: FORCENAMESPACED
             value: "{{ .Values.forceNameSpaced }}"
