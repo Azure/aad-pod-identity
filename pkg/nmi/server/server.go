@@ -180,7 +180,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rw := newResponseWriter(w)
 	ns := fn(rw, r)
 	latency := time.Since(start)
-	klog.Infof("Status (%d) took %d ns", rw.statusCode, latency.Nanoseconds())
+	klog.Infof("Status (%d) took %d ns for %s", rw.statusCode, latency.Nanoseconds(), tracker)
 
 	_, resource := parseRequestClientIDAndResource(r)
 

@@ -580,7 +580,7 @@ func (c *Client) GetPodIDsWithBinding(namespace string, labels map[string]string
 	if bindings == nil {
 		return nil, fmt.Errorf("binding list is nil from cache")
 	}
-	var matchingIds map[string]bool
+	matchingIds := make(map[string]bool)
 	podLabel := labels[aadpodid.CRDLabelKey]
 
 	for _, binding := range *bindings {
