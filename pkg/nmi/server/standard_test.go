@@ -19,11 +19,11 @@ import (
 
 type TestKubeClient struct {
 	k8s.Client
-	azureIdentities map[string][]aadpodid.AzureIdentity
+	azureIdentities interface{}
 	err             error
 }
 
-func NewTestKubeClient(azids map[string][]aadpodid.AzureIdentity) *TestKubeClient {
+func NewTestKubeClient(azids interface{}) *TestKubeClient {
 	return &TestKubeClient{
 		azureIdentities: azids,
 	}
@@ -34,7 +34,8 @@ func (c *TestKubeClient) setError(err error) {
 }
 
 func (c *TestKubeClient) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
-	return c.azureIdentities, c.err
+	identities, _ := c.azureIdentities.(map[string][]aadpodid.AzureIdentity)
+	return identities, c.err
 }
 
 func TestGetTokenForMatchingIDBySP(t *testing.T) {
@@ -71,7 +72,7 @@ func TestGetTokenForMatchingIDBySP(t *testing.T) {
 	s.TokenClient.GetToken(context.Background(), podID.Spec.ClientID, "https://management.azure.com/", podID)
 }
 
-func TestGetIdentities(t *testing.T) {
+func TestGetIdentitiesStandardClient(t *testing.T) {
 	cases := []struct {
 		name                  string
 		azureIdentities       map[string][]aadpodid.AzureIdentity
