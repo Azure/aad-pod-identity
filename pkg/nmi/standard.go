@@ -1,4 +1,4 @@
-package server
+package nmi
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
-	"github.com/Azure/aad-pod-identity/pkg/nmi"
 	utils "github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/go-autorest/autorest/adal"
 
@@ -18,7 +17,7 @@ import (
 
 // StandardClient implements the TokenClient interface
 type StandardClient struct {
-	nmi.TokenClient
+	TokenClient
 	KubeClient                         k8s.Client
 	ListPodIDsRetryAttemptsForCreated  int
 	ListPodIDsRetryAttemptsForAssigned int
@@ -27,14 +26,14 @@ type StandardClient struct {
 }
 
 // NewStandardTokenClient creates new standard nmi client
-func NewStandardTokenClient(client k8s.Client, listPodIDsRetryAttemptsForCreated, listPodIDsRetryAttemptsForAssigned, listPodIDsRetryIntervalInSeconds int, isNamespaced bool) *StandardClient {
+func NewStandardTokenClient(client k8s.Client, config Config) (*StandardClient, error) {
 	return &StandardClient{
 		KubeClient:                         client,
-		ListPodIDsRetryAttemptsForCreated:  listPodIDsRetryAttemptsForCreated,
-		ListPodIDsRetryAttemptsForAssigned: listPodIDsRetryAttemptsForAssigned,
-		ListPodIDsRetryIntervalInSeconds:   listPodIDsRetryIntervalInSeconds,
-		IsNamespaced:                       isNamespaced,
-	}
+		ListPodIDsRetryAttemptsForCreated:  config.RetryAttemptsForCreated,
+		ListPodIDsRetryAttemptsForAssigned: config.RetryAttemptsForAssigned,
+		ListPodIDsRetryIntervalInSeconds:   config.FindIdentityRetryIntervalInSeconds,
+		IsNamespaced:                       config.Namespaced,
+	}, nil
 }
 
 // GetIdentities ...
@@ -152,23 +151,23 @@ func (sc *StandardClient) listPodIDsWithRetry(ctx context.Context, podns, podnam
 }
 
 // GetToken ...
-func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource string, podID aadpodid.AzureIdentity) (token *adal.Token, err error) {
+func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource string, azureID aadpodid.AzureIdentity) (token *adal.Token, err error) {
 	rqHasClientID := len(rqClientID) != 0
-	clientID := podID.Spec.ClientID
-	if rqHasClientID && !strings.EqualFold(rqClientID, clientID) {
-		klog.Warningf("clientid mismatch, requested:%s available:%s", rqClientID, clientID)
-	}
+	clientID := azureID.Spec.ClientID
 
-	idType := podID.Spec.Type
+	idType := azureID.Spec.Type
 	switch idType {
 	case aadpodid.UserAssignedMSI:
+		if rqHasClientID && !strings.EqualFold(rqClientID, clientID) {
+			klog.Warningf("clientid mismatch, requested:%s available:%s", rqClientID, clientID)
+		}
 		klog.Infof("matched identityType:%v clientid:%s resource:%s", idType, utils.RedactClientID(clientID), rqResource)
 		token, err := auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, rqResource)
 		return token, err
 	case aadpodid.ServicePrincipal:
-		tenantid := podID.Spec.TenantID
+		tenantid := azureID.Spec.TenantID
 		klog.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantid, utils.RedactClientID(clientID), rqResource)
-		secret, err := sc.KubeClient.GetSecret(&podID.Spec.ClientPassword)
+		secret, err := sc.KubeClient.GetSecret(&azureID.Spec.ClientPassword)
 		if err != nil {
 			return nil, err
 		}

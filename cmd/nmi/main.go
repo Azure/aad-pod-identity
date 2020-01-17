@@ -89,11 +89,20 @@ func main() {
 	s.HostIP = *hostIP
 	s.NodeName = *nodename
 	s.IPTableUpdateTimeIntervalInSeconds = *ipTableUpdateTimeIntervalInSeconds
-	s.TokenClient = getTokenClient(client)
 
-	if s.TokenClient == nil {
-		klog.Fatalf("failed to initialize token client")
+	nmiConfig := nmi.Config{
+		Mode:                               strings.ToLower(*operationMode),
+		RetryAttemptsForCreated:            *retryAttemptsForCreated,
+		RetryAttemptsForAssigned:           *retryAttemptsForAssigned,
+		FindIdentityRetryIntervalInSeconds: *findIdentityRetryIntervalInSeconds,
+		Namespaced:                         *forceNamespaced,
 	}
+
+	tokenClient, err := nmi.GetTokenClient(client, nmiConfig)
+	if err != nil {
+		klog.Fatalf("failed to initialize token client, err: %v", err)
+	}
+	s.TokenClient = tokenClient
 
 	// Health probe will always report success once its started. The contents
 	// will report "Active" once the iptables rules are set
@@ -106,22 +115,5 @@ func main() {
 
 	if err := s.Run(); err != nil {
 		klog.Fatalf("%s", err)
-	}
-}
-
-func getTokenClient(client k8s.Client) nmi.TokenClient {
-	klog.Infof("Initializing in %s mode", strings.ToLower(*operationMode))
-
-	switch nmi.OperationMode(strings.ToLower(*operationMode)) {
-	case nmi.StandardMode:
-		return server.NewStandardTokenClient(client,
-			*retryAttemptsForCreated,
-			*retryAttemptsForAssigned,
-			*findIdentityRetryIntervalInSeconds,
-			*forceNamespaced)
-	case nmi.ManagedMode:
-		return server.NewManagedTokenClient(client, *forceNamespaced)
-	default:
-		return nil
 	}
 }

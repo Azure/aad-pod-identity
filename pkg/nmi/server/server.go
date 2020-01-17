@@ -44,7 +44,8 @@ type Server struct {
 	MICNamespace                       string
 	Initialized                        bool
 	BlockInstanceMetadata              bool
-	TokenClient                        nmi.TokenClient
+	// TokenClient is client that fetches identities and tokens
+	TokenClient nmi.TokenClient
 
 	Reporter *metrics.Reporter
 }
@@ -218,8 +219,8 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 	}
 	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
-		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in desired state", podns, podname)
-		klog.Errorf("%s, %+v", msg, err)
+		msg := fmt.Sprintf("no identity found for pod:%s/%s", podns, podname)
+		klog.Errorf("%s, err: %+v", msg, err)
 		http.Error(w, msg, getErrorResponseStatusCode(podID != nil))
 		return
 	}
@@ -351,8 +352,8 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 
 	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
-		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
-		klog.Errorf("%s, %+v", msg, err)
+		msg := fmt.Sprintf("no identity found for pod:%s/%s", podns, podname)
+		klog.Errorf("%s, err: %+v", msg, err)
 		http.Error(w, msg, getErrorResponseStatusCode(podID != nil))
 		return
 	}

@@ -1,4 +1,4 @@
-package server
+package nmi
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
-	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -124,10 +123,17 @@ func TestGetIdentitiesManagedClient(t *testing.T) {
 
 	for i, tc := range cases {
 		t.Log(i, tc.name)
-		tokenClient := NewManagedTokenClient(NewTestKubeClient(tc.azureIdentities), tc.isNamespaced)
+		tokenClient, err := NewManagedTokenClient(NewTestKubeClient(tc.azureIdentities), Config{Namespaced: true})
+		if err != nil {
+			t.Fatalf("expected err to be nil, got: %v", err)
+		}
 
 		azIdentity, err := tokenClient.GetIdentities(context.Background(), tc.podNamespace, tc.podName, tc.clientID)
-		assert.Equal(t, err != nil, tc.expectedErr)
-		assert.True(t, reflect.DeepEqual(tc.expectedAzureIdentity, azIdentity))
+		if tc.expectedErr != (err != nil) {
+			t.Fatalf("expected error: %v, got: %v", tc.expectedErr, err)
+		}
+		if !reflect.DeepEqual(tc.expectedAzureIdentity, azIdentity) {
+			t.Fatalf("expected the azure identity to be equal")
+		}
 	}
 }

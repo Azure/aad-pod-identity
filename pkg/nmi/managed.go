@@ -1,4 +1,4 @@
-package server
+package nmi
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
-	"github.com/Azure/aad-pod-identity/pkg/nmi"
 	utils "github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"k8s.io/klog"
@@ -16,17 +15,21 @@ import (
 
 // ManagedClient implements the TokenClient interface
 type ManagedClient struct {
-	nmi.TokenClient
+	TokenClient
 	KubeClient   k8s.Client
 	IsNamespaced bool
 }
 
 // NewManagedTokenClient creates new managed token client
-func NewManagedTokenClient(client k8s.Client, isNamespaced bool) *ManagedClient {
+func NewManagedTokenClient(client k8s.Client, config Config) (*ManagedClient, error) {
+	// managed mode supported only in force namespaced mode
+	if !config.Namespaced {
+		return nil, fmt.Errorf("managed mode not intialized in force namespaced mode")
+	}
 	return &ManagedClient{
 		KubeClient:   client,
-		IsNamespaced: isNamespaced,
-	}
+		IsNamespaced: config.Namespaced,
+	}, nil
 }
 
 // GetIdentities gets the azure identity that matches the podns/podname and client id
@@ -38,7 +41,6 @@ func (mc *ManagedClient) GetIdentities(ctx context.Context, podns, podname, clie
 	}
 	// get all the azure identities based on azure identity bindings
 	azureIdentities, err := mc.KubeClient.ListPodIdsWithBinding(podns, pod.Labels)
-
 	for _, id := range azureIdentities {
 		// if client id exists in the request, then send the first identity that matched the client id
 		if len(clientID) != 0 && id.Spec.ClientID == clientID {
@@ -54,23 +56,23 @@ func (mc *ManagedClient) GetIdentities(ctx context.Context, podns, podname, clie
 }
 
 // GetToken ...
-func (mc *ManagedClient) GetToken(ctx context.Context, rqClientID, rqResource string, podID aadpodid.AzureIdentity) (token *adal.Token, err error) {
+func (mc *ManagedClient) GetToken(ctx context.Context, rqClientID, rqResource string, azureID aadpodid.AzureIdentity) (token *adal.Token, err error) {
 	rqHasClientID := len(rqClientID) != 0
-	clientID := podID.Spec.ClientID
-	if rqHasClientID && !strings.EqualFold(rqClientID, clientID) {
-		klog.Warningf("clientid mismatch, requested:%s available:%s", rqClientID, clientID)
-	}
+	clientID := azureID.Spec.ClientID
 
-	idType := podID.Spec.Type
+	idType := azureID.Spec.Type
 	switch idType {
 	case aadpodid.UserAssignedMSI:
+		if rqHasClientID && !strings.EqualFold(rqClientID, clientID) {
+			klog.Warningf("clientid mismatch, requested:%s available:%s", rqClientID, clientID)
+		}
 		klog.Infof("matched identityType:%v clientid:%s resource:%s", idType, utils.RedactClientID(clientID), rqResource)
 		token, err := auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, rqResource)
 		return token, err
 	case aadpodid.ServicePrincipal:
-		tenantid := podID.Spec.TenantID
+		tenantid := azureID.Spec.TenantID
 		klog.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantid, utils.RedactClientID(clientID), rqResource)
-		secret, err := mc.KubeClient.GetSecret(&podID.Spec.ClientPassword)
+		secret, err := mc.KubeClient.GetSecret(&azureID.Spec.ClientPassword)
 		if err != nil {
 			return nil, err
 		}

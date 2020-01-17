@@ -1,4 +1,4 @@
-package server
+package nmi
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
-	"github.com/stretchr/testify/assert"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +38,6 @@ func (c *TestKubeClient) ListPodIds(podns, podname string) (map[string][]aadpodi
 }
 
 func TestGetTokenForMatchingIDBySP(t *testing.T) {
-	s := NewServer("default", false)
 	fakeClient := fake.NewSimpleClientset()
 	reporter, err := metrics.NewReporter()
 	if err != nil {
@@ -53,8 +51,10 @@ func TestGetTokenForMatchingIDBySP(t *testing.T) {
 	fakeClient.CoreV1().Secrets("default").Create(secret)
 
 	kubeClient := &k8s.KubeClient{ClientSet: fakeClient}
-	s.KubeClient = kubeClient
-	s.TokenClient = NewStandardTokenClient(kubeClient, 2, 1, 1, false)
+	tokenClient, err := NewStandardTokenClient(kubeClient, Config{})
+	if err != nil {
+		t.Fatalf("expected err to be nil, got: %v", err)
+	}
 
 	secretRef := v1.SecretReference{
 		Name:      "clientSecret",
@@ -69,7 +69,7 @@ func TestGetTokenForMatchingIDBySP(t *testing.T) {
 			ClientPassword: secretRef,
 		},
 	}
-	s.TokenClient.GetToken(context.Background(), podID.Spec.ClientID, "https://management.azure.com/", podID)
+	tokenClient.GetToken(context.Background(), podID.Spec.ClientID, "https://management.azure.com/", podID)
 }
 
 func TestGetIdentitiesStandardClient(t *testing.T) {
@@ -325,10 +325,23 @@ func TestGetIdentitiesStandardClient(t *testing.T) {
 
 	for i, tc := range cases {
 		t.Log(i, tc.name)
-		tokenClient := NewStandardTokenClient(NewTestKubeClient(tc.azureIdentities), 2, 1, 1, tc.isNamespaced)
+		tokenClient, err := NewStandardTokenClient(NewTestKubeClient(tc.azureIdentities), Config{
+			Mode:                               "standard",
+			RetryAttemptsForCreated:            2,
+			RetryAttemptsForAssigned:           1,
+			FindIdentityRetryIntervalInSeconds: 1,
+			Namespaced:                         tc.isNamespaced,
+		})
+		if err != nil {
+			t.Fatalf("expected err to be nil, got: %v", err)
+		}
 
 		azIdentity, err := tokenClient.GetIdentities(context.Background(), tc.podNamespace, tc.podName, tc.clientID)
-		assert.Equal(t, err != nil, tc.expectedErr)
-		assert.True(t, reflect.DeepEqual(tc.expectedAzureIdentity, azIdentity))
+		if tc.expectedErr != (err != nil) {
+			t.Fatalf("expected error: %v, got: %v", tc.expectedErr, err)
+		}
+		if !reflect.DeepEqual(tc.expectedAzureIdentity, azIdentity) {
+			t.Fatalf("expected the azure identity to be equal")
+		}
 	}
 }

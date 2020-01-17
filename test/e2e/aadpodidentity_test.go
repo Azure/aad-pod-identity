@@ -61,6 +61,8 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	cfg = *c
 	fmt.Printf("System MSI enabled: %v\n", cfg.SystemMSICluster)
+	fmt.Printf("NMI running in %s mode\n", cfg.NmiMode)
+	fmt.Printf("Running MIC version: %s, NMI Version: %s\n\n", cfg.MICVersion, cfg.NMIVersion)
 	setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures, cfg.ImmutableUserMSIs)
 })
 
@@ -127,7 +129,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		_, err := cmd.CombinedOutput()
 		Expect(err).NotTo(HaveOccurred())
 
-		ok, err := azureassignedidentity.WaitOnLengthMatched(0)
+		ok, err := azureassignedidentity.WaitOnLengthMatched(0, false)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -137,7 +139,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	It("should pass the identity validating test", func() {
 		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
-		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
+		ok, err := azureassignedidentity.WaitOnLengthMatched(1, true)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -153,7 +155,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		err := azureidentity.DeleteOnCluster(keyvaultIdentity, templateOutputPath)
 		Expect(err).NotTo(HaveOccurred())
 
-		ok, err := azureassignedidentity.WaitOnLengthMatched(0)
+		ok, err := azureassignedidentity.WaitOnLengthMatched(0, false)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -175,7 +177,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		err := azureidentitybinding.Delete(keyvaultIdentity, templateOutputPath)
 		Expect(err).NotTo(HaveOccurred())
 
-		ok, err := azureassignedidentity.WaitOnLengthMatched(0)
+		ok, err := azureassignedidentity.WaitOnLengthMatched(0, false)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -196,7 +198,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		waitForDeployDeletion(identityValidator)
 
-		ok, err := azureassignedidentity.WaitOnLengthMatched(0)
+		ok, err := azureassignedidentity.WaitOnLengthMatched(0, false)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 	})
@@ -216,7 +218,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		// Drain the node that contains identity validator
 		node.Drain(nodeName)
 
-		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
+		ok, err := azureassignedidentity.WaitOnLengthMatched(1, true)
 		Expect(ok).To(Equal(true))
 		Expect(err).NotTo(HaveOccurred())
 
@@ -243,7 +245,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 			setUpIdentityAndDeployment(keyvaultIdentity, fmt.Sprintf("%d", i), "1")
 
-			ok, err := azureassignedidentity.WaitOnLengthMatched(i + 1)
+			ok, err := azureassignedidentity.WaitOnLengthMatched(i+1, true)
 			Expect(ok).To(Equal(true))
 			Expect(err).NotTo(HaveOccurred())
 
@@ -280,7 +282,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 			err := azureidentity.DeleteOnCluster(data.identityName, templateOutputPath)
 			Expect(err).NotTo(HaveOccurred())
 
-			ok, err := azureassignedidentity.WaitOnLengthMatched(5 - 1 - i)
+			ok, err := azureassignedidentity.WaitOnLengthMatched(5-1-i, true)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(ok).To(Equal(true))
 
@@ -309,7 +311,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
-		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
+		ok, err := azureassignedidentity.WaitOnLengthMatched(1, true)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -344,12 +346,12 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		// Delete pod identity to verify that the VM identity did not get deleted
 		waitForDeployDeletion(identityValidator)
-		cmd := exec.Command("kubectl", "delete", "AzureIdentity,AzureIdentityBinding,AzureAssignedIdentity", "--all")
+		cmd := exec.Command("kubectl", "delete", "AzureIdentity,AzureIdentityBinding", "--all")
 		util.PrintCommand(cmd)
 		_, err = cmd.CombinedOutput()
 		Expect(err).NotTo(HaveOccurred())
 
-		ok, err = azureassignedidentity.WaitOnLengthMatched(0)
+		ok, err = azureassignedidentity.WaitOnLengthMatched(0, false)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -431,7 +433,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity)
 
 		waitForDeployDeletion(identityValidator)
-		ok, err := azureassignedidentity.WaitOnLengthMatched(0)
+		ok, err := azureassignedidentity.WaitOnLengthMatched(0, false)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -454,7 +456,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		}
 
 		// WaitOnLengthMatched waits for 2 mins 30 seconds, so this will ensure we are performant at high scale
-		ok, err := azureassignedidentity.WaitOnLengthMatched(40)
+		ok, err := azureassignedidentity.WaitOnLengthMatched(40, true)
 		Expect(ok).To(Equal(true))
 		Expect(err).NotTo(HaveOccurred())
 
@@ -492,7 +494,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
-		ok, err = azureassignedidentity.WaitOnLengthMatched(1)
+		ok, err = azureassignedidentity.WaitOnLengthMatched(1, false)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -585,7 +587,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 			d.NodeName = vmss[0].Name
 		})
 
-		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
+		ok, err := azureassignedidentity.WaitOnLengthMatched(1, true)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -597,7 +599,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		waitForDeployDeletion(identityValidator)
 
-		ok, err = azureassignedidentity.WaitOnLengthMatched(0)
+		ok, err = azureassignedidentity.WaitOnLengthMatched(0, false)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -691,7 +693,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		setUpIdentityAndDeployment(keyvaultIdentity, "0", "1")
 
-		ok, err = azureassignedidentity.WaitOnLengthMatched(1)
+		ok, err = azureassignedidentity.WaitOnLengthMatched(1, true)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -749,7 +751,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		err = azureidentitybinding.Create(fmt.Sprintf("%s-%d", keyvaultIdentity, 5), keyvaultIdentity, templateOutputPath)
 		Expect(err).NotTo(HaveOccurred())
 
-		ok, err := azureassignedidentity.WaitOnLengthMatched(2)
+		ok, err := azureassignedidentity.WaitOnLengthMatched(2, true)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -773,7 +775,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 	It("should delete assigned identity when identity no longer exists on underlying node", func() {
 		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
 
-		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
+		ok, err := azureassignedidentity.WaitOnLengthMatched(1, true)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -788,7 +790,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		removeUserAssignedIdentityFromCluster(nodeList, keyvaultIdentity)
 
 		waitForDeployDeletion(identityValidator)
-		ok, err = azureassignedidentity.WaitOnLengthMatched(0)
+		ok, err = azureassignedidentity.WaitOnLengthMatched(0, false)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 	})
@@ -825,7 +827,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 			d.InitContainer = true
 		})
 
-		ok, err := azureassignedidentity.WaitOnLengthMatched(1)
+		ok, err := azureassignedidentity.WaitOnLengthMatched(1, true)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -909,7 +911,7 @@ func runValidatorTest(iterations int) {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
-		ok, err = azureassignedidentity.WaitOnLengthMatched(1)
+		ok, err = azureassignedidentity.WaitOnLengthMatched(1, true)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
@@ -919,7 +921,7 @@ func runValidatorTest(iterations int) {
 
 		deleteAllIdentityValidator()
 
-		ok, err = azureassignedidentity.WaitOnLengthMatched(0)
+		ok, err = azureassignedidentity.WaitOnLengthMatched(0, false)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 	}
@@ -1105,7 +1107,7 @@ func checkInfra() {
 // setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
 func setupInfraOld(registry, nmiVersion, micVersion string, immutableUserMSIs string) {
 	// Install CRDs and deploy MIC and NMI
-	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, true, false, immutableUserMSIs)
+	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, true, false, immutableUserMSIs, cfg.NmiMode)
 	Expect(err).NotTo(HaveOccurred())
 	checkInfra()
 }
@@ -1113,7 +1115,7 @@ func setupInfraOld(registry, nmiVersion, micVersion string, immutableUserMSIs st
 // setupInfra creates the crds, mic, nmi and blocks until iptable entries exist
 func setupInfra(registry, nmiVersion, micVersion string, enableScaleFeatures bool, immutableUserMSIs string) {
 	// Install CRDs and deploy MIC and NMI
-	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, false, enableScaleFeatures, immutableUserMSIs)
+	err := infra.CreateInfra("default", registry, nmiVersion, micVersion, templateOutputPath, false, enableScaleFeatures, immutableUserMSIs, cfg.NmiMode)
 	Expect(err).NotTo(HaveOccurred())
 	checkInfra()
 }
@@ -1204,7 +1206,7 @@ func waitForDeployDeletion(deployName string) {
 }
 
 func deleteAllIdentityValidator() {
-	cmd := exec.Command("kubectl", "delete", "deploy", "-l", "app="+identityValidator)
+	cmd := exec.Command("kubectl", "delete", "deploy", "-l", "app="+identityValidator, "--force", "--grace-period", "0")
 	util.PrintCommand(cmd)
 	_, err := cmd.CombinedOutput()
 	Expect(err).NotTo(HaveOccurred())
