@@ -5,7 +5,6 @@ metadata:
   labels:
     {{- include "aad-pod-identity.labels" . | nindent 4 }}
     app.kubernetes.io/component: nmi
-    kubernetes.io/cluster-service: "true"
     tier: node
   annotations:
     description: {{ .Chart.Description }}

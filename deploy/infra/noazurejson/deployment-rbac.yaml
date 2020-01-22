@@ -94,7 +94,6 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
-    kubernetes.io/cluster-service: "true"
     component: nmi
     tier: node
     k8s-app: aad-pod-id
