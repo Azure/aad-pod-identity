@@ -52,7 +52,6 @@ apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
   labels:
-    kubernetes.io/cluster-service: "true"
     component: nmi
     tier: node
   name: nmi
