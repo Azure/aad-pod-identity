@@ -33,7 +33,7 @@ pipeline {
 		stage("checkout source") {
 			steps {
 				git changelog: false, credentialsId: env.GIT_REPO_CREDENTIALS, poll: false, url: env.GIT_REPO
-				sh "git checkout -b '${GIT_BRANCH}'"
+				sh "git checkout '${GIT_BRANCH}'"
 				sh "git checkout -f '${GIT_COMMIT}'"
 			}
 		}
