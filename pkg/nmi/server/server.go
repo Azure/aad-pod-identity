@@ -26,6 +26,9 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	utils "github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/go-autorest/autorest/adal"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/klog"
 )
 
@@ -37,6 +40,8 @@ const (
 // the server. These can be set via command line.
 type Server struct {
 	KubeClient                         k8s.Client
+	PodClient                          pod.ClientInt
+	PodInfoChannel                     chan pod.PodInfo
 	NMIPort                            string
 	MetadataIP                         string
 	MetadataPort                       string
@@ -47,6 +52,7 @@ type Server struct {
 	MICNamespace                       string
 	Initialized                        bool
 	BlockInstanceMetadata              bool
+	
 
 	ListPodIDsRetryAttemptsForCreated  int
 	ListPodIDsRetryAttemptsForAssigned int
@@ -62,6 +68,12 @@ type NMIResponse struct {
 
 // NewServer will create a new Server with default values.
 func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata bool) *Server {
+	clientSet := kubernetes.NewForConfigOrDie(config)
+	informer := informers.NewSharedInformerFactory(clientSet, 30*time.Second)
+	eventCh := make(chan aadpodid.EventType, 100)
+	podInfoCh := make(chan pod.PodInfo, 100)
+	podClient := pod.NewPodClient(informer, eventCh, podInfoCh)
+
 	reporter, err := metrics.NewReporter()
 	if err != nil {
 		klog.Errorf("Error creating new reporter to emit metrics: %v", err)
@@ -75,12 +87,21 @@ func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata boo
 		MICNamespace:          micNamespace,
 		BlockInstanceMetadata: blockInstanceMetadata,
 		Reporter:              reporter,
+		PodClient:             podClient,
+		PodInfoChannel:        podInfoCh,
 	}
 }
 
 // Run runs the specified Server.
 func (s *Server) Run() error {
-	go s.updateIPTableRules()
+	var isWindowsNode bool
+	// Find a way to specify isWindowsNode
+	if isWindowsNode {
+		s.ApplyExistingPods()
+        go s.Sync()
+	} else {
+        go s.updateIPTableRules()
+	}
 
 	mux := http.NewServeMux()
 	mux.Handle("/metadata/identity/oauth2/token", appHandler(s.msiHandler))
@@ -107,6 +128,36 @@ func (s *Server) updateIPTableRulesInternal() {
 	}
 	if err := iptables.LogCustomChain(); err != nil {
 		klog.Fatalf("%s", err)
+	}
+}
+
+func (s *Server) Sync() {
+	klog.Info("Sync thread started.")
+	
+	for {
+		select {
+		case podInfo = <-s.PodInfoChannel:
+			klog.V(6).Infof("Received event: %v", podInfo)
+			if s.NodeName == podInfo.NodeName {
+				applyPodInfo(podInfo)
+			}	
+		}
+	}
+}
+
+func (s *Server) ApplyExistingPods() {
+	klog.Info("Apply existing pods started.")
+	
+	listPods, err := s.PodClient.listPods()
+	if err != nil {
+		klog.Error(err)
+	}
+
+	for _, pod := range listPods {
+		if pod.Spec.NodeName == s.NodeName {
+			var podinfo = podInfo{pod.Spec.NodeName, pod.Status.PodIP}
+			applyRoutePolicy(podInfo)
+		} 
 	}
 }
 
@@ -622,4 +673,18 @@ func validateResourceParamExists(resource string) bool {
 		return false
 	}
 	return true
+}
+
+func applyRoutePolicy(podInfo pod.PodInfo) {
+	
+	// Retrieve all the endpoints
+	// var endpoints = HCNProxy.EnumerateEndpoints()
+	 
+	// Foreach ennpoint, find the one for the podinfo and apply route policy
+	//for _, val := range endpoints {
+	//	if podInfo.podIP == val.podIP {
+	//		HCNProxy.ApplyRoutePolicy(val)
+	//		break
+	//	} 
+	//}
 }

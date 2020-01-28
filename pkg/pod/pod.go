@@ -4,8 +4,8 @@ import (
 	"strings"
 	"time"
 
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -13,8 +13,6 @@ import (
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
-
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 )
 
 // Client represents new pod client
@@ -26,30 +24,36 @@ type Client struct {
 type ClientInt interface {
 	GetPods() (pods []*v1.Pod, err error)
 	Start(exit <-chan struct{})
+	ListPods() (pods []*v1.Pod, err error)
+}
+
+type PodInfo struct {
+	NodeName  string
+	PodIP string
 }
 
 // NewPodClient returns new pod client
-func NewPodClient(i informers.SharedInformerFactory, eventCh chan aadpodid.EventType) (c ClientInt) {
+func NewPodClient(i informers.SharedInformerFactory, eventCh chan aadpodid.EventType, podInfoCh chan PodInfo) (c ClientInt) {
 	podInformer := i.Core().V1().Pods()
-	addPodHandler(podInformer, eventCh)
+	addPodHandler(podInformer, eventCh, podInfoCh)
 
 	return &Client{
 		PodWatcher: podInformer,
 	}
 }
 
-func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType) {
+func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType, podInfoCh chan PodInfo) {
 	i.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				klog.V(6).Infof("Pod Created")
 				eventCh <- aadpodid.PodCreated
-
+				pod := obj.(*v1.Pod)
+				podInfoCh <- podInfo{pod.Spec.NodeName, pod.Status.PodIP}
 			},
 			DeleteFunc: func(obj interface{}) {
 				klog.V(6).Infof("Pod Deleted")
 				eventCh <- aadpodid.PodDeleted
-
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
 				// We are only interested in updates to pod if the node changes.
@@ -95,6 +99,16 @@ func (c *Client) GetPods() (pods []*v1.Pod, err error) {
 		return nil, err
 	}
 	stats.Put(stats.PodList, time.Since(begin))
+	return listPods, nil
+}
+
+// ListPods returns list of all pods
+func (c *Client) ListPods() (pods []*v1.Pod, err error) {
+	begin := time.Now()
+	listPods, err := c.PodWatcher.Lister().List()
+	if err != nil {
+		return nil, err
+	}
 	return listPods, nil
 }
 

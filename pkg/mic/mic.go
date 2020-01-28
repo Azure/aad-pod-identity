@@ -113,7 +113,8 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 	}
 	klog.V(1).Infof("CRD client initialized")
 
-	podClient := pod.NewPodClient(informer, eventCh)
+	podInfoCh := make(chan pod.PodInfo, 100)
+	podClient := pod.NewPodClient(informer, eventCh, podInfoCh)
 	klog.V(1).Infof("Pod Client initialized")
 
 	eventBroadcaster := record.NewBroadcaster()
