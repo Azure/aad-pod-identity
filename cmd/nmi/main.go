@@ -20,6 +20,7 @@ const (
 	defaultMetadataIP                         = "169.254.169.254"
 	defaultMetadataPort                       = "80"
 	defaultNmiPort                            = "2579"
+	defaultOSType                             = "Linux"
 	defaultIPTableUpdateTimeIntervalInSeconds = 60
 	defaultlistPodIDsRetryAttemptsForCreated  = 16
 	defaultlistPodIDsRetryAttemptsForAssigned = 4
@@ -34,6 +35,7 @@ var (
 	metadataPort                       = pflag.String("metadata-port", defaultMetadataPort, "instance metadata host ip")
 	hostIP                             = pflag.String("host-ip", "", "host IP address")
 	nodename                           = pflag.String("node", "", "node name")
+	ostype                             = pflag.String("ostype", defaultOSType, "node os type")
 	ipTableUpdateTimeIntervalInSeconds = pflag.Int("ipt-update-interval-sec", defaultIPTableUpdateTimeIntervalInSeconds, "update interval of iptables")
 	forceNamespaced                    = pflag.Bool("forceNamespaced", false, "Forces mic to namespace identities, binding, and assignment")
 	micNamespace                       = pflag.String("MICNamespace", "default", "MIC namespace to short circuit MIC token requests")
@@ -83,6 +85,7 @@ func main() {
 	s.NMIPort = *nmiPort
 	s.HostIP = *hostIP
 	s.NodeName = *nodename
+	s.OSType = *ostype
 	s.IPTableUpdateTimeIntervalInSeconds = *ipTableUpdateTimeIntervalInSeconds
 	s.ListPodIDsRetryAttemptsForCreated = *retryAttemptsForCreated
 	s.ListPodIDsRetryAttemptsForAssigned = *retryAttemptsForAssigned

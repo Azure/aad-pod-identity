@@ -15,6 +15,8 @@ import (
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -47,6 +49,7 @@ type Server struct {
 	MetadataPort                       string
 	HostIP                             string
 	NodeName                           string
+	OSType                             string
 	IPTableUpdateTimeIntervalInSeconds int
 	IsNamespaced                       bool
 	MICNamespace                       string
@@ -94,9 +97,20 @@ func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata boo
 
 // Run runs the specified Server.
 func (s *Server) Run() error {
-	var isWindowsNode bool
-	// Find a way to specify isWindowsNode
-	if isWindowsNode {
+	
+	if s.OSType == "Windows" {
+		var wg sync.WaitGroup
+
+	    wg.Add(1)
+	    go func() {
+			exit := make(chan struct{})
+		    s.PodClient.Start(exit)
+		    klog.V(6).Infof("Pod client started")
+		    wg.Done()
+		}()
+		
+		wg.Wait()
+
 		s.ApplyExistingPods()
         go s.Sync()
 	} else {
