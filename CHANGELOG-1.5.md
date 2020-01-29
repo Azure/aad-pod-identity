@@ -2,7 +2,7 @@
 
 ### Bug Fixes
 
-- Prevent flushing custom iptable rules frequently ([474]https://github.com/Azure/aad-pod-identity/pull/474)
+- Prevent flushing custom iptable rules frequently ([#474](https://github.com/Azure/aad-pod-identity/pull/474))
 
 # v1.5.4
 
