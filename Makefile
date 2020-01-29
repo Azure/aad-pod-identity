@@ -158,3 +158,10 @@ mod:
 .PHONY: check-vendor
 check-mod: mod
 	@git diff --exit-code go.mod go.sum
+
+.PHONY: helm-lint
+helm-lint:
+	# Download and install Helm
+	curl https://raw.githubusercontent.com/helm/helm/master/scripts/get | bash
+	# run lint on helm charts
+	helm lint --strict charts/aad-pod-identity
