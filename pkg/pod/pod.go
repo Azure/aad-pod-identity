@@ -28,8 +28,8 @@ type ClientInt interface {
 }
 
 type PodInfo struct {
-	NodeName  string
-	PodIP string
+	NodeName string
+	PodIP    string
 }
 
 // NewPodClient returns new pod client
@@ -49,7 +49,7 @@ func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType, p
 				klog.V(6).Infof("Pod Created")
 				eventCh <- aadpodid.PodCreated
 				pod := obj.(*v1.Pod)
-				podInfoCh <- podInfo{pod.Spec.NodeName, pod.Status.PodIP}
+				podInfoCh <- PodInfo{pod.Spec.NodeName, pod.Status.PodIP}
 			},
 			DeleteFunc: func(obj interface{}) {
 				klog.V(6).Infof("Pod Deleted")
@@ -104,12 +104,20 @@ func (c *Client) GetPods() (pods []*v1.Pod, err error) {
 
 // ListPods returns list of all pods
 func (c *Client) ListPods() (pods []*v1.Pod, err error) {
-	begin := time.Now()
-	listPods, err := c.PodWatcher.Lister().List()
-	if err != nil {
-		return nil, err
+	var resList []*v1.Pod
+	var resList1 []*v1.Node
+
+	listPods := c.PodWatcher.Informer().GetStore().List()
+
+	for _, pod := range listPods {
+		v1Pod, _ := pod.(*v1.Pod)
+
+		resList = append(resList, v1Pod)
+		v1Nod, _ := pod.(*v1.Node)
+		resList1 = append(resList1, v1Nod)
 	}
-	return listPods, nil
+
+	return resList, nil
 }
 
 // IsPodExcepted returns true if pod label is part of exception crd
