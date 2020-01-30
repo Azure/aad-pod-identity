@@ -105,7 +105,6 @@ func (c *Client) GetPods() (pods []*v1.Pod, err error) {
 // ListPods returns list of all pods
 func (c *Client) ListPods() (pods []*v1.Pod, err error) {
 	var resList []*v1.Pod
-	var resList1 []*v1.Node
 
 	listPods := c.PodWatcher.Informer().GetStore().List()
 
@@ -113,8 +112,6 @@ func (c *Client) ListPods() (pods []*v1.Pod, err error) {
 		v1Pod, _ := pod.(*v1.Pod)
 
 		resList = append(resList, v1Pod)
-		v1Nod, _ := pod.(*v1.Node)
-		resList1 = append(resList1, v1Nod)
 	}
 
 	return resList, nil
