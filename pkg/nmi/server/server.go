@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -30,7 +29,8 @@ import (
 	"github.com/Azure/go-autorest/autorest/adal"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
 )
 
@@ -55,7 +55,6 @@ type Server struct {
 	MICNamespace                       string
 	Initialized                        bool
 	BlockInstanceMetadata              bool
-	
 
 	ListPodIDsRetryAttemptsForCreated  int
 	ListPodIDsRetryAttemptsForAssigned int
@@ -71,8 +70,13 @@ type NMIResponse struct {
 
 // NewServer will create a new Server with default values.
 func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata bool) *Server {
+	config, err := buildConfig()
+	if err != nil {
+		return nil
+	}
+
 	clientSet := kubernetes.NewForConfigOrDie(config)
-	informer := informers.NewSharedInformerFactory(clientSet, 30*time.Second)
+	informer := informers.NewSharedInformerFactory(clientSet, 60*time.Second)
 	eventCh := make(chan aadpodid.EventType, 100)
 	podInfoCh := make(chan pod.PodInfo, 100)
 	podClient := pod.NewPodClient(informer, eventCh, podInfoCh)
@@ -97,24 +101,24 @@ func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata boo
 
 // Run runs the specified Server.
 func (s *Server) Run() error {
-	
-	if s.OSType == "Windows" {
+
+	if s.OSType == "windows" {
 		var wg sync.WaitGroup
 
-	    wg.Add(1)
-	    go func() {
+		wg.Add(1)
+		go func() {
 			exit := make(chan struct{})
-		    s.PodClient.Start(exit)
-		    klog.V(6).Infof("Pod client started")
-		    wg.Done()
+			s.PodClient.Start(exit)
+			klog.V(6).Infof("Pod client started")
+			wg.Done()
 		}()
-		
+
 		wg.Wait()
 
 		s.ApplyExistingPods()
-        go s.Sync()
+		go s.Sync()
 	} else {
-        go s.updateIPTableRules()
+		// go s.updateIPTableRules()
 	}
 
 	mux := http.NewServeMux()
@@ -147,31 +151,32 @@ func (s *Server) updateIPTableRulesInternal() {
 
 func (s *Server) Sync() {
 	klog.Info("Sync thread started.")
-	
+	var podInfo pod.PodInfo
+
 	for {
 		select {
 		case podInfo = <-s.PodInfoChannel:
 			klog.V(6).Infof("Received event: %v", podInfo)
 			if s.NodeName == podInfo.NodeName {
-				applyPodInfo(podInfo)
-			}	
+				applyRoutePolicy(podInfo)
+			}
 		}
 	}
 }
 
 func (s *Server) ApplyExistingPods() {
 	klog.Info("Apply existing pods started.")
-	
-	listPods, err := s.PodClient.listPods()
+
+	listPods, err := s.PodClient.ListPods()
 	if err != nil {
 		klog.Error(err)
 	}
 
-	for _, pod := range listPods {
-		if pod.Spec.NodeName == s.NodeName {
-			var podinfo = podInfo{pod.Spec.NodeName, pod.Status.PodIP}
+	for _, podItem := range listPods {
+		if podItem.Spec.NodeName == s.NodeName {
+			var podInfo = pod.PodInfo{NodeName: podItem.Spec.NodeName, PodIP: podItem.Status.PodIP}
 			applyRoutePolicy(podInfo)
-		} 
+		}
 	}
 }
 
@@ -689,16 +694,26 @@ func validateResourceParamExists(resource string) bool {
 	return true
 }
 
+// Create the client config. Use kubeconfig if given, otherwise assume in-cluster.
+func buildConfig() (*rest.Config, error) {
+	kubeconfigPath := os.Getenv("KUBECONFIG")
+	if kubeconfigPath != "" {
+		return clientcmd.BuildConfigFromFlags("", kubeconfigPath)
+	}
+
+	return rest.InClusterConfig()
+}
+
 func applyRoutePolicy(podInfo pod.PodInfo) {
-	
+
 	// Retrieve all the endpoints
 	// var endpoints = HCNProxy.EnumerateEndpoints()
-	 
+
 	// Foreach ennpoint, find the one for the podinfo and apply route policy
 	//for _, val := range endpoints {
 	//	if podInfo.podIP == val.podIP {
 	//		HCNProxy.ApplyRoutePolicy(val)
 	//		break
-	//	} 
+	//	}
 	//}
 }
