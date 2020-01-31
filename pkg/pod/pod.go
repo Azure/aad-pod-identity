@@ -1,6 +1,7 @@
 package pod
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -105,13 +106,18 @@ func (c *Client) GetPods() (pods []*v1.Pod, err error) {
 // ListPods returns list of all pods
 func (c *Client) ListPods() (pods []*v1.Pod, err error) {
 	var resList []*v1.Pod
-
 	listPods := c.PodWatcher.Informer().GetStore().List()
 
 	for _, pod := range listPods {
-		v1Pod, _ := pod.(*v1.Pod)
+		v1Pod, ok := pod.(*v1.Pod)
+		if !ok {
+			err := fmt.Errorf("could not cast %T to v1.Pod", pod)
+			klog.Error(err)
+			return nil, err
+		}
 
 		resList = append(resList, v1Pod)
+		klog.V(6).Infof("Appending pod ID: %s/%s to list.", v1Pod.UID, v1Pod.Name)
 	}
 
 	return resList, nil
