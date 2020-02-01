@@ -28,13 +28,12 @@ type ClientInt interface {
 	ListPods() (pods []*v1.Pod, err error)
 }
 
-type PodInfo struct {
-	NodeName string
-	PodIP    string
-}
+/*type PodInfo struct {
+	Obj interface
+}*/
 
 // NewPodClient returns new pod client
-func NewPodClient(i informers.SharedInformerFactory, eventCh chan aadpodid.EventType, podInfoCh chan PodInfo) (c ClientInt) {
+func NewPodClient(i informers.SharedInformerFactory, eventCh chan aadpodid.EventType, podInfoCh chan *v1.Pod) (c ClientInt) {
 	podInformer := i.Core().V1().Pods()
 	addPodHandler(podInformer, eventCh, podInfoCh)
 
@@ -43,14 +42,15 @@ func NewPodClient(i informers.SharedInformerFactory, eventCh chan aadpodid.Event
 	}
 }
 
-func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType, podInfoCh chan PodInfo) {
+func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType, podInfoCh chan *v1.Pod) {
 	i.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				klog.V(6).Infof("Pod Created")
 				eventCh <- aadpodid.PodCreated
-				pod := obj.(*v1.Pod)
-				podInfoCh <- PodInfo{pod.Spec.NodeName, pod.Status.PodIP}
+
+				currentPod, _ := GetPod(obj, i)
+				podInfoCh <- currentPod
 			},
 			DeleteFunc: func(obj interface{}) {
 				klog.V(6).Infof("Pod Deleted")
@@ -121,6 +121,32 @@ func (c *Client) ListPods() (pods []*v1.Pod, err error) {
 	}
 
 	return resList, nil
+}
+
+// ListPods returns list of all pods
+func GetPod(obj interface{}, i informersv1.PodInformer) (pod *v1.Pod, err error) {
+	currentPod, exists, err := i.Informer().GetStore().Get(obj)
+	if !exists || err != nil {
+		err := fmt.Errorf("Could not get Pod %s", obj.(*v1.Pod))
+		klog.Error(err)
+		return nil, err
+	}
+
+	pod = currentPod.(*v1.Pod)
+	for pod.Status.PodIP == "" || pod.Spec.NodeName == "" {
+		fmt.Printf("Sleep 1 second to wait for pod ip and node name\n")
+		time.Sleep(1 * time.Second)
+		currentPod, exists, err := i.Informer().GetStore().Get(obj)
+		if !exists || err != nil {
+			err := fmt.Errorf("Could not get Pod %s", obj.(*v1.Pod))
+			klog.Error(err)
+			return nil, err
+		}
+
+		pod = currentPod.(*v1.Pod)
+	}
+
+	return pod, nil
 }
 
 // IsPodExcepted returns true if pod label is part of exception crd

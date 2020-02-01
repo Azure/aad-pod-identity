@@ -285,6 +285,16 @@ func (c *TestPodClient) GetPods() ([]*corev1.Pod, error) {
 	return pods, nil
 }
 
+func (c *TestPodClient) ListPods() ([]*corev1.Pod, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	pods := make([]*corev1.Pod, len(c.pods))
+	copy(pods, c.pods)
+
+	return pods, nil
+}
+
 func (c *TestPodClient) AddPod(podName, podNs, nodeName, binding string) {
 	labels := make(map[string]string)
 	labels[aadpodid.CRDLabelKey] = binding

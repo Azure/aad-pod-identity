@@ -9,24 +9,28 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/signal"
+
+	// "os/signal"
 	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
+
+	// "syscall"
 	"time"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
-	iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
+
+	// iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	utils "github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/go-autorest/autorest/adal"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -43,7 +47,7 @@ const (
 type Server struct {
 	KubeClient                         k8s.Client
 	PodClient                          pod.ClientInt
-	PodInfoChannel                     chan pod.PodInfo
+	PodObjChannel                      chan *v1.Pod
 	NMIPort                            string
 	MetadataIP                         string
 	MetadataPort                       string
@@ -78,8 +82,8 @@ func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata boo
 	clientSet := kubernetes.NewForConfigOrDie(config)
 	informer := informers.NewSharedInformerFactory(clientSet, 60*time.Second)
 	eventCh := make(chan aadpodid.EventType, 100)
-	podInfoCh := make(chan pod.PodInfo, 100)
-	podClient := pod.NewPodClient(informer, eventCh, podInfoCh)
+	podObjCh := make(chan *v1.Pod, 100)
+	podClient := pod.NewPodClient(informer, eventCh, podObjCh)
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
@@ -95,14 +99,15 @@ func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata boo
 		BlockInstanceMetadata: blockInstanceMetadata,
 		Reporter:              reporter,
 		PodClient:             podClient,
-		PodInfoChannel:        podInfoCh,
+		PodObjChannel:         podObjCh,
 	}
 }
 
 // Run runs the specified Server.
 func (s *Server) Run() error {
 
-	if s.OSType == "windows" {
+	// if s.OSType == "windows" {
+	if true {
 		var wg sync.WaitGroup
 
 		wg.Add(1)
@@ -138,7 +143,7 @@ func (s *Server) Run() error {
 	return nil
 }
 
-func (s *Server) updateIPTableRulesInternal() {
+/*func (s *Server) updateIPTableRulesInternal() {
 	klog.V(5).Infof("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, s.MetadataIP, s.MetadataPort, s.NMIPort)
 
 	if err := iptables.AddCustomChain(s.MetadataIP, s.MetadataPort, s.HostIP, s.NMIPort); err != nil {
@@ -147,18 +152,20 @@ func (s *Server) updateIPTableRulesInternal() {
 	if err := iptables.LogCustomChain(); err != nil {
 		klog.Fatalf("%s", err)
 	}
-}
+}*/
 
 func (s *Server) Sync() {
 	klog.Info("Sync thread started.")
-	var podInfo pod.PodInfo
+	var pod *v1.Pod
 
 	for {
 		select {
-		case podInfo = <-s.PodInfoChannel:
-			klog.V(6).Infof("Received event: %v", podInfo)
-			if s.NodeName == podInfo.NodeName {
-				applyRoutePolicy(podInfo)
+		case pod = <-s.PodObjChannel:
+			klog.V(6).Infof("Received event: %s", pod)
+
+			fmt.Printf("Pod NodeName and PodIP: %s %s \n", pod.Spec.NodeName, pod.Status.PodIP)
+			if s.NodeName == pod.Spec.NodeName {
+				applyRoutePolicy(pod.Status.PodIP)
 			}
 		}
 	}
@@ -173,9 +180,9 @@ func (s *Server) ApplyExistingPods() {
 	}
 
 	for _, podItem := range listPods {
+		fmt.Printf("Pod HostIP, NodeName and PodIp: \n %s %s %s \n", podItem.Status.HostIP, podItem.Spec.NodeName, podItem.Status.PodIP)
 		if podItem.Spec.NodeName == s.NodeName {
-			var podInfo = pod.PodInfo{NodeName: podItem.Spec.NodeName, PodIP: podItem.Status.PodIP}
-			applyRoutePolicy(podInfo)
+			applyRoutePolicy(podItem.Status.PodIP)
 		}
 	}
 }
@@ -184,7 +191,7 @@ func (s *Server) ApplyExistingPods() {
 // such that metadata requests are received by nmi assigned port
 // NOT originating from HostIP destined to metadata endpoint are
 // routed to NMI endpoint
-func (s *Server) updateIPTableRules() {
+/*func (s *Server) updateIPTableRules() {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
 
@@ -207,7 +214,7 @@ loop:
 			s.updateIPTableRulesInternal()
 		}
 	}
-}
+}*/
 
 type appHandler func(http.ResponseWriter, *http.Request) string
 
@@ -588,10 +595,10 @@ func handleTermination() {
 
 	exitCode := 0
 	// clean up iptables
-	if err := iptables.DeleteCustomChain(); err != nil {
+	/*if err := iptables.DeleteCustomChain(); err != nil {
 		klog.Errorf("Error cleaning up during shutdown: %v", err)
 		exitCode = 1
-	}
+	}*/
 
 	// wait for pod to delete
 	klog.Info("Handled termination, awaiting pod deletion")
@@ -704,14 +711,14 @@ func buildConfig() (*rest.Config, error) {
 	return rest.InClusterConfig()
 }
 
-func applyRoutePolicy(podInfo pod.PodInfo) {
+func applyRoutePolicy(podIP string) {
 
 	// Retrieve all the endpoints
 	// var endpoints = HCNProxy.EnumerateEndpoints()
 
 	// Foreach ennpoint, find the one for the podinfo and apply route policy
 	//for _, val := range endpoints {
-	//	if podInfo.podIP == val.podIP {
+	//	if podIP == val.podIP {
 	//		HCNProxy.ApplyRoutePolicy(val)
 	//		break
 	//	}
