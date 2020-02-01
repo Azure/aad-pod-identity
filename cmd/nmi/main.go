@@ -48,6 +48,7 @@ var (
 )
 
 func main() {
+	klog.InitFlags(nil)
 	// this is done for glog used by client-go underneath
 	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
 
