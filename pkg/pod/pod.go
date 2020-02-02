@@ -28,10 +28,6 @@ type ClientInt interface {
 	ListPods() (pods []*v1.Pod, err error)
 }
 
-/*type PodInfo struct {
-	Obj interface
-}*/
-
 // NewPodClient returns new pod client
 func NewPodClient(i informers.SharedInformerFactory, eventCh chan aadpodid.EventType, podInfoCh chan *v1.Pod) (c ClientInt) {
 	podInformer := i.Core().V1().Pods()

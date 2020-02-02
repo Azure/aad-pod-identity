@@ -10,15 +10,12 @@ import (
 	"net/http"
 	"os"
 
-	// "os/signal"
 	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strconv"
 	"strings"
-	"sync"
 
-	// "syscall"
 	"time"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
@@ -26,7 +23,6 @@ import (
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 
-	// iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	utils "github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/go-autorest/autorest/adal"
@@ -105,27 +101,6 @@ func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata boo
 
 // Run runs the specified Server.
 func (s *Server) Run() error {
-
-	// if s.OSType == "windows" {
-	if true {
-		var wg sync.WaitGroup
-
-		wg.Add(1)
-		go func() {
-			exit := make(chan struct{})
-			s.PodClient.Start(exit)
-			klog.V(6).Infof("Pod client started")
-			wg.Done()
-		}()
-
-		wg.Wait()
-
-		s.ApplyExistingPods()
-		go s.Sync()
-	} else {
-		// go s.updateIPTableRules()
-	}
-
 	mux := http.NewServeMux()
 	mux.Handle("/metadata/identity/oauth2/token", appHandler(s.msiHandler))
 	mux.Handle("/metadata/identity/oauth2/token/", appHandler(s.msiHandler))
@@ -142,79 +117,6 @@ func (s *Server) Run() error {
 	}
 	return nil
 }
-
-/*func (s *Server) updateIPTableRulesInternal() {
-	klog.V(5).Infof("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, s.MetadataIP, s.MetadataPort, s.NMIPort)
-
-	if err := iptables.AddCustomChain(s.MetadataIP, s.MetadataPort, s.HostIP, s.NMIPort); err != nil {
-		klog.Fatalf("%s", err)
-	}
-	if err := iptables.LogCustomChain(); err != nil {
-		klog.Fatalf("%s", err)
-	}
-}*/
-
-func (s *Server) Sync() {
-	klog.Info("Sync thread started.")
-	var pod *v1.Pod
-
-	for {
-		select {
-		case pod = <-s.PodObjChannel:
-			klog.V(6).Infof("Received event: %s", pod)
-
-			fmt.Printf("Pod NodeName and PodIP: %s %s \n", pod.Spec.NodeName, pod.Status.PodIP)
-			if s.NodeName == pod.Spec.NodeName {
-				applyRoutePolicy(pod.Status.PodIP)
-			}
-		}
-	}
-}
-
-func (s *Server) ApplyExistingPods() {
-	klog.Info("Apply existing pods started.")
-
-	listPods, err := s.PodClient.ListPods()
-	if err != nil {
-		klog.Error(err)
-	}
-
-	for _, podItem := range listPods {
-		fmt.Printf("Pod HostIP, NodeName and PodIp: \n %s %s %s \n", podItem.Status.HostIP, podItem.Spec.NodeName, podItem.Status.PodIP)
-		if podItem.Spec.NodeName == s.NodeName {
-			applyRoutePolicy(podItem.Status.PodIP)
-		}
-	}
-}
-
-// updateIPTableRules ensures the correct iptable rules are set
-// such that metadata requests are received by nmi assigned port
-// NOT originating from HostIP destined to metadata endpoint are
-// routed to NMI endpoint
-/*func (s *Server) updateIPTableRules() {
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
-
-	ticker := time.NewTicker(time.Second * time.Duration(s.IPTableUpdateTimeIntervalInSeconds))
-	defer ticker.Stop()
-
-	// Run once before the waiting on ticker for the rules to take effect
-	// immediately.
-	s.updateIPTableRulesInternal()
-	s.Initialized = true
-
-loop:
-	for {
-		select {
-		case <-signalChan:
-			handleTermination()
-			break loop
-
-		case <-ticker.C:
-			s.updateIPTableRulesInternal()
-		}
-	}
-}*/
 
 type appHandler func(http.ResponseWriter, *http.Request) string
 
@@ -590,24 +492,6 @@ func copyHeader(dst, src http.Header) {
 	}
 }
 
-func handleTermination() {
-	klog.Info("Received SIGTERM, shutting down")
-
-	exitCode := 0
-	// clean up iptables
-	/*if err := iptables.DeleteCustomChain(); err != nil {
-		klog.Errorf("Error cleaning up during shutdown: %v", err)
-		exitCode = 1
-	}*/
-
-	// wait for pod to delete
-	klog.Info("Handled termination, awaiting pod deletion")
-	time.Sleep(10 * time.Second)
-
-	klog.Infof("Exiting with %v", exitCode)
-	os.Exit(exitCode)
-}
-
 // listPodIDsWithRetry returns a list of matched identities in Assigned state, boolean indicating if at least an identity was found in Created state and error if any
 func (s *Server) listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, podns, podname, rqClientID string) ([]aadpodid.AzureIdentity, bool, error) {
 	attempt := 0
@@ -709,18 +593,4 @@ func buildConfig() (*rest.Config, error) {
 	}
 
 	return rest.InClusterConfig()
-}
-
-func applyRoutePolicy(podIP string) {
-
-	// Retrieve all the endpoints
-	// var endpoints = HCNProxy.EnumerateEndpoints()
-
-	// Foreach ennpoint, find the one for the podinfo and apply route policy
-	//for _, val := range endpoints {
-	//	if podIP == val.podIP {
-	//		HCNProxy.ApplyRoutePolicy(val)
-	//		break
-	//	}
-	//}
 }
