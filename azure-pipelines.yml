@@ -30,6 +30,10 @@ steps:
   workingDirectory: '$(modulePath)'
   displayName: 'Build'
 - script: |
-   go test -v $(go list ./... | grep -v test/e2e)
+   make unit-test
   workingDirectory: '$(modulePath)'
   displayName: 'Run tests'
+- script: |
+   make helm-lint
+  workingDirectory: '$(modulePath)'
+  displayName: 'Run helm lint'
