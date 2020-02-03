@@ -49,7 +49,6 @@ type Server struct {
 	MetadataPort                       string
 	HostIP                             string
 	NodeName                           string
-	OSType                             string
 	IPTableUpdateTimeIntervalInSeconds int
 	IsNamespaced                       bool
 	MICNamespace                       string
