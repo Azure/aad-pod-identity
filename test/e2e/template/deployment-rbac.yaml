@@ -119,6 +119,7 @@ spec:
           {{if .NMIArg}}- nmi {{ end }}
           - "--host-ip=$(HOST_IP)"
           - "--node=$(NODE_NAME)"
+          - "--operation-mode={{.NMIMode}}"
           {{if .EnableScaleFeatures}}- "--enableScaleFeatures=true" {{end}}
         env:
           - name: HOST_IP

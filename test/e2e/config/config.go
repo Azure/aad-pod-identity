@@ -21,6 +21,7 @@ type Config struct {
 	SystemMSICluster         bool   `envconfig:"SYSTEM_MSI_CLUSTER" default:"false"`
 	EnableScaleFeatures      bool   `envconfig:"ENABLE_SCALE_FEATURES" default:"false"`
 	ImmutableUserMSIs        string `envconfig:"IMMUTABLE_IDENTITY_CLIENT_ID"`
+	NmiMode                  string `envconfig:"NMI_MODE" default:"standard"`
 }
 
 // ParseConfig will parse needed environment variables for running the tests

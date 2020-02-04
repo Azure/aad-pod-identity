@@ -68,14 +68,14 @@ func GetAllByPrefix(prefix string) ([]aadpodid.AzureAssignedIdentity, error) {
 }
 
 // WaitOnLengthMatched will block until the number of Azure Assigned Identity matches the target
-func WaitOnLengthMatched(target int) (bool, error) {
+func WaitOnLengthMatched(target int, checkStatus bool) (bool, error) {
 	successChannel, errorChannel := make(chan bool, 1), make(chan error)
 	// defining ~2 mins 30 seconds as an acceptable timeframe for ids to be assigned to node
 	duration, sleep := 150*time.Second, 10*time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
 
-	fmt.Println("# Tight-poll to check if the Azure Assigned Identity is deleted...")
+	fmt.Printf("# Tight-poll to check if the # of Azure Assigned Identity is %d...\n", target)
 	go func() {
 		for {
 			select {
@@ -88,10 +88,28 @@ func WaitOnLengthMatched(target int) (bool, error) {
 					return
 				}
 				// len of nil slices is 0, so shouldn't panic here
-				if len(list.Items) == target {
+				if (!checkStatus || target == 0) && len(list.Items) == target {
 					successChannel <- true
 					return
 				}
+				// if checking for assigned identity count to be 0, then we just check if len matches
+				// but if checking for assigned identity count > 1, apart from checking if the len of
+				// assigned identities is desired, we also check if all the assigned identities are in
+				// desired state
+				if (checkStatus || target != 0) && list.Items != nil && len(list.Items) == target {
+					var totalAssigned int
+					for _, item := range list.Items {
+						if item.Status.Status != aadpodid.AssignedIDAssigned {
+							break
+						}
+						totalAssigned++
+					}
+					if totalAssigned == target {
+						successChannel <- true
+						return
+					}
+				}
+
 				fmt.Printf("# The number of Azure Assigned Identity is not equal to %d yet. Retrying in %s...\n", target, sleep.String())
 				time.Sleep(sleep)
 			}
