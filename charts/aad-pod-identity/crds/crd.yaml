@@ -5,7 +5,10 @@ metadata:
   annotations:
     "helm.sh/hook": crd-install
   labels:
-    {{- include "aad-pod-identity.labels" . | nindent 4 }}
+    app.kubernetes.io/name: aad-pod-identity
+    app.kubernetes.io/instance: aad-pod-identity
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: aad-pod-identity
 spec:
   group: aadpodidentity.k8s.io
   version: v1
@@ -21,7 +24,10 @@ metadata:
   annotations:
     "helm.sh/hook": crd-install
   labels:
-    {{- include "aad-pod-identity.labels" . | nindent 4 }}
+    app.kubernetes.io/name: aad-pod-identity
+    app.kubernetes.io/instance: aad-pod-identity
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: aad-pod-identity
 spec:
   group: aadpodidentity.k8s.io
   version: v1
@@ -37,7 +43,10 @@ metadata:
   annotations:
     "helm.sh/hook": crd-install
   labels:
-    {{- include "aad-pod-identity.labels" . | nindent 4 }}
+    app.kubernetes.io/name: aad-pod-identity
+    app.kubernetes.io/instance: aad-pod-identity
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: aad-pod-identity
 spec:
   group: aadpodidentity.k8s.io
   version: v1
@@ -54,7 +63,10 @@ metadata:
   annotations:
     "helm.sh/hook": crd-install
   labels:
-    {{- include "aad-pod-identity.labels" . | nindent 4 }}
+    app.kubernetes.io/name: aad-pod-identity
+    app.kubernetes.io/instance: aad-pod-identity
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: aad-pod-identity
 spec:
   group: aadpodidentity.k8s.io
   version: v1
