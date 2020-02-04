@@ -63,3 +63,10 @@ func GetTokenClient(client k8s.Client, config Config) (TokenClient, error) {
 func getOperationMode(mode string) OperationMode {
 	return OperationMode(mode)
 }
+
+// GetKubeClient returns kube client based on nmi mode
+func GetKubeClient(nodeName, mode string, enableScaleFeatures bool) (k8s.Client, error) {
+	// StandardMode client doesn't require azure identity and binding informers
+	// ManagedMode client doesn't require azure assigned identity informers
+	return k8s.NewKubeClient(nodeName, enableScaleFeatures, OperationMode(mode) == StandardMode)
+}

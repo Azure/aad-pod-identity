@@ -58,7 +58,7 @@ func (sc *StandardClient) GetIdentities(ctx context.Context, podns, podname, cli
 				filterPodIdentities = append(filterPodIdentities, val)
 			} else {
 				// unmatched namespaced
-				klog.Warningf("pod:%s/%s has identity %s/%s but identity is namespaced will be ignored", podns, podname, val.Name, val.Namespace)
+				klog.Errorf("pod:%s/%s has identity %s/%s but identity is namespaced will be ignored", podns, podname, val.Name, val.Namespace)
 			}
 		} else {
 			// not in namespaced mode
@@ -67,18 +67,18 @@ func (sc *StandardClient) GetIdentities(ctx context.Context, podns, podname, cli
 	}
 
 	for _, id := range filterPodIdentities {
+		// if client doesn't exist in the request, then return the first identity
+		if len(clientID) == 0 {
+			klog.Infof("No clientID in request. %s/%s has been matched with azure identity %s/%s", podns, podname, id.Namespace, id.Name)
+			return &id, nil
+		}
 		// if client id exists in the request, then send the first identity that matched the client id
 		if len(clientID) != 0 && id.Spec.ClientID == clientID {
 			return &id, nil
 		}
-		// if client doesn't exist in the request, then return the first identity in the same namespace as the pod
-		if len(clientID) == 0 && strings.EqualFold(id.Namespace, podns) {
-			klog.Infof("No clientID in request. %s/%s has been matched with azure identity %s/%s", podns, podname, id.Namespace, id.Name)
-			return &id, nil
-		}
 	}
 
-	return nil, fmt.Errorf("no matching azure identity found for pod")
+	return nil, fmt.Errorf("azureidentity is not configured for the pod")
 }
 
 // listPodIDsWithRetry returns a list of matched identities in Assigned state, boolean indicating if at least an identity was found in Created state and error if any

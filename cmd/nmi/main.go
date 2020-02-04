@@ -8,7 +8,6 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 
-	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/nmi"
 	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
@@ -51,7 +50,6 @@ var (
 )
 
 func main() {
-	klog.InitFlags(nil)
 	// this is done for glog used by client-go underneath
 	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
 
@@ -73,9 +71,12 @@ func main() {
 		klog.Infof("Features for scale clusters enabled")
 	}
 
-	client, err := k8s.NewKubeClient(*nodename, *enableScaleFeatures, nmi.OperationMode(strings.ToLower(*operationMode)) == nmi.StandardMode)
+	// normalize operation mode
+	*operationMode = strings.ToLower(*operationMode)
+
+	client, err := nmi.GetKubeClient(*nodename, *operationMode, *enableScaleFeatures)
 	if err != nil {
-		klog.Fatalf("%+v", err)
+		klog.Fatalf("error creating kube client, err: %+v", err)
 	}
 
 	exit := make(<-chan struct{})
@@ -98,6 +99,7 @@ func main() {
 		Namespaced:                         *forceNamespaced,
 	}
 
+	// Create new token client based on the nmi mode
 	tokenClient, err := nmi.GetTokenClient(client, nmiConfig)
 	if err != nil {
 		klog.Fatalf("failed to initialize token client, err: %v", err)
@@ -112,7 +114,6 @@ func main() {
 	if err = metrics.RegisterAndExport(*prometheusPort); err != nil {
 		klog.Fatalf("Could not register and export metrics: %+v", err)
 	}
-
 	if err := s.Run(); err != nil {
 		klog.Fatalf("%s", err)
 	}

@@ -219,9 +219,8 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 	}
 	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
-		msg := fmt.Sprintf("no identity found for pod:%s/%s", podns, podname)
-		klog.Errorf("%s, err: %+v", msg, err)
-		http.Error(w, msg, getErrorResponseStatusCode(podID != nil))
+		klog.Error(err)
+		http.Error(w, err.Error(), getErrorResponseStatusCode(podID != nil))
 		return
 	}
 	token, err := s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, *podID)
@@ -352,9 +351,8 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 
 	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
-		msg := fmt.Sprintf("no identity found for pod:%s/%s", podns, podname)
-		klog.Errorf("%s, err: %+v", msg, err)
-		http.Error(w, msg, getErrorResponseStatusCode(podID != nil))
+		klog.Error(err)
+		http.Error(w, err.Error(), getErrorResponseStatusCode(podID != nil))
 		return
 	}
 

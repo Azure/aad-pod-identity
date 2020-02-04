@@ -128,18 +128,18 @@ func NodeNameFilter(nodeName string) internalinterfaces.TweakListOptionsFunc {
 // GetPod returns pod that matches namespace and name
 func (c *KubeClient) GetPod(namespace, name string) (v1.Pod, error) {
 	// TODO (aramase) wrap this with retries
-	objs := c.PodInformer.GetStore().List()
-
-	for _, o := range objs {
-		pod, ok := o.(*v1.Pod)
-		if !ok {
-			return v1.Pod{}, fmt.Errorf("could not cast %T to %s", pod, "v1.Pod")
-		}
-		if pod.Name == name && pod.Namespace == namespace {
-			return *pod, nil
-		}
+	obj, exists, err := c.PodInformer.GetIndexer().GetByKey(namespace + "/" + name)
+	if err != nil {
+		return v1.Pod{}, fmt.Errorf("failed to get pod %s/%s, err: %+v", namespace, name, err)
 	}
-	return v1.Pod{}, fmt.Errorf("pod %s/%s not found in cache", namespace, name)
+	if !exists {
+		return v1.Pod{}, fmt.Errorf("pod with key %s/%s doesn't exist", namespace, name)
+	}
+	pod, ok := obj.(*v1.Pod)
+	if !ok {
+		return v1.Pod{}, fmt.Errorf("could not cast %T to %s", pod, "v1.Pod")
+	}
+	return *pod, nil
 }
 
 // GetPodInfo get pod ns,name from apiserver
