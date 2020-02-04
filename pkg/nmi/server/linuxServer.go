@@ -3,17 +3,24 @@
 package server
 
 import (
-   "os"
-   "os/signal"
-   "syscall"
-   "time"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-   iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
-   "k8s.io/klog"
+	iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
+	"k8s.io/klog"
 )
 
 type LinuxServer struct {
 	Server *Server
+}
+
+func RunServer(s *Server) {
+	ls := LinuxServer{Server: s}
+	if err := ls.Run(); err != nil {
+		klog.Fatalf("%s", err)
+	}
 }
 
 // Run runs the specified Server.

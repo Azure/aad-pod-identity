@@ -48,7 +48,7 @@ var (
 )
 
 func main() {
-	klog.InitFlags(nil)
+	// klog.InitFlags(nil)
 	// this is done for glog used by client-go underneath
 	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
 
@@ -98,7 +98,6 @@ func main() {
 		klog.Fatalf("Could not register and export metrics: %+v", err)
 	}
 
-	if err := s.Run(); err != nil {
-		klog.Fatalf("%s", err)
-	}
+	// Run nmi server
+	server.RunServer(s)
 }

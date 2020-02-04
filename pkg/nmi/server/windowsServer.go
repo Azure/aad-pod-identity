@@ -14,6 +14,13 @@ type WindowsServer struct {
 	Server *Server
 }
 
+func RunServer(s *Server) {
+	ws := WindowsServer{Server: s}
+	if err := ws.Run(); err != nil {
+		klog.Fatalf("%s", err)
+	}
+}
+
 // Run runs the specified Server.
 func (s *WindowsServer) Run() error {
 
@@ -29,7 +36,7 @@ func (s *WindowsServer) Run() error {
 
 	wg.Wait()
 
-	s.ApplyExistingPods()
+	s.ApplyRoutePolicyForExistingPods()
 	go s.Sync()
 
 	return s.Server.Run()
@@ -44,7 +51,7 @@ func (s *WindowsServer) Sync() {
 		case pod = <-s.Server.PodObjChannel:
 			klog.V(6).Infof("Received event: %s", pod)
 
-			fmt.Printf("Pod Node Name and Pod IP: %s %s \n", pod.Spec.NodeName, pod.Status.PodIP)
+			fmt.Printf("Host IP, Pod Node Name and Pod IP:%s %s %s \n", pod.Status.HostIP, pod.Spec.NodeName, pod.Status.PodIP)
 			if s.Server.NodeName == pod.Spec.NodeName {
 				applyRoutePolicy(pod.Status.PodIP)
 			}
@@ -52,7 +59,7 @@ func (s *WindowsServer) Sync() {
 	}
 }
 
-func (s *WindowsServer) ApplyExistingPods() {
+func (s *WindowsServer) ApplyRoutePolicyForExistingPods() {
 	klog.Info("Apply existing pods started.")
 
 	listPods, err := s.Server.PodClient.ListPods()
@@ -61,7 +68,7 @@ func (s *WindowsServer) ApplyExistingPods() {
 	}
 
 	for _, podItem := range listPods {
-		fmt.Printf("Pod Host IP, Node Name and Pod IP: \n %s %s %s \n", podItem.Status.HostIP, podItem.Spec.NodeName, podItem.Status.PodIP)
+		fmt.Printf("Host IP, Node Name and Pod IP: \n %s %s %s \n", podItem.Status.HostIP, podItem.Spec.NodeName, podItem.Status.PodIP)
 		if podItem.Spec.NodeName == s.Server.NodeName {
 			applyRoutePolicy(podItem.Status.PodIP)
 		}
