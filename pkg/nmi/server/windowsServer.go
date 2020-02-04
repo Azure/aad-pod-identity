@@ -4,7 +4,6 @@ package server
 
 import (
 	"fmt"
-	"sync"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog"
@@ -21,20 +20,11 @@ func RunServer(s *Server) {
 	}
 }
 
-// Run runs the specified Server.
+// Run the specified Server.
 func (s *WindowsServer) Run() error {
-
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-	go func() {
-		exit := make(chan struct{})
-		s.Server.PodClient.Start(exit)
-		klog.V(6).Infof("Pod client started")
-		wg.Done()
-	}()
-
-	wg.Wait()
+	exit := make(chan struct{})
+	s.Server.PodClient.Start(exit)
+	klog.V(6).Infof("Pod client started")
 
 	s.ApplyRoutePolicyForExistingPods()
 	go s.Sync()

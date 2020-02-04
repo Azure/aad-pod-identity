@@ -23,7 +23,7 @@ func RunServer(s *Server) {
 	}
 }
 
-// Run runs the specified Server.
+// Run the specified Server.
 func (s *LinuxServer) Run() error {
 
 	go s.updateIPTableRules()
