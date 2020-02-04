@@ -1,11 +1,12 @@
 package pod
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
-
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
@@ -13,8 +14,6 @@ import (
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
-
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 )
 
 // Client represents new pod client
@@ -26,36 +25,58 @@ type Client struct {
 type ClientInt interface {
 	GetPods() (pods []*v1.Pod, err error)
 	Start(exit <-chan struct{})
+	ListPods() (pods []*v1.Pod, err error)
 }
 
 // NewPodClient returns new pod client
 func NewPodClient(i informers.SharedInformerFactory, eventCh chan aadpodid.EventType) (c ClientInt) {
 	podInformer := i.Core().V1().Pods()
-	addPodHandler(podInformer, eventCh)
+	addPodHandler(podInformer, eventCh, nil)
 
 	return &Client{
 		PodWatcher: podInformer,
 	}
 }
 
-func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType) {
+func NewPodClientWithPodInfoCh(i informers.SharedInformerFactory, eventCh chan aadpodid.EventType, podInfoCh chan *v1.Pod) (c ClientInt) {
+	podInformer := i.Core().V1().Pods()
+	addPodHandler(podInformer, eventCh, podInfoCh)
+
+	return &Client{
+		PodWatcher: podInformer,
+	}
+}
+
+func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType, podInfoCh chan *v1.Pod) {
 	i.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				klog.V(6).Infof("Pod Created")
 				eventCh <- aadpodid.PodCreated
-
 			},
 			DeleteFunc: func(obj interface{}) {
 				klog.V(6).Infof("Pod Deleted")
 				eventCh <- aadpodid.PodDeleted
-
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
-				// We are only interested in updates to pod if the node changes.
+				oldPod := OldObj.(*v1.Pod)
+				newPod := newObj.(*v1.Pod)
+
+				// This is to handle windows nmi by observing ip change
+				if oldPod.Status.PodIP != newPod.Status.PodIP {
+					klog.V(6).Infof("Pod IP Updated")
+					klog.Infof("Old Pod IP: %s, Current Pod IP: %s", oldPod.Status.PodIP, newPod.Status.PodIP)
+					if newPod.Status.PodIP == "" {
+						podInfoCh <- oldPod
+					} else {
+						podInfoCh <- newPod
+					}
+				}
+
+				// We are interested in updates to pod if the node changes.
 				// Having this check will ensure that mic sync loop does not do extra work
 				// for every pod update.
-				if (OldObj.(*v1.Pod)).Spec.NodeName != (newObj.(*v1.Pod)).Spec.NodeName {
+				if oldPod.Spec.NodeName != newPod.Spec.NodeName {
 					klog.V(6).Infof("Pod Updated")
 					eventCh <- aadpodid.PodUpdated
 				}
@@ -78,7 +99,7 @@ func (c *Client) syncCache(exit <-chan struct{}) {
 func (c *Client) Start(exit <-chan struct{}) {
 	go c.PodWatcher.Informer().Run(exit)
 	c.syncCache(exit)
-	klog.Info("Pod watcher started !!")
+	klog.Info("Pod watcher started!!")
 }
 
 // GetPods returns list of all pods
@@ -96,6 +117,26 @@ func (c *Client) GetPods() (pods []*v1.Pod, err error) {
 	}
 	stats.Put(stats.PodList, time.Since(begin))
 	return listPods, nil
+}
+
+// ListPods returns list of all pods
+func (c *Client) ListPods() (pods []*v1.Pod, err error) {
+	var resList []*v1.Pod
+	listPods := c.PodWatcher.Informer().GetStore().List()
+
+	for _, pod := range listPods {
+		v1Pod, ok := pod.(*v1.Pod)
+		if !ok {
+			err := fmt.Errorf("could not cast %T to v1.Pod", pod)
+			klog.Error(err)
+			return nil, err
+		}
+
+		resList = append(resList, v1Pod)
+		klog.V(6).Infof("Appending pod ID: %s/%s to list.", v1Pod.UID, v1Pod.Name)
+	}
+
+	return resList, nil
 }
 
 // IsPodExcepted returns true if pod label is part of exception crd

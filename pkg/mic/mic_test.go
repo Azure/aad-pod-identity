@@ -11,6 +11,7 @@ import (
 	internalaadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/config"
+	"github.com/Azure/aad-pod-identity/pkg/crd"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
@@ -21,6 +22,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
 )
 
@@ -285,6 +287,16 @@ func (c *TestPodClient) GetPods() ([]*corev1.Pod, error) {
 	return pods, nil
 }
 
+func (c *TestPodClient) ListPods() ([]*corev1.Pod, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	pods := make([]*corev1.Pod, len(c.pods))
+	copy(pods, c.pods)
+
+	return pods, nil
+}
+
 func (c *TestPodClient) AddPod(podName, podNs, nodeName, binding string) {
 	labels := make(map[string]string)
 	labels[aadpodid.CRDLabelKey] = binding
@@ -327,7 +339,7 @@ func (c *TestPodClient) DeletePod(podName string, podNs string) {
 /****************** CRD MOCK ****************************/
 
 type TestCrdClient struct {
-	*Client
+	*crd.Client
 	mu            sync.Mutex
 	assignedIDMap map[string]*internalaadpodid.AzureAssignedIdentity
 	bindingMap    map[string]*aadpodid.AzureIdentityBinding
@@ -346,11 +358,7 @@ func NewTestCrdClient(config *rest.Config) *TestCrdClient {
 func (c *TestCrdClient) Start(exit <-chan struct{}) {
 }
 
-func (c *TestCrdClient) SyncCache(exit <-chan struct{}) {
-
-}
-
-func (c *TestCrdClient) SyncCacheLite(exit <-chan struct{}) {
+func (c *TestCrdClient) SyncCache(exit <-chan struct{}, initial bool, cacheSyncs ...cache.InformerSynced) {
 
 }
 
