@@ -51,6 +51,12 @@ func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType, p
 			DeleteFunc: func(obj interface{}) {
 				klog.V(6).Infof("Pod Deleted")
 				eventCh <- aadpodid.PodDeleted
+
+				// The following code may not be necessary. Add for log purpose. May remove them finally.
+				currentPod := obj.(*v1.Pod)
+				fmt.Printf("Host IP, Pod Node Name and Pod IP:%s %s %s \n", currentPod.Status.HostIP, currentPod.Spec.NodeName, currentPod.Status.PodIP)
+				fmt.Printf("Pod Name:%s \n", currentPod.Name)
+				podInfoCh <- currentPod
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
 				// We are only interested in updates to pod if the node changes.
@@ -119,7 +125,7 @@ func (c *Client) ListPods() (pods []*v1.Pod, err error) {
 	return resList, nil
 }
 
-// ListPods returns list of all pods
+// GetPod returns the pod object
 func GetPod(obj interface{}, i informersv1.PodInformer) (pod *v1.Pod, err error) {
 	currentPod, exists, err := i.Informer().GetStore().Get(obj)
 	if !exists || err != nil {
