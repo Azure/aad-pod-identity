@@ -7,14 +7,18 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	v1 "k8s.io/api/core/v1"
+	types "k8s.io/apimachinery/pkg/types"
 	"k8s.io/klog"
 )
 
 type WindowsServer struct {
 	Server *Server
 }
+
+var podMap = make(map[types.UID]string)
 
 func RunServer(s *Server) {
 	ws := WindowsServer{Server: s}
@@ -52,10 +56,17 @@ func (s *WindowsServer) Sync() {
 		case pod = <-s.Server.PodObjChannel:
 			klog.V(6).Infof("Received event: %s", pod)
 
-			fmt.Printf("Windows Server Host IP, Pod Node Name and Pod IP:%s %s %s \n", pod.Status.HostIP, pod.Spec.NodeName, pod.Status.PodIP)
-			fmt.Printf("Windows Server Pod Name:%s \n", pod.Name)
+			// fmt.Printf("Windows Server Host IP, Pod Node Name and Pod IP:%s %s %s \n", pod.Status.HostIP, pod.Spec.NodeName, pod.Status.PodIP)
+			fmt.Printf("Windows Server Pod UID and Pod Name:%s %s \n", pod.UID, pod.Name)
 			if s.Server.NodeName == pod.Spec.NodeName {
-				applyRoutePolicy(pod.Status.PodIP)
+				if podIP, podExist := podMap[pod.UID]; podExist {
+					fmt.Printf("Delete: Windows Server Pod UID and Pod Name:%s %s \n", pod.UID, pod.Name)
+					deleteRoutePolicy(podIP)
+				} else {
+					fmt.Printf("Add: Windows Server Pod UID and Pod Name:%s %s \n", pod.UID, pod.Name)
+					podMap[pod.UID] = pod.Status.PodIP
+					applyRoutePolicy(pod.Status.PodIP)
+				}
 			}
 		}
 	}
@@ -81,9 +92,12 @@ func (s *WindowsServer) DeleteRoutePolicyForExistingPods() {
 	klog.Info("Received SIGTERM, shutting down")
 	klog.Info("Delete route policy for existing pods started.")
 
+	exitCode := 0
+
 	listPods, err := s.Server.PodClient.ListPods()
 	if err != nil {
 		klog.Error(err)
+		exitCode = 1
 	}
 
 	for _, podItem := range listPods {
@@ -92,6 +106,13 @@ func (s *WindowsServer) DeleteRoutePolicyForExistingPods() {
 			deleteRoutePolicy(podItem.Status.PodIP)
 		}
 	}
+
+	// Wait for pod to delete
+	klog.Info("Handled termination, awaiting pod deletion")
+	time.Sleep(10 * time.Second)
+
+	klog.Infof("Exiting with %v", exitCode)
+	os.Exit(exitCode)
 }
 
 func applyRoutePolicy(podIP string) {

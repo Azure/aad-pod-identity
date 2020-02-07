@@ -54,8 +54,8 @@ func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType, p
 
 				// The following code may not be necessary. Add for log purpose. May remove them finally.
 				currentPod := obj.(*v1.Pod)
-				fmt.Printf("Host IP, Pod Node Name and Pod IP:%s %s %s \n", currentPod.Status.HostIP, currentPod.Spec.NodeName, currentPod.Status.PodIP)
-				fmt.Printf("Pod Name:%s \n", currentPod.Name)
+
+				fmt.Printf("Pod UID:%s \n", currentPod.UID)
 				podInfoCh <- currentPod
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
