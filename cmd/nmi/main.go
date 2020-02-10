@@ -2,6 +2,7 @@ package main
 
 import (
 	goflag "flag"
+	"fmt"
 	"os"
 
 	"net/http"
@@ -48,7 +49,7 @@ var (
 )
 
 func main() {
-	// klog.InitFlags(nil)
+	klog.InitFlags(nil)
 	// this is done for glog used by client-go underneath
 	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
 
@@ -70,6 +71,7 @@ func main() {
 		klog.Infof("Features for scale clusters enabled")
 	}
 
+	fmt.Printf("Start k8s.NewKubeClient\n")
 	client, err := k8s.NewKubeClient(*nodename, *enableScaleFeatures)
 	if err != nil {
 		klog.Fatalf("%+v", err)
