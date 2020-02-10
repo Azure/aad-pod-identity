@@ -35,8 +35,7 @@ type Client struct {
 // ClientInt ...
 type ClientInt interface {
 	Start(exit <-chan struct{})
-	SyncCache(exit <-chan struct{})
-	SyncCacheLite(exit <-chan struct{})
+	SyncCache(exit <-chan struct{}, initial bool, cacheSyncs ...cache.InformerSynced)
 	RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error
@@ -49,25 +48,37 @@ type ClientInt interface {
 }
 
 // NewCRDClientLite ...
-func NewCRDClientLite(config *rest.Config, nodeName string, scale bool) (crdClient *Client, err error) {
+func NewCRDClientLite(config *rest.Config, nodeName string, scale, isStandardMode bool) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
 		klog.Error(err)
 		return nil, err
 	}
 
-	var assignedIDListWatch *cache.ListWatch
+	var assignedIDListInformer, bindingListInformer, idListInformer cache.SharedInformer
 
-	if scale {
-		assignedIDListWatch = newAssignedIDNodeListWatch(restClient, nodeName)
+	// assigned identity informer is required only for standard mode
+	if isStandardMode {
+		var assignedIDListWatch *cache.ListWatch
+		if scale {
+			assignedIDListWatch = newAssignedIDNodeListWatch(restClient, nodeName)
+		} else {
+			assignedIDListWatch = newAssignedIDListWatch(restClient)
+		}
+
+		assignedIDListInformer, err = newAssignedIDInformer(assignedIDListWatch)
+		if err != nil {
+			klog.Error(err)
+			return nil, err
+		}
 	} else {
-		assignedIDListWatch = newAssignedIDListWatch(restClient)
-	}
-
-	assignedIDListInformer, err := newAssignedIDInformer(assignedIDListWatch)
-	if err != nil {
-		klog.Error(err)
-		return nil, err
+		// creating binding and identity list informers for non standard mode
+		if bindingListInformer, err = newBindingInformerLite(newBindingListWatch(restClient)); err != nil {
+			return nil, err
+		}
+		if idListInformer, err = newIDInformerLite(newIDListWatch(restClient)); err != nil {
+			return nil, err
+		}
 	}
 	podIdentityExceptionListWatch := newPodIdentityExceptionListWatch(restClient)
 	podIdentityExceptionInformer, err := newPodIdentityExceptionInformer(podIdentityExceptionListWatch)
@@ -85,6 +96,8 @@ func NewCRDClientLite(config *rest.Config, nodeName string, scale bool) (crdClie
 	return &Client{
 		AssignedIDInformer:           assignedIDListInformer,
 		PodIdentityExceptionInformer: podIdentityExceptionInformer,
+		BindingInformer:              bindingListInformer,
+		IDInformer:                   idListInformer,
 		rest:                         restClient,
 		reporter:                     reporter,
 	}, nil
@@ -249,8 +262,23 @@ func newAssignedIDInformer(lw *cache.ListWatch) (cache.SharedInformer, error) {
 	if azAssignedIDInformer == nil {
 		return nil, fmt.Errorf("could not create %s informer", aadpodv1.AzureAssignedIDResource)
 	}
-
 	return azAssignedIDInformer, nil
+}
+
+func newBindingInformerLite(lw *cache.ListWatch) (cache.SharedInformer, error) {
+	azBindingInformer := cache.NewSharedInformer(lw, &aadpodv1.AzureIdentityBinding{}, time.Minute*10)
+	if azBindingInformer == nil {
+		return nil, fmt.Errorf("could not create %s informer", aadpodv1.AzureIDBindingResource)
+	}
+	return azBindingInformer, nil
+}
+
+func newIDInformerLite(lw *cache.ListWatch) (cache.SharedInformer, error) {
+	azIDInformer := cache.NewSharedInformer(lw, &aadpodv1.AzureIdentity{}, time.Minute*10)
+	if azIDInformer == nil {
+		return nil, fmt.Errorf("could not create %s informer", aadpodv1.AzureIDResource)
+	}
+	return azIDInformer, nil
 }
 
 func newPodIdentityExceptionListWatch(r *rest.RESTClient) *cache.ListWatch {
@@ -273,9 +301,25 @@ func newPodIdentityExceptionInformer(lw *cache.ListWatch) (cache.SharedInformer,
 
 // StartLite to be used only case of lite client
 func (c *Client) StartLite(exit <-chan struct{}) {
-	go c.AssignedIDInformer.Run(exit)
-	go c.PodIdentityExceptionInformer.Run(exit)
-	c.SyncCacheLite(exit)
+	var cacheHasSynced []cache.InformerSynced
+
+	if c.AssignedIDInformer != nil {
+		go c.AssignedIDInformer.Run(exit)
+		cacheHasSynced = append(cacheHasSynced, c.AssignedIDInformer.HasSynced)
+	}
+	if c.BindingInformer != nil {
+		go c.BindingInformer.Run(exit)
+		cacheHasSynced = append(cacheHasSynced, c.BindingInformer.HasSynced)
+	}
+	if c.IDInformer != nil {
+		go c.IDInformer.Run(exit)
+		cacheHasSynced = append(cacheHasSynced, c.IDInformer.HasSynced)
+	}
+	if c.PodIdentityExceptionInformer != nil {
+		go c.PodIdentityExceptionInformer.Run(exit)
+		cacheHasSynced = append(cacheHasSynced, c.PodIdentityExceptionInformer.HasSynced)
+	}
+	c.SyncCache(exit, true, cacheHasSynced...)
 	klog.Info("CRD lite informers started ")
 }
 
@@ -284,23 +328,12 @@ func (c *Client) Start(exit <-chan struct{}) {
 	go c.BindingInformer.Run(exit)
 	go c.IDInformer.Run(exit)
 	go c.AssignedIDInformer.Run(exit)
-	c.SyncCache(exit)
+	c.SyncCache(exit, true, c.BindingInformer.HasSynced, c.IDInformer.HasSynced, c.AssignedIDInformer.HasSynced)
 	klog.Info("CRD informers started")
 }
 
-func (c *Client) SyncCache(exit <-chan struct{}) {
-	c.syncCache(exit, true, c.BindingInformer.HasSynced,
-		c.IDInformer.HasSynced,
-		c.AssignedIDInformer.HasSynced)
-}
-
-func (c *Client) SyncCacheLite(exit <-chan struct{}) {
-	c.syncCache(exit, true, c.AssignedIDInformer.HasSynced,
-		c.PodIdentityExceptionInformer.HasSynced)
-}
-
 // SyncCache synchronizes cache
-func (c *Client) syncCache(exit <-chan struct{}, initial bool, cacheSyncs ...cache.InformerSynced) {
+func (c *Client) SyncCache(exit <-chan struct{}, initial bool, cacheSyncs ...cache.InformerSynced) {
 	if !cache.WaitForCacheSync(exit, cacheSyncs...) {
 		if !initial {
 			klog.Errorf("Cache could not be synchronized")
@@ -534,6 +567,43 @@ func (c *Client) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureI
 		}
 	}
 	return idStateMap, nil
+}
+
+// GetPodIDsWithBinding returns list of azure identity based on bindings
+// that match pod label.
+func (c *Client) GetPodIDsWithBinding(namespace string, labels map[string]string) ([]aadpodid.AzureIdentity, error) {
+	// get all bindings
+	bindings, err := c.ListBindings()
+	if err != nil {
+		return nil, err
+	}
+	if bindings == nil {
+		return nil, fmt.Errorf("binding list is nil from cache")
+	}
+	matchingIds := make(map[string]bool)
+	podLabel := labels[aadpodid.CRDLabelKey]
+
+	for _, binding := range *bindings {
+		// check if binding selector in pod labels
+		if podLabel == binding.Spec.Selector && binding.Namespace == namespace {
+			matchingIds[binding.Spec.AzureIdentity] = true
+		}
+	}
+	// get the azure identity objects based on the list generated
+	azIdentities, err := c.ListIds()
+	if err != nil {
+		return nil, err
+	}
+	if azIdentities == nil {
+		return nil, fmt.Errorf("azure identities list is nil from cache")
+	}
+	var azIds []aadpodid.AzureIdentity
+	for _, azIdentity := range *azIdentities {
+		if _, exists := matchingIds[azIdentity.Name]; exists && azIdentity.Namespace == namespace {
+			azIds = append(azIds, azIdentity)
+		}
+	}
+	return azIds, nil
 }
 
 type patchStatusOps struct {

@@ -2,14 +2,14 @@ package main
 
 import (
 	goflag "flag"
-	"fmt"
 	"os"
+	"strings"
 
 	"net/http"
 	_ "net/http/pprof"
 
-	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
+	"github.com/Azure/aad-pod-identity/pkg/nmi"
 	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
 	"github.com/Azure/aad-pod-identity/pkg/probes"
 	"github.com/Azure/aad-pod-identity/version"
@@ -46,10 +46,10 @@ var (
 	enableScaleFeatures                = pflag.Bool("enableScaleFeatures", false, "Enable/Disable features for scale clusters")
 	blockInstanceMetadata              = pflag.Bool("block-instance-metadata", false, "Block instance metadata endpoints")
 	prometheusPort                     = pflag.String("prometheus-port", "9090", "Prometheus port for metrics")
+	operationMode                      = pflag.String("operation-mode", "standard", "NMI operation mode")
 )
 
 func main() {
-	klog.InitFlags(nil)
 	// this is done for glog used by client-go underneath
 	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
 
@@ -71,15 +71,18 @@ func main() {
 		klog.Infof("Features for scale clusters enabled")
 	}
 
-	fmt.Printf("Start k8s.NewKubeClient\n")
-	client, err := k8s.NewKubeClient(*nodename, *enableScaleFeatures)
+	// normalize operation mode
+	*operationMode = strings.ToLower(*operationMode)
+
+	client, err := nmi.GetKubeClient(*nodename, *operationMode, *enableScaleFeatures)
 	if err != nil {
-		klog.Fatalf("%+v", err)
+		klog.Fatalf("error creating kube client, err: %+v", err)
 	}
+
 	exit := make(<-chan struct{})
 	client.Start(exit)
 	*forceNamespaced = *forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
-	s := server.NewServer(*forceNamespaced, *micNamespace, *blockInstanceMetadata)
+	s := server.NewServer(*micNamespace, *blockInstanceMetadata)
 	s.KubeClient = client
 	s.MetadataIP = *metadataIP
 	s.MetadataPort = *metadataPort
@@ -87,9 +90,21 @@ func main() {
 	s.HostIP = *hostIP
 	s.NodeName = *nodename
 	s.IPTableUpdateTimeIntervalInSeconds = *ipTableUpdateTimeIntervalInSeconds
-	s.ListPodIDsRetryAttemptsForCreated = *retryAttemptsForCreated
-	s.ListPodIDsRetryAttemptsForAssigned = *retryAttemptsForAssigned
-	s.ListPodIDsRetryIntervalInSeconds = *findIdentityRetryIntervalInSeconds
+
+	nmiConfig := nmi.Config{
+		Mode:                               strings.ToLower(*operationMode),
+		RetryAttemptsForCreated:            *retryAttemptsForCreated,
+		RetryAttemptsForAssigned:           *retryAttemptsForAssigned,
+		FindIdentityRetryIntervalInSeconds: *findIdentityRetryIntervalInSeconds,
+		Namespaced:                         *forceNamespaced,
+	}
+
+	// Create new token client based on the nmi mode
+	tokenClient, err := nmi.GetTokenClient(client, nmiConfig)
+	if err != nil {
+		klog.Fatalf("failed to initialize token client, err: %v", err)
+	}
+	s.TokenClient = tokenClient
 
 	// Health probe will always report success once its started. The contents
 	// will report "Active" once the iptables rules are set
