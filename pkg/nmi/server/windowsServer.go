@@ -62,6 +62,7 @@ func (s *WindowsServer) Sync() {
 				if podIP, podExist := podMap[pod.UID]; podExist {
 					fmt.Printf("Delete: Windows Server Pod UID and Pod Name:%s %s \n", pod.UID, pod.Name)
 					deleteRoutePolicy(podIP)
+					delete(podMap, pod.UID)
 				} else {
 					fmt.Printf("Add: Windows Server Pod UID and Pod Name:%s %s \n", pod.UID, pod.Name)
 					podMap[pod.UID] = pod.Status.PodIP
