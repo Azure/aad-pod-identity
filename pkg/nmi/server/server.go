@@ -56,6 +56,10 @@ type NMIResponse struct {
 	ClientID string      `json:"clientid"`
 }
 
+type MetadataResponse struct {
+	Error string `json:"error"`
+}
+
 // NewServer will create a new Server with default values.
 func NewServer(micNamespace string, blockInstanceMetadata bool) *Server {
 	reporter, err := metrics.NewReporter()
@@ -199,7 +203,7 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 	hostIP := parseRemoteAddr(r.RemoteAddr)
 	rqClientID, rqResource := parseRequestClientIDAndResource(r)
 
-	podns, podname := parseRequestHeader(r)
+	podns, podname := parsePodInfo(r)
 	if podns == "" || podname == "" {
 		klog.Error("missing podname and podns from request")
 		http.Error(w, "missing 'podname' and 'podns' from request header", http.StatusBadRequest)
@@ -308,6 +312,22 @@ func (s *Server) getTokenForExceptedPod(rqClientID, rqResource string) ([]byte, 
 // if the requests contains client id it validates it against the admin
 // configured id.
 func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) {
+	metadata := parseMetadata(r)
+	if metadata != "true" {
+		klog.Error("metadata header is not true")
+		metadataResp := MetadataResponse{
+			Error: "Bad request. Required metadata header not specified",
+		}
+		response, err := json.Marshal(metadataResp)
+		if err != nil {
+			klog.Errorf("failed to marshal metadata response, %+v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Write(response)
+		return
+	}
+
 	podIP := parseRemoteAddr(r.RemoteAddr)
 	rqClientID, rqResource := parseRequestClientIDAndResource(r)
 
@@ -372,7 +392,11 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	return
 }
 
-func parseRequestHeader(r *http.Request) (podns string, podname string) {
+func parseMetadata(r *http.Request) (metadata string) {
+	return r.Header.Get("metadata")
+}
+
+func parsePodInfo(r *http.Request) (podns string, podname string) {
 	podns = r.Header.Get("podns")
 	podname = r.Header.Get("podname")
 
