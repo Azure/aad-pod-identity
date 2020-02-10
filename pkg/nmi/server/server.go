@@ -57,7 +57,8 @@ type NMIResponse struct {
 }
 
 type MetadataResponse struct {
-	Error string `json:"error"`
+	Error            string `json:"error"`
+	ErrorDescription string `json:"error_description"`
 }
 
 // NewServer will create a new Server with default values.
@@ -314,9 +315,10 @@ func (s *Server) getTokenForExceptedPod(rqClientID, rqResource string) ([]byte, 
 func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) {
 	metadata := parseMetadata(r)
 	if metadata != "true" {
-		klog.Error("metadata header is not true")
+		klog.Error("metadata header is not specified")
 		metadataResp := MetadataResponse{
-			Error: "Bad request. Required metadata header not specified",
+			Error:            "invalid_request",
+			ErrorDescription: "Required metadata header not specified",
 		}
 		response, err := json.Marshal(metadataResp)
 		if err != nil {
@@ -324,7 +326,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		w.Write(response)
+		metadataNotSpecifiedError(w, string(response), http.StatusBadRequest)
 		return
 	}
 
@@ -390,6 +392,16 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	}
 	w.Write(response)
 	return
+}
+
+// Error replies to the request without the specified metadata header.
+// It does not otherwise end the request; the caller should ensure no further
+// writes are done to w.
+func metadataNotSpecifiedError(w http.ResponseWriter, error string, code int) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Server", "Microsoft-IIS/10.0")
+	w.WriteHeader(code)
+	fmt.Fprintln(w, error)
 }
 
 func parseMetadata(r *http.Request) (metadata string) {
