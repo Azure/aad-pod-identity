@@ -316,17 +316,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	metadata := parseMetadata(r)
 	if metadata != "true" {
 		klog.Error("metadata header is not specified")
-		metadataResp := MetadataResponse{
-			Error:            "invalid_request",
-			ErrorDescription: "Required metadata header not specified",
-		}
-		response, err := json.Marshal(metadataResp)
-		if err != nil {
-			klog.Errorf("failed to marshal metadata response, %+v", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		metadataNotSpecifiedError(w, string(response), http.StatusBadRequest)
+		metadataNotSpecifiedError(w)
 		return
 	}
 
@@ -397,11 +387,23 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 // Error replies to the request without the specified metadata header.
 // It does not otherwise end the request; the caller should ensure no further
 // writes are done to w.
-func metadataNotSpecifiedError(w http.ResponseWriter, error string, code int) {
+func metadataNotSpecifiedError(w http.ResponseWriter) {
+	metadataResp := MetadataResponse{
+		Error:            "invalid_request",
+		ErrorDescription: "Required metadata header not specified",
+	}
+	response, err := json.Marshal(metadataResp)
+	if err != nil {
+		klog.Errorf("failed to marshal metadata response, %+v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("Server", "Microsoft-IIS/10.0")
-	w.WriteHeader(code)
-	fmt.Fprintln(w, error)
+	w.WriteHeader(http.StatusBadRequest)
+	fmt.Fprintln(w, string(response))
+	return
 }
 
 func parseMetadata(r *http.Request) (metadata string) {
