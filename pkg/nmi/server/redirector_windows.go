@@ -14,32 +14,26 @@ import (
 	"k8s.io/klog"
 )
 
-type WindowsServer struct {
+type WindowsRedirector struct {
 	Server *Server
+}
+
+func makeRedirectorInt(server *Server) RedirectorInt {
+	return &WindowsRedirector{Server: server}
 }
 
 var podMap = make(map[types.UID]string)
 
-func RunServer(s *Server) {
-	ws := WindowsServer{Server: s}
-	if err := ws.Run(); err != nil {
-		klog.Fatalf("%s", err)
-	}
-}
-
-// Run the specified Server.
-func (s *WindowsServer) Run() error {
+func (s *WindowsRedirector) RedirectMetadataEndpoint() {
 	exit := make(chan struct{})
 	s.Server.PodClient.Start(exit)
 	klog.V(6).Infof("Pod client started")
 
 	s.ApplyRoutePolicyForExistingPods()
 	go s.Sync()
-
-	return s.Server.Run()
 }
 
-func (s *WindowsServer) Sync() {
+func (s *WindowsRedirector) Sync() {
 	klog.Info("Sync thread started.")
 
 	signalChan := make(chan os.Signal, 1)
@@ -55,6 +49,8 @@ func (s *WindowsServer) Sync() {
 			break
 		case pod = <-s.Server.PodObjChannel:
 			klog.V(6).Infof("Received event: %s", pod)
+
+			fmt.Printf("Node IP and Node Name:%s %s \n", s.Server.HostIP, s.Server.NodeName)
 
 			// fmt.Printf("Windows Server Host IP, Pod Node Name and Pod IP:%s %s %s \n", pod.Status.HostIP, pod.Spec.NodeName, pod.Status.PodIP)
 			fmt.Printf("Windows Server Pod UID and Pod Name:%s %s \n", pod.UID, pod.Name)
@@ -73,7 +69,7 @@ func (s *WindowsServer) Sync() {
 	}
 }
 
-func (s *WindowsServer) ApplyRoutePolicyForExistingPods() {
+func (s *WindowsRedirector) ApplyRoutePolicyForExistingPods() {
 	klog.Info("Apply route pllicy for existing pods started.")
 
 	listPods, err := s.Server.PodClient.ListPods()
@@ -89,7 +85,7 @@ func (s *WindowsServer) ApplyRoutePolicyForExistingPods() {
 	}
 }
 
-func (s *WindowsServer) DeleteRoutePolicyForExistingPods() {
+func (s *WindowsRedirector) DeleteRoutePolicyForExistingPods() {
 	klog.Info("Received SIGTERM, shutting down")
 	klog.Info("Delete route policy for existing pods started.")
 

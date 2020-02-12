@@ -115,6 +115,9 @@ func main() {
 		klog.Fatalf("Could not register and export metrics: %+v", err)
 	}
 
-	// Run nmi server
-	server.RunServer(s)
+	rd := s.GetRedirector()
+
+	if err := s.Run(rd); err != nil {
+		klog.Fatalf("%s", err)
+	}
 }

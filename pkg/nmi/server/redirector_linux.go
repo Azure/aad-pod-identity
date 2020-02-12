@@ -1,4 +1,4 @@
-// +build linuxos
+// +build linux
 
 package server
 
@@ -12,26 +12,19 @@ import (
 	"k8s.io/klog"
 )
 
-type LinuxServer struct {
+type LinuxRedirector struct {
 	Server *Server
 }
 
-func RunServer(s *Server) {
-	ls := LinuxServer{Server: s}
-	if err := ls.Run(); err != nil {
-		klog.Fatalf("%s", err)
-	}
+func makeRedirectorInt(server *Server) RedirectorInt {
+	return &LinuxRedirector{Server: server}
 }
 
-// Run the specified Server.
-func (s *LinuxServer) Run() error {
-
+func (s *LinuxRedirector) RedirectMetadataEndpoint() {
 	go s.updateIPTableRules()
-
-	return s.Server.Run()
 }
 
-func (s *LinuxServer) updateIPTableRulesInternal() {
+func (s *LinuxRedirector) updateIPTableRulesInternal() {
 	klog.V(5).Infof("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.Server.NodeName, s.Server.HostIP, s.Server.MetadataIP, s.Server.MetadataPort, s.Server.NMIPort)
 
 	if err := iptables.AddCustomChain(s.Server.MetadataIP, s.Server.MetadataPort, s.Server.HostIP, s.Server.NMIPort); err != nil {
@@ -46,7 +39,7 @@ func (s *LinuxServer) updateIPTableRulesInternal() {
 // such that metadata requests are received by nmi assigned port
 // NOT originating from HostIP destined to metadata endpoint are
 // routed to NMI endpoint
-func (s *LinuxServer) updateIPTableRules() {
+func (s *LinuxRedirector) updateIPTableRules() {
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
 
