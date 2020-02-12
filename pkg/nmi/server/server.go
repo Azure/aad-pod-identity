@@ -74,7 +74,7 @@ func NewServer(micNamespace string, blockInstanceMetadata bool) *Server {
 	informer := informers.NewSharedInformerFactory(clientSet, 60*time.Second)
 	eventCh := make(chan aadpodid.EventType, 100)
 	podObjCh := make(chan *v1.Pod, 100)
-	podClient := pod.NewPodClient(informer, eventCh, podObjCh)
+	podClient := pod.NewPodClientWithPodInfoCh(informer, eventCh, podObjCh)
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {

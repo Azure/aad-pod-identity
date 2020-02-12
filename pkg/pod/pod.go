@@ -29,7 +29,16 @@ type ClientInt interface {
 }
 
 // NewPodClient returns new pod client
-func NewPodClient(i informers.SharedInformerFactory, eventCh chan aadpodid.EventType, podInfoCh chan *v1.Pod) (c ClientInt) {
+func NewPodClient(i informers.SharedInformerFactory, eventCh chan aadpodid.EventType) (c ClientInt) {
+	podInformer := i.Core().V1().Pods()
+	addPodHandler(podInformer, eventCh, nil)
+
+	return &Client{
+		PodWatcher: podInformer,
+	}
+}
+
+func NewPodClientWithPodInfoCh(i informers.SharedInformerFactory, eventCh chan aadpodid.EventType, podInfoCh chan *v1.Pod) (c ClientInt) {
 	podInformer := i.Core().V1().Pods()
 	addPodHandler(podInformer, eventCh, podInfoCh)
 
@@ -45,18 +54,21 @@ func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType, p
 				klog.V(6).Infof("Pod Created")
 				eventCh <- aadpodid.PodCreated
 
-				currentPod, _ := GetPod(obj, i)
-				podInfoCh <- currentPod
+				if podInfoCh != nil {
+					currentPod, _ := GetPod(obj, i)
+					podInfoCh <- currentPod
+				}
 			},
 			DeleteFunc: func(obj interface{}) {
 				klog.V(6).Infof("Pod Deleted")
 				eventCh <- aadpodid.PodDeleted
 
-				// The following code may not be necessary. Add for log purpose. May remove them finally.
-				currentPod := obj.(*v1.Pod)
+				if podInfoCh != nil {
+					currentPod := obj.(*v1.Pod)
 
-				fmt.Printf("Pod UID:%s \n", currentPod.UID)
-				podInfoCh <- currentPod
+					fmt.Printf("Pod UID:%s \n", currentPod.UID)
+					podInfoCh <- currentPod
+				}
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
 				// We are only interested in updates to pod if the node changes.
