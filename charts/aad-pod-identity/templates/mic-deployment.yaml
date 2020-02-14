@@ -11,8 +11,8 @@ spec:
   replicas: 2
   selector:
     matchLabels:
-      {{- include "aad-pod-identity.labels" . | nindent 6 }}
       app.kubernetes.io/component: mic
+      {{- include "aad-pod-identity.labels" . | nindent 6 }}
   template:
     metadata:
       labels:
@@ -54,13 +54,13 @@ spec:
           {{- end }}
           {{- if .Values.mic.clientQps }}
           - --clientQps={{ .Values.mic.clientQps }}
-          {{- end }}          
+          {{- end }}
           {{- if .Values.mic.immutableUserMSIs }}
           - "--immutable-user-msis={{- join "," .Values.mic.immutableUserMSIs}}"
           {{- end }}
           {{- if .Values.mic.prometheusPort }}
           - --prometheus-port={{ .Values.mic.prometheusPort }}
-          {{- end }}  
+          {{- end }}
         env:
           - name: FORCENAMESPACED
             value: "{{ .Values.forceNameSpaced }}"

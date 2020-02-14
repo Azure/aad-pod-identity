@@ -11,8 +11,8 @@ metadata:
 spec:
   selector:
     matchLabels:
-      {{- include "aad-pod-identity.labels" . | nindent 6 }}
       app.kubernetes.io/component: nmi
+      {{- include "aad-pod-identity.labels" . | nindent 6 }}
   template:
     metadata:
       labels:
@@ -62,7 +62,7 @@ spec:
           {{- end }}
           {{- if .Values.nmi.blockInstanceMetadata }}
           - --block-instance-metadata={{ .Values.nmi.blockInstanceMetadata }}
-          {{- end }}  
+          {{- end }}
         env:
           - name: HOST_IP
             valueFrom:
@@ -89,7 +89,7 @@ spec:
             port: {{ .Values.nmi.probePort }}
             {{- else }}
             port: 8080
-            {{- end }}            
+            {{- end }}
           initialDelaySeconds: 10
           periodSeconds: 5
 {{- with .Values.nmi.resources }}

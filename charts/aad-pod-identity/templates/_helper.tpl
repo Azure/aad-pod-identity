@@ -59,8 +59,6 @@ Create chart name and version as used by the chart label.
 Common labels.
 */}}
 {{- define "aad-pod-identity.labels" -}}
-app.kubernetes.io/name: {{ template "aad-pod-identity.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
-helm.sh/chart: {{ template "aad-pod-identity.chart" . }}
+app.kubernetes.io/name: {{ template "aad-pod-identity.name" . }}
 {{- end -}}
