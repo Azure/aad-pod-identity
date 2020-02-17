@@ -11,8 +11,9 @@ require (
 	github.com/Azure/go-autorest/autorest/azure/auth v0.1.0
 	github.com/Azure/go-autorest/autorest/to v0.2.0 // indirect
 	github.com/Azure/go-autorest/autorest/validation v0.1.0 // indirect
+	github.com/Microsoft/hcsshim v0.8.7
 	github.com/coreos/go-iptables v0.3.0
-	github.com/gogo/protobuf v1.2.1 // indirect
+	github.com/Microsoft/hcnproxy v1.0.1-0.20200207172923-2bfd8ae6e797
 	github.com/golang/groupcache v0.0.0-20180513044358-24b0969c4cb7 // indirect
 	github.com/google/go-cmp v0.3.0
 	github.com/google/gofuzz v0.0.0-20170612174753-24818f796faf // indirect
@@ -25,7 +26,7 @@ require (
 	github.com/modern-go/reflect2 v0.0.0-20180228065516-1df9eeb2bb81 // indirect
 	github.com/onsi/ginkgo v1.7.0
 	github.com/onsi/gomega v1.4.3
-	github.com/pkg/errors v0.8.0
+	github.com/pkg/errors v0.8.1
 	github.com/spf13/pflag v1.0.1
 	go.opencensus.io v0.22.0
 	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6

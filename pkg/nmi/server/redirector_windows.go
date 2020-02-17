@@ -57,12 +57,12 @@ func (s *WindowsRedirector) Sync() {
 			if s.Server.NodeName == pod.Spec.NodeName {
 				if podIP, podExist := podMap[pod.UID]; podExist {
 					fmt.Printf("Delete: Windows Server Pod UID and Pod Name:%s %s \n", pod.UID, pod.Name)
-					deleteRoutePolicy(podIP)
+					DeleteEndpointRoutePolicy(podIP)
 					delete(podMap, pod.UID)
 				} else {
 					fmt.Printf("Add: Windows Server Pod UID and Pod Name:%s %s \n", pod.UID, pod.Name)
 					podMap[pod.UID] = pod.Status.PodIP
-					applyRoutePolicy(pod.Status.PodIP)
+					ApplyEndpointRoutePolicy(pod.Status.PodIP)
 				}
 			}
 		}
@@ -80,7 +80,7 @@ func (s *WindowsRedirector) ApplyRoutePolicyForExistingPods() {
 	for _, podItem := range listPods {
 		fmt.Printf("Host IP, Node Name and Pod IP: \n %s %s %s \n", podItem.Status.HostIP, podItem.Spec.NodeName, podItem.Status.PodIP)
 		if podItem.Spec.NodeName == s.Server.NodeName {
-			applyRoutePolicy(podItem.Status.PodIP)
+			ApplyEndpointRoutePolicy(podItem.Status.PodIP, s.Server.MetadataIP, s.Server.MetadataPort, s.HostIP, s.NMIPort)
 		}
 	}
 }
@@ -100,7 +100,7 @@ func (s *WindowsRedirector) DeleteRoutePolicyForExistingPods() {
 	for _, podItem := range listPods {
 		fmt.Printf("Host IP, Node Name and Pod IP: \n %s %s %s \n", podItem.Status.HostIP, podItem.Spec.NodeName, podItem.Status.PodIP)
 		if podItem.Spec.NodeName == s.Server.NodeName {
-			deleteRoutePolicy(podItem.Status.PodIP)
+			DeleteEndpointRoutePolicy(podItem.Status.PodIP)
 		}
 	}
 
@@ -110,32 +110,4 @@ func (s *WindowsRedirector) DeleteRoutePolicyForExistingPods() {
 
 	klog.Infof("Exiting with %v", exitCode)
 	os.Exit(exitCode)
-}
-
-func applyRoutePolicy(podIP string) {
-
-	// Retrieve all the endpoints
-	// var endpoints = HCNProxy.EnumerateEndpoints()
-
-	// Foreach ennpoint, find the one for the podinfo and apply route policy
-	//for _, val := range endpoints {
-	//	if podIP == val.podIP {
-	//		HCNProxy.ApplyRoutePolicy(val)
-	//		break
-	//	}
-	//}
-}
-
-func deleteRoutePolicy(podIP string) {
-
-	// Retrieve all the endpoints
-	// var endpoints = HCNProxy.EnumerateEndpoints()
-
-	// Foreach ennpoint, find the one for the podinfo and apply route policy
-	//for _, val := range endpoints {
-	//	if podIP == val.podIP {
-	//		HCNProxy.ApplyRoutePolicy(val)
-	//		break
-	//	}
-	//}
 }
