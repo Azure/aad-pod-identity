@@ -91,7 +91,6 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
-    kubernetes.io/cluster-service: "true"
     component: nmi
     tier: node
     k8s-app: aad-pod-id
@@ -120,6 +119,7 @@ spec:
           {{if .NMIArg}}- nmi {{ end }}
           - "--host-ip=$(HOST_IP)"
           - "--node=$(NODE_NAME)"
+          - "--operation-mode={{.NMIMode}}"
           {{if .EnableScaleFeatures}}- "--enableScaleFeatures=true" {{end}}
         env:
           - name: HOST_IP

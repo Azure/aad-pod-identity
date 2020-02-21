@@ -26,6 +26,9 @@ export KEYVAULT_SECRET_NAME='...'
 
 # The version of the secret inserted into the keyvault
 export KEYVAULT_SECRET_VERSION='...'
+
+# The client ID of the immutable user assigned MSI created when running setup.sh
+export IMMUTABLE_IDENTITY_CLIENT_ID='...'
 ```
 
 Optionally, to use custom images:
@@ -43,6 +46,8 @@ export MIC_VERSION='...'
 # The version of the identity validator to test. Defaults to `1.4`.
 export IDENTITY_VALIDATOR_VERSION='...'
 
+# The mode in which NMI is run. Allowed values: standard, managed. Default is standard
+export NMI_MODE='...'
 ```
 
 If you are using system asssigned identity cluster, please set the following variable:

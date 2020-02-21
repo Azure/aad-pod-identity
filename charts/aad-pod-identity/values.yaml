@@ -27,7 +27,7 @@ adminsecret: {}
 
 mic:
   image: mic
-  tag: 1.5.4
+  tag: 1.5.5
 
   # log level. Uses V logs (glog)
   logVerbosity: 0
@@ -85,7 +85,7 @@ mic:
 
 nmi:
   image: nmi
-  tag: 1.5.4
+  tag: 1.5.5
 
   resources:
     limits:

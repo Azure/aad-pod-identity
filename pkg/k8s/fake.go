@@ -1,7 +1,7 @@
 package k8s
 
 import (
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -23,8 +23,18 @@ func (c *FakeClient) GetPodInfo(podip string) (podns, podname, rsName string, se
 	return "ns", "podname", "rsName", nil, nil
 }
 
+// GetPod returns fake pod object and nil error
+func (c *FakeClient) GetPod(podns, podname string) (v1.Pod, error) {
+	return v1.Pod{}, nil
+}
+
 // ListPodIds for pod
 func (c *FakeClient) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
+	return nil, nil
+}
+
+// ListPodIdsWithBinding for pod
+func (c *FakeClient) ListPodIdsWithBinding(podns string, labels map[string]string) ([]aadpodid.AzureIdentity, error) {
 	return nil, nil
 }
 
