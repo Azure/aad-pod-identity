@@ -63,6 +63,9 @@ spec:
           {{- if .Values.nmi.blockInstanceMetadata }}
           - --block-instance-metadata={{ .Values.nmi.blockInstanceMetadata }}
           {{- end }}  
+          {{- if .Values.nmi.metadataHeaderRequired}}
+          - --metadata-header-required={{ .Values.nmi.metadataHeaderRequired }}
+          {{- end }} 
         env:
           - name: HOST_IP
             valueFrom:

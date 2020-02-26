@@ -44,10 +44,10 @@ type Server struct {
 	MICNamespace                       string
 	Initialized                        bool
 	BlockInstanceMetadata              bool
+	MetadataHeaderRequired             bool
 	// TokenClient is client that fetches identities and tokens
 	TokenClient nmi.TokenClient
-
-	Reporter *metrics.Reporter
+	Reporter    *metrics.Reporter
 }
 
 // NMIResponse is the response returned to caller
@@ -62,7 +62,7 @@ type MetadataResponse struct {
 }
 
 // NewServer will create a new Server with default values.
-func NewServer(micNamespace string, blockInstanceMetadata bool) *Server {
+func NewServer(micNamespace string, blockInstanceMetadata bool, metadataHeaderRequired bool) *Server {
 	reporter, err := metrics.NewReporter()
 	if err != nil {
 		klog.Errorf("Error creating new reporter to emit metrics: %v", err)
@@ -72,9 +72,10 @@ func NewServer(micNamespace string, blockInstanceMetadata bool) *Server {
 		auth.InitReporter(reporter)
 	}
 	return &Server{
-		MICNamespace:          micNamespace,
-		BlockInstanceMetadata: blockInstanceMetadata,
-		Reporter:              reporter,
+		MICNamespace:           micNamespace,
+		BlockInstanceMetadata:  blockInstanceMetadata,
+		MetadataHeaderRequired: metadataHeaderRequired,
+		Reporter:               reporter,
 	}
 }
 
@@ -313,9 +314,8 @@ func (s *Server) getTokenForExceptedPod(rqClientID, rqResource string) ([]byte, 
 // if the requests contains client id it validates it against the admin
 // configured id.
 func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) {
-	metadata := parseMetadata(r)
-	if metadata != "true" {
-		klog.Error("metadata header is not specified")
+	if s.MetadataHeaderRequired && parseMetadata(r) != "true" {
+		klog.Errorf("metadata header is not specified, req.method=%s reg.path=%s req.remote=%s", r.Method, r.URL.Path, parseRemoteAddr(r.RemoteAddr))
 		metadataNotSpecifiedError(w)
 		return
 	}
@@ -440,6 +440,12 @@ func parseRequestClientIDAndResource(r *http.Request) (clientID string, resource
 
 // defaultPathHandler creates a new request and returns the response body and code
 func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) (ns string) {
+	if s.MetadataHeaderRequired && parseMetadata(r) != "true" {
+		klog.Errorf("metadata header is not specified, req.method=%s reg.path=%s req.remote=%s", r.Method, r.URL.Path, parseRemoteAddr(r.RemoteAddr))
+		metadataNotSpecifiedError(w)
+		return
+	}
+
 	client := &http.Client{}
 	req, err := http.NewRequest(r.Method, r.URL.String(), r.Body)
 	if err != nil || req == nil {
