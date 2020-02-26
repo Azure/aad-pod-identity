@@ -28,6 +28,7 @@ require (
 	github.com/pkg/errors v0.8.0
 	github.com/spf13/pflag v1.0.1
 	go.opencensus.io v0.22.0
+	golang.org/x/crypto v0.0.0-20190418165655-df01cb2cc480
 	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6
 	golang.org/x/time v0.0.0-20180412165947-fbb02b2291d2 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect

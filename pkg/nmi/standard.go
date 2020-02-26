@@ -165,8 +165,8 @@ func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource s
 		token, err := auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, rqResource)
 		return token, err
 	case aadpodid.ServicePrincipal:
-		tenantid := azureID.Spec.TenantID
-		klog.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantid, utils.RedactClientID(clientID), rqResource)
+		tenantID := azureID.Spec.TenantID
+		klog.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantID, utils.RedactClientID(clientID), rqResource)
 		secret, err := sc.KubeClient.GetSecret(&azureID.Spec.ClientPassword)
 		if err != nil {
 			return nil, err
@@ -176,7 +176,18 @@ func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource s
 			clientSecret = string(v)
 			break
 		}
-		token, err := auth.GetServicePrincipalToken(tenantid, clientID, clientSecret, rqResource)
+		token, err := auth.GetServicePrincipalToken(tenantID, clientID, clientSecret, rqResource)
+		return token, err
+	case aadpodid.ServicePrincipalCertificate:
+		tenantID := azureID.Spec.TenantID
+		klog.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantID, utils.RedactClientID(clientID), rqResource)
+		secret, err := sc.KubeClient.GetSecret(&azureID.Spec.ClientPassword)
+		if err != nil {
+			return nil, err
+		}
+		certificate, password := secret.Data["certificate"], secret.Data["password"]
+		token, err := auth.GetServicePrincipalTokenWithCertificate(tenantID, clientID,
+			certificate, string(password), rqResource)
 		return token, err
 	default:
 		return nil, fmt.Errorf("unsupported identity type %+v", idType)

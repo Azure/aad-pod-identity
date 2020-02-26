@@ -1,12 +1,14 @@
 package auth
 
 import (
+	"crypto/rsa"
 	"fmt"
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/version"
 	adal "github.com/Azure/go-autorest/autorest/adal"
+	"golang.org/x/crypto/pkcs12"
 )
 
 const (
@@ -82,7 +84,7 @@ func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string
 	return &token, nil
 }
 
-// GetServicePrincipalToken return the token for the assigned user
+// GetServicePrincipalToken return the token for the assigned user with client secret
 func GetServicePrincipalToken(tenantID, clientID, secret, resource string) (*adal.Token, error) {
 	begin := time.Now()
 	var err error
@@ -100,6 +102,42 @@ func GetServicePrincipalToken(tenantID, clientID, secret, resource string) (*ada
 		return nil, fmt.Errorf("creating the OAuth config: %v", err)
 	}
 	spt, err := adal.NewServicePrincipalToken(*oauthConfig, clientID, secret, resource)
+	if err != nil {
+		return nil, err
+	}
+	// obtain a fresh token
+	err = spt.Refresh()
+	if err != nil {
+		return nil, err
+	}
+	token := spt.Token()
+	return &token, nil
+}
+
+// GetServicePrincipalTokenWithCertificate return the token for the assigned user with the certificate
+func GetServicePrincipalTokenWithCertificate(tenantID, clientID string, certificate []byte, password, resource string) (*adal.Token, error) {
+	begin := time.Now()
+	var err error
+
+	defer func() {
+		if err != nil {
+			reporter.ReportIMDSOperationError(metrics.AdalTokenOperationName)
+			return
+		}
+		reporter.ReportIMDSOperationDuration(metrics.AdalTokenOperationName, time.Since(begin))
+	}()
+
+	oauthConfig, err := adal.NewOAuthConfig(activeDirectoryEndpoint, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("creating the OAuth config: %v", err)
+	}
+
+	privateKey, cert, err := pkcs12.Decode(certificate, password)
+	if err != nil {
+		return nil, err
+	}
+
+	spt, err := adal.NewServicePrincipalTokenFromCertificate(*oauthConfig, clientID, cert, privateKey.(*rsa.PrivateKey), resource)
 	if err != nil {
 		return nil, err
 	}
