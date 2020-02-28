@@ -123,7 +123,7 @@ type AzureIdentitySpec struct {
 	ClientPassword api.SecretReference `json:"clientpassword"`
 	// Service principal tenant id.
 	TenantID string `json:"tenantid"`
-	// For service principal. Option param for specifying the  AD details.
+	// For service principal. Option param for specifying the AD details.
 	ADResourceID string `json:"adresourceid"`
 	ADEndpoint   string `json:"adendpoint"`
 

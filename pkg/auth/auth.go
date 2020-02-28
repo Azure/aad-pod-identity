@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	activeDirectoryEndpoint = "https://login.microsoftonline.com/"
+	defaultActiveDirectoryEndpoint = "https://login.microsoftonline.com/"
 )
 
 var reporter *metrics.Reporter
@@ -85,7 +85,7 @@ func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string
 }
 
 // GetServicePrincipalToken return the token for the assigned user with client secret
-func GetServicePrincipalToken(tenantID, clientID, secret, resource string) (*adal.Token, error) {
+func GetServicePrincipalToken(adEndpointFromSpec, tenantID, clientID, secret, resource string) (*adal.Token, error) {
 	begin := time.Now()
 	var err error
 
@@ -97,6 +97,10 @@ func GetServicePrincipalToken(tenantID, clientID, secret, resource string) (*ada
 		reporter.ReportIMDSOperationDuration(metrics.AdalTokenOperationName, time.Since(begin))
 	}()
 
+	activeDirectoryEndpoint := defaultActiveDirectoryEndpoint
+	if adEndpointFromSpec != "" {
+		activeDirectoryEndpoint = adEndpointFromSpec
+	}
 	oauthConfig, err := adal.NewOAuthConfig(activeDirectoryEndpoint, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("creating the OAuth config: %v", err)
@@ -115,7 +119,7 @@ func GetServicePrincipalToken(tenantID, clientID, secret, resource string) (*ada
 }
 
 // GetServicePrincipalTokenWithCertificate return the token for the assigned user with the certificate
-func GetServicePrincipalTokenWithCertificate(tenantID, clientID string, certificate []byte, password, resource string) (*adal.Token, error) {
+func GetServicePrincipalTokenWithCertificate(adEndpointFromSpec, tenantID, clientID string, certificate []byte, password, resource string) (*adal.Token, error) {
 	begin := time.Now()
 	var err error
 
@@ -127,6 +131,10 @@ func GetServicePrincipalTokenWithCertificate(tenantID, clientID string, certific
 		reporter.ReportIMDSOperationDuration(metrics.AdalTokenOperationName, time.Since(begin))
 	}()
 
+	activeDirectoryEndpoint := defaultActiveDirectoryEndpoint
+	if adEndpointFromSpec != "" {
+		activeDirectoryEndpoint = adEndpointFromSpec
+	}
 	oauthConfig, err := adal.NewOAuthConfig(activeDirectoryEndpoint, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("creating the OAuth config: %v", err)
