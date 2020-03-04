@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -14,7 +15,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/crd"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-06-01/compute"
 
 	cp "github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	api "k8s.io/api/core/v1"
@@ -68,13 +69,25 @@ func (c *TestVMClient) Get(rgName string, nodeName string) (ret compute.VirtualM
 	return *stored, nil
 }
 
-func (c *TestVMClient) CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachine) error {
+func (c *TestVMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachine) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.err != nil {
 		c.nodeMap[nodeName].Identity = c.identity
 		return *c.err
+	}
+	if evm, exists := c.nodeMap[nodeName]; exists && evm.Identity != nil && evm.Identity.UserAssignedIdentities != nil {
+		if vm.Identity.UserAssignedIdentities != nil {
+			for k, v := range vm.Identity.UserAssignedIdentities {
+				if v == nil {
+					delete(evm.Identity.UserAssignedIdentities, k)
+				} else {
+					evm.Identity.UserAssignedIdentities[k] = v
+				}
+			}
+			vm = *evm
+		}
 	}
 	c.nodeMap[nodeName] = &vm
 	return nil
@@ -83,34 +96,36 @@ func (c *TestVMClient) CreateOrUpdate(rg string, nodeName string, vm compute.Vir
 func (c *TestVMClient) ListMSI() (ret map[string]*[]string) {
 	ret = make(map[string]*[]string)
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	for key, val := range c.nodeMap {
-		if val.Identity != nil {
-			ret[key] = val.Identity.IdentityIds
+		var ids []string
+		for k := range val.Identity.UserAssignedIdentities {
+			ids = append(ids, k)
 		}
+		ret[key] = &ids
 	}
 	return ret
 }
 
 func (c *TestVMClient) CompareMSI(nodeName string, userIDs []string) bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	stored := c.nodeMap[nodeName]
 	if stored == nil || stored.Identity == nil {
 		return false
 	}
 
-	ids := stored.Identity.IdentityIds
+	var ids []string
+	for k := range stored.Identity.UserAssignedIdentities {
+		ids = append(ids, k)
+	}
 	if ids == nil {
 		if len(userIDs) == 0 && stored.Identity.Type == compute.ResourceIdentityTypeNone { // Validate that we have reset the resource type as none.
 			return true
 		}
 		return false
 	}
-	return reflect.DeepEqual(*ids, userIDs)
+
+	sort.Strings(ids)
+	sort.Strings(userIDs)
+	return reflect.DeepEqual(ids, userIDs)
 }
 
 type TestVMSSClient struct {
@@ -143,7 +158,7 @@ func (c *TestVMSSClient) Get(rgName string, nodeName string) (ret compute.Virtua
 	return *stored, nil
 }
 
-func (c *TestVMSSClient) CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachineScaleSet) error {
+func (c *TestVMSSClient) UpdateIdentities(rg, nodeName string, vmss compute.VirtualMachineScaleSet) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -151,39 +166,56 @@ func (c *TestVMSSClient) CreateOrUpdate(rg string, nodeName string, vm compute.V
 		c.nodeMap[nodeName].Identity = c.identity
 		return *c.err
 	}
-	c.nodeMap[nodeName] = &vm
+	if evm, exists := c.nodeMap[nodeName]; exists && evm.Identity != nil && evm.Identity.UserAssignedIdentities != nil {
+		if vmss.Identity.UserAssignedIdentities != nil {
+			for k, v := range vmss.Identity.UserAssignedIdentities {
+				if v == nil {
+					delete(evm.Identity.UserAssignedIdentities, k)
+				} else {
+					evm.Identity.UserAssignedIdentities[k] = v
+				}
+			}
+			vmss = *evm
+		}
+	}
+	c.nodeMap[nodeName] = &vmss
 	return nil
 }
 
 func (c *TestVMSSClient) ListMSI() (ret map[string]*[]string) {
 	ret = make(map[string]*[]string)
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	for key, val := range c.nodeMap {
-		ret[key] = val.Identity.IdentityIds
+		var ids []string
+		for k := range val.Identity.UserAssignedIdentities {
+			ids = append(ids, k)
+		}
+		ret[key] = &ids
 	}
 	return ret
 }
 
 func (c *TestVMSSClient) CompareMSI(nodeName string, userIDs []string) bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	stored := c.nodeMap[nodeName]
 	if stored == nil || stored.Identity == nil {
 		return false
 	}
 
-	ids := stored.Identity.IdentityIds
+	var ids []string
+	for k := range stored.Identity.UserAssignedIdentities {
+		ids = append(ids, k)
+	}
+
 	if ids == nil {
 		if len(userIDs) == 0 && stored.Identity.Type == compute.ResourceIdentityTypeNone { // Validate that we have reset the resource type as none.
 			return true
 		}
 		return false
 	}
-	return reflect.DeepEqual(*ids, userIDs)
+
+	sort.Strings(ids)
+	sort.Strings(userIDs)
+	return reflect.DeepEqual(ids, userIDs)
 }
 
 func (c *TestCloudClient) ListMSI() (ret map[string]*[]string) {
@@ -222,7 +254,9 @@ func (c *TestCloudClient) UnSetError() {
 func NewTestVMClient() *TestVMClient {
 	nodeMap := make(map[string]*compute.VirtualMachine)
 	vmClient := &cp.VMClient{}
-	identity := &compute.VirtualMachineIdentity{IdentityIds: &[]string{}}
+	identity := &compute.VirtualMachineIdentity{
+		UserAssignedIdentities: make(map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue),
+	}
 
 	return &TestVMClient{
 		VMClient: vmClient,
@@ -234,7 +268,9 @@ func NewTestVMClient() *TestVMClient {
 func NewTestVMSSClient() *TestVMSSClient {
 	nodeMap := make(map[string]*compute.VirtualMachineScaleSet)
 	vmssClient := &cp.VMSSClient{}
-	identity := &compute.VirtualMachineScaleSetIdentity{IdentityIds: &[]string{}}
+	identity := &compute.VirtualMachineScaleSetIdentity{
+		UserAssignedIdentities: make(map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue),
+	}
 
 	return &TestVMSSClient{
 		VMSSClient: vmssClient,
@@ -1073,7 +1109,11 @@ func TestMICStateFlow(t *testing.T) {
 	podClient.DeletePod("test-pod1", "default")
 	// SetError sets error in crd client only for remove assigned identity
 	cloudClient.SetError(errors.New("error removing identity from node"))
-	cloudClient.testVMClient.identity = &compute.VirtualMachineIdentity{IdentityIds: &[]string{"test-user-msi-resourceid"}}
+	cloudClient.testVMClient.identity = &compute.VirtualMachineIdentity{
+		UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
+			"test-user-msi-resourceid": &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{},
+		},
+	}
 
 	eventCh <- internalaadpodid.PodDeleted
 	if !evtRecorder.WaitForEvents(1) {
@@ -1254,7 +1294,11 @@ func TestSyncRetryLoop(t *testing.T) {
 	// delete the pod, simulate failure in cloud calls on trying to un-assign identity from node
 	podClient.DeletePod("test-pod1", "default")
 	cloudClient.SetError(errors.New("error removing identity from node"))
-	cloudClient.testVMClient.identity = &compute.VirtualMachineIdentity{IdentityIds: &[]string{"test-user-msi-resourceid"}}
+	cloudClient.testVMClient.identity = &compute.VirtualMachineIdentity{
+		UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
+			"test-user-msi-resourceid": &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{},
+		},
+	}
 
 	eventCh <- internalaadpodid.PodDeleted
 	if !evtRecorder.WaitForEvents(1) {

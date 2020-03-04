@@ -3,6 +3,7 @@ package cloudprovider
 import (
 	"flag"
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/Azure/aad-pod-identity/pkg/config"
@@ -10,7 +11,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-06-01/compute"
 )
 
 func TestParseResourceID(t *testing.T) {
@@ -80,13 +81,11 @@ func TestSimple(t *testing.T) {
 			node3 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3-0"}, Spec: corev1.NodeSpec{ProviderID: vmProvider}}
 			node4 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node4-vmss0000000"}, Spec: corev1.NodeSpec{ProviderID: vmssProvider}}
 
-			cloudClient.AssignUserMSI("ID0", node0.Name, false)
-			cloudClient.AssignUserMSI("ID0", node0.Name, false)
-			cloudClient.AssignUserMSI("ID0again", node0.Name, false)
-			cloudClient.AssignUserMSI("ID1", node1.Name, false)
-			cloudClient.AssignUserMSI("ID2", node2.Name, false)
-			cloudClient.AssignUserMSI("ID3", node3.Name, false)
-			cloudClient.AssignUserMSI("ID4", node4.Name, true)
+			cloudClient.UpdateUserMSI([]string{"ID0", "ID0again"}, []string{}, node0.Name, false)
+			cloudClient.UpdateUserMSI([]string{"ID1"}, []string{}, node1.Name, false)
+			cloudClient.UpdateUserMSI([]string{"ID2"}, []string{}, node2.Name, false)
+			cloudClient.UpdateUserMSI([]string{"ID3"}, []string{}, node3.Name, false)
+			cloudClient.UpdateUserMSI([]string{"ID4"}, []string{}, node4.Name, true)
 
 			testMSI := []string{"ID0", "ID0again"}
 			if !cloudClient.CompareMSI(node0.Name, false, testMSI) {
@@ -94,8 +93,9 @@ func TestSimple(t *testing.T) {
 				t.Error("MSI mismatch")
 			}
 
-			cloudClient.RemoveUserMSI("ID0", node0.Name, false)
-			cloudClient.RemoveUserMSI("ID2", node2.Name, false)
+			cloudClient.UpdateUserMSI([]string{}, []string{"ID0"}, node0.Name, false)
+			cloudClient.UpdateUserMSI([]string{}, []string{"ID2"}, node2.Name, false)
+
 			testMSI = []string{"ID0again"}
 			if !cloudClient.CompareMSI(node0.Name, false, testMSI) {
 				cloudClient.PrintMSI(t)
@@ -175,10 +175,23 @@ func (c *TestVMClient) Get(rgName string, nodeName string) (ret compute.VirtualM
 	return *stored, nil
 }
 
-func (c *TestVMClient) CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachine) error {
+func (c *TestVMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachine) error {
 	if c.err != nil {
 		return *c.err
 	}
+	if evm, exists := c.nodeMap[nodeName]; exists && evm.Identity != nil && evm.Identity.UserAssignedIdentities != nil {
+		if vm.Identity.UserAssignedIdentities != nil {
+			for k, v := range vm.Identity.UserAssignedIdentities {
+				if v == nil {
+					delete(evm.Identity.UserAssignedIdentities, k)
+				} else {
+					evm.Identity.UserAssignedIdentities[k] = v
+				}
+			}
+			vm = *evm
+		}
+	}
+
 	c.nodeMap[nodeName] = &vm
 	return nil
 }
@@ -187,7 +200,11 @@ func (c *TestVMClient) ListMSI() (ret map[string]*[]string) {
 	ret = make(map[string]*[]string)
 
 	for key, val := range c.nodeMap {
-		ret[key] = val.Identity.IdentityIds
+		var ids []string
+		for k := range val.Identity.UserAssignedIdentities {
+			ids = append(ids, k)
+		}
+		ret[key] = &ids
 	}
 	return ret
 }
@@ -198,14 +215,20 @@ func (c *TestVMClient) CompareMSI(nodeName string, userIDs []string) bool {
 		return false
 	}
 
-	ids := stored.Identity.IdentityIds
+	var ids []string
+	for k := range stored.Identity.UserAssignedIdentities {
+		ids = append(ids, k)
+	}
 	if ids == nil {
 		if len(userIDs) == 0 && stored.Identity.Type == compute.ResourceIdentityTypeNone { // Validate that we have reset the resource type as none.
 			return true
 		}
 		return false
 	}
-	return reflect.DeepEqual(*ids, userIDs)
+
+	sort.Strings(ids)
+	sort.Strings(userIDs)
+	return reflect.DeepEqual(ids, userIDs)
 }
 
 type TestVMSSClient struct {
@@ -232,11 +255,24 @@ func (c *TestVMSSClient) Get(rgName string, nodeName string) (ret compute.Virtua
 	return *stored, nil
 }
 
-func (c *TestVMSSClient) CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachineScaleSet) error {
+func (c *TestVMSSClient) UpdateIdentities(rg, nodeName string, vmss compute.VirtualMachineScaleSet) error {
 	if c.err != nil {
 		return *c.err
 	}
-	c.nodeMap[nodeName] = &vm
+	if evm, exists := c.nodeMap[nodeName]; exists && evm.Identity != nil && evm.Identity.UserAssignedIdentities != nil {
+		if vmss.Identity.UserAssignedIdentities != nil {
+			for k, v := range vmss.Identity.UserAssignedIdentities {
+				if v == nil {
+					delete(evm.Identity.UserAssignedIdentities, k)
+				} else {
+					evm.Identity.UserAssignedIdentities[k] = v
+				}
+			}
+			vmss = *evm
+		}
+	}
+
+	c.nodeMap[nodeName] = &vmss
 	return nil
 }
 
@@ -244,7 +280,11 @@ func (c *TestVMSSClient) ListMSI() (ret map[string]*[]string) {
 	ret = make(map[string]*[]string)
 
 	for key, val := range c.nodeMap {
-		ret[key] = val.Identity.IdentityIds
+		var ids []string
+		for k := range val.Identity.UserAssignedIdentities {
+			ids = append(ids, k)
+		}
+		ret[key] = &ids
 	}
 	return ret
 }
@@ -255,14 +295,21 @@ func (c *TestVMSSClient) CompareMSI(nodeName string, userIDs []string) bool {
 		return false
 	}
 
-	ids := stored.Identity.IdentityIds
+	var ids []string
+	for k := range stored.Identity.UserAssignedIdentities {
+		ids = append(ids, k)
+	}
+
 	if ids == nil {
 		if len(userIDs) == 0 && stored.Identity.Type == compute.ResourceIdentityTypeNone { // Validate that we have reset the resource type as none.
 			return true
 		}
 		return false
 	}
-	return reflect.DeepEqual(*ids, userIDs)
+
+	sort.Strings(ids)
+	sort.Strings(userIDs)
+	return reflect.DeepEqual(ids, userIDs)
 }
 
 func (c *TestCloudClient) ListMSI() (ret map[string]*[]string) {

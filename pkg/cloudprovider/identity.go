@@ -21,8 +21,9 @@ type IdentityHolder interface {
 // This abstracts those differences.
 type IdentityInfo interface {
 	AppendUserIdentity(id string) bool
-	RemoveUserIdentity(id string) error
+	RemoveUserIdentity(id string) bool
 	GetUserIdentityList() []string
+	FinalizeUserIdentityList()
 }
 
 var (

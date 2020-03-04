@@ -8,7 +8,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	"github.com/Azure/aad-pod-identity/version"
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-06-01/compute"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -23,8 +23,8 @@ type VMSSClient struct {
 
 // VMSSClientInt is the interface used by "cloudprovider" for interacting with Azure vmss
 type VMSSClientInt interface {
-	CreateOrUpdate(rg, name string, vm compute.VirtualMachineScaleSet) error
 	Get(rgName, name string) (compute.VirtualMachineScaleSet, error)
+	UpdateIdentities(rg, vmssName string, vmu compute.VirtualMachineScaleSet) error
 }
 
 // NewVMSSClient creates a new vmss client.
@@ -53,14 +53,12 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 	}, nil
 }
 
-// CreateOrUpdate creates a new vmss, or if the vmss already exists it updates the existing one.
-// This is used by "cloudprovider" to *update* add/remove identities from an already existing vmss.
-func (c *VMSSClient) CreateOrUpdate(rg string, vmssName string, vm compute.VirtualMachineScaleSet) error {
-	// Set the read-only property of extension to null.
-	//vm.Resources = nil
+// UpdateIdentities updates the user assigned identities for the provided node
+func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmssIdentities compute.VirtualMachineScaleSet) error {
+	var future compute.VirtualMachineScaleSetsUpdateFuture
+	var err error
 	ctx := context.Background()
 	begin := time.Now()
-	var err error
 
 	defer func() {
 		if err != nil {
@@ -70,14 +68,12 @@ func (c *VMSSClient) CreateOrUpdate(rg string, vmssName string, vm compute.Virtu
 		c.reporter.ReportCloudProviderOperationDuration(metrics.PutVmssOperationName, time.Since(begin))
 	}()
 
-	future, err := c.client.CreateOrUpdate(ctx, rg, vmssName, vm)
-	if err != nil {
-		klog.Error(err)
+	if future, err = c.client.Update(ctx, rg, vmssName, compute.VirtualMachineScaleSetUpdate{
+		Identity: vmssIdentities.Identity}); err != nil {
+		klog.Errorf("Failed to update VM with error %v", err)
 		return err
 	}
-
-	err = future.WaitForCompletionRef(ctx, c.client.Client)
-	if err != nil {
+	if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
 		klog.Error(err)
 		return err
 	}
@@ -121,7 +117,10 @@ func (h *vmssIdentityHolder) IdentityInfo() IdentityInfo {
 }
 
 func (h *vmssIdentityHolder) ResetIdentity() IdentityInfo {
-	h.vmss.Identity = &compute.VirtualMachineScaleSetIdentity{}
+	h.vmss.Identity = &compute.VirtualMachineScaleSetIdentity{
+		Type:                   compute.ResourceIdentityTypeUserAssigned,
+		UserAssignedIdentities: make(map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue),
+	}
 	return h.IdentityInfo()
 }
 
@@ -129,33 +128,64 @@ type vmssIdentityInfo struct {
 	info *compute.VirtualMachineScaleSetIdentity
 }
 
-func (i *vmssIdentityInfo) RemoveUserIdentity(id string) error {
-	if err := filterUserIdentity(&i.info.Type, i.info.IdentityIds, id); err != nil {
-		return err
+func (i *vmssIdentityInfo) RemoveUserIdentity(id string) bool {
+	if i.info == nil {
+		return false
 	}
-	// If we have either no identity assigned or have the system assigned identity only, then we need to set the
-	// IdentityIds list as nil.
-	if i.info.Type == compute.ResourceIdentityTypeNone || i.info.Type == compute.ResourceIdentityTypeSystemAssigned {
-		i.info.IdentityIds = nil
+	if _, exists := i.info.UserAssignedIdentities[id]; !exists {
+		return false
 	}
-	// if the identityids is nil and identity type is not set, then set it to ResourceIdentityTypeNone
-	if i.info.IdentityIds == nil && i.info.Type == "" {
-		i.info.Type = compute.ResourceIdentityTypeNone
-	}
-	return nil
+	// set the user assigned id to nil so it can be removed
+	i.info.UserAssignedIdentities[id] = nil
+	return true
 }
 
 func (i *vmssIdentityInfo) AppendUserIdentity(id string) bool {
-	if i.info.IdentityIds == nil {
-		var ids []string
-		i.info.IdentityIds = &ids
+	if i.info.UserAssignedIdentities == nil {
+		i.info.UserAssignedIdentities = make(map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue)
+		if i.info.Type == compute.ResourceIdentityTypeSystemAssigned {
+			i.info.Type = compute.ResourceIdentityTypeSystemAssignedUserAssigned
+		} else if i.info.Type == "" || i.info.Type == compute.ResourceIdentityTypeNone {
+			i.info.Type = compute.ResourceIdentityTypeUserAssigned
+		}
 	}
-	return appendUserIdentity(&i.info.Type, i.info.IdentityIds, id)
+	if _, exists := i.info.UserAssignedIdentities[id]; !exists {
+		i.info.UserAssignedIdentities[id] = &compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{}
+		return true
+	}
+	return false
 }
 
 func (i *vmssIdentityInfo) GetUserIdentityList() []string {
-	if i.info.IdentityIds == nil {
-		return []string{}
+	var ids []string
+	if i.info == nil {
+		return ids
 	}
-	return *i.info.IdentityIds
+	for id := range i.info.UserAssignedIdentities {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func (i *vmssIdentityInfo) FinalizeUserIdentityList() {
+	if i.info.UserAssignedIdentities == nil {
+		i.info.Type = compute.ResourceIdentityTypeNone
+		return
+	}
+	for _, val := range i.info.UserAssignedIdentities {
+		if val != nil {
+			// even if one identity value is not nil, then the identity type
+			// can be user assigned
+			return
+		}
+	}
+	// If all the user assigned identities on node are to be deleted,
+	// then type should be None and the assigned id list should be nil
+	i.info.UserAssignedIdentities = nil
+
+	if i.info.Type == compute.ResourceIdentityTypeSystemAssignedUserAssigned {
+		i.info.Type = compute.ResourceIdentityTypeSystemAssigned
+	} else {
+		i.info.Type = compute.ResourceIdentityTypeNone
+	}
 }
