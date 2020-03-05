@@ -365,7 +365,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 				bindingsFound = len(*listBindings)
 			}
 			klog.Infof("Work done: %v. Found %d pods, %d ids, %d bindings", workDone, len(listPods), idsFound, bindingsFound)
-			klog.Infof("Total work cycles: %d, out of which work was done in: %d.", totalSyncCycles, totalWorkDoneCycles)
+			klog.Infof("Total work cycles: %d, out of which work was done in: %d", totalSyncCycles, totalWorkDoneCycles)
 			stats.Put(stats.Total, time.Since(begin))
 
 			c.Reporter.Report(

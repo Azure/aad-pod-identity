@@ -2,6 +2,7 @@ package cloudprovider
 
 import (
 	"flag"
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -180,7 +181,11 @@ func (c *TestVMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualM
 		return *c.err
 	}
 	if evm, exists := c.nodeMap[nodeName]; exists && evm.Identity != nil && evm.Identity.UserAssignedIdentities != nil {
+		fmt.Println("c.nodeMap ", c.nodeMap[nodeName].Identity.UserAssignedIdentities)
+
 		if vm.Identity.UserAssignedIdentities != nil {
+			fmt.Println("vm identity ", vm.Identity.UserAssignedIdentities)
+
 			for k, v := range vm.Identity.UserAssignedIdentities {
 				if v == nil {
 					delete(evm.Identity.UserAssignedIdentities, k)

@@ -177,27 +177,19 @@ func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs [
 		info = idH.ResetIdentity()
 	}
 
-	requiresUpdate := false
+	ids := make(map[string]bool)
 	// add new ids to the list
 	for _, userAssignedMSIID := range addUserAssignedMSIIDs {
-		addedToList := info.AppendUserIdentity(userAssignedMSIID)
-		if !addedToList {
-			klog.V(5).Infof("Identity %s already assigned to node %s. Skipping assignment.", userAssignedMSIID, name)
-		}
-		requiresUpdate = requiresUpdate || addedToList
+		ids[userAssignedMSIID] = true
 	}
 	// remove msi ids from the list
 	for _, userAssignedMSIID := range removeUserAssignedMSIIDs {
-		removedFromList := info.RemoveUserIdentity(userAssignedMSIID)
-		if !removedFromList {
-			klog.V(5).Infof("Identity %s doesn't exist on node %s. Skipping removal.", userAssignedMSIID, name)
-		}
-		requiresUpdate = requiresUpdate || removedFromList
-
+		ids[userAssignedMSIID] = false
 	}
+	requiresUpdate := info.SetUserIdentities(ids)
+
 	if requiresUpdate {
 		klog.Infof("Updating user assigned MSIs on %s", name)
-		info.FinalizeUserIdentityList()
 
 		timeStarted := time.Now()
 		if err := updateFunc(); err != nil {

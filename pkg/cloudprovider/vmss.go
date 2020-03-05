@@ -128,34 +128,6 @@ type vmssIdentityInfo struct {
 	info *compute.VirtualMachineScaleSetIdentity
 }
 
-func (i *vmssIdentityInfo) RemoveUserIdentity(id string) bool {
-	if i.info == nil {
-		return false
-	}
-	if _, exists := i.info.UserAssignedIdentities[id]; !exists {
-		return false
-	}
-	// set the user assigned id to nil so it can be removed
-	i.info.UserAssignedIdentities[id] = nil
-	return true
-}
-
-func (i *vmssIdentityInfo) AppendUserIdentity(id string) bool {
-	if i.info.UserAssignedIdentities == nil {
-		i.info.UserAssignedIdentities = make(map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue)
-		if i.info.Type == compute.ResourceIdentityTypeSystemAssigned {
-			i.info.Type = compute.ResourceIdentityTypeSystemAssignedUserAssigned
-		} else if i.info.Type == "" || i.info.Type == compute.ResourceIdentityTypeNone {
-			i.info.Type = compute.ResourceIdentityTypeUserAssigned
-		}
-	}
-	if _, exists := i.info.UserAssignedIdentities[id]; !exists {
-		i.info.UserAssignedIdentities[id] = &compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{}
-		return true
-	}
-	return false
-}
-
 func (i *vmssIdentityInfo) GetUserIdentityList() []string {
 	var ids []string
 	if i.info == nil {
@@ -167,25 +139,58 @@ func (i *vmssIdentityInfo) GetUserIdentityList() []string {
 	return ids
 }
 
-func (i *vmssIdentityInfo) FinalizeUserIdentityList() {
+func (i *vmssIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
+	expectedIDList := make(map[string]bool)
+
 	if i.info.UserAssignedIdentities == nil {
-		i.info.Type = compute.ResourceIdentityTypeNone
-		return
+		i.info.UserAssignedIdentities = make(map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue)
 	}
-	for _, val := range i.info.UserAssignedIdentities {
-		if val != nil {
-			// even if one identity value is not nil, then the identity type
-			// can be user assigned
-			return
+
+	for id, _ := range i.info.UserAssignedIdentities {
+		expectedIDList[id] = true
+	}
+
+	for id, add := range ids {
+		_, exists := expectedIDList[id]
+
+		// identity already exists/not exists, so skip doing add/del operation for
+		// the identity again for the node
+		if (exists && add) || (!exists && !add) {
+			delete(ids, id)
+		}
+		// already exists on node and want to remove existing identity
+		if exists && !add {
+			delete(expectedIDList, id)
+		}
+		// doesn't exist on the node and want to add new identity
+		if !exists && add {
+			expectedIDList[id] = true
 		}
 	}
-	// If all the user assigned identities on node are to be deleted,
-	// then type should be None and the assigned id list should be nil
-	i.info.UserAssignedIdentities = nil
 
-	if i.info.Type == compute.ResourceIdentityTypeSystemAssignedUserAssigned {
-		i.info.Type = compute.ResourceIdentityTypeSystemAssigned
-	} else {
-		i.info.Type = compute.ResourceIdentityTypeNone
+	// all identities are the node are to be removed
+	if len(expectedIDList) == 0 {
+		i.info.UserAssignedIdentities = nil
+		if i.info.Type == compute.ResourceIdentityTypeSystemAssignedUserAssigned {
+			i.info.Type = compute.ResourceIdentityTypeSystemAssigned
+		} else {
+			i.info.Type = compute.ResourceIdentityTypeNone
+		}
+		return true
 	}
+	// add and remove the new list of identities keeping the same type as before
+	userAssignedIdentities := make(map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue)
+	for id, add := range ids {
+		val := &compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{}
+		if !add {
+			klog.V(5).Infof("Removing identity %s", id)
+			val = nil
+		} else {
+			klog.V(5).Infof("Adding identity %s", id)
+		}
+		userAssignedIdentities[id] = val
+	}
+
+	i.info.UserAssignedIdentities = userAssignedIdentities
+	return len(i.info.UserAssignedIdentities) > 0
 }
