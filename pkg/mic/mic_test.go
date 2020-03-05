@@ -40,6 +40,7 @@ type TestVMClient struct {
 
 	mu       sync.Mutex
 	nodeMap  map[string]*compute.VirtualMachine
+	nodeIDs  map[string]map[string]bool
 	err      *error
 	identity *compute.VirtualMachineIdentity
 }
@@ -64,8 +65,16 @@ func (c *TestVMClient) Get(rgName string, nodeName string) (ret compute.VirtualM
 	if stored == nil {
 		vm := new(compute.VirtualMachine)
 		c.nodeMap[nodeName] = vm
+		c.nodeIDs[nodeName] = make(map[string]bool)
 		return *vm, nil
 	}
+
+	storedIDs := c.nodeIDs[nodeName]
+	newVMIdentity := make(map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue)
+	for id := range storedIDs {
+		newVMIdentity[id] = &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{}
+	}
+	stored.Identity.UserAssignedIdentities = newVMIdentity
 	return *stored, nil
 }
 
@@ -74,26 +83,32 @@ func (c *TestVMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualM
 	defer c.mu.Unlock()
 
 	if c.err != nil {
-		c.nodeMap[nodeName].Identity = c.identity
 		return *c.err
 	}
-	if evm, exists := c.nodeMap[nodeName]; exists && evm.Identity != nil && evm.Identity.UserAssignedIdentities != nil {
-		if vm.Identity.UserAssignedIdentities != nil {
-			for k, v := range vm.Identity.UserAssignedIdentities {
-				if v == nil {
-					delete(evm.Identity.UserAssignedIdentities, k)
-				} else {
-					evm.Identity.UserAssignedIdentities[k] = v
-				}
+
+	if vm.Identity != nil && vm.Identity.UserAssignedIdentities != nil {
+		for k, v := range vm.Identity.UserAssignedIdentities {
+			if v == nil {
+				delete(c.nodeIDs[nodeName], k)
+			} else {
+				c.nodeIDs[nodeName][k] = true
 			}
-			vm = *evm
 		}
 	}
+	if vm.Identity != nil && vm.Identity.UserAssignedIdentities == nil {
+		for k := range c.nodeIDs[nodeName] {
+			delete(c.nodeIDs[nodeName], k)
+		}
+	}
+
 	c.nodeMap[nodeName] = &vm
 	return nil
 }
 
 func (c *TestVMClient) ListMSI() (ret map[string]*[]string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	ret = make(map[string]*[]string)
 
 	for key, val := range c.nodeMap {
@@ -107,13 +122,16 @@ func (c *TestVMClient) ListMSI() (ret map[string]*[]string) {
 }
 
 func (c *TestVMClient) CompareMSI(nodeName string, userIDs []string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	stored := c.nodeMap[nodeName]
 	if stored == nil || stored.Identity == nil {
 		return false
 	}
 
 	var ids []string
-	for k := range stored.Identity.UserAssignedIdentities {
+	for k := range c.nodeIDs[nodeName] {
 		ids = append(ids, k)
 	}
 	if ids == nil {
@@ -133,6 +151,7 @@ type TestVMSSClient struct {
 
 	mu       sync.Mutex
 	nodeMap  map[string]*compute.VirtualMachineScaleSet
+	nodeIDs  map[string]map[string]bool
 	err      *error
 	identity *compute.VirtualMachineScaleSetIdentity
 }
@@ -153,8 +172,16 @@ func (c *TestVMSSClient) Get(rgName string, nodeName string) (ret compute.Virtua
 	if stored == nil {
 		vm := new(compute.VirtualMachineScaleSet)
 		c.nodeMap[nodeName] = vm
+		c.nodeIDs[nodeName] = make(map[string]bool)
 		return *vm, nil
 	}
+
+	storedIDs := c.nodeIDs[nodeName]
+	newVMSSIdentity := make(map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue)
+	for id := range storedIDs {
+		newVMSSIdentity[id] = &compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{}
+	}
+	stored.Identity.UserAssignedIdentities = newVMSSIdentity
 	return *stored, nil
 }
 
@@ -163,21 +190,23 @@ func (c *TestVMSSClient) UpdateIdentities(rg, nodeName string, vmss compute.Virt
 	defer c.mu.Unlock()
 
 	if c.err != nil {
-		c.nodeMap[nodeName].Identity = c.identity
 		return *c.err
 	}
-	if evm, exists := c.nodeMap[nodeName]; exists && evm.Identity != nil && evm.Identity.UserAssignedIdentities != nil {
-		if vmss.Identity.UserAssignedIdentities != nil {
-			for k, v := range vmss.Identity.UserAssignedIdentities {
-				if v == nil {
-					delete(evm.Identity.UserAssignedIdentities, k)
-				} else {
-					evm.Identity.UserAssignedIdentities[k] = v
-				}
+	if vmss.Identity != nil && vmss.Identity.UserAssignedIdentities != nil {
+		for k, v := range vmss.Identity.UserAssignedIdentities {
+			if v == nil {
+				delete(c.nodeIDs[nodeName], k)
+			} else {
+				c.nodeIDs[nodeName][k] = true
 			}
-			vmss = *evm
 		}
 	}
+	if vmss.Identity != nil && vmss.Identity.UserAssignedIdentities == nil {
+		for k := range c.nodeIDs[nodeName] {
+			delete(c.nodeIDs[nodeName], k)
+		}
+	}
+
 	c.nodeMap[nodeName] = &vmss
 	return nil
 }
@@ -196,13 +225,16 @@ func (c *TestVMSSClient) ListMSI() (ret map[string]*[]string) {
 }
 
 func (c *TestVMSSClient) CompareMSI(nodeName string, userIDs []string) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	stored := c.nodeMap[nodeName]
 	if stored == nil || stored.Identity == nil {
 		return false
 	}
 
 	var ids []string
-	for k := range stored.Identity.UserAssignedIdentities {
+	for k := range c.nodeIDs[nodeName] {
 		ids = append(ids, k)
 	}
 
@@ -253,6 +285,7 @@ func (c *TestCloudClient) UnSetError() {
 
 func NewTestVMClient() *TestVMClient {
 	nodeMap := make(map[string]*compute.VirtualMachine)
+	nodeIDs := make(map[string]map[string]bool)
 	vmClient := &cp.VMClient{}
 	identity := &compute.VirtualMachineIdentity{
 		UserAssignedIdentities: make(map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue),
@@ -261,12 +294,14 @@ func NewTestVMClient() *TestVMClient {
 	return &TestVMClient{
 		VMClient: vmClient,
 		nodeMap:  nodeMap,
+		nodeIDs:  nodeIDs,
 		identity: identity,
 	}
 }
 
 func NewTestVMSSClient() *TestVMSSClient {
 	nodeMap := make(map[string]*compute.VirtualMachineScaleSet)
+	nodeIDs := make(map[string]map[string]bool)
 	vmssClient := &cp.VMSSClient{}
 	identity := &compute.VirtualMachineScaleSetIdentity{
 		UserAssignedIdentities: make(map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue),
@@ -275,6 +310,7 @@ func NewTestVMSSClient() *TestVMSSClient {
 	return &TestVMSSClient{
 		VMSSClient: vmssClient,
 		nodeMap:    nodeMap,
+		nodeIDs:    nodeIDs,
 		identity:   identity,
 	}
 }
