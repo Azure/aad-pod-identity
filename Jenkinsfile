@@ -1,7 +1,6 @@
 pipeline {
 	parameters {
 		string defaultValue: '', description: 'Git repo to build from.', name: 'GIT_REPO', trim: false
-		credentials credentialType: 'com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl', defaultValue: '', description: 'Git repo credentials.', name: 'GIT_REPO_CREDENTIALS', required: true
 		string defaultValue: '', description: 'Git commit to build from.', name: 'GIT_COMMIT', trim: false
 		string defaultValue: '', description: 'Git branch to build from.', name: 'GIT_BRANCH', trim: false
 
@@ -32,7 +31,7 @@ pipeline {
 
 		stage("checkout source") {
 			steps {
-				git changelog: false, credentialsId: env.GIT_REPO_CREDENTIALS, poll: false, url: env.GIT_REPO
+				git changelog: false, poll: false, url: env.GIT_REPO
 				sh "git checkout '${GIT_BRANCH}'"
 				sh "git checkout -f '${GIT_COMMIT}'"
 			}
