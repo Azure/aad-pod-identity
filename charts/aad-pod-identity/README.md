@@ -125,7 +125,7 @@ $ helm delete [last deployment] --purge
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
 
-> The CRD created by the chart are not removed by default and should be manually cleaned up (if required) 
+> The CRD created by the chart are not removed by default and should be manually cleaned up (if required)
 
 ```bash
 kubectl delete crd azureassignedidentities.aadpodidentity.k8s.io
@@ -154,6 +154,7 @@ The following tables list the configurable parameters of the aad-pod-identity ch
 | `adminsecret.clientSecret`               | Azure service principal clientSecret                                                                                                                                                                             | ` `                                                      |
 | `mic.image`                              | MIC image name                                                                                                                                                                                                   | `mic`                                                    |
 | `mic.tag`                                | MIC image tag                                                                                                                                                                                                    | `1.5.5`                                                  |
+| `mic.PriorityClassName`                  | MIC priority class (can only be set when deploying to kube-system namespace)
 | `mic.logVerbosity`                       | Log level. Uses V logs (glog)                                                                                                                                                                                    | `0`                                                      |
 | `mic.resources`                          | Resource limit for MIC                                                                                                                                                                                           | `{}`                                                     |
 | `mic.podAnnotations`                     | Pod annotations for MIC                                                                                                                                                                                          | `{}`                                                     |
@@ -168,6 +169,7 @@ The following tables list the configurable parameters of the aad-pod-identity ch
 | `mic.immutableUserMSIs`                  | List of  user-defined identities that shouldn't be deleted from VM/VMSS.                                                                                                                                         | If not provided, default value is empty           |
 | `nmi.image`                              | NMI image name                                                                                                                                                                                                   | `nmi`                                                    |
 | `nmi.tag`                                | NMI image tag                                                                                                                                                                                                    | `1.5.5`                                                  |
+| `nmi.PriorityClassName`                  | NMI priority class (can only be set when deploying to kube-system namespace)
 | `nmi.resources`                          | Resource limit for NMI                                                                                                                                                                                           | `{}`                                                     |
 | `nmi.podAnnotations`                     | Pod annotations for NMI                                                                                                                                                                                          | `{}`                                                     |
 | `nmi.tolerations`                        | Affinity settings                                                                                                                                                                                                | `{}`                                                     |

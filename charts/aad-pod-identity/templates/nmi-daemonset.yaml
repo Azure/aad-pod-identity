@@ -27,6 +27,9 @@ spec:
       {{- if .Values.rbac.enabled }}
       serviceAccountName: {{ template "aad-pod-identity.nmi.fullname" . }}
       {{- end }}
+      {{- if .Values.nmi.priorityClassName }}
+      priorityClassName: {{ .Values.nmi.priorityClassName | quote }}
+      {{- end }}
       hostNetwork: true
       volumes:
       - hostPath:
