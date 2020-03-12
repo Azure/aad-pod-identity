@@ -18,6 +18,10 @@ spec:
       labels:
         {{- include "aad-pod-identity.labels" . | nindent 8 }}
         app.kubernetes.io/component: mic
+{{- if .Values.mic.podAnnotations }}
+      annotations:
+{{ toYaml .Values.mic.podAnnotations | indent 8 }}
+{{- end }}
     spec:
       {{- if .Values.rbac.enabled }}
       serviceAccountName: {{ template "aad-pod-identity.mic.fullname" . }}
