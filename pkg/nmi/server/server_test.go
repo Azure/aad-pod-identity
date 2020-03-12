@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	mux 	*http.ServeMux
-	server *httptest.Server
+	mux       *http.ServeMux
+	server    *httptest.Server
 	tokenPath = "/metadata/identity/oauth2/token"
 )
 
@@ -32,7 +32,7 @@ func TestMsiHandler_NoMetadataHeader(t *testing.T) {
 	}
 	mux.Handle(tokenPath, appHandler(s.msiHandler))
 
-	req, err := http.NewRequest("GET", tokenPath, nil)
+	req, err := http.NewRequest(http.MethodGet, tokenPath, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestMsiHandler_NoRemoteAddress(t *testing.T) {
 	}
 	mux.Handle(tokenPath, appHandler(s.msiHandler))
 
-	req, err := http.NewRequest("GET", tokenPath, nil)
+	req, err := http.NewRequest(http.MethodGet, tokenPath, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,4 +84,3 @@ func TestMsiHandler_NoRemoteAddress(t *testing.T) {
 		t.Errorf("Unexpected response body %s", recorder.Body.String())
 	}
 }
-

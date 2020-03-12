@@ -55,4 +55,4 @@ When you query the Instance Metadata Service, you must provide the header `Metad
 
 This is critical especially when you [acquire an access token](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http) as a mitigation againt Server Side Request Forgery (SSRF) attack. 
 
-The `metadataHeaderRequired` flag for NMI will block all requests without Metadata header and return an HTTP 400 response. This flag is disabled by default for compability, but recommended for usrs to enable this feature.
+The `metadataHeaderRequired` flag for NMI will block all requests without Metadata header and return an HTTP 400 response. This flag is disabled by default for compability, but recommended for users to enable this feature.
