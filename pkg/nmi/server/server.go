@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,13 +17,12 @@ import (
 	"syscall"
 	"time"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
-	iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
+	"github.com/Azure/aad-pod-identity/pkg/nmi"
+	"github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
-	utils "github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"k8s.io/klog"
 )
@@ -43,15 +41,13 @@ type Server struct {
 	HostIP                             string
 	NodeName                           string
 	IPTableUpdateTimeIntervalInSeconds int
-	IsNamespaced                       bool
 	MICNamespace                       string
 	Initialized                        bool
 	BlockInstanceMetadata              bool
+	// TokenClient is client that fetches identities and tokens
+	TokenClient nmi.TokenClient
 
-	ListPodIDsRetryAttemptsForCreated  int
-	ListPodIDsRetryAttemptsForAssigned int
-	ListPodIDsRetryIntervalInSeconds   int
-	Reporter                           *metrics.Reporter
+	Reporter *metrics.Reporter
 }
 
 // NMIResponse is the response returned to caller
@@ -61,7 +57,7 @@ type NMIResponse struct {
 }
 
 // NewServer will create a new Server with default values.
-func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata bool) *Server {
+func NewServer(micNamespace string, blockInstanceMetadata bool) *Server {
 	reporter, err := metrics.NewReporter()
 	if err != nil {
 		klog.Errorf("Error creating new reporter to emit metrics: %v", err)
@@ -71,7 +67,6 @@ func NewServer(isNamespaced bool, micNamespace string, blockInstanceMetadata boo
 		auth.InitReporter(reporter)
 	}
 	return &Server{
-		IsNamespaced:          isNamespaced,
 		MICNamespace:          micNamespace,
 		BlockInstanceMetadata: blockInstanceMetadata,
 		Reporter:              reporter,
@@ -186,7 +181,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rw := newResponseWriter(w)
 	ns := fn(rw, r)
 	latency := time.Since(start)
-	klog.Infof("Status (%d) took %d ns", rw.statusCode, latency.Nanoseconds())
+	klog.Infof("Status (%d) took %d ns for %s", rw.statusCode, latency.Nanoseconds(), tracker)
 
 	_, resource := parseRequestClientIDAndResource(r)
 
@@ -222,33 +217,13 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 		http.Error(w, "parameter resource cannot be empty", http.StatusBadRequest)
 		return
 	}
-	podIDs, identityInCreatedStateFound, err := s.listPodIDsWithRetry(r.Context(), s.KubeClient, podns, podname, rqClientID)
+	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
-		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in desired state", podns, podname)
-		klog.Errorf("%s, %+v", msg, err)
-		http.Error(w, msg, getErrorResponseStatusCode(identityInCreatedStateFound))
+		klog.Error(err)
+		http.Error(w, err.Error(), getErrorResponseStatusCode(podID != nil))
 		return
 	}
-
-	// filter out if we are in namespaced mode
-	filterPodIdentities := []aadpodid.AzureIdentity{}
-	for _, val := range podIDs {
-		if s.IsNamespaced || aadpodid.IsNamespacedIdentity(&val) {
-			// namespaced mode
-			if val.Namespace == podns {
-				// matched namespace
-				filterPodIdentities = append(filterPodIdentities, val)
-			} else {
-				// unmatched namespaced
-				klog.Errorf("pod:%s/%s has identity %s/%s but identity is namespaced will be ignored", podns, podname, val.Name, val.Namespace)
-			}
-		} else {
-			// not in namespaced mode
-			filterPodIdentities = append(filterPodIdentities, val)
-		}
-	}
-	podIDs = filterPodIdentities
-	token, clientID, err := getTokenForMatchingID(s.KubeClient, rqClientID, rqResource, podIDs)
+	token, err := s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, *podID)
 	if err != nil {
 		klog.Errorf("failed to get service principal token for pod:%s/%s, err: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
@@ -256,7 +231,7 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 	}
 	nmiResp := NMIResponse{
 		Token:    newMSIResponse(*token),
-		ClientID: clientID,
+		ClientID: podID.Spec.ClientID,
 	}
 	response, err := json.Marshal(nmiResp)
 	if err != nil {
@@ -374,15 +349,14 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 		return
 	}
 
-	podIDs, identityInCreatedStateFound, err := s.listPodIDsWithRetry(r.Context(), s.KubeClient, podns, podname, rqClientID)
+	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
-		msg := fmt.Sprintf("no AzureAssignedIdentity found for pod:%s/%s in assigned state", podns, podname)
-		klog.Errorf("%s, %+v", msg, err)
-		http.Error(w, msg, getErrorResponseStatusCode(identityInCreatedStateFound))
+		klog.Error(err)
+		http.Error(w, err.Error(), getErrorResponseStatusCode(podID != nil))
 		return
 	}
 
-	token, _, err := getTokenForMatchingID(s.KubeClient, rqClientID, rqResource, podIDs)
+	token, err := s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, *podID)
 	if err != nil {
 		klog.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
@@ -396,44 +370,6 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	}
 	w.Write(response)
 	return
-}
-
-func getTokenForMatchingID(kubeClient k8s.Client, rqClientID, rqResource string, podIDs []aadpodid.AzureIdentity) (token *adal.Token, clientID string, err error) {
-	rqHasClientID := len(rqClientID) != 0
-	for _, v := range podIDs {
-		clientID := v.Spec.ClientID
-		if rqHasClientID && !strings.EqualFold(rqClientID, clientID) {
-			klog.Warningf("clientid mismatch, requested:%s available:%s", rqClientID, clientID)
-			continue
-		}
-
-		idType := v.Spec.Type
-		switch idType {
-		case aadpodid.UserAssignedMSI:
-			klog.Infof("matched identityType:%v clientid:%s resource:%s", idType, utils.RedactClientID(clientID), rqResource)
-			token, err := auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, rqResource)
-			return token, clientID, err
-		case aadpodid.ServicePrincipal:
-			tenantid := v.Spec.TenantID
-			klog.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantid, utils.RedactClientID(clientID), rqResource)
-			secret, err := kubeClient.GetSecret(&v.Spec.ClientPassword)
-			if err != nil {
-				return nil, clientID, err
-			}
-			clientSecret := ""
-			for _, v := range secret.Data {
-				clientSecret = string(v)
-				break
-			}
-			token, err := auth.GetServicePrincipalToken(tenantid, clientID, clientSecret, rqResource)
-			return token, clientID, err
-		default:
-			return nil, clientID, fmt.Errorf("unsupported identity type %+v", idType)
-		}
-	}
-
-	// We have not yet returned, so pass up an error
-	return nil, "", fmt.Errorf("azureidentity is not configured for the pod")
 }
 
 func parseRequestHeader(r *http.Request) (podns string, podname string) {
@@ -529,75 +465,6 @@ func handleTermination() {
 
 	klog.Infof("Exiting with %v", exitCode)
 	os.Exit(exitCode)
-}
-
-// listPodIDsWithRetry returns a list of matched identities in Assigned state, boolean indicating if at least an identity was found in Created state and error if any
-func (s *Server) listPodIDsWithRetry(ctx context.Context, kubeClient k8s.Client, podns, podname, rqClientID string) ([]aadpodid.AzureIdentity, bool, error) {
-	attempt := 0
-	var err error
-	var idStateMap map[string][]aadpodid.AzureIdentity
-
-	// this loop will run to ensure we have assigned identities before we return. If there are no assigned identities in created state within 80s (16 retries * 5s wait) then we return an error.
-	// If we get an assigned identity in created state within 80s, then loop will continue until 100s to find assigned identity in assigned state.
-	// Retry interval for CREATED state is set to 80s because avg time for identity to be assigned to the node is 35-37s.
-	for attempt < s.ListPodIDsRetryAttemptsForCreated+s.ListPodIDsRetryAttemptsForAssigned {
-		idStateMap, err = kubeClient.ListPodIds(podns, podname)
-		if err == nil {
-			if len(rqClientID) == 0 {
-				// check to ensure backward compatability with assignedIDs that have no state
-				// assigned identites created with old version of mic will not contain a state. So first we check to see if an assigned identity with
-				// no state exists that matches req client id.
-				if len(idStateMap[""]) != 0 {
-					klog.Warningf("found assignedIDs with no state for pod:%s/%s. AssignedIDs created with old version of mic.", podns, podname)
-					return idStateMap[""], true, nil
-				}
-				if len(idStateMap[aadpodid.AssignedIDAssigned]) != 0 {
-					return idStateMap[aadpodid.AssignedIDAssigned], true, nil
-				}
-				if len(idStateMap[aadpodid.AssignedIDCreated]) == 0 && attempt >= s.ListPodIDsRetryAttemptsForCreated {
-					return nil, false, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts, retry duration [%d]s. Error: %v",
-						podns, podname, s.ListPodIDsRetryAttemptsForCreated, s.ListPodIDsRetryIntervalInSeconds, err)
-				}
-			} else {
-				// if client id exists in request, we need to ensure the identity with this client
-				// exists and is in Assigned state
-				// check to ensure backward compatability with assignedIDs that have no state
-				for _, podID := range idStateMap[""] {
-					if strings.EqualFold(rqClientID, podID.Spec.ClientID) {
-						klog.Warningf("found assignedIDs with no state for pod:%s/%s. AssignedIDs created with old version of mic.", podns, podname)
-						return idStateMap[""], true, nil
-					}
-				}
-				for _, podID := range idStateMap[aadpodid.AssignedIDAssigned] {
-					if strings.EqualFold(rqClientID, podID.Spec.ClientID) {
-						return idStateMap[aadpodid.AssignedIDAssigned], true, nil
-					}
-				}
-				var foundMatch bool
-				for _, podID := range idStateMap[aadpodid.AssignedIDCreated] {
-					if strings.EqualFold(rqClientID, podID.Spec.ClientID) {
-						foundMatch = true
-						break
-					}
-				}
-				if !foundMatch && attempt >= s.ListPodIDsRetryAttemptsForCreated {
-					return nil, false, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts, retry duration [%d]s. Error: %v",
-						podns, podname, s.ListPodIDsRetryAttemptsForCreated, s.ListPodIDsRetryIntervalInSeconds, err)
-				}
-			}
-		}
-		attempt++
-
-		select {
-		case <-time.After(time.Duration(s.ListPodIDsRetryIntervalInSeconds) * time.Second):
-		case <-ctx.Done():
-			err = ctx.Err()
-			return nil, true, err
-		}
-		klog.V(4).Infof("failed to get assigned ids for pod:%s/%s in ASSIGNED state, retrying attempt: %d", podns, podname, attempt)
-	}
-	return nil, true, fmt.Errorf("getting assigned identities for pod %s/%s in ASSIGNED state failed after %d attempts, retry duration [%d]s. Error: %v",
-		podns, podname, s.ListPodIDsRetryAttemptsForCreated+s.ListPodIDsRetryAttemptsForAssigned, s.ListPodIDsRetryIntervalInSeconds, err)
 }
 
 func getErrorResponseStatusCode(identityFound bool) int {

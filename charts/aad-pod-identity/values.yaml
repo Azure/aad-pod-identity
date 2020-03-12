@@ -42,6 +42,8 @@ mic:
       cpu: 100m
       memory: 256Mi
 
+  podAnnotations: {}
+
   ## Node labels for pod assignment
   ## aad-pod-identity is currently only supported on linux
   nodeSelector:
@@ -98,6 +100,8 @@ nmi:
     requests:
       cpu: 100m
       memory: 256Mi
+
+  podAnnotations: {}
 
   ## Node labels for pod assignment
   ## aad-pod-identity is currently only supported on linux

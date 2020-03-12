@@ -11,7 +11,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      {{- include "aad-pod-identity.labels" . | nindent 6 }}
+      {{- include "aad-pod-identity.selectors" . | nindent 6 }}
       app.kubernetes.io/component: nmi
   template:
     metadata:
@@ -19,6 +19,10 @@ spec:
         {{- include "aad-pod-identity.labels" . | nindent 8 }}
         app.kubernetes.io/component: nmi
         tier: node
+{{- if .Values.nmi.podAnnotations }}
+      annotations:
+{{ toYaml .Values.nmi.podAnnotations | indent 8 }}
+{{- end }}
     spec:
       {{- if .Values.rbac.enabled }}
       serviceAccountName: {{ template "aad-pod-identity.nmi.fullname" . }}

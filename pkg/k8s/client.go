@@ -32,10 +32,14 @@ const (
 type Client interface {
 	// Start just starts any informers required.
 	Start(<-chan struct{})
+	// GetPod returns the pod object based on name and namespce
+	GetPod(namespace, name string) (v1.Pod, error)
 	// GetPodInfo returns the pod name, namespace & replica set name for a given pod ip
 	GetPodInfo(podip string) (podns, podname, rsName string, selectors *metav1.LabelSelector, err error)
 	// ListPodIds pod matching azure identity or nil
 	ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error)
+	// ListPodIdsWithBinding pod matching azure identity or nil
+	ListPodIdsWithBinding(podns string, labels map[string]string) ([]aadpodid.AzureIdentity, error)
 	// GetSecret returns secret the secretRef represents
 	GetSecret(secretRef *v1.SecretReference) (*v1.Secret, error)
 	// ListPodIdentityExceptions returns list of azurepodidentityexceptions
@@ -53,7 +57,7 @@ type KubeClient struct {
 }
 
 // NewKubeClient new kubernetes api client
-func NewKubeClient(nodeName string, scale bool) (Client, error) {
+func NewKubeClient(nodeName string, scale, isStandardMode bool) (Client, error) {
 	config, err := buildConfig()
 	if err != nil {
 		return nil, err
@@ -63,7 +67,7 @@ func NewKubeClient(nodeName string, scale bool) (Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	crdclient, err := crd.NewCRDClientLite(config, nodeName, scale)
+	crdclient, err := crd.NewCRDClientLite(config, nodeName, scale, isStandardMode)
 	if err != nil {
 		return nil, err
 	}
@@ -86,11 +90,11 @@ func NewKubeClient(nodeName string, scale bool) (Client, error) {
 	return kubeClient, nil
 }
 
+// Sync ...
 func (c *KubeClient) Sync(exit <-chan struct{}) {
 	if !cache.WaitForCacheSync(exit, c.PodInformer.HasSynced) {
 		klog.Errorf("Pod cache could not be synchronized")
 	}
-	c.CrdClient.SyncCacheLite(exit)
 }
 
 // Start the corresponding starts
@@ -119,6 +123,23 @@ func NodeNameFilter(nodeName string) internalinterfaces.TweakListOptionsFunc {
 		l.FieldSelector = l.FieldSelector + "spec.nodeName=" + nodeName
 		return
 	}
+}
+
+// GetPod returns pod that matches namespace and name
+func (c *KubeClient) GetPod(namespace, name string) (v1.Pod, error) {
+	// TODO (aramase) wrap this with retries
+	obj, exists, err := c.PodInformer.GetIndexer().GetByKey(namespace + "/" + name)
+	if err != nil {
+		return v1.Pod{}, fmt.Errorf("failed to get pod %s/%s, err: %+v", namespace, name, err)
+	}
+	if !exists {
+		return v1.Pod{}, fmt.Errorf("pod with key %s/%s doesn't exist", namespace, name)
+	}
+	pod, ok := obj.(*v1.Pod)
+	if !ok {
+		return v1.Pod{}, fmt.Errorf("could not cast %T to %s", pod, "v1.Pod")
+	}
+	return *pod, nil
 }
 
 // GetPodInfo get pod ns,name from apiserver
@@ -212,6 +233,11 @@ func GetLocalIP() (string, error) {
 // ListPodIds lists matching ids for pod or error
 func (c *KubeClient) ListPodIds(podns, podname string) (map[string][]aadpodid.AzureIdentity, error) {
 	return c.CrdClient.ListPodIds(podns, podname)
+}
+
+// ListPodIdsWithBinding list matching ids for pod based on the bindings
+func (c *KubeClient) ListPodIdsWithBinding(podns string, labels map[string]string) ([]aadpodid.AzureIdentity, error) {
+	return c.CrdClient.GetPodIDsWithBinding(podns, labels)
 }
 
 // ListPodIdentityExceptions lists azurepodidentityexceptions
