@@ -82,7 +82,6 @@ spec:
         args:
           - "--host-ip=$(HOST_IP)"
           - "--node=$(NODE_NAME)"
-          - --metadata-header-required=false
         env:
           - name: HOST_IP
             valueFrom:
