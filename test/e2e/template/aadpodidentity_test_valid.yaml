@@ -4,5 +4,5 @@ metadata:
   name: testidentityvalid
 spec:
   type: 0
-  ResourceID: /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/myResourceGroup/providers/Microsoft.ManagedIdentity/userAssignedIdentities/testidentity
-  ClientID: 00000000-0000-0000-0000-000000000000
+  resourceID: /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/myResourceGroup/providers/Microsoft.ManagedIdentity/userAssignedIdentities/testidentity
+  clientID: 00000000-0000-0000-0000-000000000000

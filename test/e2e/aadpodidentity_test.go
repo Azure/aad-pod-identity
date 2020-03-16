@@ -489,14 +489,22 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
 
+		// Remove the configmap to ensure that the type conversion happens.
+		cmd := exec.Command("kubectl", "delete", "cm", "aad-pod-identity-cm", "--ignore-not-found=true")
+		util.PrintCommand(cmd)
+		output, err := cmd.CombinedOutput()
+		fmt.Printf("%s", output)
+		Expect(err).NotTo(HaveOccurred())
+
 		// setup mic and nmi with old releases
 		setupInfraOld("mcr.microsoft.com/k8s/aad-pod-identity", "1.4", "1.3", "")
 
-		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
+		setUpIdentityAndDeploymentOld(keyvaultIdentity, "", "1")
 
 		ok, err = azureassignedidentity.WaitOnLengthMatched(1, false)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(ok).To(Equal(true))
+		time.Sleep(60 * time.Second)
 
 		// update the infra to use latest mic and nmi images
 		setupInfra(cfg.Registry, cfg.NMIVersion, cfg.MICVersion, cfg.EnableScaleFeatures, cfg.ImmutableUserMSIs)
@@ -1120,21 +1128,39 @@ func setupInfra(registry, nmiVersion, micVersion string, enableScaleFeatures boo
 	checkInfra()
 }
 
-// setUpIdentityAndDeployment will deploy AzureIdentity, AzureIdentityBinding, and an identity validator
+func setUpIdentityAndDeploymentOld(azureIdentityName, suffix, replicas string, tmplOpts ...func(*infra.IdentityValidatorTemplateData)) {
+	setUpIdentityAndDeploymentInternal(azureIdentityName, suffix, replicas, true, tmplOpts...)
+}
+
+func setUpIdentityAndDeployment(azureIdentityName, suffix, replicas string, tmplOpts ...func(*infra.IdentityValidatorTemplateData)) {
+	setUpIdentityAndDeploymentInternal(azureIdentityName, suffix, replicas, false, tmplOpts...)
+}
+
+// setUpIdentityAndDeploymentInternal will deploy AzureIdentity, AzureIdentityBinding, and an identity validator
 // Suffix will give the tests the option to add a suffix to the end of the identity name, useful for scale tests
 // replicas to indicate the number of replicas for the deployment
-func setUpIdentityAndDeployment(azureIdentityName, suffix, replicas string, tmplOpts ...func(*infra.IdentityValidatorTemplateData)) {
+func setUpIdentityAndDeploymentInternal(azureIdentityName, suffix, replicas string, old bool, tmplOpts ...func(*infra.IdentityValidatorTemplateData)) {
 	identityValidatorName := identityValidator
 
 	if suffix != "" {
 		azureIdentityName += "-" + suffix
 		identityValidatorName += "-" + suffix
 	}
+	var err error
 
-	err := azureidentity.CreateOnCluster(cfg.SubscriptionID, cfg.ResourceGroup, azureIdentityName, templateOutputPath)
+	if old {
+		err = azureidentity.CreateOnClusterOld(cfg.SubscriptionID, cfg.ResourceGroup, azureIdentityName, templateOutputPath)
+	} else {
+		err = azureidentity.CreateOnCluster(cfg.SubscriptionID, cfg.ResourceGroup, azureIdentityName, templateOutputPath)
+	}
 	Expect(err).NotTo(HaveOccurred())
 
-	err = azureidentitybinding.Create(azureIdentityName, azureIdentityName, templateOutputPath)
+	if old {
+		err = azureidentitybinding.CreateOld(azureIdentityName, azureIdentityName, templateOutputPath)
+	} else {
+		err = azureidentitybinding.Create(azureIdentityName, azureIdentityName, templateOutputPath)
+	}
+
 	Expect(err).NotTo(HaveOccurred())
 
 	data := infra.IdentityValidatorTemplateData{

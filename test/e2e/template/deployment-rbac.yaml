@@ -174,9 +174,15 @@ rules:
 - apiGroups: [""]
   resources: ["endpoints"]
   verbs: [ "create", "get", "update"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "create", "update"]
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureidentitybindings", "azureidentities"]
-  verbs: ["get", "list", "watch", "post"]
+  verbs: ["get", "list", "watch", "post", "update"]
+- apiGroups: ["aadpodidentity.k8s.io"]
+  resources: ["azurepodidentityexceptions"]
+  verbs: ["list", "update"]
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureassignedidentities"]
   verbs: ["*"]
@@ -224,7 +230,13 @@ spec:
           - "--cloudconfig=/etc/kubernetes/azure.json"
           {{if .ImmutableUserMSIs}}- "--immutable-user-msis={{.ImmutableUserMSIs}}" {{end}}
           - "--logtostderr"
-          {{if .EnableScaleFeatures}}- "--enableScaleFeatures=true" {{end}}
+          {{if .EnableScaleFeatures}}- "--enableScaleFeatures=true" {{end}}  
+          - "--v=7"        
+        env:
+          - name: MIC_POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace         
         resources:
           limits:
             cpu: 200m

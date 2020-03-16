@@ -16,14 +16,24 @@ import (
 	"github.com/pkg/errors"
 )
 
+// CreateOnClusterOld will create an Azure Identity on a Kubernetes cluster
+func CreateOnClusterOld(subscriptionID, resourceGroup, name, templateOutputPath string) error {
+	return CreateOnClusterInternal(subscriptionID, resourceGroup, name, "aadpodidentity-old.yaml", templateOutputPath)
+}
+
 // CreateOnCluster will create an Azure Identity on a Kubernetes cluster
 func CreateOnCluster(subscriptionID, resourceGroup, name, templateOutputPath string) error {
+	return CreateOnClusterInternal(subscriptionID, resourceGroup, name, "aadpodidentity.yaml", templateOutputPath)
+}
+
+// CreateOnClusterInternal will create an Azure Identity on a Kubernetes cluster
+func CreateOnClusterInternal(subscriptionID, resourceGroup, name, templateInputFile, templateOutputPath string) error {
 	clientID, err := GetClientID(resourceGroup, name)
 	if err != nil {
 		return err
 	}
 
-	t, err := template.New("aadpodidentity.yaml").ParseFiles(path.Join("template", "aadpodidentity.yaml"))
+	t, err := template.New(templateInputFile).ParseFiles(path.Join("template", templateInputFile))
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse aadpodidentity.yaml")
 	}
