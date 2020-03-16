@@ -4,7 +4,20 @@
 # https://docs.microsoft.com/azure/devops/pipelines/languages/go
 
 trigger:
- - master
+  branches:
+    include:
+    - master
+  paths:
+    exclude:
+    - docs/*
+
+pr:
+  branches:
+    include:
+    - master
+  paths:
+    exclude:
+    - docs/*
 
 pool:
  vmImage: 'Ubuntu-16.04'
