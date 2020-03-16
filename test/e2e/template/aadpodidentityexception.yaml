@@ -3,7 +3,7 @@ kind: AzurePodIdentityException
 metadata:
   name: {{.Name}}-exception
 spec:
-  PodLabels:
+  podLabels:
   {{- range $key, $value := $.PodLabels }}
     {{ $key }}: {{ $value -}}
   {{ end }}

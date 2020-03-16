@@ -230,8 +230,7 @@ spec:
           - "--cloudconfig=/etc/kubernetes/azure.json"
           {{if .ImmutableUserMSIs}}- "--immutable-user-msis={{.ImmutableUserMSIs}}" {{end}}
           - "--logtostderr"
-          {{if .EnableScaleFeatures}}- "--enableScaleFeatures=true" {{end}}  
-          - "--v=7"        
+          {{if .EnableScaleFeatures}}- "--enableScaleFeatures=true" {{end}}
         env:
           - name: MIC_POD_NAMESPACE
             valueFrom:
