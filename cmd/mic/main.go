@@ -31,9 +31,12 @@ var (
 	clientQPS           float64
 	prometheusPort      string
 	immutableUserMSIs   string
+	cmConfig            mic.CMConfig
+	typeUpgradeConfig   mic.TypeUpgradeConfig
 )
 
 func main() {
+	klog.InitFlags(nil)
 	defer klog.Flush()
 	hostName, err := os.Hostname()
 	if err != nil {
@@ -72,7 +75,20 @@ func main() {
 	//Identities that should be never removed from Azure AD (used defined managed identities)
 	flag.StringVar(&immutableUserMSIs, "immutable-user-msis", "", "prevent deletion of these IDs from the underlying VM/VMSS")
 
+	// Config map for aad-pod-identity
+	flag.StringVar(&cmConfig.Name, "cmName", "aad-pod-identity-cm", "Configmap name")
+	// Config map details for the type changes in the context of client-go upgrade.
+	flag.StringVar(&typeUpgradeConfig.CMTypeUpgradeKey, "typeUpgradeCMKey", "type-upgrade-status", "Configmap key for type upgrade status")
+	flag.BoolVar(&typeUpgradeConfig.EnableTypeUpgrade, "enableTypeUpgrade", true, "Enable type upgrade")
+
 	flag.Parse()
+
+	podns := os.Getenv("MIC_POD_NAMESPACE")
+	if podns == "" {
+		klog.Fatalf("namespace not specified. Please add meta.namespace as env variable MIC_POD_NAMESPACE")
+	}
+	cmConfig.Namespace = podns
+
 	if versionInfo {
 		version.PrintVersionAndExit()
 	}
@@ -113,7 +129,20 @@ func main() {
 		immutableUserMSIsList = strings.Split(immutableUserMSIs, ",")
 	}
 
-	micClient, err := mic.NewMICClient(cloudconfig, config, forceNamespaced, syncRetryDuration, &leaderElectionCfg, enableScaleFeatures, createDeleteBatch, immutableUserMSIsList)
+	micConfig := &mic.Config{
+		CloudCfgPath:          cloudconfig,
+		RestConfig:            config,
+		IsNamespaced:          forceNamespaced,
+		SyncRetryInterval:     syncRetryDuration,
+		LeaderElectionCfg:     &leaderElectionCfg,
+		EnableScaleFeatures:   enableScaleFeatures,
+		CreateDeleteBatch:     createDeleteBatch,
+		ImmutableUserMSIsList: immutableUserMSIsList,
+		CMcfg:                 &cmConfig,
+		TypeUpgradeCfg:        &typeUpgradeConfig,
+	}
+
+	micClient, err := mic.NewMICClient(micConfig)
 	if err != nil {
 		klog.Fatalf("Could not get the MIC client: %+v", err)
 	}
