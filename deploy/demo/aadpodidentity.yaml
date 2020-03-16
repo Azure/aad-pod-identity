@@ -4,5 +4,5 @@ metadata:
  name: demo-aad1
 spec:
  type: 0
- ResourceID: RESOURCE_ID
- ClientID: CLIENT_ID 
+ resourceID: RESOURCE_ID
+ clientID: CLIENT_ID 

@@ -18,6 +18,7 @@ import (
 	"github.com/Azure/aad-pod-identity/version"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
+	kubeErrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -39,6 +40,18 @@ const (
 type NodeGetter interface {
 	Get(name string) (*corev1.Node, error)
 	Start(<-chan struct{})
+}
+
+// TypeUpgradeConfig - configuration aspects of type related changes required for client-go upgrade.
+type TypeUpgradeConfig struct {
+	CMTypeUpgradeKey  string
+	EnableTypeUpgrade bool
+}
+
+// CMConfig - config map for aad-pod-identity
+type CMConfig struct {
+	Namespace string
+	Name      string
 }
 
 // LeaderElectionConfig - used to keep track of leader election config.
@@ -69,7 +82,24 @@ type Client struct {
 
 	leaderElector *leaderelection.LeaderElector
 	*LeaderElectionConfig
-	Reporter *metrics.Reporter
+	Reporter       *metrics.Reporter
+	TypeUpgradeCfg *TypeUpgradeConfig
+	CMCfg          *CMConfig
+	CMClient       typedcorev1.ConfigMapInterface
+}
+
+// Config - MIC Config
+type Config struct {
+	CloudCfgPath          string
+	RestConfig            *rest.Config
+	IsNamespaced          bool
+	SyncRetryInterval     time.Duration
+	LeaderElectionCfg     *LeaderElectionConfig
+	EnableScaleFeatures   bool
+	CreateDeleteBatch     int64
+	ImmutableUserMSIsList []string
+	CMcfg                 *CMConfig
+	TypeUpgradeCfg        *TypeUpgradeConfig
 }
 
 // ClientInt ...
@@ -87,11 +117,10 @@ type trackUserAssignedMSIIds struct {
 }
 
 // NewMICClient returnes new mic client
-func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, syncRetryInterval time.Duration,
-	leaderElectionConfig *LeaderElectionConfig, enableScaleFeatures bool, createDeleteBatch int64, immutableUserMSIsList []string) (*Client, error) {
+func NewMICClient(cfg *Config) (*Client, error) {
 	klog.Infof("Starting to create the pod identity client. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
 
-	clientSet := kubernetes.NewForConfigOrDie(config)
+	clientSet := kubernetes.NewForConfigOrDie(cfg.RestConfig)
 
 	k8sVersion, err := clientSet.ServerVersion()
 	if err == nil {
@@ -100,14 +129,15 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 
 	informer := informers.NewSharedInformerFactory(clientSet, 30*time.Second)
 
-	cloudClient, err := cloudprovider.NewCloudProvider(cloudconfig)
+	cloudClient, err := cloudprovider.NewCloudProvider(cfg.CloudCfgPath)
 	if err != nil {
 		return nil, err
 	}
 	klog.V(1).Infof("Cloud provider initialized")
 
 	eventCh := make(chan aadpodid.EventType, 100)
-	crdClient, err := crd.NewCRDClient(config, eventCh)
+
+	crdClient, err := crd.NewCRDClient(cfg.RestConfig, eventCh)
 	if err != nil {
 		return nil, err
 	}
@@ -122,12 +152,17 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 
 	var immutableUserMSIsMap map[string]bool
 
-	if len(immutableUserMSIsList) > 0 {
+	if len(cfg.ImmutableUserMSIsList) > 0 {
 		// this map contains list of identities that are configured by user as immutable.
 		immutableUserMSIsMap = make(map[string]bool)
-		for _, item := range immutableUserMSIsList {
+		for _, item := range cfg.ImmutableUserMSIsList {
 			immutableUserMSIsMap[strings.ToLower(item)] = true
 		}
+	}
+
+	var cmClient typedcorev1.ConfigMapInterface
+	if cfg.TypeUpgradeCfg.EnableTypeUpgrade {
+		cmClient = clientSet.CoreV1().ConfigMaps(cfg.CMcfg.Namespace)
 	}
 
 	c := &Client{
@@ -137,13 +172,17 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 		EventRecorder:        recorder,
 		EventChannel:         eventCh,
 		NodeClient:           &NodeClient{informer.Core().V1().Nodes()},
-		IsNamespaced:         isNamespaced,
-		syncRetryInterval:    syncRetryInterval,
-		enableScaleFeatures:  enableScaleFeatures,
-		createDeleteBatch:    createDeleteBatch,
+		IsNamespaced:         cfg.IsNamespaced,
+		syncRetryInterval:    cfg.SyncRetryInterval,
+		enableScaleFeatures:  cfg.EnableScaleFeatures,
+		createDeleteBatch:    cfg.CreateDeleteBatch,
 		ImmutableUserMSIsMap: immutableUserMSIsMap,
+		TypeUpgradeCfg:       cfg.TypeUpgradeCfg,
+		CMCfg:                cfg.CMcfg,
+		CMClient:             cmClient,
 	}
-	leaderElector, err := c.NewLeaderElector(clientSet, recorder, leaderElectionConfig)
+
+	leaderElector, err := c.NewLeaderElector(clientSet, recorder, cfg.LeaderElectionCfg)
 	if err != nil {
 		klog.Errorf("New leader elector failure. Error: %+v", err)
 		return nil, err
@@ -164,7 +203,7 @@ func (c *Client) Run() {
 	klog.Info("Initiating MIC Leader election")
 	// counter to track number of mic election
 	c.Reporter.Report(metrics.MICNewLeaderElectionCountM.M(1))
-	c.leaderElector.Run()
+	c.leaderElector.Run(context.Background())
 }
 
 // NewLeaderElector - does the required leader election initialization
@@ -174,6 +213,7 @@ func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder reco
 		c.Namespace,
 		c.Name,
 		clientSet.CoreV1(),
+		clientSet.CoordinationV1(),
 		resourcelock.ResourceLockConfig{
 			Identity:      c.Instance,
 			EventRecorder: recorder})
@@ -186,8 +226,8 @@ func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder reco
 		RenewDeadline: c.Duration / 2,
 		RetryPeriod:   c.Duration / 4,
 		Callbacks: leaderelection.LeaderCallbacks{
-			OnStartedLeading: func(exit <-chan struct{}) {
-				c.Start(exit)
+			OnStartedLeading: func(ctx context.Context) {
+				c.Start(ctx.Done())
 			},
 			OnStoppedLeading: func() {
 				klog.Errorf("Lost leader lease")
@@ -205,9 +245,63 @@ func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder reco
 	return leaderElector, nil
 }
 
+func (c *Client) UpgradeTypeIfRequired() error {
+	if c.TypeUpgradeCfg.EnableTypeUpgrade {
+		cm, err := c.CMClient.Get(c.CMCfg.Name, v1.GetOptions{})
+		// If we get an error and its not NotFound then return, because we cannot proceed.
+		if err != nil && !kubeErrors.IsNotFound(err) {
+			return fmt.Errorf("config map get for %s failed with error: %v", c.CMCfg.Name, err)
+		}
+
+		// Now either the configmap is not there or we successfully got the configmap
+		// Handle the case where the configmap is not found.
+		if err != nil && kubeErrors.IsNotFound(err) {
+			// Create the configmap
+			newCfgMap := &corev1.ConfigMap{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: c.CMCfg.Namespace,
+					Name:      c.CMCfg.Name,
+				},
+			}
+			if cm, err = c.CMClient.Create(newCfgMap); err != nil {
+				return fmt.Errorf("create configmap %s/%s failed with error: %v", c.CMCfg.Namespace, c.CMCfg.Name, err)
+			}
+		}
+
+		// We reach here only if the configmap is present or we created new one.
+		// Check if the key for type upgrade is present. If the key is present,
+		// then the upgrade is already performed. If not then go through the type upgrade
+		// process.
+		if v, ok := cm.Data[c.TypeUpgradeCfg.CMTypeUpgradeKey]; !ok {
+			klog.Infof("Upgrading the types to work with case sensitive go-client")
+			if err := c.CRDClient.UpgradeAll(); err != nil {
+				return fmt.Errorf("type upgrade failed. error: %+v", err)
+			}
+			klog.Infof("Type upgrade completed !!")
+			// Upgrade completed so update the data with the upgrade key.
+			if cm.Data == nil {
+				cm.Data = make(map[string]string)
+			}
+			cm.Data[c.TypeUpgradeCfg.CMTypeUpgradeKey] = version.MICVersion
+			_, err = c.CMClient.Update(cm)
+			if err != nil {
+				return fmt.Errorf("type upgrade annotation update on %s failed. error: %+v", c.TypeUpgradeCfg.CMTypeUpgradeKey, err)
+			}
+		} else {
+			klog.Infof("Type upgrade status configmap found from version: %s. Proceeding without type upgrade !", v)
+		}
+	}
+	return nil
+}
+
 // Start ...
 func (c *Client) Start(exit <-chan struct{}) {
 	klog.V(6).Infof("MIC client starting..")
+
+	if err := c.UpgradeTypeIfRequired(); err != nil {
+		klog.Fatalf("Upgrade failed with error: %v", err)
+		return
+	}
 
 	var wg sync.WaitGroup
 
@@ -275,6 +369,13 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		begin := time.Now()
 		workDone := false
 
+		cacheTime := time.Now()
+
+		// There is a delay in data propogation to cache. It's possible that the creates performed in the previous sync cycle
+		// are not propogated before this sync cycle began. In order to avoid redoing the cycle, we sync cache again.
+		c.CRDClient.SyncCacheAll(exit, false)
+		stats.Put(stats.CacheSync, time.Since(cacheTime))
+
 		// List all pods in all namespaces
 		systemTime := time.Now()
 		listPods, err := c.PodClient.GetPods()
@@ -286,10 +387,12 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		if err != nil {
 			continue
 		}
+		klog.V(6).Infof("Number of bindings: %d", len(*listBindings))
 		listIDs, err := c.CRDClient.ListIds()
 		if err != nil {
 			continue
 		}
+		klog.V(6).Infof("Number of identities: %d", len(*listIDs))
 		idMap, err := c.convertIDListToMap(*listIDs)
 		if err != nil {
 			klog.Error(err)
@@ -300,6 +403,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		if err != nil {
 			continue
 		}
+		klog.V(6).Infof("Number of assigned identities: %d", len(currentAssignedIDs))
 		stats.Put(stats.System, time.Since(systemTime))
 
 		beginNewListTime := time.Now()
@@ -374,9 +478,10 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 			stats.PrintSync()
 			if workDone {
-				// We need to synchronize the cache inorder to get the latest updates. Sync cache has a bug in the current go client which caused thread leak.
-				// Updating of go client has issues with case sensitivity. Avoid this issue by sleping for 500 milliseconds to reduce the chance
-				// of cache misses for assignedidentities updated in the previous cycle.
+				// We need to synchronize the cache inorder to get the latest updates.
+				// Even though we sync at the beginning of every cycle, we are still seeing
+				// conflicts indicating the assigned identities are not reflecting in
+				// the cache. Continue to use the sleep workaround.
 				time.Sleep(time.Millisecond * 200)
 			}
 		}
@@ -417,12 +522,14 @@ func (c *Client) createDesiredAssignedIdentityList(
 	newAssignedIDs := make(map[string]aadpodid.AzureAssignedIdentity)
 
 	for _, pod := range listPods {
+		klog.V(6).Infof("checking pod: %s", pod.Name)
 		if pod.Spec.NodeName == "" {
 			//Node is not yet allocated. In that case skip the pod
 			klog.V(2).Infof("Pod %s/%s has no assigned node yet. it will be ignored", pod.Namespace, pod.Name)
 			continue
 		}
 		crdPodLabelVal := pod.Labels[aadpodid.CRDLabelKey]
+		klog.V(6).Infof("Label value: %v", crdPodLabelVal)
 		if crdPodLabelVal == "" {
 			//No binding mentioned in the label. Just continue to the next pod
 			klog.V(2).Infof("Pod %s/%s has correct %s label but with no value. it will be ignored", pod.Namespace, pod.Name, aadpodid.CRDLabelKey)
@@ -430,6 +537,7 @@ func (c *Client) createDesiredAssignedIdentityList(
 		}
 		var matchedBindings []aadpodid.AzureIdentityBinding
 		for _, allBinding := range *listBindings {
+			klog.V(6).Infof("Check the binding: %s", allBinding.Spec.Selector)
 			if allBinding.Spec.Selector == crdPodLabelVal {
 				klog.V(5).Infof("Found binding match for pod %s/%s with binding %s/%s", pod.Namespace, pod.Name, allBinding.Namespace, allBinding.Name)
 				matchedBindings = append(matchedBindings, allBinding)
