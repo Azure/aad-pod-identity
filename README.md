@@ -23,7 +23,9 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 
 ### Prerequisites
 
-You will need a Kubernetes cluster running on Azure, either managed by [AKS] or provisioned with [AKS Engine].
+You will need a Kubernetes cluster running on Azure, either managed by [AKS] or provisioned with [AKS Engine]. 
+
+**Note** If running MSI-enabled AKS cluster, please make sure to follow the [MSI specific](docs/readmes/README.msi.md) documentation before getting started.
 
 ### 1. Create the Deployment
 

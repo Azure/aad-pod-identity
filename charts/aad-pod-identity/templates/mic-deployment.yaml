@@ -26,6 +26,9 @@ spec:
       {{- if .Values.rbac.enabled }}
       serviceAccountName: {{ template "aad-pod-identity.mic.fullname" . }}
       {{- end }}
+      {{- if .Values.mic.priorityClassName }}
+      priorityClassName: {{ .Values.mic.priorityClassName | quote }}
+      {{- end }}
       containers:
       - name: mic
         image: "{{ .Values.image.repository }}/{{ .Values.mic.image }}:{{ .Values.mic.tag }}"
