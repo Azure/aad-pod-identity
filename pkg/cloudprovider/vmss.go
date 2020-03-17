@@ -8,7 +8,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	"github.com/Azure/aad-pod-identity/version"
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-06-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -140,36 +140,36 @@ func (i *vmssIdentityInfo) GetUserIdentityList() []string {
 }
 
 func (i *vmssIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
-	expectedIDList := make(map[string]bool)
-
 	if i.info.UserAssignedIdentities == nil {
 		i.info.UserAssignedIdentities = make(map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue)
 	}
 
+	nodeList := make(map[string]bool)
+	// add all current existing ids
 	for id, _ := range i.info.UserAssignedIdentities {
-		expectedIDList[id] = true
+		nodeList[id] = true
 	}
 
+	// add and remove the new list of identities keeping the same type as before
+	userAssignedIdentities := make(map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue)
 	for id, add := range ids {
-		_, exists := expectedIDList[id]
-
-		// identity already exists/not exists, so skip doing add/del operation for
-		// the identity again for the node
-		if (exists && add) || (!exists && !add) {
-			delete(ids, id)
-		}
+		_, exists := nodeList[id]
 		// already exists on node and want to remove existing identity
 		if exists && !add {
-			delete(expectedIDList, id)
+			userAssignedIdentities[id] = nil
+			delete(nodeList, id)
 		}
 		// doesn't exist on the node and want to add new identity
 		if !exists && add {
-			expectedIDList[id] = true
+			userAssignedIdentities[id] = &compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{}
+			nodeList[id] = true
 		}
+		// exists and add - will already be in the nodeList and no need to patch for it
+		// not exists and delete - no need to patch it as it already doesn't exist
 	}
 
 	// all identities are the node are to be removed
-	if len(expectedIDList) == 0 {
+	if len(nodeList) == 0 {
 		i.info.UserAssignedIdentities = nil
 		if i.info.Type == compute.ResourceIdentityTypeSystemAssignedUserAssigned {
 			i.info.Type = compute.ResourceIdentityTypeSystemAssigned
@@ -178,17 +178,12 @@ func (i *vmssIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 		}
 		return true
 	}
-	// add and remove the new list of identities keeping the same type as before
-	userAssignedIdentities := make(map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue)
-	for id, add := range ids {
-		val := &compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{}
-		if !add {
-			klog.V(5).Infof("Removing identity %s", id)
-			val = nil
-		} else {
-			klog.V(5).Infof("Adding identity %s", id)
-		}
-		userAssignedIdentities[id] = val
+
+	if i.info.Type == compute.ResourceIdentityTypeSystemAssigned {
+		i.info.Type = compute.ResourceIdentityTypeSystemAssignedUserAssigned
+	}
+	if i.info.Type == compute.ResourceIdentityTypeNone {
+		i.info.Type = compute.ResourceIdentityTypeUserAssigned
 	}
 
 	i.info.UserAssignedIdentities = userAssignedIdentities
