@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
@@ -24,6 +25,8 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	"github.com/Azure/go-autorest/autorest/adal"
+	adal "github.com/Azure/go-autorest/autorest/adal"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog"
 )
 
@@ -308,8 +311,28 @@ func (s *Server) getTokenForExceptedPod(rqClientID, rqResource string) ([]byte, 
 // if the requests contains client id it validates it against the admin
 // configured id.
 func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) {
+	var err error
+	var podns, podname, rqClientID, rqResource
+	operationType := metrics.PodTokenOperationType
+
+	defer func() {
+		// if podns and podname is empty, then means it has failed in the validation steps, so
+		// skip sending metrics for the request
+		if podns == nil || podname == nil {
+			return
+		}
+
+		if err != nil {
+			s.Reporter.ReportOperationAndStatusForWorkload(
+				operationType, rqResource, podns, podname, metrics.NMITokenOperationFailureCountM.M(1))
+			return
+		}
+		s.Reporter.ReportOperationAndStatusForWorkload(
+			operationType, rqResource, podns, podname, metrics.NMITokenOperationCountM.M(1))
+	}()
+
 	podIP := parseRemoteAddr(r.RemoteAddr)
-	rqClientID, rqResource := parseRequestClientIDAndResource(r)
+	rqClientID, rqResource = parseRequestClientIDAndResource(r)
 
 	if podIP == "" {
 		klog.Error("request remote address is empty")
@@ -321,7 +344,10 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 		http.Error(w, "parameter resource cannot be empty", http.StatusBadRequest)
 		return
 	}
-	podns, podname, rsName, selectors, err := s.KubeClient.GetPodInfo(podIP)
+
+	var rsName string
+	var selectors *metav1.LabelSelector
+	podns, podname, rsName, selectors, err = s.KubeClient.GetPodInfo(podIP)
 	if err != nil {
 		klog.Errorf("missing podname for podip:%s, %+v", podIP, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -329,7 +355,8 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	}
 	// set ns for using in metrics
 	ns = podns
-	exceptionList, err := s.KubeClient.ListPodIdentityExceptions(podns)
+	var exceptionList *[]aadpodid.AzurePodIdentityException
+	exceptionList, err = s.KubeClient.ListPodIdentityExceptions(podns)
 	if err != nil {
 		klog.Errorf("getting list of azurepodidentityexceptions in %s namespace failed with error: %+v", podns, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -339,6 +366,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	// If its mic, then just directly get the token and pass back.
 	if pod.IsPodExcepted(selectors.MatchLabels, *exceptionList) || s.isMIC(podns, rsName) {
 		klog.Infof("Exception pod %s/%s token handling", podns, podname)
+		operationType = metrics.HostTokenOperationType
 		response, errorCode, err := s.getTokenForExceptedPod(rqClientID, rqResource)
 		if err != nil {
 			klog.Errorf("failed to get service principal token for pod:%s/%s.  Error code: %d. Error: %+v", podns, podname, errorCode, err)
@@ -349,20 +377,24 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 		return
 	}
 
-	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
+	var podID *aadpodid.AzureIdentity
+	podID, err = s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
 		klog.Error(err)
 		http.Error(w, err.Error(), getErrorResponseStatusCode(podID != nil))
 		return
 	}
 
-	token, err := s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, *podID)
+	var token *adal.Token
+	token, err = s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, *podID)
 	if err != nil {
 		klog.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
-	response, err := json.Marshal(newMSIResponse(*token))
+
+	var response []byte
+	response, err = json.Marshal(newMSIResponse(*token))
 	if err != nil {
 		klog.Errorf("failed to marshal service principal token for pod:%s/%s, %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

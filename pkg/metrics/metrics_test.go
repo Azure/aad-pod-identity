@@ -20,7 +20,10 @@ func TestBasicAndDurationReport(t *testing.T) {
 	testCounterMetric(t, reporter, MICNewLeaderElectionCountM)
 	testCounterMetric(t, reporter, CloudProviderOperationsErrorsCountM)
 	testCounterMetric(t, reporter, KubernetesAPIOperationsErrorsCountM)
+	testCounterMetric(t, reporter, NMITokenOperationCountM)
+	testCounterMetric(t, reporter, NMITokenOperationFailureCountM)
 	testOperationDurationMetric(t, reporter, CloudProviderOperationsDurationM)
+	testOperationDurationMetric(t, reporter, KubernetesAPIOperationsDurationM)
 	testOperationDurationMetric(t, reporter, NMIOperationsDurationM)
 }
 
