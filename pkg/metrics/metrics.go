@@ -19,12 +19,15 @@ const (
 	assignedIdentityDeletionDurationName   = "assigned_identity_deletion_duration_seconds"
 	assignedIdentityDeletionCountName      = "assigned_identity_deletion_count"
 	nmiOperationsDurationName              = "nmi_operations_duration_seconds"
+	nmiTokenOperationCountName             = "nmi_token_operation_count"
+	nmiTokenOperationFailureCountName      = "nmi_token_operation_failure_count"
 	micCycleDurationName                   = "mic_cycle_duration_seconds"
 	micCycleCountName                      = "mic_cycle_count"
 	micNewLeaderElectionCountName          = "mic_new_leader_election_count"
 	cloudProviderOperationsErrorsCountName = "cloud_provider_operations_errors_count"
 	cloudProviderOperationsDurationName    = "cloud_provider_operations_duration_seconds"
 	kubernetesAPIOperationsErrorsCountName = "kubernetes_api_operations_errors_count"
+	kubernetesAPIOperationsDurationName    = "kubernetes_api_operations_duration_seconds"
 	imdsOperationsErrorsCountName          = "imds_operations_errors_count"
 	imdsOperationsDurationName             = "imds_operations_duration_seconds"
 
@@ -52,6 +55,10 @@ const (
 	GetPodListOperationName = "get_pod_list"
 	// GetSecretOperationName
 	GetSecretOperationName = "get_secret"
+	// HostTokenType
+	HostTokenOperationType = "get_host_token"
+	// PodTokenType
+	PodTokenOperationType = "get_pod_token"
 )
 
 // The following variables are measures
@@ -84,6 +91,18 @@ var (
 		nmiOperationsDurationName,
 		"Duration in seconds for nmi operations",
 		stats.UnitMilliseconds)
+
+	// NMITokenOperationCountM is a measure that tracks the cumulative count of nmi operations.
+	NMITokenOperationCountM = stats.Int64(
+		nmiTokenOperationCountName,
+		"Total number of get token calls to nmi",
+		stats.UnitDimensionless)
+
+	// NMITokenOperationFailureCountM is a measure that tracks the count of failure during nmi operations.
+	NMITokenOperationFailureCountM = stats.Int64(
+		nmiTokenOperationFailureCountName,
+		"Total number of failed get token calls to nmi",
+		stats.UnitDimensionless)
 
 	// MICCycleDurationM is a measure that tracks the duration in seconds for single mic sync cycle.
 	MICCycleDurationM = stats.Float64(
@@ -121,6 +140,12 @@ var (
 		"Total number of errors in kubernetes api operations",
 		stats.UnitDimensionless)
 
+	// KubernetesAPIOperationsDurationM is a measure that tracks the duration of the kubernetes api calls.
+	KubernetesAPIOperationsDurationM = stats.Float64(
+		kubernetesAPIOperationsDurationName,
+		"Duration in seconds for kubernetes api operations",
+		stats.UnitMilliseconds)
+
 	// ImdsOperationsErrorsCountM is a measure that tracks the cumulative number of errors in imds operations.
 	ImdsOperationsErrorsCountM = stats.Int64(
 		imdsOperationsErrorsCountName,
@@ -135,10 +160,12 @@ var (
 )
 
 var (
-	operationTypeKey = tag.MustNewKey("operation_type")
-	statusCodeKey    = tag.MustNewKey("status_code")
-	namespaceKey     = tag.MustNewKey("namespace")
-	resourceKey      = tag.MustNewKey("resource")
+	operationTypeKey     = tag.MustNewKey("operation_type")
+	statusCodeKey        = tag.MustNewKey("status_code")
+	namespaceKey         = tag.MustNewKey("namespace")
+	resourceKey          = tag.MustNewKey("resource")
+	workloadNamespaceKey = tag.MustNewKey("workload_ns")
+	workloadPodKey       = tag.MustNewKey("workload_pod")
 )
 
 const componentNamespace = "aadpodidentity"
@@ -178,6 +205,16 @@ func registerViews() error {
 			TagKeys:     []tag.Key{operationTypeKey, statusCodeKey, namespaceKey, resourceKey},
 		},
 		&view.View{
+			Description: NMITokenOperationCountM.Description(),
+			Measure:     NMITokenOperationCountM,
+			Aggregation: view.Count(),
+		},
+		&view.View{
+			Description: NMITokenOperationFailureCountM.Description(),
+			Measure:     NMITokenOperationFailureCountM,
+			Aggregation: view.Count(),
+		},
+		&view.View{
 			Description: MICCycleDurationM.Description(),
 			Measure:     MICCycleDurationM,
 			Aggregation: view.Distribution(0.5, 1, 5, 10, 30, 60, 120, 300, 600, 900, 1200),
@@ -208,6 +245,12 @@ func registerViews() error {
 			Description: KubernetesAPIOperationsErrorsCountM.Description(),
 			Measure:     KubernetesAPIOperationsErrorsCountM,
 			Aggregation: view.Count(),
+			TagKeys:     []tag.Key{operationTypeKey},
+		},
+		&view.View{
+			Description: KubernetesAPIOperationsDurationM.Description(),
+			Measure:     KubernetesAPIOperationsDurationM,
+			Aggregation: view.Distribution(0.5, 1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100),
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
 		&view.View{
@@ -278,6 +321,25 @@ func (r *Reporter) ReportOperationAndStatus(operationType, statusCode, namespace
 	return nil
 }
 
+// ReportOperationAndStatusForWorkload records given measurements by operation type for the given resource, workload namespace and pod.
+func (r *Reporter) ReportOperationAndStatusForWorkload(operationType, resource, workloadns, workloadpod string, ms ...stats.Measurement) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	ctx, err := tag.New(
+		r.ctx,
+		tag.Insert(operationTypeKey, operationType),
+		tag.Insert(resourceKey, resource),
+		tag.Insert(workloadNamespaceKey, workloadns),
+		tag.Insert(workloadPodKey, workloadpod),
+	)
+	if err != nil {
+		return err
+	}
+	record(ctx, ms...)
+	return nil
+}
+
 // ReportOperation records given measurement by operation type.
 func (r *Reporter) ReportOperation(operationType string, measurement stats.Measurement) error {
 	r.mu.Lock()
@@ -335,4 +397,9 @@ func (r *Reporter) ReportCloudProviderOperationDuration(operation string, durati
 // ReportKubernetesAPIOperationError reports kubernetes operation error count
 func (r *Reporter) ReportKubernetesAPIOperationError(operation string) error {
 	return r.ReportOperation(operation, KubernetesAPIOperationsErrorsCountM.M(1))
+}
+
+// ReportKubernetesAPIOperationsDuration reports kubernetes operation duration
+func (r *Reporter) ReportKubernetesAPIOperationsDuration(operation string, duration time.Duration) error {
+	return r.ReportOperation(operation, KubernetesAPIOperationsDurationM.M(duration.Seconds()))
 }

@@ -192,11 +192,13 @@ func (c *KubeClient) getPodListRetry(podip string, retries int, sleeptime time.D
 	var podList []*v1.Pod
 	var err error
 	i := 0
+	start := time.Now()
 
 	for {
 		// Atleast run the getpodlist once.
 		podList, err = c.getPodList(podip)
 		if err == nil {
+			c.reporter.ReportKubernetesAPIOperationsDuration(metrics.GetPodListOperationName, time.Since(start))
 			return podList, nil
 		}
 		c.reporter.ReportKubernetesAPIOperationError(metrics.GetPodListOperationName)
@@ -247,6 +249,14 @@ func (c *KubeClient) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodI
 
 // GetSecret returns secret the secretRef represents
 func (c *KubeClient) GetSecret(secretRef *v1.SecretReference) (*v1.Secret, error) {
+	start := time.Now()
+
+	defer func() {
+		if c.reporter != nil {
+			c.reporter.ReportKubernetesAPIOperationsDuration(metrics.GetSecretOperationName, time.Since(start))
+		}
+	}()
+
 	secret, err := c.ClientSet.CoreV1().Secrets(secretRef.Namespace).Get(secretRef.Name, metav1.GetOptions{})
 	if err != nil {
 		c.reporter.ReportKubernetesAPIOperationError(metrics.GetSecretOperationName)
