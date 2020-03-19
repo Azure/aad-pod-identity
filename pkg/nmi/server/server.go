@@ -400,7 +400,6 @@ func metadataNotSpecifiedError(w http.ResponseWriter) {
 	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.Header().Set("Server", "Microsoft-IIS/10.0")
 	w.WriteHeader(http.StatusBadRequest)
 	fmt.Fprintln(w, string(response))
 	return
