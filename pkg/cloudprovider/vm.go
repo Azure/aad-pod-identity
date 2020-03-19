@@ -8,7 +8,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	"github.com/Azure/aad-pod-identity/version"
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -23,8 +23,8 @@ type VMClient struct {
 
 // VMClientInt is the interface used by "cloudprovider" for interacting with Azure vmas
 type VMClientInt interface {
-	CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachine) error
 	Get(rgName string, nodeName string) (compute.VirtualMachine, error)
+	UpdateIdentities(rg, nodeName string, vmu compute.VirtualMachine) error
 }
 
 // NewVirtualMachinesClient creates a new vm client.
@@ -53,39 +53,6 @@ func NewVirtualMachinesClient(config config.AzureConfig, spt *adal.ServicePrinci
 	}, nil
 }
 
-// CreateOrUpdate creates a new vm, or if the vm already exists it updates the existing one.
-// This is used by "cloudprovider" to *update* add/remove identities from an already existing vm.
-func (c *VMClient) CreateOrUpdate(rg string, nodeName string, vm compute.VirtualMachine) error {
-	// Set the read-only property of extension to null.
-	vm.Resources = nil
-	ctx := context.Background()
-	begin := time.Now()
-	var err error
-
-	defer func() {
-		if err != nil {
-			c.reporter.ReportCloudProviderOperationError(metrics.PutVMOperationName)
-			return
-		}
-		c.reporter.ReportCloudProviderOperationDuration(metrics.PutVMOperationName, time.Since(begin))
-	}()
-
-	future, err := c.client.CreateOrUpdate(ctx, rg, nodeName, vm)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	err = future.WaitForCompletionRef(ctx, c.client.Client)
-	if err != nil {
-		klog.Error(err)
-		return err
-	}
-	stats.UpdateCount(stats.TotalPutCalls, 1)
-	stats.Update(stats.CloudPut, time.Since(begin))
-	return nil
-}
-
 // Get gets the passed in vm.
 func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, error) {
 	ctx := context.Background()
@@ -110,6 +77,35 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 	return vm, nil
 }
 
+// UpdateIdentities updates the user assigned identities for the provided node
+func (c *VMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachine) error {
+	var future compute.VirtualMachinesUpdateFuture
+	var err error
+	ctx := context.Background()
+	begin := time.Now()
+
+	defer func() {
+		if err != nil {
+			c.reporter.ReportCloudProviderOperationError(metrics.PutVMOperationName)
+			return
+		}
+		c.reporter.ReportCloudProviderOperationDuration(metrics.PutVMOperationName, time.Since(begin))
+	}()
+
+	if future, err = c.client.Update(ctx, rg, nodeName, compute.VirtualMachineUpdate{
+		Identity: vm.Identity}); err != nil {
+		klog.Errorf("Failed to update VM with error %v", err)
+		return err
+	}
+	if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
+		klog.Error(err)
+		return err
+	}
+	stats.UpdateCount(stats.TotalPutCalls, 1)
+	stats.Update(stats.CloudPut, time.Since(begin))
+	return nil
+}
+
 type vmIdentityHolder struct {
 	vm *compute.VirtualMachine
 }
@@ -130,33 +126,64 @@ type vmIdentityInfo struct {
 	info *compute.VirtualMachineIdentity
 }
 
-func (i *vmIdentityInfo) RemoveUserIdentity(id string) error {
-	if err := filterUserIdentity(&i.info.Type, i.info.IdentityIds, id); err != nil {
-		return err
-	}
-	// If we have either no identity assigned or have the system assigned identity only, then we need to set the
-	// IdentityIds list as nil.
-	if i.info.Type == compute.ResourceIdentityTypeNone || i.info.Type == compute.ResourceIdentityTypeSystemAssigned {
-		i.info.IdentityIds = nil
-	}
-	// if the identityids is nil and identity type is not set, then set it to ResourceIdentityTypeNone
-	if i.info.IdentityIds == nil && i.info.Type == "" {
-		i.info.Type = compute.ResourceIdentityTypeNone
-	}
-	return nil
-}
-
-func (i *vmIdentityInfo) AppendUserIdentity(id string) bool {
-	if i.info.IdentityIds == nil {
-		var ids []string
-		i.info.IdentityIds = &ids
-	}
-	return appendUserIdentity(&i.info.Type, i.info.IdentityIds, id)
-}
-
 func (i *vmIdentityInfo) GetUserIdentityList() []string {
-	if i.info.IdentityIds == nil {
-		return []string{}
+	var ids []string
+	if i.info == nil {
+		return ids
 	}
-	return *i.info.IdentityIds
+	for id := range i.info.UserAssignedIdentities {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func (i *vmIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
+	if i.info.UserAssignedIdentities == nil {
+		i.info.UserAssignedIdentities = make(map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue)
+	}
+
+	nodeList := make(map[string]bool)
+	// add all current existing ids
+	for id, _ := range i.info.UserAssignedIdentities {
+		nodeList[id] = true
+	}
+
+	// add and remove the new list of identities keeping the same type as before
+	userAssignedIdentities := make(map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue)
+	for id, add := range ids {
+		_, exists := nodeList[id]
+		// already exists on node and want to remove existing identity
+		if exists && !add {
+			userAssignedIdentities[id] = nil
+			delete(nodeList, id)
+		}
+		// doesn't exist on the node and want to add new identity
+		if !exists && add {
+			userAssignedIdentities[id] = &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{}
+			nodeList[id] = true
+		}
+		// exists and add - will already be in the nodeList and no need to patch for it
+		// not exists and delete - no need to patch it as it already doesn't exist
+	}
+
+	// all identities are the node are to be removed
+	if len(nodeList) == 0 {
+		i.info.UserAssignedIdentities = nil
+		if i.info.Type == compute.ResourceIdentityTypeSystemAssignedUserAssigned {
+			i.info.Type = compute.ResourceIdentityTypeSystemAssigned
+		} else {
+			i.info.Type = compute.ResourceIdentityTypeNone
+		}
+		return true
+	}
+
+	if i.info.Type == compute.ResourceIdentityTypeSystemAssigned {
+		i.info.Type = compute.ResourceIdentityTypeSystemAssignedUserAssigned
+	}
+	if i.info.Type == compute.ResourceIdentityTypeNone {
+		i.info.Type = compute.ResourceIdentityTypeUserAssigned
+	}
+
+	i.info.UserAssignedIdentities = userAssignedIdentities
+	return len(i.info.UserAssignedIdentities) > 0
 }

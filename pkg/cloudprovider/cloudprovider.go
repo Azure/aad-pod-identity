@@ -13,7 +13,7 @@ import (
 	config "github.com/Azure/aad-pod-identity/pkg/config"
 	"github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/aad-pod-identity/version"
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -31,8 +31,6 @@ type Client struct {
 
 // ClientInt client interface
 type ClientInt interface {
-	RemoveUserMSI(userAssignedMSIID, name string, isvmss bool) error
-	AssignUserMSI(userAssignedMSIID, name string, isvmss bool) error
 	UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs []string, name string, isvmss bool) error
 	GetUserMSIs(name string, isvmss bool) ([]string, error)
 }
@@ -179,22 +177,17 @@ func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs [
 		info = idH.ResetIdentity()
 	}
 
-	requiresUpdate := false
-	// remove msi ids from the list
-	for _, userAssignedMSIID := range removeUserAssignedMSIIDs {
-		requiresUpdate = true
-		if err := info.RemoveUserIdentity(userAssignedMSIID); err != nil {
-			return fmt.Errorf("could not remove identity from node %s: %v", name, err)
-		}
-	}
+	ids := make(map[string]bool)
 	// add new ids to the list
 	for _, userAssignedMSIID := range addUserAssignedMSIIDs {
-		addedToList := info.AppendUserIdentity(userAssignedMSIID)
-		if !addedToList {
-			klog.V(6).Infof("Identity %s already assigned to node %s. Skipping assignment.", userAssignedMSIID, name)
-		}
-		requiresUpdate = requiresUpdate || addedToList
+		ids[userAssignedMSIID] = true
 	}
+	// remove msi ids from the list
+	for _, userAssignedMSIID := range removeUserAssignedMSIIDs {
+		ids[userAssignedMSIID] = false
+	}
+	requiresUpdate := info.SetUserIdentities(ids)
+
 	if requiresUpdate {
 		klog.Infof("Updating user assigned MSIs on %s", name)
 		timeStarted := time.Now()
@@ -202,62 +195,6 @@ func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs [
 			return err
 		}
 		klog.V(6).Infof("UpdateUserMSI of %s completed in %s", name, time.Since(timeStarted))
-	}
-	return nil
-}
-
-//RemoveUserMSI - Use the underlying cloud api calls and remove the given user assigned MSI from the vm.
-func (c *Client) RemoveUserMSI(userAssignedMSIID, name string, isvmss bool) error {
-	idH, updateFunc, err := c.getIdentityResource(name, isvmss)
-	if err != nil {
-		return err
-	}
-
-	info := idH.IdentityInfo()
-	if info == nil {
-		klog.Errorf("Identity null for vm: %s ", name)
-		return fmt.Errorf("identity null for vm: %s ", name)
-	}
-
-	if err := info.RemoveUserIdentity(userAssignedMSIID); err != nil {
-		return fmt.Errorf("could not remove identity from node %s: %v", name, err)
-	}
-
-	if err := updateFunc(); err != nil {
-		klog.Error(err)
-		return err
-	}
-
-	return nil
-}
-
-// AssignUserMSI - Use the underlying cloud api call and add the given user assigned MSI to the vm
-func (c *Client) AssignUserMSI(userAssignedMSIID, name string, isvmss bool) error {
-	// Get the vm using the VmClient
-	// Update the assigned identity into the VM using the CreateOrUpdate
-
-	klog.Infof("Find %s in resource group: %s", name, c.Config.ResourceGroupName)
-	timeStarted := time.Now()
-
-	idH, updateFunc, err := c.getIdentityResource(name, isvmss)
-	if err != nil {
-		return err
-	}
-	klog.V(6).Infof("Get of %s completed in %s", name, time.Since(timeStarted))
-
-	info := idH.IdentityInfo()
-	if info == nil {
-		info = idH.ResetIdentity()
-	}
-
-	if info.AppendUserIdentity(userAssignedMSIID) {
-		timeStarted = time.Now()
-		if err := updateFunc(); err != nil {
-			return err
-		}
-		klog.V(6).Infof("CreateOrUpdate of %s completed in %s", name, time.Since(timeStarted))
-	} else {
-		klog.V(6).Infof("Identity %s already assigned to node %s. Skipping assignment.", userAssignedMSIID, name)
 	}
 	return nil
 }
@@ -272,7 +209,7 @@ func (c *Client) getIdentityResource(name string, isvmss bool) (idH IdentityHold
 		}
 
 		update = func() error {
-			return c.VMSSClient.CreateOrUpdate(rg, name, vmss)
+			return c.VMSSClient.UpdateIdentities(rg, name, vmss)
 		}
 		idH = &vmssIdentityHolder{&vmss}
 		return idH, update, nil
@@ -283,10 +220,9 @@ func (c *Client) getIdentityResource(name string, isvmss bool) (idH IdentityHold
 		return nil, nil, err
 	}
 	update = func() error {
-		return c.VMClient.CreateOrUpdate(rg, name, vm)
+		return c.VMClient.UpdateIdentities(rg, name, vm)
 	}
 	idH = &vmIdentityHolder{&vm}
-
 	return idH, update, nil
 }
 

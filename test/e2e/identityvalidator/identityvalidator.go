@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/klog"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2018-04-01/compute"
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/auth"
 	"github.com/Azure/go-autorest/autorest"
