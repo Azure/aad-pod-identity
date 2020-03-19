@@ -629,7 +629,7 @@ func (c *Client) getListOfIdsToAssign(addList map[string]aadpodid.AzureAssignedI
 	}
 }
 
-func (c *Client) matchAssignedID(x aadpodid.AzureAssignedIdentity, y aadpodid.AzureAssignedIdentity) (ret bool) {
+func (c *Client) matchAssignedID(x aadpodid.AzureAssignedIdentity, y aadpodid.AzureAssignedIdentity) bool {
 	bindingX := x.Spec.AzureBindingRef
 	bindingY := y.Spec.AzureBindingRef
 
@@ -700,14 +700,10 @@ func (c *Client) getAzureAssignedIDsToDelete(old, new map[string]aadpodid.AzureA
 
 	begin := time.Now()
 	for assignedIDName, oldAssignedID := range old {
-		newAssignedID, exists := new[assignedIDName]
-		idMatch := false
-		if exists {
-			idMatch = c.matchAssignedID(oldAssignedID, newAssignedID)
-		}
+		_, exists := new[assignedIDName]
 		// assigned identity exists in the desired list too which means
 		// it should not be deleted
-		if exists && idMatch {
+		if exists {
 			continue
 		}
 		// We are done checking that this old id is not present in the new

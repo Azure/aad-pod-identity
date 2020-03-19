@@ -10,6 +10,7 @@ import (
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -21,6 +22,10 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
+)
+
+const (
+	finalizerName = "azureassignedidentity.finalizers.aadpodidentity.k8s.io"
 )
 
 // Client represents all the watchers
@@ -427,10 +432,19 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 		c.reporter.Report(
 			metrics.AssignedIdentityDeletionCountM.M(1),
 			metrics.AssignedIdentityDeletionDurationM.M(metrics.SinceInSeconds(begin)))
-
 	}()
 
-	err = c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Name(assignedIdentity.Name).Do().Error()
+	var res aadpodv1.AzureAssignedIdentity
+	err = c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Do().Into(&res)
+	if err != nil && apierrors.IsNotFound(err) {
+		return nil
+	}
+	if err == nil && HasFinalizer(res.ObjectMeta) {
+		// remove the finalizer so the custom resource can be garbage collected
+		RemoveFinalizer(&res.ObjectMeta)
+		err = c.rest.Put().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Body(&res).Do().Error()
+	}
+
 	klog.V(5).Infof("Deletion %s took: %v", assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDDel, time.Since(begin))
 	return err
@@ -449,19 +463,21 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 		c.reporter.Report(
 			metrics.AssignedIdentityAdditionCountM.M(1),
 			metrics.AssignedIdentityAdditionDurationM.M(metrics.SinceInSeconds(begin)))
-
 	}()
 
-	// Create a new AzureAssignedIdentity which maps the relationship between id and pod
-	var res aadpodv1.AzureAssignedIdentity
-	v1AssignedID := aadpodv1.ConvertInternalAssignedIdentityToV1AssignedIdentity(*assignedIdentity)
-	// TODO: Ensure that the status reflects the corresponding
-	err = c.rest.Post().Namespace(assignedIdentity.Namespace).Resource("azureassignedidentities").Body(&v1AssignedID).Do().Into(&res)
-	if err != nil {
-		klog.Error(err)
-		return err
+	// Set finalizer on assigned identity so it can't be created before identities are cleaned up
+	if !HasFinalizer(assignedIdentity.ObjectMeta) {
+		assignedIdentity.ObjectMeta.SetFinalizers(append(assignedIdentity.GetFinalizers(), finalizerName))
 	}
 
+	v1AssignedID := aadpodv1.ConvertInternalAssignedIdentityToV1AssignedIdentity(*assignedIdentity)
+	err = c.rest.Put().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Body(&v1AssignedID).Do().Error()
+	if err != nil && apierrors.IsNotFound(err) {
+		err = c.rest.Post().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Body(&v1AssignedID).Do().Error()
+	}
+	if err != nil {
+		return fmt.Errorf("failed to create assigned identity: %v", err)
+	}
 	klog.V(5).Infof("Time take to create %s: %v", assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDAdd, time.Since(begin))
 	return nil
@@ -713,4 +729,31 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 		Error()
 	klog.V(5).Infof("Patch of %s took: %v", assignedIdentity.Name, time.Since(begin))
 	return err
+}
+
+func RemoveFinalizer(objMeta *v1.ObjectMeta) {
+	objMeta.SetFinalizers(removeString(finalizerName, objMeta.GetFinalizers()))
+}
+
+func HasFinalizer(objMeta v1.ObjectMeta) bool {
+	return containsString(finalizerName, objMeta.GetFinalizers())
+}
+
+func containsString(s string, items []string) bool {
+	for _, item := range items {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+func removeString(s string, items []string) []string {
+	var rval []string
+	for _, item := range items {
+		if item != s {
+			rval = append(rval, item)
+		}
+	}
+	return rval
 }
