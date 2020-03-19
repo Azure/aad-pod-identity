@@ -208,11 +208,13 @@ func registerViews() error {
 			Description: NMITokenOperationCountM.Description(),
 			Measure:     NMITokenOperationCountM,
 			Aggregation: view.Count(),
+			TagKeys:     []tag.Key{operationTypeKey, resourceKey, workloadNamespaceKey, workloadPodKey},
 		},
 		&view.View{
 			Description: NMITokenOperationFailureCountM.Description(),
 			Measure:     NMITokenOperationFailureCountM,
 			Aggregation: view.Count(),
+			TagKeys:     []tag.Key{operationTypeKey, resourceKey, workloadNamespaceKey, workloadPodKey},
 		},
 		&view.View{
 			Description: MICCycleDurationM.Description(),
