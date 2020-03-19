@@ -679,6 +679,7 @@ func (c *Client) getAzureAssignedIDsToCreate(old, new map[string]aadpodid.AzureA
 		if !idMatch {
 			// We are done checking that this new id is not present in the old
 			// list. So we will add it to the create list.
+			newAssignedID.ObjectMeta = oldAssignedID.ObjectMeta
 			klog.V(5).Infof("ok: %v, Create added: %s", idMatch, assignedIDName)
 			create[assignedIDName] = newAssignedID
 		}
