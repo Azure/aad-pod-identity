@@ -76,10 +76,10 @@ func main() {
 	flag.StringVar(&immutableUserMSIs, "immutable-user-msis", "", "prevent deletion of these IDs from the underlying VM/VMSS")
 
 	// Config map for aad-pod-identity
-	flag.StringVar(&cmConfig.Name, "cmName", "aad-pod-identity-cm", "Configmap name")
+	flag.StringVar(&cmConfig.Name, "config-map-name", "aad-pod-identity-config", "Configmap name")
 	// Config map details for the type changes in the context of client-go upgrade.
-	flag.StringVar(&typeUpgradeConfig.CMTypeUpgradeKey, "typeUpgradeCMKey", "type-upgrade-status", "Configmap key for type upgrade status")
-	flag.BoolVar(&typeUpgradeConfig.EnableTypeUpgrade, "enableTypeUpgrade", true, "Enable type upgrade")
+	flag.StringVar(&typeUpgradeConfig.TypeUpgradeStatusKey, "type-upgrade-status-key", "type-upgrade-status", "Configmap key for type upgrade status")
+	flag.BoolVar(&typeUpgradeConfig.EnableTypeUpgrade, "enable-type-upgrade", true, "Enable type upgrade")
 
 	flag.Parse()
 
