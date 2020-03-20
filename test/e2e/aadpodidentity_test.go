@@ -490,7 +490,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(ok).To(Equal(true))
 
 		// Remove the configmap to ensure that the type conversion happens.
-		cmd := exec.Command("kubectl", "delete", "cm", "aad-pod-identity-cm", "--ignore-not-found=true")
+		cmd := exec.Command("kubectl", "delete", "cm", "aad-pod-identity-config", "--ignore-not-found=true")
 		util.PrintCommand(cmd)
 		output, err := cmd.CombinedOutput()
 		fmt.Printf("%s", output)

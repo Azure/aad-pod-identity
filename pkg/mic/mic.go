@@ -18,7 +18,7 @@ import (
 	"github.com/Azure/aad-pod-identity/version"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
-	kubeErrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -44,8 +44,9 @@ type NodeGetter interface {
 
 // TypeUpgradeConfig - configuration aspects of type related changes required for client-go upgrade.
 type TypeUpgradeConfig struct {
-	CMTypeUpgradeKey  string
-	EnableTypeUpgrade bool
+	// Key in the config map which indicates if a type upgrade has been performed.
+	TypeUpgradeStatusKey string
+	EnableTypeUpgrade    bool
 }
 
 // CMConfig - config map for aad-pod-identity
@@ -249,13 +250,13 @@ func (c *Client) UpgradeTypeIfRequired() error {
 	if c.TypeUpgradeCfg.EnableTypeUpgrade {
 		cm, err := c.CMClient.Get(c.CMCfg.Name, v1.GetOptions{})
 		// If we get an error and its not NotFound then return, because we cannot proceed.
-		if err != nil && !kubeErrors.IsNotFound(err) {
+		if err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("config map get for %s failed with error: %v", c.CMCfg.Name, err)
 		}
 
 		// Now either the configmap is not there or we successfully got the configmap
 		// Handle the case where the configmap is not found.
-		if err != nil && kubeErrors.IsNotFound(err) {
+		if err != nil && apierrors.IsNotFound(err) {
 			// Create the configmap
 			newCfgMap := &corev1.ConfigMap{
 				ObjectMeta: v1.ObjectMeta{
@@ -272,7 +273,7 @@ func (c *Client) UpgradeTypeIfRequired() error {
 		// Check if the key for type upgrade is present. If the key is present,
 		// then the upgrade is already performed. If not then go through the type upgrade
 		// process.
-		if v, ok := cm.Data[c.TypeUpgradeCfg.CMTypeUpgradeKey]; !ok {
+		if v, ok := cm.Data[c.TypeUpgradeCfg.TypeUpgradeStatusKey]; !ok {
 			klog.Infof("Upgrading the types to work with case sensitive go-client")
 			if err := c.CRDClient.UpgradeAll(); err != nil {
 				return fmt.Errorf("type upgrade failed. error: %+v", err)
@@ -282,13 +283,13 @@ func (c *Client) UpgradeTypeIfRequired() error {
 			if cm.Data == nil {
 				cm.Data = make(map[string]string)
 			}
-			cm.Data[c.TypeUpgradeCfg.CMTypeUpgradeKey] = version.MICVersion
+			cm.Data[c.TypeUpgradeCfg.TypeUpgradeStatusKey] = version.MICVersion
 			_, err = c.CMClient.Update(cm)
 			if err != nil {
-				return fmt.Errorf("type upgrade annotation update on %s failed. error: %+v", c.TypeUpgradeCfg.CMTypeUpgradeKey, err)
+				return fmt.Errorf("updating config map key for %s failed. error: %+v", c.TypeUpgradeCfg.TypeUpgradeStatusKey, err)
 			}
 		} else {
-			klog.Infof("Type upgrade status configmap found from version: %s. Proceeding without type upgrade !", v)
+			klog.Infof("Type upgrade status configmap found from version: %s. Skipping type upgrade!", v)
 		}
 	}
 	return nil
@@ -299,7 +300,7 @@ func (c *Client) Start(exit <-chan struct{}) {
 	klog.V(6).Infof("MIC client starting..")
 
 	if err := c.UpgradeTypeIfRequired(); err != nil {
-		klog.Fatalf("Upgrade failed with error: %v", err)
+		klog.Fatalf("Type upgrade failed with error: %v", err)
 		return
 	}
 
@@ -522,14 +523,14 @@ func (c *Client) createDesiredAssignedIdentityList(
 	newAssignedIDs := make(map[string]aadpodid.AzureAssignedIdentity)
 
 	for _, pod := range listPods {
-		klog.V(6).Infof("checking pod: %s", pod.Name)
+		klog.V(6).Infof("Checking pod %s/%s", pod.Namespace, pod.Name)
 		if pod.Spec.NodeName == "" {
 			//Node is not yet allocated. In that case skip the pod
 			klog.V(2).Infof("Pod %s/%s has no assigned node yet. it will be ignored", pod.Namespace, pod.Name)
 			continue
 		}
 		crdPodLabelVal := pod.Labels[aadpodid.CRDLabelKey]
-		klog.V(6).Infof("Label value: %v", crdPodLabelVal)
+		klog.V(6).Infof("Pod: %s/%s. Label value: %v", pod.Namespace, pod.Name, crdPodLabelVal)
 		if crdPodLabelVal == "" {
 			//No binding mentioned in the label. Just continue to the next pod
 			klog.V(2).Infof("Pod %s/%s has correct %s label but with no value. it will be ignored", pod.Namespace, pod.Name, aadpodid.CRDLabelKey)
@@ -537,7 +538,7 @@ func (c *Client) createDesiredAssignedIdentityList(
 		}
 		var matchedBindings []aadpodid.AzureIdentityBinding
 		for _, allBinding := range *listBindings {
-			klog.V(6).Infof("Check the binding: %s", allBinding.Spec.Selector)
+			klog.V(6).Infof("Check the binding (pod - %s/%s): %s", pod.Namespace, pod.Name, allBinding.Spec.Selector)
 			if allBinding.Spec.Selector == crdPodLabelVal {
 				klog.V(5).Infof("Found binding match for pod %s/%s with binding %s/%s", pod.Namespace, pod.Name, allBinding.Namespace, allBinding.Name)
 				matchedBindings = append(matchedBindings, allBinding)
