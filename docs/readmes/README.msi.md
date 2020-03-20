@@ -17,25 +17,19 @@ The rest of the README describes the prerequisite role assignments to be perform
 ## Pre-requisites - role assignments
 MIC is responsible for performing operations such as assigning user assigned identity to the underlying vm or vmss which makes up the
 nodes in the Kubernetes cluster. The system/user assigned MSI needs to have role assignments authorizing such operations on the vms/vmss
-and also operations on the user assigned identity.
+and also operations on the user assigned identities.
 
-After the cluster is created, run these commands to retrieve the principal id:
-for VMAS:
-
+After the cluster is created, run this command to retrieve the cluster's user assigned principal id:
 ```bash
-az vm identity show -g <resource group> -n <vm name> -o yaml
-```
-for VMSS:
-```bash
-az vmss identity show -g <resource group>  -n <vmss scalset name> -o yaml
+az aks show -g <resource group> -n <aks cluster name> --query identityProfile.kubeletidentity.clientId -o tsv
 ```
 
-The type in the output of the above command will identify the system assigned or user assigned MSI. Please record the corresponding
-principal id.
+The type in the output of the above command will identify the user assigned MSI. Please record the principal id.
 
-For creating a role assignment to authorize assignment/removal of user assigned identities on VMS/VMSS, run the following command:
+For creating a role assignment to authorize assignment/removal of user assigned identities on VMS/VMSS, run the following commands:
 ```bash
-az role assignment create --role "Contributor" --assignee <principal id from az vm/vmss identity command>  --scope /subscriptions/<sub id>/resourcegroups/<resource group name>
+az role assignment create --role "Virtual Machine Contributor" --assignee <principal id from az aks show command>  --scope /subscriptions/<sub id>/resourcegroups/<resource group name>
+az role assignment create --role "Managed Identity Operator" --assignee <principal id from az aks show command>  --scope /subscriptions/<sub id>/resourcegroups/<resource group name>
 ```
 
 Now to ensure that the operations are allowed on individual identity, perform the following for every identity in use:
