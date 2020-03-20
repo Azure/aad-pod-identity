@@ -142,6 +142,10 @@ nmi:
   # default is false
   blockInstanceMetadata: ""
 
+  # https://github.com/Azure/aad-pod-identity/blob/master/docs/readmes/README.featureflags.md#metadata-header-required-flag
+  # default is false
+  metadataHeaderRequired: ""
+
 rbac:
   enabled: true
   # NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity.
