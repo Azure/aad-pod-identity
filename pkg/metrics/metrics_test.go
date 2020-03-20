@@ -22,6 +22,8 @@ func TestBasicAndDurationReport(t *testing.T) {
 	testCounterMetric(t, reporter, KubernetesAPIOperationsErrorsCountM)
 	testCounterMetric(t, reporter, NMITokenOperationCountM)
 	testCounterMetric(t, reporter, NMITokenOperationFailureCountM)
+	testCounterMetric(t, reporter, NMIHostPolicyApplyCountM)
+	testCounterMetric(t, reporter, NMIHostPolicyApplyFailedCountM)
 	testOperationDurationMetric(t, reporter, CloudProviderOperationsDurationM)
 	testOperationDurationMetric(t, reporter, KubernetesAPIOperationsDurationM)
 	testOperationDurationMetric(t, reporter, NMIOperationsDurationM)

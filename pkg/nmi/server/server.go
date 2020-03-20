@@ -7,14 +7,13 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
-	"os"
-	"os/signal"
+
 	"regexp"
 	"runtime"
 	"runtime/debug"
 	"strconv"
 	"strings"
-	"syscall"
+
 	"time"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
@@ -22,11 +21,13 @@ import (
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/nmi"
-	"github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	"github.com/Azure/go-autorest/autorest/adal"
-	adal "github.com/Azure/go-autorest/autorest/adal"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog"
 )
 
@@ -38,6 +39,8 @@ const (
 // the server. These can be set via command line.
 type Server struct {
 	KubeClient                         k8s.Client
+	PodClient                          pod.ClientInt
+	PodObjChannel                      chan *v1.Pod
 	NMIPort                            string
 	MetadataIP                         string
 	MetadataPort                       string
@@ -53,6 +56,8 @@ type Server struct {
 	Reporter *metrics.Reporter
 }
 
+type RedirectorFunc func(*Server, chan<- struct{}, <-chan struct{})
+
 // NMIResponse is the response returned to caller
 type NMIResponse struct {
 	Token    msiResponse `json:"token"`
@@ -60,7 +65,13 @@ type NMIResponse struct {
 }
 
 // NewServer will create a new Server with default values.
-func NewServer(micNamespace string, blockInstanceMetadata bool) *Server {
+func NewServer(micNamespace string, blockInstanceMetadata bool, config *rest.Config) *Server {
+	clientSet := kubernetes.NewForConfigOrDie(config)
+	informer := informers.NewSharedInformerFactory(clientSet, 60*time.Second)
+	eventCh := make(chan aadpodid.EventType, 100)
+	podObjCh := make(chan *v1.Pod, 100)
+	podClient := pod.NewPodClientWithPodInfoCh(informer, eventCh, podObjCh)
+
 	reporter, err := metrics.NewReporter()
 	if err != nil {
 		klog.Errorf("Error creating new reporter to emit metrics: %v", err)
@@ -73,13 +84,12 @@ func NewServer(micNamespace string, blockInstanceMetadata bool) *Server {
 		MICNamespace:          micNamespace,
 		BlockInstanceMetadata: blockInstanceMetadata,
 		Reporter:              reporter,
+		PodClient:             podClient,
+		PodObjChannel:         podObjCh,
 	}
 }
 
-// Run runs the specified Server.
 func (s *Server) Run() error {
-	go s.updateIPTableRules()
-
 	mux := http.NewServeMux()
 	mux.Handle("/metadata/identity/oauth2/token", appHandler(s.msiHandler))
 	mux.Handle("/metadata/identity/oauth2/token/", appHandler(s.msiHandler))
@@ -95,46 +105,6 @@ func (s *Server) Run() error {
 		klog.Fatalf("Error creating http server: %+v", err)
 	}
 	return nil
-}
-
-func (s *Server) updateIPTableRulesInternal() {
-	klog.V(5).Infof("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, s.HostIP, s.MetadataIP, s.MetadataPort, s.NMIPort)
-
-	if err := iptables.AddCustomChain(s.MetadataIP, s.MetadataPort, s.HostIP, s.NMIPort); err != nil {
-		klog.Fatalf("%s", err)
-	}
-	if err := iptables.LogCustomChain(); err != nil {
-		klog.Fatalf("%s", err)
-	}
-}
-
-// updateIPTableRules ensures the correct iptable rules are set
-// such that metadata requests are received by nmi assigned port
-// NOT originating from HostIP destined to metadata endpoint are
-// routed to NMI endpoint
-func (s *Server) updateIPTableRules() {
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
-
-	ticker := time.NewTicker(time.Second * time.Duration(s.IPTableUpdateTimeIntervalInSeconds))
-	defer ticker.Stop()
-
-	// Run once before the waiting on ticker for the rules to take effect
-	// immediately.
-	s.updateIPTableRulesInternal()
-	s.Initialized = true
-
-loop:
-	for {
-		select {
-		case <-signalChan:
-			handleTermination()
-			break loop
-
-		case <-ticker.C:
-			s.updateIPTableRulesInternal()
-		}
-	}
 }
 
 type appHandler func(http.ResponseWriter, *http.Request) string
@@ -312,13 +282,13 @@ func (s *Server) getTokenForExceptedPod(rqClientID, rqResource string) ([]byte, 
 // configured id.
 func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) {
 	var err error
-	var podns, podname, rqClientID, rqResource
+	var podns, podname, rqClientID, rqResource string
 	operationType := metrics.PodTokenOperationType
 
 	defer func() {
 		// if podns and podname is empty, then means it has failed in the validation steps, so
 		// skip sending metrics for the request
-		if podns == nil || podname == nil {
+		if len(podns) == 0 || len(podname) == 0 {
 			return
 		}
 
@@ -479,24 +449,6 @@ func copyHeader(dst, src http.Header) {
 			dst.Add(k, v)
 		}
 	}
-}
-
-func handleTermination() {
-	klog.Info("Received SIGTERM, shutting down")
-
-	exitCode := 0
-	// clean up iptables
-	if err := iptables.DeleteCustomChain(); err != nil {
-		klog.Errorf("Error cleaning up during shutdown: %v", err)
-		exitCode = 1
-	}
-
-	// wait for pod to delete
-	klog.Info("Handled termination, awaiting pod deletion")
-	time.Sleep(10 * time.Second)
-
-	klog.Infof("Exiting with %v", exitCode)
-	os.Exit(exitCode)
 }
 
 func getErrorResponseStatusCode(identityFound bool) int {

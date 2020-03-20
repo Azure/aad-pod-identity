@@ -34,7 +34,7 @@ var (
 )
 
 func main() {
-	klog.InitFlags(nil)
+	// klog.InitFlags(nil)
 	defer klog.Flush()
 	hostName, err := os.Hostname()
 	if err != nil {
