@@ -424,6 +424,10 @@ func (c *TestCrdClient) SyncCache(exit <-chan struct{}, initial bool, cacheSyncs
 
 }
 
+func (c *TestCrdClient) SyncCacheAll(exit<-chan struct{}, initial bool) {
+	
+}
+
 func (c *TestCrdClient) CreateCrdWatchers(eventCh chan internalaadpodid.EventType) (err error) {
 	return nil
 }

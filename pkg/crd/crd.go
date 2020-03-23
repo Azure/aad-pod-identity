@@ -10,6 +10,7 @@ import (
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
+	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,9 +37,11 @@ type Client struct {
 type ClientInt interface {
 	Start(exit <-chan struct{})
 	SyncCache(exit <-chan struct{}, initial bool, cacheSyncs ...cache.InformerSynced)
+	SyncCacheAll(exit <-chan struct{}, initial bool)
 	RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error
+	UpgradeAll() error
 	ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error)
 	ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error)
 	ListAssignedIDsInMap() (res map[string]aadpodid.AzureAssignedIdentity, err error)
@@ -163,7 +166,7 @@ func newRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
 		&aadpodv1.AzurePodIdentityException{},
 		&aadpodv1.AzurePodIdentityExceptionList{},
 	)
-	crdconfig.NegotiatedSerializer = serializer.DirectCodecFactory{
+	crdconfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{
 		CodecFactory: serializer.NewCodecFactory(s)}
 
 	//Client interacting with our CRDs
@@ -299,6 +302,69 @@ func newPodIdentityExceptionInformer(lw *cache.ListWatch) (cache.SharedInformer,
 	return azPodIDExceptionInformer, nil
 }
 
+func (c *Client) getObjectList(resource string, i runtime.Object) (runtime.Object, error) {
+	options := v1.ListOptions{}
+	do := c.rest.Get().Namespace(v1.NamespaceAll).Resource(resource).VersionedParams(&options, v1.ParameterCodec).Do()
+	body, err := do.Raw()
+	if err != nil {
+		return nil, fmt.Errorf("get failed for %s with error: %v", resource, err)
+	}
+	err = json.Unmarshal(body, &i)
+	if err != nil {
+		return nil, fmt.Errorf("unmarshal to object: %T, error: %v", i, err)
+	}
+	return i, err
+}
+
+func (c *Client) setObject(resource, ns, name string, i interface{}) error {
+	err := c.rest.Put().Namespace(ns).Resource(resource).Name(name).Body(i).Do().Into(nil)
+	if err != nil {
+		return fmt.Errorf("set object for resource: %s, error: %v", resource, err)
+	}
+	return nil
+}
+
+func (c *Client) Upgrade(resource string, i runtime.Object) error {
+	i, err := c.getObjectList(resource, i)
+	if err != nil {
+		return err
+	}
+
+	list, err := meta.ExtractList(i)
+	if err != nil {
+		return fmt.Errorf("extract list error for resource: %s, err: %v", resource, err)
+	}
+
+	for _, item := range list {
+		o, err := meta.Accessor(item)
+		if err != nil {
+			return fmt.Errorf("get object for resource: %s, error: %v", resource, err)
+		}
+		err = c.setObject(resource, o.GetNamespace(), o.GetName(), o)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Client) UpgradeAll() error {
+	resourceList := map[string]runtime.Object{
+		aadpodv1.AzureIDResource:                &aadpodv1.AzureIdentityList{},
+		aadpodv1.AzureIDBindingResource:         &aadpodv1.AzureIdentityBindingList{},
+		aadpodv1.AzureAssignedIDResource:        &aadpodv1.AzureAssignedIdentityList{},
+		aadpodv1.AzureIdentityExceptionResource: &aadpodv1.AzurePodIdentityExceptionList{},
+	}
+
+	for k, v := range resourceList {
+		err := c.Upgrade(k, v)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // StartLite to be used only case of lite client
 func (c *Client) StartLite(exit <-chan struct{}) {
 	var cacheHasSynced []cache.InformerSynced
@@ -341,6 +407,11 @@ func (c *Client) SyncCache(exit <-chan struct{}, initial bool, cacheSyncs ...cac
 		}
 		panic("Cache could not be synchronized")
 	}
+}
+
+// SyncCacheAll - sync all caches related to the client.
+func (c *Client) SyncCacheAll(exit <-chan struct{}, initial bool) {
+	c.SyncCache(exit, initial, c.BindingInformer.HasSynced, c.IDInformer.HasSynced, c.AssignedIDInformer.HasSynced)
 }
 
 // RemoveAssignedIdentity removes the assigned identity
@@ -463,7 +534,6 @@ func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdenti
 
 	result := make(map[string]aadpodid.AzureAssignedIdentity)
 	list := c.AssignedIDInformer.GetStore().List()
-
 	for _, assignedID := range list {
 
 		o, ok := assignedID.(*aadpodv1.AzureAssignedIdentity)
@@ -480,9 +550,9 @@ func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdenti
 			Kind:    reflect.TypeOf(*o).String()})
 
 		out := aadpodv1.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o)
-
 		// assigned identities names are unique across namespaces as we use pod name-<id ns>-<id name>
 		result[o.Name] = out
+		klog.V(6).Infof("Added to map with key: %s", o.Name)
 	}
 
 	stats.Update(stats.AssignedIDList, time.Since(begin))
@@ -624,7 +694,7 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 
 	ops := make([]patchStatusOps, 1)
 	ops[0].Op = "replace"
-	ops[0].Path = "/Status/status"
+	ops[0].Path = "/status/status"
 	ops[0].Value = status
 
 	patchBytes, err := json.Marshal(ops)

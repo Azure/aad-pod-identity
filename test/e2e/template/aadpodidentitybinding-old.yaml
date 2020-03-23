@@ -3,5 +3,5 @@ kind: AzureIdentityBinding
 metadata:
   name: {{.Name}}-binding
 spec:
-  azureIdentity: {{.Name}}
-  selector: {{.Selector}}
+  AzureIdentity: {{.Name}}
+  Selector: {{.Selector}}

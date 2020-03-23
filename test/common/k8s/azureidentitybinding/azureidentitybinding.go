@@ -12,9 +12,19 @@ import (
 	"github.com/pkg/errors"
 )
 
+// CreateOld will create an Azure Identity Binding on a Kubernetes cluster
+func CreateOld(name, selector, templateOutputPath string) error {
+	return CreateInternal(name, selector, "aadpodidentitybinding-old.yaml", templateOutputPath)
+}
+
 // Create will create an Azure Identity Binding on a Kubernetes cluster
 func Create(name, selector, templateOutputPath string) error {
-	t, err := template.New("aadpodidentitybinding.yaml").ParseFiles(path.Join("template", "aadpodidentitybinding.yaml"))
+	return CreateInternal(name, selector, "aadpodidentitybinding.yaml", templateOutputPath)
+}
+
+// CreateInternal will create an Azure Identity Binding on a Kubernetes cluster
+func CreateInternal(name, selector, templateInternalFile, templateOutputPath string) error {
+	t, err := template.New(templateInternalFile).ParseFiles(path.Join("template", templateInternalFile))
 	if err != nil {
 		return errors.Wrap(err, "Failed to parse aadpodidentitybinding.yaml")
 	}

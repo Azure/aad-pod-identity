@@ -4,5 +4,5 @@ metadata:
   name: {{.Name}}
 spec:
   type: 0
-  ResourceID: /subscriptions/{{.SubscriptionID}}/resourceGroups/{{.ResourceGroup}}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/{{.Name}}
-  ClientID: {{.ClientID}}
+  resourceID: /subscriptions/{{.SubscriptionID}}/resourceGroups/{{.ResourceGroup}}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/{{.Name}}
+  clientID: {{.ClientID}}
