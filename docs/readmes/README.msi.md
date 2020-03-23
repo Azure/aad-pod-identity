@@ -40,13 +40,13 @@ The type in the output of the above command will identify the user assigned MSI.
 
 For creating a role assignment to authorize assignment/removal of user assigned identities on VMS/VMSS, run the following commands:
 ```bash
-az role assignment create --role "Virtual Machine Contributor" --assignee <principal id from az aks show command>  --scope /subscriptions/<sub id>/resourcegroups/<resource group name>
-az role assignment create --role "Managed Identity Operator" --assignee <principal id from az aks show command>  --scope /subscriptions/<sub id>/resourcegroups/<resource group name>
+az role assignment create --role "Virtual Machine Contributor" --assignee <principal id from above command>  --scope /subscriptions/<sub id>/resourcegroups/<resource group name>
+az role assignment create --role "Managed Identity Operator" --assignee <principal id from above command>  --scope /subscriptions/<sub id>/resourcegroups/<resource group name>
 ```
 
 Now to ensure that the operations are allowed on individual identity, perform the following for every identity in use:
 ```bash
-az role assignment create --role "Managed Identity Operator" --assignee <principal id from az vm/vmss identity command>  --scope /subscriptions/<subscription id>/resourcegroups/<resource group name>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<identity name>
+az role assignment create --role "Managed Identity Operator" --assignee <principal id from above command>  --scope /subscriptions/<subscription id>/resourcegroups/<resource group name>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<identity name>
 ```
 
 
