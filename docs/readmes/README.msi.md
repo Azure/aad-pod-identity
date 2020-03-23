@@ -4,7 +4,7 @@
 ## Introduction
 
 The MIC component in aad-pod-identity needs to authenticate with the cloud to assign and remove user assigned identities onto
-virtual machines (VMAs) or virtual machine scale sets(VMSS). This authentication is performed using either the cluster credentials
+virtual machines (VMS) or virtual machine scale sets(VMSS). This authentication is performed using either the cluster credentials
 obtained from azure.json in AKS/aks-engine clusters or credentials given via environment variables.
 
 MIC can authenticate using the following options:
@@ -19,9 +19,21 @@ MIC is responsible for performing operations such as assigning user assigned ide
 nodes in the Kubernetes cluster. The system/user assigned MSI needs to have role assignments authorizing such operations on the vms/vmss
 and also operations on the user assigned identities.
 
-After the cluster is created, run this command to retrieve the cluster's user assigned principal id:
+After the cluster is created, run these commands to retrieve the cluster's user assigned principal id:
+
+**For managed AKS clusters**
 ```bash
 az aks show -g <resource group> -n <aks cluster name> --query identityProfile.kubeletidentity.clientId -o tsv
+```
+
+**For aks-engine clusters with VMS nodes**
+```bash
+az vm identity show -g <resource group> -n <vm name> -o tsv
+```
+
+**For aks-engine clusters with VMSS nodes**
+```bash
+az vmss identity show -g <resource group>  -n <vmss scaleset name> -o tsv
 ```
 
 The type in the output of the above command will identify the user assigned MSI. Please record the principal id.
