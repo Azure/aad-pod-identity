@@ -2,6 +2,8 @@ package cloudprovider
 
 import (
 	"strings"
+
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 )
 
 // IdentityHolder represents a resource that contains an Identity object
@@ -28,4 +30,16 @@ func checkIfIDInList(idList []string, desiredID string) bool {
 		}
 	}
 	return false
+}
+
+// getResourceIdentityType returns resource identity type based on current type
+func getResourceIdentityType(identityType compute.ResourceIdentityType) compute.ResourceIdentityType {
+	switch identityType {
+	case "", compute.ResourceIdentityTypeNone:
+		return compute.ResourceIdentityTypeUserAssigned
+	case compute.ResourceIdentityTypeSystemAssigned:
+		return compute.ResourceIdentityTypeSystemAssignedUserAssigned
+	default:
+		return compute.ResourceIdentityTypeNone
+	}
 }

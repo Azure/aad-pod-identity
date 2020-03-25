@@ -177,13 +177,8 @@ func (i *vmIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 		return true
 	}
 
-	if i.info.Type == compute.ResourceIdentityTypeSystemAssigned {
-		i.info.Type = compute.ResourceIdentityTypeSystemAssignedUserAssigned
-	}
-	if i.info.Type == compute.ResourceIdentityTypeNone {
-		i.info.Type = compute.ResourceIdentityTypeUserAssigned
-	}
-
+	i.info.Type = getResourceIdentityType(i.info.Type)
 	i.info.UserAssignedIdentities = userAssignedIdentities
+
 	return len(i.info.UserAssignedIdentities) > 0
 }
