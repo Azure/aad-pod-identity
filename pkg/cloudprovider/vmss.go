@@ -181,6 +181,5 @@ func (i *vmssIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 
 	i.info.Type = getResourceIdentityType(i.info.Type)
 	i.info.UserAssignedIdentities = userAssignedIdentities
-
 	return len(i.info.UserAssignedIdentities) > 0
 }

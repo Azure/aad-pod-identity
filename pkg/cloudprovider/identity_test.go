@@ -32,7 +32,15 @@ func TestGetResourceIdentityType(t *testing.T) {
 			expected: compute.ResourceIdentityTypeUserAssigned,
 		},
 		{
+			current:  compute.ResourceIdentityTypeUserAssigned,
+			expected: compute.ResourceIdentityTypeUserAssigned,
+		},
+		{
 			current:  compute.ResourceIdentityTypeSystemAssigned,
+			expected: compute.ResourceIdentityTypeSystemAssignedUserAssigned,
+		},
+		{
+			current:  compute.ResourceIdentityTypeSystemAssignedUserAssigned,
 			expected: compute.ResourceIdentityTypeSystemAssignedUserAssigned,
 		},
 	}

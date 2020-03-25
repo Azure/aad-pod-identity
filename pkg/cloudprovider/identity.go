@@ -35,9 +35,9 @@ func checkIfIDInList(idList []string, desiredID string) bool {
 // getResourceIdentityType returns resource identity type based on current type
 func getResourceIdentityType(identityType compute.ResourceIdentityType) compute.ResourceIdentityType {
 	switch identityType {
-	case "", compute.ResourceIdentityTypeNone:
+	case "", compute.ResourceIdentityTypeNone, compute.ResourceIdentityTypeUserAssigned:
 		return compute.ResourceIdentityTypeUserAssigned
-	case compute.ResourceIdentityTypeSystemAssigned:
+	case compute.ResourceIdentityTypeSystemAssigned, compute.ResourceIdentityTypeSystemAssignedUserAssigned:
 		return compute.ResourceIdentityTypeSystemAssignedUserAssigned
 	default:
 		return compute.ResourceIdentityTypeNone
