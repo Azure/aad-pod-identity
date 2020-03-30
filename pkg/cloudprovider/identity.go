@@ -32,8 +32,9 @@ func checkIfIDInList(idList []string, desiredID string) bool {
 	return false
 }
 
-// getResourceIdentityType returns resource identity type based on current type
-func getResourceIdentityType(identityType compute.ResourceIdentityType) compute.ResourceIdentityType {
+// getUpdatedResourceIdentityType returns the new resource identity type
+// to be set on the VM/VMSS based on current type
+func getUpdatedResourceIdentityType(identityType compute.ResourceIdentityType) compute.ResourceIdentityType {
 	switch identityType {
 	case "", compute.ResourceIdentityTypeNone, compute.ResourceIdentityTypeUserAssigned:
 		return compute.ResourceIdentityTypeUserAssigned

@@ -18,7 +18,7 @@ func checkIDList(t *testing.T, expect, actual []string) {
 	}
 }
 
-func TestGetResourceIdentityType(t *testing.T) {
+func TestGetUpdatedResourceIdentityType(t *testing.T) {
 	cases := []struct {
 		current  compute.ResourceIdentityType
 		expected compute.ResourceIdentityType
@@ -46,7 +46,7 @@ func TestGetResourceIdentityType(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		actual := getResourceIdentityType(tc.current)
+		actual := getUpdatedResourceIdentityType(tc.current)
 		if tc.expected != actual {
 			t.Fatalf("expected: %v, got: %v", tc.expected, actual)
 		}

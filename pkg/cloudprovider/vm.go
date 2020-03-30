@@ -177,7 +177,7 @@ func (i *vmIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 		return true
 	}
 
-	i.info.Type = getResourceIdentityType(i.info.Type)
+	i.info.Type = getUpdatedResourceIdentityType(i.info.Type)
 	i.info.UserAssignedIdentities = userAssignedIdentities
 	return len(i.info.UserAssignedIdentities) > 0
 }
