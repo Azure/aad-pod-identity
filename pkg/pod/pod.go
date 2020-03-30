@@ -38,9 +38,9 @@ func NewPodClient(i informers.SharedInformerFactory, eventCh chan aadpodid.Event
 	}
 }
 
-func NewPodClientWithPodInfoCh(i informers.SharedInformerFactory, eventCh chan aadpodid.EventType, podInfoCh chan *v1.Pod) (c ClientInt) {
+func NewPodClientWithPodInfoCh(i informers.SharedInformerFactory, podInfoCh chan *v1.Pod) (c ClientInt) {
 	podInformer := i.Core().V1().Pods()
-	addPodHandler(podInformer, eventCh, podInfoCh)
+	addPodHandler(podInformer, nil, podInfoCh)
 
 	return &Client{
 		PodWatcher: podInformer,
@@ -52,24 +52,30 @@ func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType, p
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
 				klog.V(6).Infof("Pod Created")
-				eventCh <- aadpodid.PodCreated
+				if eventCh != nil {
+					eventCh <- aadpodid.PodCreated
+				}
 			},
 			DeleteFunc: func(obj interface{}) {
 				klog.V(6).Infof("Pod Deleted")
-				eventCh <- aadpodid.PodDeleted
+				if eventCh != nil {
+					eventCh <- aadpodid.PodDeleted
+				}
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
 				oldPod := OldObj.(*v1.Pod)
 				newPod := newObj.(*v1.Pod)
 
 				// This is to handle windows nmi by observing ip change
-				if oldPod.Status.PodIP != newPod.Status.PodIP {
-					klog.V(6).Infof("Pod IP Updated")
-					klog.Infof("Old Pod IP: %s, Current Pod IP: %s", oldPod.Status.PodIP, newPod.Status.PodIP)
-					if newPod.Status.PodIP == "" {
-						podInfoCh <- oldPod
-					} else {
-						podInfoCh <- newPod
+				if podInfoCh != nil {
+					if oldPod.Status.PodIP != newPod.Status.PodIP {
+						klog.V(6).Infof("Pod IP Updated")
+						klog.Infof("Old Pod IP: %s, Current Pod IP: %s", oldPod.Status.PodIP, newPod.Status.PodIP)
+						if newPod.Status.PodIP == "" {
+							podInfoCh <- oldPod
+						} else {
+							podInfoCh <- newPod
+						}
 					}
 				}
 
@@ -78,7 +84,9 @@ func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType, p
 				// for every pod update.
 				if oldPod.Spec.NodeName != newPod.Spec.NodeName {
 					klog.V(6).Infof("Pod Updated")
-					eventCh <- aadpodid.PodUpdated
+					if eventCh != nil {
+						eventCh <- aadpodid.PodUpdated
+					}
 				}
 			},
 		},
