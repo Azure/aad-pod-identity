@@ -723,8 +723,6 @@ func (c *Client) makeAssignedIDs(azID aadpodid.AzureIdentity, azBinding aadpodid
 
 	labels := make(map[string]string)
 	labels["nodename"] = nodeName
-	labels["podnamespace"] = podNameSpace
-	labels["podname"] = podName
 
 	oMeta := v1.ObjectMeta{
 		Name:   c.getAssignedIDName(podName, podNameSpace, azID.Name),
