@@ -21,8 +21,6 @@ func WindowsRedirector(server *Server, subRoutineDone <-chan struct{}) func(*Ser
 	server.PodClient.Start(subRoutineDone)
 	klog.V(6).Infof("Pod client started")
 
-	ApplyRoutePolicyForExistingPods(server)
-
 	return func(server *Server, subRoutineDone chan<- struct{}, mainRoutineDone <-chan struct{}) {
 		Sync(server, subRoutineDone, mainRoutineDone)
 	}
@@ -36,6 +34,8 @@ func LinuxRedirector(server *Server, subRoutineDone <-chan struct{}) func(*Serve
 // Sync methods watches pod creation and applies policy to that
 func Sync(server *Server, subRoutineDone chan<- struct{}, mainRoutineDone <-chan struct{}) {
 	klog.Info("Sync thread started.")
+
+	ApplyRoutePolicyForExistingPods(server)
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
@@ -52,8 +52,6 @@ func Sync(server *Server, subRoutineDone chan<- struct{}, mainRoutineDone <-chan
 			DeleteRoutePolicyForExistingPods(server)
 			close(subRoutineDone)
 		case pod = <-server.PodObjChannel:
-			klog.V(6).Infof("Received event: %s", pod)
-
 			if pod.Status.PodIP != "" && server.NodeName == pod.Spec.NodeName && server.HostIP != pod.Status.PodIP {
 				if podIP, podExist := podMap[pod.UID]; podExist {
 					klog.Infof("Start to delete: Pod UID and Pod Name:%s %s", pod.UID, pod.Name)
