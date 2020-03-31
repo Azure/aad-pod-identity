@@ -134,6 +134,38 @@ kubectl delete crd azureidentitybindings.aadpodidentity.k8s.io
 kubectl delete crd azurepodidentityexceptions.aadpodidentity.k8s.io
 ```
 
+## Upgrading to a New Major Chart Version
+
+A major chart version change (like v1.5.5 -> v2.0.0) indicates that there is a backward-incompatible (breaking) change needing manual actions.
+
+### 2.0.0
+
+This version removes the `azureIdentity` and `azureIdentityBinding` values in favor of `azureIdentities`, a list of identities and their respective bindings, to support the creation of multiple AzureIdentity and AzureIdentityBinding resources.
+
+The following is a basic example of the required change in the user-supplied values file.
+
+```diff
+- azureIdentity:
+-   enabled: true
+-   name: "azure-identity"
+-   namespace: "azure-identity-namespace"
+-   type: 0
+-   resourceID: "resource-id"
+-   clientID: "client-id"
+- azureIdentityBinding:
+-   name: "azure-identity-binding"
+-   selector: "demo"
++ azureIdentities:
++   - name: "azure-identity"
++     namespace: "azure-identity-namespace"
++     type: 0
++     resourceID: "resource-id"
++     clientID: "client-id"
++     binding:
++       name: "azure-identity-binding"
++       selector: "demo"
+```
+
 ## Configuration
 
 The following tables list the configurable parameters of the aad-pod-identity chart and their default values.
