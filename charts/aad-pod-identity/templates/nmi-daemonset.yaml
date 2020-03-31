@@ -11,7 +11,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      {{- include "aad-pod-identity.labels" . | nindent 6 }}
+      {{- include "aad-pod-identity.selectors" . | nindent 6 }}
       app.kubernetes.io/component: nmi
   template:
     metadata:
@@ -19,9 +19,16 @@ spec:
         {{- include "aad-pod-identity.labels" . | nindent 8 }}
         app.kubernetes.io/component: nmi
         tier: node
+{{- if .Values.nmi.podAnnotations }}
+      annotations:
+{{ toYaml .Values.nmi.podAnnotations | indent 8 }}
+{{- end }}
     spec:
       {{- if .Values.rbac.enabled }}
       serviceAccountName: {{ template "aad-pod-identity.nmi.fullname" . }}
+      {{- end }}
+      {{- if .Values.nmi.priorityClassName }}
+      priorityClassName: {{ .Values.nmi.priorityClassName | quote }}
       {{- end }}
       hostNetwork: true
       volumes:
@@ -63,6 +70,9 @@ spec:
           {{- if .Values.nmi.blockInstanceMetadata }}
           - --block-instance-metadata={{ .Values.nmi.blockInstanceMetadata }}
           {{- end }}  
+          {{- if .Values.nmi.metadataHeaderRequired}}
+          - --metadata-header-required={{ .Values.nmi.metadataHeaderRequired }}
+          {{- end }} 
         env:
           - name: HOST_IP
             valueFrom:
@@ -89,7 +99,7 @@ spec:
             port: {{ .Values.nmi.probePort }}
             {{- else }}
             port: 8080
-            {{- end }}            
+            {{- end }}
           initialDelaySeconds: 10
           periodSeconds: 5
 {{- with .Values.nmi.resources }}

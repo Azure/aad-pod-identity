@@ -4,5 +4,5 @@ metadata:
   name: testidentityimmutable
 spec:
   type: 0
-  ResourceID: /subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/myResourceGroup/providers/Microsoft.ManagedIdentity/userAssignedIdentities/testidentity
-  ClientID: 11111111-1111-1111-1111-111111111111
+  resourceID: /subscriptions/11111111-1111-1111-1111-111111111111/resourcegroups/myResourceGroup/providers/Microsoft.ManagedIdentity/userAssignedIdentities/testidentity
+  clientID: 11111111-1111-1111-1111-111111111111

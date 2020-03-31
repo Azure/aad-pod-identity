@@ -4,7 +4,7 @@
 ## Introduction
 
 The MIC component in aad-pod-identity needs to authenticate with the cloud to assign and remove user assigned identities onto
-virtual machines (VMAs) or virtual machine scale sets(VMSS). This authentication is performed using either the cluster credentials
+virtual machines (VMS) or virtual machine scale sets(VMSS). This authentication is performed using either the cluster credentials
 obtained from azure.json in AKS/aks-engine clusters or credentials given via environment variables.
 
 MIC can authenticate using the following options:
@@ -17,30 +17,36 @@ The rest of the README describes the prerequisite role assignments to be perform
 ## Pre-requisites - role assignments
 MIC is responsible for performing operations such as assigning user assigned identity to the underlying vm or vmss which makes up the
 nodes in the Kubernetes cluster. The system/user assigned MSI needs to have role assignments authorizing such operations on the vms/vmss
-and also operations on the user assigned identity.
+and also operations on the user assigned identities.
 
-After the cluster is created, run these commands to retrieve the principal id:
-for VMAS:
+After the cluster is created, run these commands to retrieve the cluster's user assigned principal id:
 
+**For managed AKS clusters**
 ```bash
-az vm identity show -g <resource group> -n <vm name> -o yaml
-```
-for VMSS:
-```bash
-az vmss identity show -g <resource group>  -n <vmss scalset name> -o yaml
+az aks show -g <resource group> -n <aks cluster name> --query identityProfile.kubeletidentity.clientId -o tsv
 ```
 
-The type in the output of the above command will identify the system assigned or user assigned MSI. Please record the corresponding
-principal id.
-
-For creating a role assignment to authorize assignment/removal of user assigned identities on VMS/VMSS, run the following command:
+**For aks-engine clusters with VMS nodes**
 ```bash
-az role assignment create --role "Contributor" --assignee <principal id from az vm/vmss identity command>  --scope /subscriptions/<sub id>/resourcegroups/<resource group name>
+az vm identity show -g <resource group> -n <vm name> -o tsv
+```
+
+**For aks-engine clusters with VMSS nodes**
+```bash
+az vmss identity show -g <resource group>  -n <vmss scaleset name> -o tsv
+```
+
+The type in the output of the above command will identify the user assigned MSI. Please record the principal id.
+
+For creating a role assignment to authorize assignment/removal of user assigned identities on VMS/VMSS, run the following commands:
+```bash
+az role assignment create --role "Virtual Machine Contributor" --assignee <principal id from above command>  --scope /subscriptions/<sub id>/resourcegroups/<resource group name>
+az role assignment create --role "Managed Identity Operator" --assignee <principal id from above command>  --scope /subscriptions/<sub id>/resourcegroups/<resource group name>
 ```
 
 Now to ensure that the operations are allowed on individual identity, perform the following for every identity in use:
 ```bash
-az role assignment create --role "Managed Identity Operator" --assignee <principal id from az vm/vmss identity command>  --scope /subscriptions/<subscription id>/resourcegroups/<resource group name>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<identity name>
+az role assignment create --role "Managed Identity Operator" --assignee <principal id from above command>  --scope /subscriptions/<subscription id>/resourcegroups/<resource group name>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<identity name>
 ```
 
 

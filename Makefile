@@ -7,6 +7,9 @@ REPO_PATH="$(ORG_PATH)/$(PROJECT_NAME)"
 NMI_BINARY_NAME := nmi
 MIC_BINARY_NAME := mic
 DEMO_BINARY_NAME := demo
+SIMPLE_CMD_BINARY_NAME := simple
+GOOS ?= linux
+TEST_GOOS ?= linux
 IDENTITY_VALIDATOR_BINARY_NAME := identityvalidator
 
 DEFAULT_VERSION := 0.0.0-dev
@@ -62,6 +65,10 @@ clean-demo:
 clean-identity-validator:
 	rm -rf bin/$(PROJECT_NAME)/$(IDENTITY_VALIDATOR_BINARY_NAME)
 
+.PHONY: clean-simple
+clean-simple:
+	rm -rf bin/$(PROJECT_NAME)/$(SIMPLE_CMD_BINARY_NAME)
+
 .PHONY: clean
 clean:
 	rm -rf bin/$(PROJECT_NAME)
@@ -74,13 +81,17 @@ build-nmi: clean-nmi
 build-mic: clean-mic
 	CGO_ENABLED=0 PKG_NAME=github.com/Azure/$(PROJECT_NAME)/cmd/$(MIC_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME)
 
+.PHONY: build-simple
+build-simple:
+	CGO_ENABLED=0 PKG_NAME=github.com/Azure/$(PROJECT_NAME)/cmd/$(SIMPLE_CMD_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(SIMPLE_CMD_BINARY_NAME)
+
 .PHONY: build-demo
 build-demo: build_tags := netgo osusergo
 build-demo: clean-demo
 	PKG_NAME=github.com/Azure/$(PROJECT_NAME)/cmd/$(DEMO_BINARY_NAME) ${MAKE} bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME)
 
 bin/%:
-	GOOS=linux GOARCH=amd64 go build $(GO_BUILD_OPTIONS) -o "$(@)" "$(PKG_NAME)"
+	GOOS=$(GOOS) GOARCH=amd64 go build $(GO_BUILD_OPTIONS) -o "$(@)" "$(PKG_NAME)"
 
 .PHONY: build-identity-validator
 build-identity-validator: clean-identity-validator
@@ -119,17 +130,17 @@ push-nmi: validate-version-NMI
 
 .PHONY: push-mic
 push-mic: validate-version-MIC
-	az acr repository show --name $(REGISTRY_NAME) --image $(MIC_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
+	az acr repository show --name $(REGISTRY_NAME) --image $(MIC_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(MIC_IMAGE) already exists" && exit 1; fi
 	docker push $(REGISTRY)/$(MIC_IMAGE)
 
 .PHONY: push-demo
 push-demo: validate-version-DEMO
-	az acr repository show --name $(REGISTRY_NAME) --image $(DEMO_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
+	az acr repository show --name $(REGISTRY_NAME) --image $(DEMO_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(DEMO_IMAGE) already exists" && exit 1; fi
 	docker push $(REGISTRY)/$(DEMO_IMAGE)
 
 .PHONY: push-identity-validator
 push-identity-validator: validate-version-IDENTITY_VALIDATOR
-	az acr repository show --name $(REGISTRY_NAME) --image $(IDENTITY_VALIDATOR_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
+	az acr repository show --name $(REGISTRY_NAME) --image $(IDENTITY_VALIDATOR_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(IDENTITY_VALIDATOR_IMAGE) already exists" && exit 1; fi
 	docker push $(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE)
 
 .PHONY: push
@@ -137,11 +148,11 @@ push: push-nmi push-mic push-demo push-identity-validator
 
 .PHONY: e2e
 e2e:
-	go test github.com/Azure/$(PROJECT_NAME)/test/e2e $(E2E_TEST_OPTIONS)
+	GOOS=$(TEST_GOOS) go test github.com/Azure/$(PROJECT_NAME)/test/e2e $(E2E_TEST_OPTIONS)
 
 .PHONY: unit-test
 unit-test:
-	go test -race -count=1 $(shell go list ./... | grep -v /test/e2e) -v
+	GOOS=$(TEST_GOOS) go test -race -count=1 $(shell go list ./... | grep -v /test/e2e) -v
 
 .PHONY: validate-version
 validate-version: validate-version-NMI validate-version-MIC validate-version-IDENTITY_VALIDATOR validate-version-DEMO
