@@ -119,6 +119,7 @@ func main() {
 	config.UserAgent = version.GetUserAgent("MIC", version.MICVersion)
 
 	forceNamespaced = forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
+	klog.Infof("Running MIC in namespaced mode: %v", forceNamespaced)
 
 	config.QPS = float32(clientQPS)
 	config.Burst = int(clientQPS)
