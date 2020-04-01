@@ -1,6 +1,3 @@
-GO111MODULE ?= on
-export GO111MODULE
-
 ORG_PATH=github.com/Azure
 PROJECT_NAME := aad-pod-identity
 REPO_PATH="$(ORG_PATH)/$(PROJECT_NAME)"
