@@ -48,6 +48,10 @@ Now to ensure that the operations are allowed on individual identity, perform th
 ```bash
 az role assignment create --role "Managed Identity Operator" --assignee <principal id from above command>  --scope /subscriptions/<subscription id>/resourcegroups/<resource group name>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<identity name>
 ```
+Note: If the VNET is located outside of the AKS resource group, the following command will need to be run on the VNET resource group as well.
+```bash
+az role assignment create --role "Virtual Machine Contributor" --assignee <principal id from above command>  --scope /subscriptions/<sub id>/resourcegroups/<resource group name>
+```
 
 
 ## Authentication method
