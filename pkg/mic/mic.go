@@ -15,6 +15,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
+	"github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/aad-pod-identity/version"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
@@ -815,10 +816,16 @@ func getIDKey(ns, name string) string {
 	return strings.Join([]string{ns, name}, "/")
 }
 
-func (c *Client) convertIDListToMap(arr []aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
-	m = make(map[string]aadpodid.AzureIdentity, len(arr))
-	for _, element := range arr {
-		m[getIDKey(element.Namespace, element.Name)] = element
+func (c *Client) convertIDListToMap(azureIdentities []aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
+	m = make(map[string]aadpodid.AzureIdentity, len(azureIdentities))
+	for _, azureIdentity := range azureIdentities {
+		// validate the resourceID in azure identity to ensure format is as expected
+		err := utils.ValidateResourceID(azureIdentity.Spec.ResourceID)
+		if err != nil {
+			klog.Errorf("Ignoring azure identity %s/%s, error: %v", azureIdentity.Namespace, azureIdentity.Name, err)
+			continue
+		}
+		m[getIDKey(azureIdentity.Namespace, azureIdentity.Name)] = azureIdentity
 	}
 	return m, nil
 }
