@@ -741,6 +741,17 @@ func TestMapMICClient_1(t *testing.T) {
 				ResourceID: "testResourceID",
 			},
 		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "testazid5",
+				Namespace: "default",
+			},
+			Spec: internalaadpodid.AzureIdentitySpec{
+				Type:     internalaadpodid.ServicePrincipal,
+				TenantID: "tenantid",
+				ClientID: "clientid",
+			},
+		},
 	}
 
 	micClient := &TestMICClient{}
@@ -784,6 +795,12 @@ func TestMapMICClient_1(t *testing.T) {
 			idName:      "testazid1",
 			idNamespace: "ns00",
 			shouldExist: false,
+		},
+		{
+			name:        "default/testazid5 for type 1 does exist",
+			idName:      "testazid5",
+			idNamespace: "default",
+			shouldExist: true,
 		},
 	}
 
