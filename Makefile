@@ -45,6 +45,23 @@ NMI_IMAGE ?= $(REPO_PREFIX)/$(NMI_BINARY_NAME):$(NMI_VERSION)
 MIC_IMAGE ?= $(REPO_PREFIX)/$(MIC_BINARY_NAME):$(MIC_VERSION)
 DEMO_IMAGE ?= $(REPO_PREFIX)/$(DEMO_BINARY_NAME):$(DEMO_VERSION)
 IDENTITY_VALIDATOR_IMAGE ?= $(REPO_PREFIX)/$(IDENTITY_VALIDATOR_BINARY_NAME):$(IDENTITY_VALIDATOR_VERSION)
+ALL_DOCS := $(shell find . -name '*.md' -type f | sort)
+TOOLS_MOD_DIR := ./tools
+TOOLS_DIR := $(abspath ./.tools)
+
+$(TOOLS_DIR)/golangci-lint: $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
+	cd $(TOOLS_MOD_DIR) && \
+	go build -o $(TOOLS_DIR)/golangci-lint github.com/golangci/golangci-lint/cmd/golangci-lint
+
+$(TOOLS_DIR)/misspell: $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
+	cd $(TOOLS_MOD_DIR) && \
+	go build -o $(TOOLS_DIR)/misspell github.com/client9/misspell/cmd/misspell
+
+.PHONY: lint
+lint: $(TOOLS_DIR)/golangci-lint $(TOOLS_DIR)/misspell
+	$(TOOLS_DIR)/golangci-lint run
+	$(TOOLS_DIR)/misspell -w $(ALL_DOCS) && \
+	go mod tidy
 
 .PHONY: clean-nmi
 clean-nmi:
@@ -96,6 +113,9 @@ build-identity-validator: clean-identity-validator
 
 .PHONY: build
 build: clean build-nmi build-mic build-demo build-identity-validator
+
+.PHONY: precommit
+precommit: build unit-test lint
 
 .PHONY: deepcopy-gen
 deepcopy-gen:
