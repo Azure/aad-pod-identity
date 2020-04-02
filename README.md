@@ -41,7 +41,7 @@ Or run this command to deploy to a non-RBAC cluster:
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment.yaml
 ```
 
-> Important: if you behind a firewall (e.g. Azure Firewall) and Kubernetes Api Server is outside your [AKS] cluster subnet, it is recommended to install AAD Pod Identity in the `kuebe-system` namespace by using the [helm charts]. Otherwise, please ensure Kuberentes Api Server is explicity allowed adding a layer 4 level rule to your Firewall.
+> Important: if you are behind a firewall (e.g. Azure Firewall) and the Kubernetes Api Server is outside of your [AKS] cluster subnet, it is recommended to install AAD Pod Identity in the `kuebe-system` namespace by using the [helm charts]. Otherwise, please ensure the Kuberentes Api Server is explicity allowed adding a layer 4 rule to your Firewall.
 
 ### 2. Create an Azure Identity
 
