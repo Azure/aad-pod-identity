@@ -287,4 +287,4 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 [Node Managed Identity]: #node-managed-identity
 [Prerequisites]: #prerequisites
 [Tutorial]: docs/tutorial/README.md
-[helm charts] https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity
+[helm charts]: https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity
