@@ -20,11 +20,15 @@ import (
 	cp "github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
+)
+
+var (
+	testResourceID = "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity1"
 )
 
 /****************** CLOUD PROVIDER MOCK ****************************/
@@ -363,7 +367,7 @@ func (c *TestPodClient) AddPod(podName, podNs, nodeName, binding string) {
 	labels := make(map[string]string)
 	labels[aadpodid.CRDLabelKey] = binding
 	pod := &corev1.Pod{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
 			Namespace: podNs,
 			Labels:    labels,
@@ -424,8 +428,8 @@ func (c *TestCrdClient) SyncCache(exit <-chan struct{}, initial bool, cacheSyncs
 
 }
 
-func (c *TestCrdClient) SyncCacheAll(exit<-chan struct{}, initial bool) {
-	
+func (c *TestCrdClient) SyncCacheAll(exit <-chan struct{}, initial bool) {
+
 }
 
 func (c *TestCrdClient) CreateCrdWatchers(eventCh chan internalaadpodid.EventType) (err error) {
@@ -464,7 +468,7 @@ func (c *TestCrdClient) UpdateAzureAssignedIdentityStatus(assignedIdentity *inte
 
 func (c *TestCrdClient) CreateBinding(name, ns, idName, selector, resourceVersion string) {
 	binding := &aadpodid.AzureIdentityBinding{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:            name,
 			Namespace:       ns,
 			ResourceVersion: resourceVersion,
@@ -481,7 +485,7 @@ func (c *TestCrdClient) CreateBinding(name, ns, idName, selector, resourceVersio
 
 func (c *TestCrdClient) CreateID(idName, ns string, t aadpodid.IdentityType, rID, cID string, cp *api.SecretReference, tID, adRID, adEpt, resourceVersion string) {
 	id := &aadpodid.AzureIdentity{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:            idName,
 			Namespace:       ns,
 			ResourceVersion: resourceVersion,
@@ -593,7 +597,7 @@ func (c *TestNodeClient) AddNode(name string, opts ...func(*corev1.Node)) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	n := &corev1.Node{ObjectMeta: v1.ObjectMeta{Name: name}, Spec: corev1.NodeSpec{
+	n := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: name}, Spec: corev1.NodeSpec{
 		ProviderID: "azure:///subscriptions/testSub/resourceGroups/fakeGroup/providers/Microsoft.Compute/virtualMachines/" + name,
 	}}
 	for _, o := range opts {
@@ -663,7 +667,7 @@ func (c *TestEventRecorder) Eventf(object runtime.Object, t string, r string, me
 
 }
 
-func (c *TestEventRecorder) PastEventf(object runtime.Object, timestamp v1.Time, t string, m1 string, messageFmt string, args ...interface{}) {
+func (c *TestEventRecorder) PastEventf(object runtime.Object, timestamp metav1.Time, t string, m1 string, messageFmt string, args ...interface{}) {
 
 }
 
@@ -708,58 +712,109 @@ type TestMICClient struct {
 
 /************************ UNIT TEST *************************************/
 
-func TestMapMICClient(t *testing.T) {
-	defaultNS := "default"
+func TestMapMICClient_1(t *testing.T) {
+	idList := []internalaadpodid.AzureIdentity{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "testazid1",
+				Namespace: "default",
+			},
+			Spec: internalaadpodid.AzureIdentitySpec{
+				ResourceID: testResourceID,
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "testazid2",
+				Namespace: "ns00",
+			},
+			Spec: internalaadpodid.AzureIdentitySpec{
+				ResourceID: testResourceID,
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "testazid3",
+				Namespace: "default",
+			},
+			Spec: internalaadpodid.AzureIdentitySpec{
+				ResourceID: "testResourceID",
+			},
+		},
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "testazid5",
+				Namespace: "default",
+			},
+			Spec: internalaadpodid.AzureIdentitySpec{
+				Type:     internalaadpodid.ServicePrincipal,
+				TenantID: "tenantid",
+				ClientID: "clientid",
+			},
+		},
+	}
+
 	micClient := &TestMICClient{}
-
-	idList := make([]internalaadpodid.AzureIdentity, 0)
-
-	id := new(internalaadpodid.AzureIdentity)
-	id.Namespace = "default"
-	id.Name = "test-azure-identity"
-	id.Namespace = defaultNS
-
-	idList = append(idList, *id)
-
-	id.Namespace = "newns"
-	id.Name = "test-akssvcrg-id"
-
-	idList = append(idList, *id)
-
-	idMap, _ := micClient.convertIDListToMap(idList)
-
-	namespace := "default"
-	name := "test-azure-identity"
-	count := 3
-	if azureID, idPresent := idMap[getIDKey(namespace, name)]; idPresent {
-		if azureID.Name != name {
-			t.Fatalf("id map id value mismatch")
-		}
-		count = count - 1
-	} else {
-		t.Fatalf("id %s not found", name)
+	idMap, err := micClient.convertIDListToMap(idList)
+	if err != nil {
+		t.Fatalf("expected err to be nil, got: %+v", err)
 	}
 
-	namespace = "newns"
-	name = "test-akssvcrg-id"
-	if azureID, idPresent := idMap[getIDKey(namespace, name)]; idPresent {
-		if azureID.Name != name {
-			t.Fatalf("id map id value mismatch")
-		}
-		count = count - 1
-	} else {
-		t.Fatalf("id %s not found", name)
+	tests := []struct {
+		name        string
+		idName      string
+		idNamespace string
+		shouldExist bool
+	}{
+		{
+			name:        "default/testazid1 exists",
+			idName:      "testazid1",
+			idNamespace: "default",
+			shouldExist: true,
+		},
+		{
+			name:        "ns00/testazid2 in ns00 ns exists",
+			idName:      "testazid2",
+			idNamespace: "ns00",
+			shouldExist: true,
+		},
+		{
+			name:        "default/testazid3 doesn't exist as resource id invalid",
+			idName:      "testazid3",
+			idNamespace: "default",
+			shouldExist: false,
+		},
+		{
+			name:        "default/testazid4 doesn't exist",
+			idName:      "testazid4",
+			idNamespace: "default",
+			shouldExist: false,
+		},
+		{
+			name:        "ns00/testazid1 doesn't exist",
+			idName:      "testazid1",
+			idNamespace: "ns00",
+			shouldExist: false,
+		},
+		{
+			name:        "default/testazid5 for type 1 does exist",
+			idName:      "testazid5",
+			idNamespace: "default",
+			shouldExist: true,
+		},
 	}
 
-	namespace = "default"
-	name = "test not there"
-	if _, idPresent := idMap[getIDKey(namespace, name)]; idPresent {
-		t.Fatalf("not present found")
-	} else {
-		count = count - 1
-	}
-	if count != 0 {
-		t.Fatalf("Test count mismatch. Expected %d, actual %d", 0, count)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			azureID, idPresent := idMap[getIDKey(test.idNamespace, test.idName)]
+			if test.shouldExist != idPresent {
+				t.Fatalf("expected exist: %v, but identity %s/%s in map exist: %v",
+					test.shouldExist, test.idNamespace, test.idName, idPresent)
+			}
+			if test.shouldExist && (azureID.Name != test.idName || azureID.Namespace != test.idNamespace) {
+				t.Fatalf("expected identity %s/%s, got %s/%s", test.idNamespace, test.idName, azureID.Namespace, azureID.Name)
+			}
+		})
 	}
 }
 
@@ -803,7 +858,7 @@ func TestSimpleMICClient(t *testing.T) {
 
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, nil)
 
-	crdClient.CreateID("test-id", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateID("test-id", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "")
 	crdClient.CreateBinding("testbinding", "default", "test-id", "test-select", "")
 
 	nodeClient.AddNode("test-node")
@@ -926,14 +981,14 @@ func TestAddDelMICClient(t *testing.T) {
 
 	// Test to add and delete at the same time.
 	// Add a pod, identity and binding.
-	crdClient.CreateID("test-id2", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateID("test-id2", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "")
 	crdClient.CreateBinding("testbinding2", "default", "test-id2", "test-select2", "")
 
 	nodeClient.AddNode("test-node2")
 	podClient.AddPod("test-pod2", "default", "test-node2", "test-select2")
 	podClient.GetPods()
 
-	crdClient.CreateID("test-id4", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateID("test-id4", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "")
 	crdClient.CreateBinding("testbinding4", "default", "test-id4", "test-select4", "")
 	podClient.AddPod("test-pod4", "default", "test-node2", "test-select4")
 	podClient.GetPods()
@@ -966,7 +1021,7 @@ func TestAddDelMICClient(t *testing.T) {
 	podClient.DeletePod("test-pod4", "default")
 
 	//Add a new pod, with different id and binding on the same node.
-	crdClient.CreateID("test-id3", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateID("test-id3", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "")
 	crdClient.CreateBinding("testbinding3", "default", "test-id3", "test-select3", "")
 	podClient.AddPod("test-pod3", "default", "test-node2", "test-select3")
 	podClient.GetPods()
@@ -1018,7 +1073,7 @@ func TestMicAddDelVMSS(t *testing.T) {
 
 	// Test to add and delete at the same time.
 	// Add a pod, identity and binding.
-	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "")
 	crdClient.CreateBinding("testbinding1", "default", "test-id1", "test-select1", "")
 
 	nodeClient.AddNode("test-node1", func(n *corev1.Node) {
@@ -1054,10 +1109,10 @@ func TestMicAddDelVMSS(t *testing.T) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 3, len(*listAssignedIDs))
 	}
 
-	if !cloudClient.CompareMSI("testvmss1", []string{"test-user-msi-resourceid"}) {
+	if !cloudClient.CompareMSI("testvmss1", []string{testResourceID}) {
 		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss1"])
 	}
-	if !cloudClient.CompareMSI("testvmss2", []string{"test-user-msi-resourceid"}) {
+	if !cloudClient.CompareMSI("testvmss2", []string{testResourceID}) {
 		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss2"])
 	}
 
@@ -1076,10 +1131,10 @@ func TestMicAddDelVMSS(t *testing.T) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 2, len(*listAssignedIDs))
 	}
 
-	if !cloudClient.CompareMSI("testvmss1", []string{"test-user-msi-resourceid"}) {
+	if !cloudClient.CompareMSI("testvmss1", []string{testResourceID}) {
 		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss1"])
 	}
-	if !cloudClient.CompareMSI("testvmss2", []string{"test-user-msi-resourceid"}) {
+	if !cloudClient.CompareMSI("testvmss2", []string{testResourceID}) {
 		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss2"])
 	}
 
@@ -1102,7 +1157,7 @@ func TestMicAddDelVMSS(t *testing.T) {
 	if !cloudClient.CompareMSI("testvmss1", []string{}) {
 		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss1"])
 	}
-	if !cloudClient.CompareMSI("testvmss2", []string{"test-user-msi-resourceid"}) {
+	if !cloudClient.CompareMSI("testvmss2", []string{testResourceID}) {
 		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss2"])
 	}
 }
@@ -1120,7 +1175,7 @@ func TestMICStateFlow(t *testing.T) {
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, nil)
 
 	// Add a pod, identity and binding.
-	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "")
 	crdClient.CreateBinding("testbinding1", "default", "test-id1", "test-select1", "")
 
 	nodeClient.AddNode("test-node1")
@@ -1151,7 +1206,7 @@ func TestMICStateFlow(t *testing.T) {
 	cloudClient.SetError(errors.New("error removing identity from node"))
 	cloudClient.testVMClient.identity = &compute.VirtualMachineIdentity{
 		UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
-			"test-user-msi-resourceid": &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{},
+			testResourceID: &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{},
 		},
 	}
 
@@ -1177,7 +1232,7 @@ func TestMICStateFlow(t *testing.T) {
 
 	// add new pod, this time the old assigned identity which is in Assigned state should be tried to delete
 	// simulate failure on kube api call to delete crd
-	crdClient.CreateID("test-id2", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid2", "test-user-msi-clientid2", nil, "", "", "", "")
+	crdClient.CreateID("test-id2", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid2", nil, "", "", "", "")
 	crdClient.CreateBinding("testbinding2", "default", "test-id2", "test-select2", "")
 
 	nodeClient.AddNode("test-node2")
@@ -1237,7 +1292,7 @@ func TestForceNamespaced(t *testing.T) {
 
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, true, 4, nil)
 
-	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "idrv1")
+	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "idrv1")
 	crdClient.CreateBinding("testbinding1", "default", "test-id1", "test-select1", "bindingrv1")
 
 	nodeClient.AddNode("test-node1")
@@ -1261,7 +1316,7 @@ func TestForceNamespaced(t *testing.T) {
 		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (*listAssignedIDs)[0].Status.Status)
 	}
 
-	crdClient.CreateID("test-id1", "default2", aadpodid.UserAssignedMSI, "test-user-msi-resourceid1", "test-user-msi-clientid", nil, "", "", "", "idrv2")
+	crdClient.CreateID("test-id1", "default2", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "idrv2")
 	crdClient.CreateBinding("testbinding1", "default2", "test-id1", "test-select1", "bindingrv2")
 	podClient.AddPod("test-pod2", "default2", "test-node1", "test-select1")
 
@@ -1307,7 +1362,7 @@ func TestSyncRetryLoop(t *testing.T) {
 	micClient.syncRetryInterval = syncRetryInterval
 
 	// Add a pod, identity and binding.
-	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "")
 	crdClient.CreateBinding("testbinding1", "default", "test-id1", "test-select1", "")
 
 	nodeClient.AddNode("test-node1")
@@ -1336,7 +1391,7 @@ func TestSyncRetryLoop(t *testing.T) {
 	cloudClient.SetError(errors.New("error removing identity from node"))
 	cloudClient.testVMClient.identity = &compute.VirtualMachineIdentity{
 		UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
-			"test-user-msi-resourceid": &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{},
+			testResourceID: &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{},
 		},
 	}
 
@@ -1385,7 +1440,7 @@ func TestSyncNodeNotFound(t *testing.T) {
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, nil)
 
 	// Add a pod, identity and binding.
-	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "")
 	crdClient.CreateBinding("testbinding1", "default", "test-id1", "test-select1", "")
 
 	for i := 0; i < 10; i++ {
@@ -1457,7 +1512,7 @@ func TestProcessingTimeForScale(t *testing.T) {
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, nil)
 
 	// Add a pod, identity and binding.
-	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "")
 	crdClient.CreateBinding("testbinding1", "default", "test-id1", "test-select1", "")
 
 	nodeClient.AddNode("test-node1")
@@ -1532,7 +1587,7 @@ func TestMicAddDelVMSSwithImmutableIdentities(t *testing.T) {
 
 	// Test to add and delete at the same time.
 	// Add a pod, identity and binding.
-	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, "test-user-msi-resourceid", "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateID("test-id1", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "")
 	crdClient.CreateBinding("testbinding1", "default", "test-id1", "test-select1", "")
 
 	nodeClient.AddNode("test-node1", func(n *corev1.Node) {
@@ -1568,10 +1623,10 @@ func TestMicAddDelVMSSwithImmutableIdentities(t *testing.T) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 3, len(*listAssignedIDs))
 	}
 
-	if !cloudClient.CompareMSI("testvmss1", []string{"test-user-msi-resourceid"}) {
+	if !cloudClient.CompareMSI("testvmss1", []string{testResourceID}) {
 		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss1"])
 	}
-	if !cloudClient.CompareMSI("testvmss2", []string{"test-user-msi-resourceid"}) {
+	if !cloudClient.CompareMSI("testvmss2", []string{testResourceID}) {
 		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss2"])
 	}
 
@@ -1590,10 +1645,10 @@ func TestMicAddDelVMSSwithImmutableIdentities(t *testing.T) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 2, len(*listAssignedIDs))
 	}
 
-	if !cloudClient.CompareMSI("testvmss1", []string{"test-user-msi-resourceid"}) {
+	if !cloudClient.CompareMSI("testvmss1", []string{testResourceID}) {
 		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss1"])
 	}
-	if !cloudClient.CompareMSI("testvmss2", []string{"test-user-msi-resourceid"}) {
+	if !cloudClient.CompareMSI("testvmss2", []string{testResourceID}) {
 		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss2"])
 	}
 
@@ -1613,10 +1668,10 @@ func TestMicAddDelVMSSwithImmutableIdentities(t *testing.T) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 1, len(*listAssignedIDs))
 	}
 
-	if !cloudClient.CompareMSI("testvmss1", []string{"test-user-msi-resourceid"}) {
+	if !cloudClient.CompareMSI("testvmss1", []string{testResourceID}) {
 		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss1"])
 	}
-	if !cloudClient.CompareMSI("testvmss2", []string{"test-user-msi-resourceid"}) {
+	if !cloudClient.CompareMSI("testvmss2", []string{testResourceID}) {
 		t.Fatalf("missing identity: %+v", cloudClient.ListMSI()["testvmss2"])
 	}
 }
