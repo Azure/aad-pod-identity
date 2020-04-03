@@ -15,6 +15,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
+	"github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/aad-pod-identity/version"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
@@ -598,7 +599,7 @@ func (c *Client) getListOfIdsToDelete(deleteList map[string]aadpodid.AzureAssign
 		}
 
 		id := delID.Spec.AzureIdentityRef
-		isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
+		isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
 		isImmutableIdentity := c.checkIfIdentityImmutable(id.Spec.ClientID)
 
 		// this case includes Assigned state and empty state to ensure backward compatability
@@ -617,7 +618,7 @@ func (c *Client) getListOfIdsToDelete(deleteList map[string]aadpodid.AzureAssign
 func (c *Client) getListOfIdsToAssign(addList map[string]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
 	for _, createID := range addList {
 		id := createID.Spec.AzureIdentityRef
-		isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
+		isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
 
 		if createID.Status.Status == "" || createID.Status.Status == aadpodid.AssignedIDCreated {
 			if isUserAssignedMSI {
@@ -790,7 +791,7 @@ func (c *Client) appendToAddListForNode(resourceID, nodeName string, nodeMap map
 	nodeMap[nodeName] = trackUserAssignedMSIIds{addUserAssignedMSIIDs: []string{resourceID}}
 }
 
-func (c *Client) checkIfUserAssignedMSI(id *aadpodid.AzureIdentity) bool {
+func (c *Client) checkIfUserAssignedMSI(id aadpodid.AzureIdentity) bool {
 	return id.Spec.Type == aadpodid.UserAssignedMSI
 }
 
@@ -815,10 +816,18 @@ func getIDKey(ns, name string) string {
 	return strings.Join([]string{ns, name}, "/")
 }
 
-func (c *Client) convertIDListToMap(arr []aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
-	m = make(map[string]aadpodid.AzureIdentity, len(arr))
-	for _, element := range arr {
-		m[getIDKey(element.Namespace, element.Name)] = element
+func (c *Client) convertIDListToMap(azureIdentities []aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
+	m = make(map[string]aadpodid.AzureIdentity, len(azureIdentities))
+	for _, azureIdentity := range azureIdentities {
+		// validate the resourceID in azure identity for type 0 (UserAssignedMSI) to ensure format is as expected
+		if c.checkIfUserAssignedMSI(azureIdentity) {
+			err := utils.ValidateResourceID(azureIdentity.Spec.ResourceID)
+			if err != nil {
+				klog.Errorf("Ignoring azure identity %s/%s, error: %v", azureIdentity.Namespace, azureIdentity.Name, err)
+				continue
+			}
+		}
+		m[getIDKey(azureIdentity.Namespace, azureIdentity.Name)] = azureIdentity
 	}
 	return m, nil
 }
@@ -946,7 +955,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 			id := createID.Spec.AzureIdentityRef
 			binding := createID.Spec.AzureBindingRef
 
-			isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
+			isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
 			idExistsOnNode := c.checkIfMSIExistsOnNode(id, createID.Spec.NodeName, idList)
 
 			if isUserAssignedMSI && !idExistsOnNode {
@@ -972,7 +981,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 		for _, delID := range nodeTrackList.assignedIDsToDelete {
 			id := delID.Spec.AzureIdentityRef
 			removedBinding := delID.Spec.AzureBindingRef
-			isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
+			isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
 			idExistsOnNode := c.checkIfMSIExistsOnNode(id, delID.Spec.NodeName, idList)
 			vmssGroups, getErr := getVMSSGroups(c.NodeClient, nodeRefs)
 			if getErr != nil {
