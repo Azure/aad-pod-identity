@@ -52,7 +52,9 @@ Note: If the VNET is located outside of the AKS resource group, the following co
 ```bash
 az role assignment create --role "Virtual Machine Contributor" --assignee <principal id from above command>  --scope /subscriptions/<sub id>/resourcegroups/<resource group name>
 ```
+Optionally, it is possible to grant the managed identity additional role permissions using a custom role as documented below:
 
+https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal#networking
 
 ## Authentication method
 In case the azure.json is used, the following keys indicates whether the cluster is configured with system assigned or user assigned identity:
