@@ -191,7 +191,7 @@ type AzureAssignedIdentitySpec struct {
 	Replicas *int32 `json:"replicas"`
 }
 
-// AzureAssignedIdentityStatus has the replica status of the resouce.
+// AzureAssignedIdentityStatus has the replica status of the resource.
 type AzureAssignedIdentityStatus struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 	Status            string `json:"status"`

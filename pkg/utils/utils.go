@@ -11,7 +11,7 @@ func RedactClientID(clientID string) string {
 }
 
 func redact(src, repl string) string {
-	r, _ := regexp.Compile("^(\\S{4})(\\S|\\s)*(\\S{4})$")
+	r, _ := regexp.Compile(`^(\S{4})(\S|\s)*(\S{4})$`)
 	return r.ReplaceAllString(src, repl)
 }
 

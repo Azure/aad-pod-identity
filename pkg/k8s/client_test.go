@@ -27,7 +27,10 @@ func TestGetSecret(t *testing.T) {
 	fakeClient := fake.NewSimpleClientset()
 
 	secret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secretName}}
-	fakeClient.CoreV1().Secrets("default").Create(secret)
+	_, err := fakeClient.CoreV1().Secrets("default").Create(secret)
+	if err != nil {
+		t.Fatalf("Error creating secret: %v", err)
+	}
 
 	kubeClient := &KubeClient{ClientSet: fakeClient}
 
@@ -114,10 +117,7 @@ func (t *TestClientSet) GetPodList() io.ReadCloser {
 	defer t.mu.Unlock()
 
 	podList := &v1.PodList{}
-	for _, p := range t.podList {
-		podList.Items = append(podList.Items, p)
-	}
-
+	podList.Items = append(podList.Items, t.podList...)
 	podList.TypeMeta = metav1.TypeMeta{
 		Kind:       "PodList",
 		APIVersion: "v1",

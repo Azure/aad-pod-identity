@@ -235,10 +235,10 @@ kubectl logs demo
 If successful, the log output would be similar to the following output:
 ```
 ...
-succesfully doARMOperations vm count 1
-succesfully acquired a token using the MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token)
-succesfully acquired a token, userAssignedID MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token) clientID(xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
-succesfully made GET on instance metadata
+successfully doARMOperations vm count 1
+successfully acquired a token using the MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token)
+successfully acquired a token, userAssignedID MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token) clientID(xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+successfully made GET on instance metadata
 ...
 ```
 

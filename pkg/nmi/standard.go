@@ -10,8 +10,8 @@ import (
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	utils "github.com/Azure/aad-pod-identity/pkg/utils"
-	"github.com/Azure/go-autorest/autorest/adal"
 
+	"github.com/Azure/go-autorest/autorest/adal"
 	"k8s.io/klog"
 )
 
@@ -95,7 +95,7 @@ func (sc *StandardClient) listPodIDsWithRetry(ctx context.Context, podns, podnam
 		idStateMap, err = sc.KubeClient.ListPodIds(podns, podname)
 		if err == nil {
 			if len(rqClientID) == 0 {
-				// check to ensure backward compatability with assignedIDs that have no state
+				// check to ensure backward compatibility with assignedIDs that have no state
 				// assigned identites created with old version of mic will not contain a state. So first we check to see if an assigned identity with
 				// no state exists that matches req client id.
 				if len(idStateMap[""]) != 0 {
@@ -112,7 +112,7 @@ func (sc *StandardClient) listPodIDsWithRetry(ctx context.Context, podns, podnam
 			} else {
 				// if client id exists in request, we need to ensure the identity with this client
 				// exists and is in Assigned state
-				// check to ensure backward compatability with assignedIDs that have no state
+				// check to ensure backward compatibility with assignedIDs that have no state
 				for _, podID := range idStateMap[""] {
 					if strings.EqualFold(rqClientID, podID.Spec.ClientID) {
 						klog.Warningf("found assignedIDs with no state for pod:%s/%s. AssignedIDs created with old version of mic.", podns, podname)

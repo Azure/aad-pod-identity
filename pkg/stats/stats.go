@@ -7,50 +7,50 @@ import (
 	"k8s.io/klog"
 )
 
-var GlobalStats map[StatsType]time.Duration
-var CountStats map[StatsType]int
+var GlobalStats map[Type]time.Duration
+var CountStats map[Type]int
 
 var Mutex *sync.RWMutex
 
-type StatsType string
+type Type string
 
 const (
-	Total                   StatsType = "Total"
-	System                  StatsType = "System"
-	CacheSync               StatsType = "CacheSync"
-	CurrentState            StatsType = "Gather current state"
-	PodList                 StatsType = "Pod listing"
-	BindingList             StatsType = "Binding listing"
-	IDList                  StatsType = "ID listing"
-	ExceptionList           StatsType = "Pod Identity Exception listing"
-	AssignedIDList          StatsType = "Assigned ID listing"
-	CloudGet                StatsType = "Cloud provider get"
-	CloudPut                StatsType = "Cloud provider put"
-	TotalPutCalls           StatsType = "Number of cloud provider PUT"
-	TotalGetCalls           StatsType = "Number of cloud provider GET"
-	TotalAssignedIDsCreated StatsType = "Number of assigned ids created in this sync cycle"
-	TotalAssignedIDsUpdated StatsType = "Number of assigned ids updated in this sync cycle"
-	TotalAssignedIDsDeleted StatsType = "Number of assigned ids deleted in this sync cycle"
-	K8sGet                  StatsType = "K8s get"
-	K8sPut                  StatsType = "K8s put"
-	FindAssignedIDDel       StatsType = "Find assigned ids to delete"
-	FindAssignedIDCreate    StatsType = "Find assigned ids to create"
-	AssignedIDDel           StatsType = "Assigned ID deletion"
-	AssignedIDAdd           StatsType = "Assigned ID addition"
-	TotalIDDel              StatsType = "Total time to delete assigned IDs"
-	TotalIDAdd              StatsType = "Total time to add assigned IDs"
-	TotalCreateOrUpdate     StatsType = "Total time to assign or remove IDs"
+	Total                   Type = "Total"
+	System                  Type = "System"
+	CacheSync               Type = "CacheSync"
+	CurrentState            Type = "Gather current state"
+	PodList                 Type = "Pod listing"
+	BindingList             Type = "Binding listing"
+	IDList                  Type = "ID listing"
+	ExceptionList           Type = "Pod Identity Exception listing"
+	AssignedIDList          Type = "Assigned ID listing"
+	CloudGet                Type = "Cloud provider get"
+	CloudPut                Type = "Cloud provider put"
+	TotalPutCalls           Type = "Number of cloud provider PUT"
+	TotalGetCalls           Type = "Number of cloud provider GET"
+	TotalAssignedIDsCreated Type = "Number of assigned ids created in this sync cycle"
+	TotalAssignedIDsUpdated Type = "Number of assigned ids updated in this sync cycle"
+	TotalAssignedIDsDeleted Type = "Number of assigned ids deleted in this sync cycle"
+	K8sGet                  Type = "K8s get"
+	K8sPut                  Type = "K8s put"
+	FindAssignedIDDel       Type = "Find assigned ids to delete"
+	FindAssignedIDCreate    Type = "Find assigned ids to create"
+	AssignedIDDel           Type = "Assigned ID deletion"
+	AssignedIDAdd           Type = "Assigned ID addition"
+	TotalIDDel              Type = "Total time to delete assigned IDs"
+	TotalIDAdd              Type = "Total time to add assigned IDs"
+	TotalCreateOrUpdate     Type = "Total time to assign or remove IDs"
 
-	EventRecord StatsType = "Event recording"
+	EventRecord Type = "Event recording"
 )
 
 func Init() {
-	GlobalStats = make(map[StatsType]time.Duration)
-	CountStats = make(map[StatsType]int)
+	GlobalStats = make(map[Type]time.Duration)
+	CountStats = make(map[Type]int)
 	Mutex = &sync.RWMutex{}
 }
 
-func Put(key StatsType, val time.Duration) {
+func Put(key Type, val time.Duration) {
 	if GlobalStats != nil {
 		Mutex.Lock()
 		defer Mutex.Unlock()
@@ -58,7 +58,7 @@ func Put(key StatsType, val time.Duration) {
 	}
 }
 
-func Get(key StatsType) time.Duration {
+func Get(key Type) time.Duration {
 	if GlobalStats != nil {
 		Mutex.RLock()
 		defer Mutex.RUnlock()
@@ -67,7 +67,7 @@ func Get(key StatsType) time.Duration {
 	return 0
 }
 
-func Update(key StatsType, val time.Duration) {
+func Update(key Type, val time.Duration) {
 	if GlobalStats != nil {
 		Mutex.Lock()
 		defer Mutex.Unlock()
@@ -75,21 +75,21 @@ func Update(key StatsType, val time.Duration) {
 	}
 }
 
-func Print(key StatsType) {
+func Print(key Type) {
 	Mutex.RLock()
 	defer Mutex.RUnlock()
 
 	klog.Infof("%s: %s", key, GlobalStats[key])
 }
 
-func PrintCount(key StatsType) {
+func PrintCount(key Type) {
 	Mutex.RLock()
 	defer Mutex.RUnlock()
 
 	klog.Infof("%s: %d", key, CountStats[key])
 }
 
-func UpdateCount(key StatsType, val int) {
+func UpdateCount(key Type, val int) {
 	Mutex.Lock()
 	defer Mutex.Unlock()
 	CountStats[key] = CountStats[key] + val
@@ -129,7 +129,7 @@ func PrintSync() {
 	klog.Infof("*********************")
 }
 
-func GetAll() map[StatsType]time.Duration {
+func GetAll() map[Type]time.Duration {
 	Mutex.RLock()
 	defer Mutex.RUnlock()
 	return GlobalStats

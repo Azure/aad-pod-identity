@@ -12,6 +12,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/mic"
 	"github.com/Azure/aad-pod-identity/pkg/probes"
 	"github.com/Azure/aad-pod-identity/version"
+
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"

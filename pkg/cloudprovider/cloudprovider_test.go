@@ -6,11 +6,11 @@ import (
 	"testing"
 
 	"github.com/Azure/aad-pod-identity/pkg/config"
+
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	"github.com/Azure/go-autorest/autorest/azure"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 )
 
 func TestParseResourceID(t *testing.T) {
@@ -76,11 +76,26 @@ func TestSimple(t *testing.T) {
 			node3 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3-0"}, Spec: corev1.NodeSpec{ProviderID: vmProvider}}
 			node4 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node4-vmss0000000"}, Spec: corev1.NodeSpec{ProviderID: vmssProvider}}
 
-			cloudClient.UpdateUserMSI([]string{"ID0", "ID0again"}, []string{}, node0.Name, false)
-			cloudClient.UpdateUserMSI([]string{"ID1"}, []string{}, node1.Name, false)
-			cloudClient.UpdateUserMSI([]string{"ID2"}, []string{}, node2.Name, false)
-			cloudClient.UpdateUserMSI([]string{"ID3"}, []string{}, node3.Name, false)
-			cloudClient.UpdateUserMSI([]string{"ID4"}, []string{}, node4.Name, true)
+			err := cloudClient.UpdateUserMSI([]string{"ID0", "ID0again"}, []string{}, node0.Name, false)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+			err = cloudClient.UpdateUserMSI([]string{"ID1"}, []string{}, node1.Name, false)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+			err = cloudClient.UpdateUserMSI([]string{"ID2"}, []string{}, node2.Name, false)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+			err = cloudClient.UpdateUserMSI([]string{"ID3"}, []string{}, node3.Name, false)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+			err = cloudClient.UpdateUserMSI([]string{"ID4"}, []string{}, node4.Name, true)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
 
 			testMSI := []string{"ID0", "ID0again"}
 			if !cloudClient.CompareMSI(node0.Name, false, testMSI) {
@@ -88,8 +103,14 @@ func TestSimple(t *testing.T) {
 				t.Error("MSI mismatch")
 			}
 
-			cloudClient.UpdateUserMSI([]string{}, []string{"ID0"}, node0.Name, false)
-			cloudClient.UpdateUserMSI([]string{}, []string{"ID2"}, node2.Name, false)
+			err = cloudClient.UpdateUserMSI([]string{}, []string{"ID0"}, node0.Name, false)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+			err = cloudClient.UpdateUserMSI([]string{}, []string{"ID2"}, node2.Name, false)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
 
 			testMSI = []string{"ID0again"}
 			if !cloudClient.CompareMSI(node0.Name, false, testMSI) {
@@ -115,28 +136,44 @@ func TestSimple(t *testing.T) {
 			}
 
 			// test the UpdateUserMSI interface
-			cloudClient.UpdateUserMSI([]string{"ID1", "ID2", "ID3"}, []string{"ID0again"}, node0.Name, false)
+			err = cloudClient.UpdateUserMSI([]string{"ID1", "ID2", "ID3"}, []string{"ID0again"}, node0.Name, false)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+
 			testMSI = []string{"ID1", "ID2", "ID3"}
 			if !cloudClient.CompareMSI(node0.Name, false, testMSI) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
 
-			cloudClient.UpdateUserMSI(nil, []string{"ID3"}, node3.Name, false)
+			err = cloudClient.UpdateUserMSI(nil, []string{"ID3"}, node3.Name, false)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+
 			testMSI = []string{}
 			if !cloudClient.CompareMSI(node3.Name, false, testMSI) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
 
-			cloudClient.UpdateUserMSI([]string{"ID3"}, nil, node4.Name, true)
+			err = cloudClient.UpdateUserMSI([]string{"ID3"}, nil, node4.Name, true)
+			if err != nil {
+				t.Error("Couldn't update MSI")
+			}
+
 			testMSI = []string{"ID4", "ID3"}
 			if !cloudClient.CompareMSI(node4.Name, true, testMSI) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
 
-			cloudClient.UpdateUserMSI([]string{"ID3"}, []string{"ID3"}, node4.Name, true)
+			err = cloudClient.UpdateUserMSI([]string{"ID3"}, []string{"ID3"}, node4.Name, true)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+
 			testMSI = []string{"ID4", "ID3"}
 			if !cloudClient.CompareMSI(node4.Name, true, testMSI) {
 				cloudClient.PrintMSI(t)

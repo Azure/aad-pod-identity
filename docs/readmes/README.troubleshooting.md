@@ -38,4 +38,4 @@ Common issues or questions that users have run into when using pod identity are 
 
 ### Ignoring azure identity \<podns\>/\<podname\>, error: Invalid resource id: "", must match /subscriptions/\<subid\>/resourcegroups/\<resourcegroup\>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/\<name\>
 
-If you are using MIC v1.6.0+, you will need to ensure the correct captialization of `AzureIdentity` and `AzureIdentityBinding` fields. For more information, please refer to [this section](../../README.md#v160-breaking-change).
+If you are using MIC v1.6.0+, you will need to ensure the correct capitalization of `AzureIdentity` and `AzureIdentityBinding` fields. For more information, please refer to [this section](../../README.md#v160-breaking-change).

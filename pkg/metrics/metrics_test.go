@@ -30,8 +30,14 @@ func testOperationDurationMetric(t *testing.T, reporter *Reporter, m *stats.Floa
 	minimumDuration := float64(2)
 	maximumDuration := float64(4)
 	testOperationKey := "test"
-	reporter.ReportOperation(testOperationKey, m.M(minimumDuration))
-	reporter.ReportOperation(testOperationKey, m.M(maximumDuration))
+	err := reporter.ReportOperation(testOperationKey, m.M(minimumDuration))
+	if err != nil {
+		t.Errorf("Error when reporting metrics: %v from %v", err, m.Name())
+	}
+	err = reporter.ReportOperation(testOperationKey, m.M(maximumDuration))
+	if err != nil {
+		t.Errorf("Error when reporting metrics: %v from %v", err, m.Name())
+	}
 
 	row, err := view.RetrieveData(m.Name())
 	if err != nil {

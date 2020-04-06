@@ -2,17 +2,17 @@ package main
 
 import (
 	goflag "flag"
-	"os"
-	"strings"
-
 	"net/http"
 	_ "net/http/pprof"
+	"os"
+	"strings"
 
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/nmi"
 	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
 	"github.com/Azure/aad-pod-identity/pkg/probes"
 	"github.com/Azure/aad-pod-identity/version"
+
 	"github.com/spf13/pflag"
 	"k8s.io/klog"
 )
@@ -28,7 +28,6 @@ const (
 )
 
 var (
-	debug                              = pflag.Bool("debug", false, "sets log to debug level")
 	versionInfo                        = pflag.Bool("version", false, "prints the version information")
 	nmiPort                            = pflag.String("nmi-port", defaultNmiPort, "NMI application port")
 	metadataIP                         = pflag.String("metadata-ip", defaultMetadataIP, "instance metadata host ip")
