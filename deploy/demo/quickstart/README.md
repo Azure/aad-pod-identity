@@ -27,6 +27,10 @@ kubectl get azureidentity
 kubectl get azureidentitybinding
 ```
 
+### 2. Create the need access resource group with AAD Pod Identity contributor access granted
+The example below is using the default MSI created from step 1 for the AAD Pod Identity
+```
 
+```
 
 
