@@ -32,20 +32,16 @@ The example below is using the default AAD Pod Identity label created from step 
 ```
 kubectl run myaadpodaccess -it --image=mcr.microsoft.com/azure-cli --labels="aadpodidbinding=use-pod-identity" --restart=Never
 
-kubectl exec -it myaadpodaccess -- sh
-
 az login --identity
 
-az network vnet create \ --name myVirtualNetwork1 \ --resource-group <Access Resource Group> \ --subnet-name default
+az network vnet create --name myVirtualNetwork1 --resource-group <Access Resource Group> --subnet-name default
 ```
 ### 3. Test AAD Pod Identity Denied Access
 Similar to the test in step 2. We will create a pod using the azure-cli image, attaching the necessary label for the pod to use the MSI for Azure access. In this case, once you exec into the pod, and log into Azure with the MSI assigned to the pod, you will attempt to create another VNet in a resource group where the MSI only has read access. You will receive an error for not having the necessary permissions to create the VNet.
 ```
 kubectl run myaadpodnoaccess -it --image=mcr.microsoft.com/azure-cli --labels="aadpodidbinding=use-pod-identity" --restart=Never
 
-kubectl exec -it myaadpodnoaccess -- sh
-
 az login --identity
 
-az network vnet create \ --name myVirtualNetwork2 \ --resource-group <No Access Resource Group> \ --subnet-name default
+az network vnet create --name myVirtualNetwork2 --resource-group <No Access Resource Group> --subnet-name default
 ```
