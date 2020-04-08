@@ -7,6 +7,7 @@ The quickstart demo for AAD Pod Identity is a set of scripts to steamline and ex
 > * You currently have an AKS cluster deployed
 > * Your AKS cluster is RBAC enabled
 > * You have admin config of the AKS cluster
+> * You will be using a Managed System Identity and not a Managed User Identity
 
 
 
