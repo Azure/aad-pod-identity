@@ -30,6 +30,8 @@ kubectl get azureidentitybinding
 ### 2. Create the need access resource group with AAD Pod Identity contributor access granted
 The example below is using the default MSI created from step 1 for the AAD Pod Identity
 ```
+az group create -l eastus2 -n aad-pod-identity-access
+az role assignment create --role "Contributor" --assignee pod-identity-acct --resource-group aad-pod-identity-access
 
 ```
 
