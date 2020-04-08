@@ -31,14 +31,16 @@ az group create -l $LOCATION -n $ASSETSRESOURCEGROUPNAME -o tsv
 
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
 
-read MSINAME MSICLIENTID MSIRESOURCEID < <(echo $(az identity create -g $ASSETSRESOURCEGROUPNAME -n $MSINAME -o json | jq -r '.name, .clientId, .id'))
+read MSINAME MSICLIENTID MSIRESOURCEID MSIPRINCIPALID < <(echo $(az identity create -g $ASSETSRESOURCEGROUPNAME -n $MSINAME -o json | jq -r '.name, .clientId, .id, .principalId'))
 
 jq -r --arg MSINAME "$MSINAME" '.items[].metadata.name |= $MSINAME' aadpodidentity-template.json . > $PODIDENTITYJSONFILENAME
 
 # TODO - Create access resource group and add MSI as contributor role
-az group create -l $LOCATION -n $ACCESSRESOURCEGROUPNAME -o tsv
+ACCESSRESOURCEGROUPID=$(az group create -l $LOCATION -n $ACCESSRESOURCEGROUPNAME --query id -o tsv)
+az role assignment create --assignee-object-id $MSIPRINCIPALID --scope $ACCESSRESOURCEGROUPID --role Contributor
 
-az group create -l $LOCATION -n $NOACCESSRESOURCEGROUPNAME -o tsv
+NOACCESSRESOURCEGROUPID=$(az group create -l $LOCATION -n $NOACCESSRESOURCEGROUPNAME --query id -o tsv)
+az role assignment create --assignee-object-id $MSIPRINCIPALID --scope $NOACCESSRESOURCEGROUPID --role Reader
 
 CLIENTID=$(jq -r --arg MSICLIENTID "$MSICLIENTID" '.items[].spec.ClientID |= $MSICLIENTID' $PODIDENTITYJSONFILENAME . | grep ClientID)
 sed -i "11s/.*/$CLIENTID/g" $PODIDENTITYJSONFILENAME
