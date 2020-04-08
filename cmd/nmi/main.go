@@ -83,7 +83,7 @@ func main() {
 	exit := make(<-chan struct{})
 	client.Start(exit)
 	*forceNamespaced = *forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
-	klog.Infof("Running NMI in namespaced mode: %v", forceNamespaced)
+	klog.Infof("Running NMI in namespaced mode: %v", *forceNamespaced)
 
 	s := server.NewServer(*micNamespace, *blockInstanceMetadata, *metadataHeaderRequired)
 	s.KubeClient = client
