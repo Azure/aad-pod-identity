@@ -21,6 +21,8 @@ AZUREIDENTITYBINDINGJSONFILENAME="azureidentitybindings-${MSINAME}.json"
 
 #################################################################################
 
+az group create -l $LOCATION -n $RESOURCEGROUPNAME
+
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
 
 read MSINAME MSICLIENTID MSIRESOURCEID < <(echo $(az identity create -g $RESOURCEGROUPNAME -n $MSINAME -o json | jq -r '.name, .clientId, .id'))
