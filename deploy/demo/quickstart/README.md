@@ -11,6 +11,12 @@ The quickstart demo for AAD Pod Identity is a set of scripts to steamline and ex
 
 > If any of the assumptions are not true, it may best best to opt for the full lenght [AAD Pod Tutorial](https://github.com/Azure/aad-pod-identity/tree/master/docs/tutorial#aad-pod-identity-tutorial) or reference the [Getting Started](https://github.com/Azure/aad-pod-identity#getting-started) page.
 
+### 1. Deploy the aad-pod-identity-quickstart.sh
+
+```
+/aad-pod-identity/deploy/demo/quickstart$ ./aad-pod-identity-quickstart.sh
+```
+
 
 
 
