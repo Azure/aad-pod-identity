@@ -7,6 +7,9 @@ RESOURCEGROUPNAME="aad-pod-identity-assets"
 # Name of Azure Resource Group to test AAD Pod Identity access
 ACCESSRESOURCEGROUPNAME="aad-pod-identity-access"
 
+# Name of Azure Resource Group to test AAD Pod Identity no access
+NOACCESSRESOURCEGROUPNAME="aad-pod-identity-noaccess"
+
 # Name of Azure Region
 LOCATION="eastus2"
 
@@ -34,6 +37,8 @@ jq -r --arg MSINAME "$MSINAME" '.items[].metadata.name |= $MSINAME' aadpodidenti
 
 # TODO - Create access resource group and add MSI as contributor role
 az group create -l $LOCATION -n ACCESSRESOURCEGROUPNAME -o tsv
+
+az group create -l $LOCATION -n NOACCESSRESOURCEGROUPNAME -o tsv
 
 CLIENTID=$(jq -r --arg MSICLIENTID "$MSICLIENTID" '.items[].spec.ClientID |= $MSICLIENTID' $PODIDENTITYJSONFILENAME . | grep ClientID)
 sed -i "11s/.*/$CLIENTID/g" $PODIDENTITYJSONFILENAME
