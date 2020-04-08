@@ -4,7 +4,8 @@ The quickstart demo for AAD Pod Identity is a set of scripts to steamline and ex
 
 ## Getting Started
 > **NOTE: This quickstart makes the following assumptions:**
-> * You currently have an AKS cluster deployed
+> * You currently have an AKS cluster deployed and it is set to your current context
+> * You will be deploying the azureidentity and azureidentitybinding in the K8 default namespace
 > * Your AKS cluster is RBAC enabled
 > * You have admin config of the AKS cluster
 > * You will be using a Managed System Identity and not a Managed User Identity
@@ -12,9 +13,16 @@ The quickstart demo for AAD Pod Identity is a set of scripts to steamline and ex
 > If any of the assumptions are not true, it may best best to opt for the full lenght [AAD Pod Tutorial](https://github.com/Azure/aad-pod-identity/tree/master/docs/tutorial#aad-pod-identity-tutorial) or reference the [Getting Started](https://github.com/Azure/aad-pod-identity#getting-started) page.
 
 ### 1. Deploy the aad-pod-identity-quickstart.sh
+If you need to make changes to the default variables of the script, please due prior to running the script. The top of the script has and area that has been identified to make changes to the default script variable settings.
 
 ```
 /aad-pod-identity/deploy/demo/quickstart$ ./aad-pod-identity-quickstart.sh
+```
+
+Once the script has completed. Verify that you have both the azureidentity and azureidentitybinding setup in the cluster.
+'''
+kubectl get azureidentity
+kubectl get azureidentitybinding
 ```
 
 
