@@ -1,13 +1,16 @@
 ################################################################################
 #! Update default variables in this section (if needed) | @phillipgibson
 
-# Name of Azure Resource Group
+# Name of Azure Resource Group to hold demo assets
 RESOURCEGROUPNAME="aad-pod-identity-assets"
+
+# Name of Azure Resource Group to test AAD Pod Identity access
+ACCESSRESOURCEGROUPNAME="aad-pod-identity-access"
 
 # Name of Azure Region
 LOCATION="eastus2"
 
-# Name of Azure Managed Service Identity
+# Name of Azure Managed Service Identity | THIS MUST BE A UNIQUE ACCOUNT IN THE AZURE TENENT
 MSINAME="pod-identity-acct"
 
 # Name of the AAD Pod Identity JSON Manifest for K8 | MUST BE A .json FILE | eg. aadpodidentity.json
@@ -21,7 +24,7 @@ AZUREIDENTITYBINDINGJSONFILENAME="azureidentitybindings-${MSINAME}.json"
 
 #################################################################################
 
-az group create -l $LOCATION -n $RESOURCEGROUPNAME
+az group create -l $LOCATION -n $RESOURCEGROUPNAME -o tsv
 
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
 
