@@ -8,6 +8,7 @@ The quickstart demo for AAD Pod Identity is a set of scripts to steamline and ex
 > * Your AKS cluster is RBAC enabled
 > * You have admin config of the AKS cluster
 > * You will be using a Managed System Identity and not a Managed User Identity
+
 > If any of the assumptions are not true, it may best best to opt for the full lenght [AAD Pod Tutorial](https://github.com/Azure/aad-pod-identity/tree/master/docs/tutorial#aad-pod-identity-tutorial) or reference the [Getting Started](https://github.com/Azure/aad-pod-identity#getting-started) page.
 
 
