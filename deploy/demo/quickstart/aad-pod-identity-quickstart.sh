@@ -32,6 +32,8 @@ read MSINAME MSICLIENTID MSIRESOURCEID < <(echo $(az identity create -g $RESOURC
 
 jq -r --arg MSINAME "$MSINAME" '.items[].metadata.name |= $MSINAME' aadpodidentity-template.json . > $PODIDENTITYJSONFILENAME
 
+# TODO - Create access resource group and add MSI as contributor role
+az group create -l $LOCATION -n ACCESSRESOURCEGROUPNAME -o tsv
 
 CLIENTID=$(jq -r --arg MSICLIENTID "$MSICLIENTID" '.items[].spec.ClientID |= $MSICLIENTID' $PODIDENTITYJSONFILENAME . | grep ClientID)
 sed -i "11s/.*/$CLIENTID/g" $PODIDENTITYJSONFILENAME
