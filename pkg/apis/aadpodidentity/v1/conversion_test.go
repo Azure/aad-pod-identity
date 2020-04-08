@@ -200,6 +200,19 @@ func TestConvertV1AssignedIdentityToInternalAssignedIdentity(t *testing.T) {
 	if !cmp.Equal(assignedIDInternal, convertedAssignedIDInternal) {
 		t.Errorf("Failed to convert from v1 to internal AzureAssignedIdentity")
 	}
+
+	// test no panics when azure identity or binding ref is nil
+	assignedIDV1.Spec.AzureIdentityRef = nil
+	assignedIDV1.Spec.AzureBindingRef = nil
+
+	convertedAssignedIDInternal = ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIDV1)
+	assignedIDInternal = CreateInternalAssignedIdentity()
+	assignedIDInternal.Spec.AzureIdentityRef = &aadpodid.AzureIdentity{}
+	assignedIDInternal.Spec.AzureBindingRef = &aadpodid.AzureIdentityBinding{}
+
+	if !cmp.Equal(assignedIDInternal, convertedAssignedIDInternal) {
+		t.Errorf("Failed to convert from v1 to internal AzureAssignedIdentity")
+	}
 }
 
 func TestConvertInternalBindingToV1Binding(t *testing.T) {

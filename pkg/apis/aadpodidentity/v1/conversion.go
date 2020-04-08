@@ -41,8 +41,14 @@ func ConvertV1IdentityToInternalIdentity(identity AzureIdentity) (resIdentity aa
 }
 
 func ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIdentity AzureAssignedIdentity) (resAssignedIdentity aadpodid.AzureAssignedIdentity) {
-	retIdentity := ConvertV1IdentityToInternalIdentity(*assignedIdentity.Spec.AzureIdentityRef)
-	retBinding := ConvertV1BindingToInternalBinding(*assignedIdentity.Spec.AzureBindingRef)
+	var retIdentity aadpodid.AzureIdentity
+	var retBinding aadpodid.AzureIdentityBinding
+	if assignedIdentity.Spec.AzureIdentityRef != nil {
+		retIdentity = ConvertV1IdentityToInternalIdentity(*assignedIdentity.Spec.AzureIdentityRef)
+	}
+	if assignedIdentity.Spec.AzureBindingRef != nil {
+		retBinding = ConvertV1BindingToInternalBinding(*assignedIdentity.Spec.AzureBindingRef)
+	}
 
 	return aadpodid.AzureAssignedIdentity{
 		TypeMeta:   assignedIdentity.TypeMeta,
