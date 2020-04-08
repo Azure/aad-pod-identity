@@ -20,7 +20,7 @@ If you need to make changes to the default variables of the script, please due p
 ```
 
 Once the script has completed. Verify that you have both the azureidentity and azureidentitybinding setup in the cluster.
-'''
+```
 kubectl get azureidentity
 kubectl get azureidentitybinding
 ```
