@@ -35,4 +35,12 @@ TODO - add MSI to resource group as contributor
 
 ```
 
+### 3. Test AAD Pod Identity
+The example below is using the default AAD Pod Identity label created from step 1 for the AAD Pod Identity
+```
+kubectl run myaadpod -it --image=mcr.microsoft.com/azure-cli --labels="aadpodidbinding=use-pod-identity" --restart=Never
+kubectl exec -it myaadpod -- sh
+az login --identity
+az network vnet create \ --name myVirtualNetwork \ --resource-group myResourceGroup \ --subnet-name default
+```
 
