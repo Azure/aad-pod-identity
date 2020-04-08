@@ -27,15 +27,7 @@ kubectl get azureidentity
 kubectl get azureidentitybinding
 ```
 
-### 2. Create the need access resource group with AAD Pod Identity contributor access granted
-The example below is using the default MSI created from step 1 for the AAD Pod Identity
-```
-az group create -l eastus2 -n aad-pod-identity-access
-TODO - add MSI to resource group as contributor
-
-```
-
-### 3. Test AAD Pod Identity Access
+### 2. Test AAD Pod Identity Access
 The example below is using the default AAD Pod Identity label created from step 1 for the AAD Pod Identity. In this test we will create a pod using the azure-cli image, attaching the necessary label for the pod to use the MSI for Azure access. Once you exec into the pod, you will log into azure as the MSI identity, then issue a command to create a VNet in the access resource group. Since the MSI has been granted contributor access to the access resource group, the creation of the VNet will happen with no issue.
 ```
 kubectl run myaadpodaccess -it --image=mcr.microsoft.com/azure-cli --labels="aadpodidbinding=use-pod-identity" --restart=Never
@@ -46,8 +38,8 @@ az login --identity
 
 az network vnet create \ --name myVirtualNetwork1 \ --resource-group <Access Resource Group> \ --subnet-name default
 ```
-### 4. Test AAD Pod Identity Denied Access
-Similar to the test in step 3. We will create a pod using the azure-cli image, attaching the necessary label for the pod to use the MSI for Azure access. In this case, once you exec into the pod, and log into Azure with the MSI assigned to the pod, you will attempt to create another VNet in a resource group where the MSI only has read access. You will receive an error for not having the necessary permissions to create the VNet.
+### 3. Test AAD Pod Identity Denied Access
+Similar to the test in step 2. We will create a pod using the azure-cli image, attaching the necessary label for the pod to use the MSI for Azure access. In this case, once you exec into the pod, and log into Azure with the MSI assigned to the pod, you will attempt to create another VNet in a resource group where the MSI only has read access. You will receive an error for not having the necessary permissions to create the VNet.
 ```
 kubectl run myaadpodnoaccess -it --image=mcr.microsoft.com/azure-cli --labels="aadpodidbinding=use-pod-identity" --restart=Never
 
