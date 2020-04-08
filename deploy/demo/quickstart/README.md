@@ -4,6 +4,6 @@ The quickstart demo for AAD Pod Identity is a set of scripts to steamline and ex
 
 ## Getting Started
 > **NOTE: This quickstart makes the following assumptions:**
-> __Your AKS cluster is RBAC enabled__
+> * Your AKS cluster is RBAC enabled
 
 
