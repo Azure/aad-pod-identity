@@ -35,12 +35,25 @@ TODO - add MSI to resource group as contributor
 
 ```
 
-### 3. Test AAD Pod Identity
-The example below is using the default AAD Pod Identity label created from step 1 for the AAD Pod Identity
+### 3. Test AAD Pod Identity Access
+The example below is using the default AAD Pod Identity label created from step 1 for the AAD Pod Identity. In this test we will create a pod using the azure-cli image, attaching the necessary label for the pod to use the MSI for Azure access. Once you exec into the pod, you will log into azure as the MSI identity, then issue a command to create a VNet in the access resource group. Since the MSI has been granted contributor access to the access resource group, the creation of the VNet will happen with no issue.
 ```
-kubectl run myaadpod -it --image=mcr.microsoft.com/azure-cli --labels="aadpodidbinding=use-pod-identity" --restart=Never
-kubectl exec -it myaadpod -- sh
-az login --identity
-az network vnet create \ --name myVirtualNetwork \ --resource-group myResourceGroup \ --subnet-name default
-```
+kubectl run myaadpodaccess -it --image=mcr.microsoft.com/azure-cli --labels="aadpodidbinding=use-pod-identity" --restart=Never
 
+kubectl exec -it myaadpodaccess -- sh
+
+az login --identity
+
+az network vnet create \ --name myVirtualNetwork1 \ --resource-group <Access Resource Group> \ --subnet-name default
+```
+### 4. Test AAD Pod Identity Denied Access
+Similar to the test in step 3. We will create a pod using the azure-cli image, attaching the necessary label for the pod to use the MSI for Azure access. In this case, once you exec into the pod, and log into Azure with the MSI assigned to the pod, you will attempt to create another VNet in a resource group where the MSI only has read access. You will receive an error for not having the necessary permissions to create the VNet.
+```
+kubectl run myaadpodnoaccess -it --image=mcr.microsoft.com/azure-cli --labels="aadpodidbinding=use-pod-identity" --restart=Never
+
+kubectl exec -it myaadpodnoaccess -- sh
+
+az login --identity
+
+az network vnet create \ --name myVirtualNetwork2 \ --resource-group <No Access Resource Group> \ --subnet-name default
+```
