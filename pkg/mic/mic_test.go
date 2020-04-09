@@ -457,6 +457,14 @@ func (c *TestCrdClient) CreateAssignedIdentity(assignedIdentity *internalaadpodi
 	return nil
 }
 
+func (c *TestCrdClient) UpdateAssignedIdentity(assignedIdentity *internalaadpodid.AzureAssignedIdentity) error {
+	assignedIdentityToStore := *assignedIdentity //Make a copy to store in the map.
+	c.mu.Lock()
+	c.assignedIDMap[assignedIdentity.Name] = &assignedIdentityToStore
+	c.mu.Unlock()
+	return nil
+}
+
 func (c *TestCrdClient) UpdateAzureAssignedIdentityStatus(assignedIdentity *internalaadpodid.AzureAssignedIdentity, status string) error {
 	assignedIdentity.Status.Status = status
 	assignedIdentityToStore := *assignedIdentity //Make a copy to store in the map.
@@ -909,15 +917,6 @@ func TestSimpleMICClient(t *testing.T) {
 		t.Fatalf("Assigned id not deleted")
 	}
 
-	/*
-		testPass = evtRecorder.Validate(&LastEvent{Type: "Normal", Reason: "binding removed",
-			Message: "Binding testbinding removed from node test-node for pod test-pod"})
-
-		if !testPass {
-			t.Errorf("event mismatch")
-		}
-	*/
-
 	// Test3: Error from cloud provider event test
 	err = errors.New("error returned from cloud provider")
 	cloudClient.SetError(err)
@@ -937,14 +936,6 @@ func TestSimpleMICClient(t *testing.T) {
 		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDCreated, (*listAssignedIDs)[0].Status.Status)
 	}
 
-	/*
-		testPass = evtRecorder.Validate(&LastEvent{Type: "Warning", Reason: "binding apply error",
-			Message: "Applying binding testbinding node test-node for pod test-pod-default-test-id resulted in error error returned from cloud provider"})
-
-		if !testPass {
-			t.Errorf("event mismatch")
-		} */
-
 	// Test4: Removal error event test
 	// Reset the state to add the id.
 	cloudClient.UnSetError()
@@ -956,15 +947,55 @@ func TestSimpleMICClient(t *testing.T) {
 	cloudClient.SetError(err)
 
 	podClient.DeletePod("test-pod", "default")
-	eventCh <- internalaadpodid.PodDeleted
-	/*
-		testPass = evtRecorder.Validate(&LastEvent{Type: "Warning", Reason: "binding remove error",
-			Message: "Binding testbinding removal from node test-node for pod test-pod resulted in error remove error returned from cloud provider"})
+}
 
-		if !testPass {
-			t.Errorf("event mismatch")
+func TestUpdateAssignedIdentities(t *testing.T) {
+	eventCh := make(chan internalaadpodid.EventType, 100)
+	cloudClient := NewTestCloudClient(config.AzureConfig{})
+	crdClient := NewTestCrdClient(nil)
+	podClient := NewTestPodClient()
+	nodeClient := NewTestNodeClient()
+	var evtRecorder TestEventRecorder
+	evtRecorder.lastEvent = new(LastEvent)
+	evtRecorder.eventChannel = make(chan bool, 100)
+
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, nil)
+
+	crdClient.CreateID("test-id", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateBinding("testbinding", "default", "test-id", "test-select", "")
+
+	nodeClient.AddNode("test-node")
+	podClient.AddPod("test-pod", "default", "test-node", "test-select")
+
+	eventCh <- internalaadpodid.PodCreated
+
+	defer micClient.testRunSync()(t)
+
+	evtRecorder.WaitForEvents(1)
+
+	testPass := false
+	listAssignedIDs, err := crdClient.ListAssignedIDs()
+	if err != nil {
+		klog.Error(err)
+		t.Errorf("list assigned failed")
+	}
+
+	if listAssignedIDs != nil {
+		for _, assignedID := range *listAssignedIDs {
+			if assignedID.Spec.Pod == "test-pod" && assignedID.Spec.PodNamespace == "default" && assignedID.Spec.NodeName == "test-node" &&
+				assignedID.Spec.AzureBindingRef.Name == "testbinding" && assignedID.Spec.AzureIdentityRef.Name == "test-id" {
+				testPass = true
+				break
+			}
 		}
-	*/
+	}
+
+	if !testPass {
+		t.Fatalf("assigned id mismatch")
+	}
+	crdClient.CreateID("test-id", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "changedrv1")
+	eventCh <- internalaadpodid.IdentityUpdated
+	evtRecorder.WaitForEvents(1)
 }
 
 func TestAddDelMICClient(t *testing.T) {
@@ -1568,7 +1599,6 @@ func TestSyncExit(t *testing.T) {
 
 	micClient.testRunSync()(t)
 }
-
 func TestMicAddDelVMSSwithImmutableIdentities(t *testing.T) {
 	eventCh := make(chan internalaadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{VMType: "vmss"})
