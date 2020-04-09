@@ -28,7 +28,7 @@ kubectl get azureidentitybinding
 ```
 
 ### 2. Test AAD Pod Identity Access
-The example below is using the default AAD Pod Identity label created from step 1 for the AAD Pod Identity. In this test we will create a pod using the azure-cli image, attaching the necessary label for the pod to use the MSI for Azure access. Once you exec into the pod, you will log into azure as the MSI identity, then issue a command to create a VNet in the access resource group. Since the MSI has been granted contributor access to the access resource group, the creation of the VNet will happen with no issue.
+The example below is using the default AAD Pod Identity label created from step 1 for the AAD Pod Identity. In this test we will create a pod using the azure-cli image, attaching the necessary label for the pod to use the MSI for Azure access. Once you exec into the pod, you will log into Azure as the MSI identity, then issue a command to create a VNet in the access resource group. Since the MSI has been granted contributor access to the access resource group, the creation of the VNet will happen with no issue.
 ```
 kubectl run myaadpodaccess -it --image=mcr.microsoft.com/azure-cli --labels="aadpodidbinding=use-pod-identity" --restart=Never
 
