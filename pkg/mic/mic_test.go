@@ -961,7 +961,7 @@ func TestUpdateAssignedIdentities(t *testing.T) {
 
 	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, nil)
 
-	crdClient.CreateID("test-id", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "")
+	crdClient.CreateID("test-id", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "rv1")
 	crdClient.CreateBinding("testbinding", "default", "test-id", "test-select", "")
 
 	nodeClient.AddNode("test-node")
@@ -983,7 +983,8 @@ func TestUpdateAssignedIdentities(t *testing.T) {
 	if listAssignedIDs != nil {
 		for _, assignedID := range *listAssignedIDs {
 			if assignedID.Spec.Pod == "test-pod" && assignedID.Spec.PodNamespace == "default" && assignedID.Spec.NodeName == "test-node" &&
-				assignedID.Spec.AzureBindingRef.Name == "testbinding" && assignedID.Spec.AzureIdentityRef.Name == "test-id" {
+				assignedID.Spec.AzureBindingRef.Name == "testbinding" && assignedID.Spec.AzureIdentityRef.Name == "test-id" &&
+				assignedID.Spec.AzureIdentityRef.ResourceVersion == "rv1" && assignedID.Spec.AzureIdentityRef.Spec.ClientID == "test-user-msi-clientid" {
 				testPass = true
 				break
 			}
@@ -993,9 +994,29 @@ func TestUpdateAssignedIdentities(t *testing.T) {
 	if !testPass {
 		t.Fatalf("assigned id mismatch")
 	}
-	crdClient.CreateID("test-id", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "changedrv1")
+	crdClient.CreateID("test-id", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid2", nil, "", "", "", "changedrv2")
 	eventCh <- internalaadpodid.IdentityUpdated
 	evtRecorder.WaitForEvents(1)
+
+	listAssignedIDs, err = crdClient.ListAssignedIDs()
+	if err != nil {
+		klog.Error(err)
+		t.Errorf("list assigned failed")
+	}
+
+	if listAssignedIDs != nil {
+		for _, assignedID := range *listAssignedIDs {
+			if assignedID.Spec.Pod == "test-pod" && assignedID.Spec.PodNamespace == "default" && assignedID.Spec.NodeName == "test-node" &&
+				assignedID.Spec.AzureBindingRef.Name == "testbinding" && assignedID.Spec.AzureIdentityRef.Name == "test-id" &&
+				assignedID.Spec.AzureIdentityRef.ResourceVersion == "changedrv2" && assignedID.Spec.AzureIdentityRef.Spec.ClientID == "test-user-msi-clientid2" {
+				testPass = true
+				break
+			}
+		}
+	}
+	if !testPass {
+		t.Fatalf("assigned id mismatch")
+	}
 }
 
 func TestAddDelMICClient(t *testing.T) {
@@ -1237,7 +1258,7 @@ func TestMICStateFlow(t *testing.T) {
 	cloudClient.SetError(errors.New("error removing identity from node"))
 	cloudClient.testVMClient.identity = &compute.VirtualMachineIdentity{
 		UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
-			testResourceID: &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{},
+			testResourceID: {},
 		},
 	}
 
@@ -1422,7 +1443,7 @@ func TestSyncRetryLoop(t *testing.T) {
 	cloudClient.SetError(errors.New("error removing identity from node"))
 	cloudClient.testVMClient.identity = &compute.VirtualMachineIdentity{
 		UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
-			testResourceID: &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{},
+			testResourceID: {},
 		},
 	}
 
