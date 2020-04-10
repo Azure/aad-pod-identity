@@ -9,7 +9,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	"github.com/Azure/aad-pod-identity/pkg/crd"
@@ -522,7 +521,7 @@ func (c *Client) convertAssignedIDListToMap(addList, deleteList map[string]aadpo
 				continue
 			}
 			// updateIDs[1] contains the new assigned ID that we want to update with
-			updateID := updateIDs[1]
+			updateID := getNewAssignedIDForUpdate(updateIDs)
 			if trackList, ok := nodeMap[updateID.Spec.NodeName]; ok {
 				trackList.assignedIDsToUpdate = append(trackList.assignedIDsToUpdate, updateID)
 				nodeMap[updateID.Spec.NodeName] = trackList
@@ -611,77 +610,66 @@ func (c *Client) getListOfIdsToDelete(deleteList map[string]aadpodid.AzureAssign
 		return
 	}
 	for _, delID := range deleteList {
-		klog.V(5).Infof("Deletion of id: %s", delID.Name)
-		inUse, err := c.checkIfInUse(delID, newAssignedIDs, vmssGroups)
+		err := c.shouldRemoveID(delID, newAssignedIDs, nodeMap, vmssGroups)
 		if err != nil {
 			klog.Error(err)
-			continue
 		}
-
-		id := delID.Spec.AzureIdentityRef
-		isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
-		isImmutableIdentity := c.checkIfIdentityImmutable(id.Spec.ClientID)
-
-		// this case includes Assigned state and empty state to ensure backward compatability
-		if delID.Status.Status == aadpodid.AssignedIDAssigned || delID.Status.Status == "" {
-			// only user assigned identities that are not in use and are not defined as
-			// immutable will be removed from underlying node/vmss
-			if !inUse && isUserAssignedMSI && !isImmutableIdentity {
-				c.appendToRemoveListForNode(id.Spec.ResourceID, delID.Spec.NodeName, nodeMap)
-			}
-		}
-		klog.V(5).Infof("Binding removed: %+v", delID.Spec.AzureBindingRef)
 	}
 	for _, updateIDs := range updateList {
-		updateID := updateIDs[0]
-		klog.V(5).Infof("Updating id: %s", updateID.Name)
-		inUse, err := c.checkIfInUse(updateID, newAssignedIDs, vmssGroups)
+		updateID := getOldAssignedIDForUpdate(updateIDs)
+		err := c.shouldRemoveID(updateID, newAssignedIDs, nodeMap, vmssGroups)
 		if err != nil {
 			klog.Error(err)
-			continue
 		}
-
-		id := updateID.Spec.AzureIdentityRef
-		isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
-		isImmutableIdentity := c.checkIfIdentityImmutable(id.Spec.ClientID)
-
-		// this case includes Assigned state and empty state to ensure backward compatability
-		if updateID.Status.Status == aadpodid.AssignedIDAssigned || updateID.Status.Status == "" {
-			// only user assigned identities that are not in use and are not defined as
-			// immutable will be removed from underlying node/vmss
-			if !inUse && isUserAssignedMSI && !isImmutableIdentity {
-				c.appendToRemoveListForNode(id.Spec.ResourceID, updateID.Spec.NodeName, nodeMap)
-			}
-		}
-		klog.V(5).Infof("Binding removed: %+v", updateID.Spec.AzureBindingRef)
 	}
 }
 
 // getListOfIdsToAssign will add the id to the append list for node if it's user assigned identity
 func (c *Client) getListOfIdsToAssign(addList map[string]aadpodid.AzureAssignedIdentity, updateList map[string][]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
 	for _, createID := range addList {
-		id := createID.Spec.AzureIdentityRef
-		isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
-
-		if createID.Status.Status == "" || createID.Status.Status == aadpodid.AssignedIDCreated {
-			if isUserAssignedMSI {
-				c.appendToAddListForNode(id.Spec.ResourceID, createID.Spec.NodeName, nodeMap)
-			}
-		}
-		klog.V(5).Infof("Binding applied: %+v", createID.Spec.AzureBindingRef)
+		c.shouldAssignID(createID, nodeMap)
 	}
 	for _, updateIDs := range updateList {
-		updateID := updateIDs[1]
-		id := updateID.Spec.AzureIdentityRef
-		isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
-
-		if updateID.Status.Status == "" || updateID.Status.Status == aadpodid.AssignedIDCreated {
-			if isUserAssignedMSI {
-				c.appendToAddListForNode(id.Spec.ResourceID, updateID.Spec.NodeName, nodeMap)
-			}
-		}
-		klog.V(5).Infof("Binding applied: %+v", updateID.Spec.AzureBindingRef)
+		updateID := getNewAssignedIDForUpdate(updateIDs)
+		c.shouldAssignID(updateID, nodeMap)
 	}
+}
+
+func (c *Client) shouldAssignID(assignedID aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
+	id := assignedID.Spec.AzureIdentityRef
+	isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
+
+	if assignedID.Status.Status == "" || assignedID.Status.Status == aadpodid.AssignedIDCreated {
+		if isUserAssignedMSI {
+			c.appendToAddListForNode(id.Spec.ResourceID, assignedID.Spec.NodeName, nodeMap)
+		}
+	}
+	klog.V(5).Infof("Binding applied: %+v", assignedID.Spec.AzureBindingRef)
+}
+
+func (c *Client) shouldRemoveID(assignedID aadpodid.AzureAssignedIdentity,
+	newAssignedIDs map[string]aadpodid.AzureAssignedIdentity,
+	nodeMap map[string]trackUserAssignedMSIIds, vmssGroups *vmssGroupList) error {
+	klog.V(5).Infof("Deletion of id: %s", assignedID.Name)
+	inUse, err := c.checkIfInUse(assignedID, newAssignedIDs, vmssGroups)
+	if err != nil {
+		return err
+	}
+
+	id := assignedID.Spec.AzureIdentityRef
+	isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
+	isImmutableIdentity := c.checkIfIdentityImmutable(id.Spec.ClientID)
+
+	// this case includes Assigned state and empty state to ensure backward compatability
+	if assignedID.Status.Status == aadpodid.AssignedIDAssigned || assignedID.Status.Status == "" {
+		// only user assigned identities that are not in use and are not defined as
+		// immutable will be removed from underlying node/vmss
+		if !inUse && isUserAssignedMSI && !isImmutableIdentity {
+			c.appendToRemoveListForNode(id.Spec.ResourceID, assignedID.Spec.NodeName, nodeMap)
+		}
+	}
+	klog.V(5).Infof("Binding removed: %+v", assignedID.Spec.AzureBindingRef)
+	return nil
 }
 
 func (c *Client) matchAssignedID(x aadpodid.AzureAssignedIdentity, y aadpodid.AzureAssignedIdentity) (ret bool) {
@@ -1047,7 +1035,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 	// generate unique list so we don't make multiple calls to assign/remove same id
 	addUserAssignedMSIIDs := c.getUniqueIDs(nodeTrackList.addUserAssignedMSIIDs)
 	removeUserAssignedMSIIDs := c.getUniqueIDs(nodeTrackList.removeUserAssignedMSIIDs)
-	createOrUpdateList := append([]aadpodidentity.AzureAssignedIdentity{}, nodeTrackList.assignedIDsToCreate...)
+	createOrUpdateList := append([]aadpodid.AzureAssignedIdentity{}, nodeTrackList.assignedIDsToCreate...)
 	createOrUpdateList = append(createOrUpdateList, nodeTrackList.assignedIDsToUpdate...)
 
 	err := c.CloudClient.UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs, nodeOrVMSSName, nodeTrackList.isvmss)
@@ -1292,4 +1280,14 @@ func (c *Client) checkIfIdentityImmutable(id string) bool {
 		return true
 	}
 	return false
+}
+
+// getOldAssignedIDForUpdate returns the current assigned identity on the cluster before update
+func getOldAssignedIDForUpdate(updateIDs []aadpodid.AzureAssignedIdentity) aadpodid.AzureAssignedIdentity {
+	return updateIDs[0]
+}
+
+// getNewAssignedIDForUpdate returns the new assigned identity that will be updated in this sync cycle
+func getNewAssignedIDForUpdate(updateIDs []aadpodid.AzureAssignedIdentity) aadpodid.AzureAssignedIdentity {
+	return updateIDs[1]
 }
