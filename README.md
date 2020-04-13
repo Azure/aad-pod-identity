@@ -43,6 +43,8 @@ Or run this command to deploy to a non-RBAC cluster:
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment.yaml
 ```
 
+> Important: For AKS clusters with limited [egress-traffic], Please install pod-identity in `kube-system` namespace using the [helm charts].
+
 ### 2. Create an Azure Identity
 
 Run this [Azure CLI] command, and take note of the `clientId` and `id` values it returns:
@@ -287,3 +289,5 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 [Node Managed Identity]: #node-managed-identity
 [Prerequisites]: #prerequisites
 [Tutorial]: docs/tutorial/README.md
+[helm charts]: https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity
+[egress-traffic]: https://docs.microsoft.com/en-us/azure/aks/limit-egress-traffic
