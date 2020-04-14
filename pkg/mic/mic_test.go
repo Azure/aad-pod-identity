@@ -89,7 +89,6 @@ func (c *TestVMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualM
 	if c.err != nil {
 		return *c.err
 	}
-
 	if vm.Identity != nil && vm.Identity.UserAssignedIdentities != nil {
 		for k, v := range vm.Identity.UserAssignedIdentities {
 			if v == nil {
@@ -104,7 +103,6 @@ func (c *TestVMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualM
 			delete(c.nodeIDs[nodeName], k)
 		}
 	}
-
 	c.nodeMap[nodeName] = &vm
 	return nil
 }
@@ -994,8 +992,15 @@ func TestUpdateAssignedIdentities(t *testing.T) {
 	if !testPass {
 		t.Fatalf("assigned id mismatch")
 	}
-	crdClient.CreateID("test-id", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid2", nil, "", "", "", "changedrv2")
+	newResourceID := testResourceID + "-new"
+	crdClient.CreateID("test-id", "default", aadpodid.UserAssignedMSI, newResourceID, "test-user-msi-clientid", nil, "", "", "", "changedrv2")
+	crdClient.CreateID("test-id-2", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "rv2")
+	crdClient.CreateBinding("testbinding2", "default", "test-id-2", "test-select", "")
+
 	eventCh <- internalaadpodid.IdentityUpdated
+	eventCh <- internalaadpodid.IdentityCreated
+	eventCh <- internalaadpodid.BindingCreated
+
 	evtRecorder.WaitForEvents(1)
 
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
@@ -1004,11 +1009,13 @@ func TestUpdateAssignedIdentities(t *testing.T) {
 		t.Errorf("list assigned failed")
 	}
 
+	testPass = false
 	if listAssignedIDs != nil {
 		for _, assignedID := range *listAssignedIDs {
 			if assignedID.Spec.Pod == "test-pod" && assignedID.Spec.PodNamespace == "default" && assignedID.Spec.NodeName == "test-node" &&
 				assignedID.Spec.AzureBindingRef.Name == "testbinding" && assignedID.Spec.AzureIdentityRef.Name == "test-id" &&
-				assignedID.Spec.AzureIdentityRef.ResourceVersion == "changedrv2" && assignedID.Spec.AzureIdentityRef.Spec.ClientID == "test-user-msi-clientid2" {
+				assignedID.Spec.AzureIdentityRef.ResourceVersion == "changedrv2" && assignedID.Spec.AzureIdentityRef.Spec.ClientID == "test-user-msi-clientid" &&
+				assignedID.Spec.AzureIdentityRef.Spec.ResourceID == newResourceID {
 				testPass = true
 				break
 			}
@@ -1016,6 +1023,79 @@ func TestUpdateAssignedIdentities(t *testing.T) {
 	}
 	if !testPass {
 		t.Fatalf("assigned id mismatch")
+	}
+}
+
+func TestAddUpdateDel(t *testing.T) {
+	eventCh := make(chan internalaadpodid.EventType, 100)
+	cloudClient := NewTestCloudClient(config.AzureConfig{})
+	crdClient := NewTestCrdClient(nil)
+	podClient := NewTestPodClient()
+	nodeClient := NewTestNodeClient()
+	var evtRecorder TestEventRecorder
+	evtRecorder.lastEvent = new(LastEvent)
+	evtRecorder.eventChannel = make(chan bool, 100)
+
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, nil)
+
+	crdClient.CreateID("test-id-0", "default", aadpodid.UserAssignedMSI, fmt.Sprintf("%s-%d", testResourceID, 0), "test-user-msi-clientid-0", nil, "", "", "", "rv-0")
+	crdClient.CreateBinding("testbinding-0", "default", "test-id-0", "test-select-0", "")
+
+	crdClient.CreateID("test-id-1", "default", aadpodid.UserAssignedMSI, fmt.Sprintf("%s-%d", testResourceID, 1), "test-user-msi-clientid-1", nil, "", "", "", "rv-1")
+	crdClient.CreateBinding("testbinding-1", "default", "test-id-1", "test-select-1", "")
+
+	crdClient.CreateID("test-id-2", "default", aadpodid.UserAssignedMSI, fmt.Sprintf("%s-%d", testResourceID, 2), "test-user-msi-clientid-2", nil, "", "", "", "rv-2")
+	crdClient.CreateBinding("testbinding-2", "default", "test-id-2", "test-select-2", "")
+
+	nodeClient.AddNode("test-node")
+	podClient.AddPod("test-pod-0", "default", "test-node", "test-select-0")
+	podClient.AddPod("test-pod-1", "default", "test-node", "test-select-1")
+	podClient.AddPod("test-pod-2", "default", "test-node", "test-select-2")
+
+	eventCh <- internalaadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
+	eventCh <- internalaadpodid.PodCreated
+
+	defer micClient.testRunSync()(t)
+
+	evtRecorder.WaitForEvents(3)
+	listAssignedIDs, err := crdClient.ListAssignedIDs()
+	if err != nil {
+		t.Fatalf("failed to list assigned ids, err: %v", err)
+	}
+	if len(*listAssignedIDs) != 3 {
+		t.Fatalf("expected len to be %d, got %d", 3, len(*listAssignedIDs))
+	}
+
+	crdClient.CreateID("test-id-0", "default", aadpodid.UserAssignedMSI, fmt.Sprintf("%s-%d", testResourceID, 4), "test-user-msi-clientid-4", nil, "", "", "", "updated-rv-0")
+	crdClient.CreateID("test-id-3", "default", aadpodid.UserAssignedMSI, fmt.Sprintf("%s-%d", testResourceID, 3), "test-user-msi-clientid-3", nil, "", "", "", "rv-3")
+	crdClient.CreateBinding("testbinding-3", "default", "test-id-3", "test-select-2", "")
+	podClient.DeletePod("test-pod-1", "default")
+
+	eventCh <- internalaadpodid.IdentityCreated
+	eventCh <- internalaadpodid.BindingCreated
+	eventCh <- internalaadpodid.IdentityUpdated
+	eventCh <- internalaadpodid.PodDeleted
+
+	evtRecorder.WaitForEvents(3)
+	listAssignedIDs, err = crdClient.ListAssignedIDs()
+	if err != nil {
+		t.Fatalf("failed to list assigned ids, err: %v", err)
+	}
+	if len(*listAssignedIDs) != 3 {
+		t.Fatalf("expected len to be %d, got %d", 3, len(*listAssignedIDs))
+	}
+	// check the updated identity has the correct azureid ref
+	for _, assignedID := range *listAssignedIDs {
+		if assignedID.Name != "test-pod-0-default-test-id-0" {
+			continue
+		}
+		if !(assignedID.Spec.Pod == "test-pod-0" && assignedID.Spec.PodNamespace == "default" && assignedID.Spec.NodeName == "test-node" &&
+			assignedID.Spec.AzureBindingRef.Name == "testbinding-0" && assignedID.Spec.AzureIdentityRef.Name == "test-id-0" &&
+			assignedID.Spec.AzureIdentityRef.ResourceVersion == "updated-rv-0" && assignedID.Spec.AzureIdentityRef.Spec.ClientID == "test-user-msi-clientid-4" &&
+			assignedID.Spec.AzureIdentityRef.Spec.ResourceID == fmt.Sprintf("%s-%d", testResourceID, 4)) {
+			t.Fatalf("azure identity spec mismatch")
+		}
 	}
 }
 

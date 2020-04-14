@@ -429,25 +429,25 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			klog.Error(err)
 			continue
 		}
-		updateList := c.getAzureAssignedIdentitiesToUpdate(addList, deleteList)
-		klog.V(5).Infof("del: %v, add: %v, update: %v", deleteList, addList, updateList)
+		beforeUpdateList, afterUpdateList := c.getAzureAssignedIdentitiesToUpdate(addList, deleteList)
+		klog.V(5).Infof("del: %v, add: %v, update: %v", deleteList, addList, afterUpdateList)
 
 		// the node map is used to track assigned ids to create/delete, identities to assign/remove
 		// for each node or vmss
 		nodeMap := make(map[string]trackUserAssignedMSIIds)
 
 		// seperate the add and delete list per node
-		c.convertAssignedIDListToMap(addList, deleteList, updateList, nodeMap)
+		c.convertAssignedIDListToMap(addList, deleteList, afterUpdateList, nodeMap)
 
 		// process the delete and add list
 		// determine the list of identities that need to updated, create a node to identity list mapping for add and delete
-		if len(deleteList) > 0 || len(updateList) > 0 {
+		if len(deleteList) > 0 || len(beforeUpdateList) > 0 {
 			workDone = true
-			c.getListOfIdsToDelete(deleteList, updateList, newAssignedIDs, nodeMap, nodeRefs)
+			c.getListOfIdsToDelete(deleteList, beforeUpdateList, afterUpdateList, newAssignedIDs, nodeMap, nodeRefs)
 		}
-		if len(addList) > 0 || len(updateList) > 0 {
+		if len(addList) > 0 || len(afterUpdateList) > 0 {
 			workDone = true
-			c.getListOfIdsToAssign(addList, updateList, nodeMap)
+			c.getListOfIdsToAssign(addList, afterUpdateList, nodeMap)
 		}
 
 		var wg sync.WaitGroup
@@ -492,7 +492,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 	}
 }
 
-func (c *Client) convertAssignedIDListToMap(addList, deleteList map[string]aadpodid.AzureAssignedIdentity, updateList map[string][]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
+func (c *Client) convertAssignedIDListToMap(addList, deleteList, updateList map[string]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
 	if addList != nil {
 		for _, createID := range addList {
 			if trackList, ok := nodeMap[createID.Spec.NodeName]; ok {
@@ -516,12 +516,7 @@ func (c *Client) convertAssignedIDListToMap(addList, deleteList map[string]aadpo
 	}
 
 	if updateList != nil {
-		for _, updateIDs := range updateList {
-			if len(updateIDs) != 2 {
-				continue
-			}
-			// updateIDs[1] contains the new assigned ID that we want to update with
-			updateID := getNewAssignedIDForUpdate(updateIDs)
+		for _, updateID := range updateList {
 			if trackList, ok := nodeMap[updateID.Spec.NodeName]; ok {
 				trackList.assignedIDsToUpdate = append(trackList.assignedIDsToUpdate, updateID)
 				nodeMap[updateID.Spec.NodeName] = trackList
@@ -599,9 +594,7 @@ func (c *Client) createDesiredAssignedIdentityList(
 
 // getListOfIdsToDelete will go over the delete list to determine if the id is required to be deleted
 // only user assigned identity not in use are added to the remove list for the node
-func (c *Client) getListOfIdsToDelete(deleteList map[string]aadpodid.AzureAssignedIdentity,
-	updateList map[string][]aadpodid.AzureAssignedIdentity,
-	newAssignedIDs map[string]aadpodid.AzureAssignedIdentity,
+func (c *Client) getListOfIdsToDelete(deleteList, beforeUpdateList, afterUpdateList, newAssignedIDs map[string]aadpodid.AzureAssignedIdentity,
 	nodeMap map[string]trackUserAssignedMSIIds,
 	nodeRefs map[string]bool) {
 	vmssGroups, err := getVMSSGroups(c.NodeClient, nodeRefs)
@@ -609,15 +602,25 @@ func (c *Client) getListOfIdsToDelete(deleteList map[string]aadpodid.AzureAssign
 		klog.Error(err)
 		return
 	}
+
+	consolidatedMapToCheck := make(map[string]aadpodid.AzureAssignedIdentity)
+	for name, id := range newAssignedIDs {
+		consolidatedMapToCheck[name] = id
+	}
+	for name, id := range afterUpdateList {
+		consolidatedMapToCheck[name] = id
+	}
+
 	for _, delID := range deleteList {
-		err := c.shouldRemoveID(delID, newAssignedIDs, nodeMap, vmssGroups)
+		err := c.shouldRemoveID(delID, consolidatedMapToCheck, nodeMap, vmssGroups)
 		if err != nil {
 			klog.Error(err)
 		}
 	}
-	for _, updateIDs := range updateList {
-		updateID := getOldAssignedIDForUpdate(updateIDs)
-		err := c.shouldRemoveID(updateID, newAssignedIDs, nodeMap, vmssGroups)
+	// this loop checks the azure identity before it was updated and cleans up
+	// the old identity
+	for _, oldUpdateID := range beforeUpdateList {
+		err := c.shouldRemoveID(oldUpdateID, consolidatedMapToCheck, nodeMap, vmssGroups)
 		if err != nil {
 			klog.Error(err)
 		}
@@ -625,12 +628,11 @@ func (c *Client) getListOfIdsToDelete(deleteList map[string]aadpodid.AzureAssign
 }
 
 // getListOfIdsToAssign will add the id to the append list for node if it's user assigned identity
-func (c *Client) getListOfIdsToAssign(addList map[string]aadpodid.AzureAssignedIdentity, updateList map[string][]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
+func (c *Client) getListOfIdsToAssign(addList, updateList map[string]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
 	for _, createID := range addList {
 		c.shouldAssignID(createID, nodeMap)
 	}
-	for _, updateIDs := range updateList {
-		updateID := getNewAssignedIDForUpdate(updateIDs)
+	for _, updateID := range updateList {
 		c.shouldAssignID(updateID, nodeMap)
 	}
 }
@@ -659,7 +661,6 @@ func (c *Client) shouldRemoveID(assignedID aadpodid.AzureAssignedIdentity,
 	id := assignedID.Spec.AzureIdentityRef
 	isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
 	isImmutableIdentity := c.checkIfIdentityImmutable(id.Spec.ClientID)
-
 	// this case includes Assigned state and empty state to ensure backward compatability
 	if assignedID.Status.Status == aadpodid.AssignedIDAssigned || assignedID.Status.Status == "" {
 		// only user assigned identities that are not in use and are not defined as
@@ -763,24 +764,27 @@ func (c *Client) getAzureAssignedIDsToDelete(old, new map[string]aadpodid.AzureA
 
 // getAzureAssignedIdentitiesToUpdate returns a list of assignedIDs that need to be updated
 // because of change in azureIdentity or azurerIdentityBinding
-func (c *Client) getAzureAssignedIdentitiesToUpdate(add, del map[string]aadpodid.AzureAssignedIdentity) map[string][]aadpodid.AzureAssignedIdentity {
-	update := make(map[string][]aadpodid.AzureAssignedIdentity)
+// returns 2 maps, first the assigned IDs currently on cluster, second the assignedID value to update with
+func (c *Client) getAzureAssignedIdentitiesToUpdate(add, del map[string]aadpodid.AzureAssignedIdentity) (map[string]aadpodid.AzureAssignedIdentity, map[string]aadpodid.AzureAssignedIdentity) {
+	beforeUpdate := make(map[string]aadpodid.AzureAssignedIdentity)
+	afterUpdate := make(map[string]aadpodid.AzureAssignedIdentity)
 	// no updates required as assigned identities will not be in both lists
 	if len(add) == 0 || len(del) == 0 {
-		return update
+		return beforeUpdate, afterUpdate
 	}
 	for assignedIDName, addAssignedID := range add {
 		if delAssignedID, exists := del[assignedIDName]; exists {
 			// assigned identity exists in add and del list
 			// update the assigned identity to the latest
 			addAssignedID.ObjectMeta = delAssignedID.ObjectMeta
-			update[assignedIDName] = []aadpodid.AzureAssignedIdentity{delAssignedID, addAssignedID}
+			beforeUpdate[assignedIDName] = delAssignedID
+			afterUpdate[assignedIDName] = addAssignedID
 			// since this is part of update, remove the assignedID from the add and del list
 			delete(add, assignedIDName)
 			delete(del, assignedIDName)
 		}
 	}
-	return update
+	return beforeUpdate, afterUpdate
 }
 
 func (c *Client) makeAssignedIDs(azID aadpodid.AzureIdentity, azBinding aadpodid.AzureIdentityBinding, podName, podNameSpace, nodeName string) (res *aadpodid.AzureAssignedIdentity, err error) {
@@ -1251,7 +1255,6 @@ func (c *Client) consolidateVMSSNodes(nodeMap map[string]trackUserAssignedMSIIds
 		}
 
 		vmssTrackList := trackUserAssignedMSIIds{}
-
 		for _, vmssNode := range vmssNodes {
 			vmssTrackList.addUserAssignedMSIIDs = append(vmssTrackList.addUserAssignedMSIIDs, nodeMap[vmssNode].addUserAssignedMSIIDs...)
 			vmssTrackList.removeUserAssignedMSIIDs = append(vmssTrackList.removeUserAssignedMSIIDs, nodeMap[vmssNode].removeUserAssignedMSIIDs...)
@@ -1261,7 +1264,6 @@ func (c *Client) consolidateVMSSNodes(nodeMap map[string]trackUserAssignedMSIIds
 			vmssTrackList.isvmss = true
 
 			delete(nodeMap, vmssNode)
-
 			nodeMap[getVMSSName(vmssName)] = vmssTrackList
 		}
 	}
@@ -1280,14 +1282,4 @@ func (c *Client) checkIfIdentityImmutable(id string) bool {
 		return true
 	}
 	return false
-}
-
-// getOldAssignedIDForUpdate returns the current assigned identity on the cluster before update
-func getOldAssignedIDForUpdate(updateIDs []aadpodid.AzureAssignedIdentity) aadpodid.AzureAssignedIdentity {
-	return updateIDs[0]
-}
-
-// getNewAssignedIDForUpdate returns the new assigned identity that will be updated in this sync cycle
-func getNewAssignedIDForUpdate(updateIDs []aadpodid.AzureAssignedIdentity) aadpodid.AzureAssignedIdentity {
-	return updateIDs[1]
 }
