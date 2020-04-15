@@ -14,6 +14,13 @@ image:
 # To match only pods in the namespace containing AzureIdentity set this to true.
 forceNameSpaced: "false"
 
+# When NMI runs on a node where MIC is running, then MIC token request call is also
+# intercepted by NMI. MIC can't get a valid token as to initialize and then
+# assign the identity. Installing an exception for MIC would ensure all token requests
+# for MIC pods directly go to IMDS and not go through the pod-identity validation
+# https://github.com/Azure/aad-pod-identity/blob/master/docs/readmes/README.app-exception.md
+installMICException: "true"
+
 ## If using a separate service principal for aad-pod-identity instead of cluster service principal specify the following
 ## (The chart will perform the base64 encoding for you for values that are stored in secrets.)
 adminsecret: {}
