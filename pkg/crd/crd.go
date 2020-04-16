@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
@@ -316,48 +317,99 @@ func (c *Client) getObjectList(resource string, i runtime.Object) (runtime.Objec
 	return i, err
 }
 
-func (c *Client) setObject(resource, ns, name string, i interface{}) error {
-	err := c.rest.Put().Namespace(ns).Resource(resource).Name(name).Body(i).Do().Into(nil)
+func (c *Client) setObject(resource, ns, name string, i interface{}, obj runtime.Object) error {
+	err := c.rest.Put().Namespace(ns).Resource(resource).Name(name).Body(i).Do().Into(obj)
 	if err != nil {
 		return fmt.Errorf("set object for resource: %s, error: %v", resource, err)
 	}
 	return nil
 }
 
-func (c *Client) Upgrade(resource string, i runtime.Object) error {
+func (c *Client) Upgrade(resource string, i runtime.Object) (map[string]runtime.Object, error) {
+	m := make(map[string]runtime.Object)
 	i, err := c.getObjectList(resource, i)
 	if err != nil {
-		return err
+		return m, err
 	}
 
 	list, err := meta.ExtractList(i)
 	if err != nil {
-		return fmt.Errorf("extract list error for resource: %s, err: %v", resource, err)
+		return m, fmt.Errorf("extract list error for resource: %s, err: %v", resource, err)
 	}
 
 	for _, item := range list {
 		o, err := meta.Accessor(item)
 		if err != nil {
-			return fmt.Errorf("get object for resource: %s, error: %v", resource, err)
+			return m, fmt.Errorf("get object for resource: %s, error: %v", resource, err)
 		}
-		err = c.setObject(resource, o.GetNamespace(), o.GetName(), o)
-		if err != nil {
-			return err
+		switch resource {
+		case aadpodv1.AzureIDResource:
+			var obj aadpodv1.AzureIdentity
+			err = c.setObject(resource, o.GetNamespace(), o.GetName(), o, &obj)
+			if err != nil {
+				return m, err
+			}
+			m[getMapKey(o.GetNamespace(), o.GetName())] = &obj
+		case aadpodv1.AzureIDBindingResource:
+			var obj aadpodv1.AzureIdentityBinding
+			err = c.setObject(resource, o.GetNamespace(), o.GetName(), o, &obj)
+			if err != nil {
+				return m, err
+			}
+			m[getMapKey(o.GetNamespace(), o.GetName())] = &obj
+		default:
+			err = c.setObject(resource, o.GetNamespace(), o.GetName(), o, nil)
+			if err != nil {
+				return m, err
+			}
 		}
 	}
-	return nil
+	return m, nil
 }
 
 func (c *Client) UpgradeAll() error {
-	resourceList := map[string]runtime.Object{
-		aadpodv1.AzureIDResource:                &aadpodv1.AzureIdentityList{},
-		aadpodv1.AzureIDBindingResource:         &aadpodv1.AzureIdentityBindingList{},
-		aadpodv1.AzureAssignedIDResource:        &aadpodv1.AzureAssignedIdentityList{},
-		aadpodv1.AzureIdentityExceptionResource: &aadpodv1.AzurePodIdentityExceptionList{},
+	updatedAzureIdentities, err := c.Upgrade(aadpodv1.AzureIDResource, &aadpodv1.AzureIdentityList{})
+	if err != nil {
+		return err
+	}
+	updatedAzureIdentityBindings, err := c.Upgrade(aadpodv1.AzureIDBindingResource, &aadpodv1.AzureIdentityBindingList{})
+	if err != nil {
+		return err
+	}
+	_, err = c.Upgrade(aadpodv1.AzureIdentityExceptionResource, &aadpodv1.AzurePodIdentityExceptionList{})
+	if err != nil {
+		return err
 	}
 
-	for k, v := range resourceList {
-		err := c.Upgrade(k, v)
+	// update azure assigned identities separately as we need to use the latest
+	// updated azure identity and binding as ref. Doing this will ensure upgrade does
+	// not trigger any sync cycles
+	i, err := c.getObjectList(aadpodv1.AzureAssignedIDResource, &aadpodv1.AzureAssignedIdentityList{})
+	if err != nil {
+		return err
+	}
+	list, err := meta.ExtractList(i)
+	if err != nil {
+		return fmt.Errorf("extract list error for resource: %s, err: %v", aadpodv1.AzureAssignedIDResource, err)
+	}
+	for _, item := range list {
+		o, err := meta.Accessor(item)
+		if err != nil {
+			return fmt.Errorf("get object for resource: %s, error: %v", aadpodv1.AzureAssignedIDResource, err)
+		}
+		obj := o.(*aadpodv1.AzureAssignedIdentity)
+		idName := obj.Spec.AzureIdentityRef.Name
+		idNamespace := obj.Spec.AzureIdentityRef.Namespace
+		bindingName := obj.Spec.AzureBindingRef.Name
+		bindingNamespace := obj.Spec.AzureBindingRef.Namespace
+
+		if v, exists := updatedAzureIdentities[getMapKey(idNamespace, idName)]; exists && v != nil {
+			obj.Spec.AzureIdentityRef = v.(*aadpodv1.AzureIdentity)
+		}
+		if v, exists := updatedAzureIdentityBindings[getMapKey(bindingNamespace, bindingName)]; exists && v != nil {
+			obj.Spec.AzureBindingRef = v.(*aadpodv1.AzureIdentityBinding)
+		}
+		err = c.setObject(aadpodv1.AzureAssignedIDResource, o.GetNamespace(), o.GetName(), obj, nil)
 		if err != nil {
 			return err
 		}
@@ -713,4 +765,8 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 		Error()
 	klog.V(5).Infof("Patch of %s took: %v", assignedIdentity.Name, time.Since(begin))
 	return err
+}
+
+func getMapKey(ns, name string) string {
+	return strings.Join([]string{ns, name}, "/")
 }
