@@ -178,13 +178,15 @@ func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs [
 	}
 
 	ids := make(map[string]bool)
-	// add new ids to the list
-	for _, userAssignedMSIID := range addUserAssignedMSIIDs {
-		ids[userAssignedMSIID] = true
-	}
 	// remove msi ids from the list
 	for _, userAssignedMSIID := range removeUserAssignedMSIIDs {
 		ids[userAssignedMSIID] = false
+	}
+	// add new ids to the list
+	// add is done after setting del ids in the map to ensure an identity if in
+	// both add and del list is not deleted
+	for _, userAssignedMSIID := range addUserAssignedMSIIDs {
+		ids[userAssignedMSIID] = true
 	}
 	requiresUpdate := info.SetUserIdentities(ids)
 
