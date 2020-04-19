@@ -84,4 +84,4 @@ Using the same aad-pod-identity-quickstart.sh script, we can simply use the **cl
 ```
 
 ### Summary
-I hope you found this script helpful. This quickstart demo aim is to allow you to quickly showcase and experience how to utlized Azure Managed System Identities for authentication for your pods being deployed in your Azure AKS environment. The Azure Compute Upsteam Program Team is hard at work on simplifying all of the security feature experience on the Azure platform.  
+I hope you found this script helpful. This quickstart demo aim is to allow you to quickly showcase and experience how to utlize Azure Managed System Identities for authentication for your pods being deployed in your Azure AKS environment. The Azure Compute Upsteam Program Team is hard at work on simplifying all of the security feature experience on the Azure platform.  
