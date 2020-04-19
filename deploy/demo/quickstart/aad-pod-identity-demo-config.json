@@ -1,10 +1,10 @@
 {
-    "ASSETSRESOURCEGROUPNAME": "aad-pod-identity-assets",
-    "ACCESSRESOURCEGROUPNAME": "aad-pod-identity-access",
-    "NOACCESSRESOURCEGROUPNAME": "aad-pod-identity-noaccess",
-    "LOCATION": "eastus2",
-    "MSINAME": "pod-identity-acct",
-    "PODIDENTITYLABEL": "use-pod-identity",
-    "PODIDENTITYJSONFILENAME": "aadpodidentity.json",
-    "AZUREIDENTITYBINDINGJSONFILENAME": "azureidentitybindings.json"
+    "ASSETSRESOURCEGROUPNAME": "<aad-pod-identity-assets>",
+    "ACCESSRESOURCEGROUPNAME": "<aad-pod-identity-access>",
+    "NOACCESSRESOURCEGROUPNAME": "<aad-pod-identity-noaccess>",
+    "LOCATION": "<eastus2>",
+    "MSINAME": "<pod-identity-acct>",
+    "PODIDENTITYLABEL": "<use-pod-identity>",
+    "PODIDENTITYJSONFILENAME": "<aadpodidentity.json>",
+    "AZUREIDENTITYBINDINGJSONFILENAME": "<azureidentitybindings.json>"
 }
