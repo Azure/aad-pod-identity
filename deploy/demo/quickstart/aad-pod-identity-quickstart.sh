@@ -122,6 +122,7 @@ if [ $1 = "deploy" ]; then
 	echo "Deployment of AAD Pod Identity demo has been completed."
 	echo "Please refer to the documentation's next steps to demo the AAD Pod Identity functionality."
 	echo "Script completed."
+	exit 0
 elif [ $1 = "clean" ]; then
 	echo "Script is to clean up AAD Pod Idenity demo."
 	echo "Starting AAD Pod Identity demo cleanup..."
@@ -138,6 +139,7 @@ elif [ $1 = "clean" ]; then
 	REMOVENOACCESSRG=$(az group delete --name ${NOACCESSRESOURCEGROUPNAME//\"/} --yes 2>/dev/null)
 	echo "Please remember to remove any pods with AAD Pod Identity dependency from the demo."
 	echo "Script completed."
+	exit 0
 else
 	echo "No expected script action was detected for the first parameter needed."
 	echo "The script action parameter is expecting either a \"deploy\"" or a \"clean\"" action."
