@@ -14,21 +14,47 @@ The quickstart demo for AAD Pod Identity is a single script designed to steamlin
 
 > If any of the assumptions are not true, it may best best to opt for the full lenght [AAD Pod Tutorial](https://github.com/Azure/aad-pod-identity/tree/master/docs/tutorial#aad-pod-identity-tutorial) or reference the [Getting Started](https://github.com/Azure/aad-pod-identity#getting-started) page.
 
-### 1. Deploy the aad-pod-identity-quickstart.sh
-If you need to make changes to the default variables of the script, please due prior to running the script. The top of the script has and area that has been identified to make changes to the default script variable settings.
+### 1. Edit the aad-pod-identity-demo-config.json file
+The aad-pod-identity-demo-config.json file is the only file you will have to edit to get AAD Pod Identity quickstart demo deployed. Please open the json file and edit the following properties:
+
+* ASSETSRESOURCEGROUPNAME
+* ACCESSRESOURCEGROUPNAME
+* NOACCESSRESOURCEGROUPNAME
+* LOCATION
+* MSINAME
+* PODIDENTITYLABEL
+* PODIDENTITYJSONFILENAME
+* AZUREIDENTITYBINDINGJSONFILENAME
+
+Once you have finished editing the aad-pod-identity-demo-config.json to your specific configuration, it should look similar to the example below.
 
 ```
-/aad-pod-identity/deploy/demo/quickstart$ ./aad-pod-identity-quickstart.sh
+{
+    "ASSETSRESOURCEGROUPNAME": "aad-pod-identity-assets",
+    "ACCESSRESOURCEGROUPNAME": "aad-pod-identity-access",
+    "NOACCESSRESOURCEGROUPNAME": "aad-pod-identity-noaccess",
+    "LOCATION": "eastus2",
+    "MSINAME": "pod-identity-acct",
+    "PODIDENTITYLABEL": "use-pod-identity",
+    "PODIDENTITYJSONFILENAME": "aadpodidentity.json",
+    "AZUREIDENTITYBINDINGJSONFILENAME": "azureidentitybindings.json"
+}
 ```
 
-Once the script has completed. Verify that you have both the azureidentity and azureidentitybinding setup in the cluster.
+Ensure you have saved the configuration file before proceeding to the next step.
+
+### 2. Deploy the aad-pod-identity-quickstart.sh
+The aad-pod-identity-quickstart.sh script takes two parameters. The **first** parameter is the action of the script, and the two available valures are **deploy** and **clean**. The **second** parameter of the script is the file path of the aad-pod-identity-demo-config.json configuration file. The script will read in the values of the configuration file to deploy out the demo environment. 
+
+#### Example command for deploying the AAD Pod Identity Demo environment
+
 ```
-kubectl get azureidentity
-kubectl get azureidentitybinding
+/aad-pod-identity/deploy/demo/quickstart$ ./aad-pod-identity-quickstart.sh deploy ./aad-pod-identity-demo-config.json
 ```
 
-### 2. Test AAD Pod Identity Access
+### 3. Test AAD Pod Identity Access
 The example below is using the default AAD Pod Identity label created from step 1 for the AAD Pod Identity. In this test we will create a pod using the azure-cli image, attaching the necessary label for the pod to use the MSI for Azure access. Once you exec into the pod, you will log into Azure as the MSI identity, then issue a command to create a VNet in the access resource group. Since the MSI has been granted contributor access to the access resource group, the creation of the VNet will happen with no issue.
+
 ```
 kubectl run myaadpodaccess -it --image=mcr.microsoft.com/azure-cli --labels="aadpodidbinding=use-pod-identity" --restart=Never
 
@@ -36,8 +62,9 @@ az login --identity
 
 az network vnet create --name myVirtualNetwork1 --resource-group <Access Resource Group> --subnet-name default
 ```
-### 3. Test AAD Pod Identity Denied Access
-Similar to the test in step 2. We will create a pod using the azure-cli image, attaching the necessary label for the pod to use the MSI for Azure access. In this case, once you exec into the pod, and log into Azure with the MSI assigned to the pod, you will attempt to create another VNet in a resource group where the MSI only has read access. You will receive an error for not having the necessary permissions to create the VNet.
+
+### 4. Test AAD Pod Identity Denied Access
+Similar to the test in step 3. We will create a pod using the azure-cli image, attaching the necessary label for the pod to use the MSI for Azure access. In this case, once you exec into the pod, and log into Azure with the MSI assigned to the pod, you will attempt to create another VNet in a resource group where the MSI only has read access. You will receive an error for not having the necessary permissions to create the VNet.
 ```
 kubectl run myaadpodnoaccess -it --image=mcr.microsoft.com/azure-cli --labels="aadpodidbinding=use-pod-identity" --restart=Never
 
@@ -45,3 +72,5 @@ az login --identity
 
 az network vnet create --name myVirtualNetwork2 --resource-group <No Access Resource Group> --subnet-name default
 ```
+
+
