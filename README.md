@@ -12,225 +12,28 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 
 ## Contents
 
-* [Getting Started](#getting-started)
-* [Demo](#demo)
+
 * [Components](#components)
-* [Features](docs/readmes/README.md#features)
-* [What To Do Next?](#what-to-do-next)
+  + [Managed Identity Controller](#managed-identity-controller)
+  + [Node Managed Identity](#node-managed-identity)
+* [Demo](#demo)
+  + [1. Deploy aad-pod-identity](#1-deploy-aad-pod-identity)
+  + [2. Create an identity on Azure](#2-create-an-identity-on-azure)
+  + [3. Deploy AzureIdentity](#3-deploy-azureidentity)
+  + [4. (Optional) Match pods in the namespace](#4--optional--match-pods-in-the-namespace)
+  + [5. Deploy AzureIdentityBinding](#5-deploy-azureidentitybinding)
+  + [6. Deployment and Validation](#6-deployment-and-validation)
+* [Uninstall Notes](#uninstall-notes)
+* [What To Do Next?](#what-to-do-next-)
 * [Code of Conduct](#code-of-conduct)
 
 ## Getting Started
 
-### Prerequisites
-
-You will need a Kubernetes cluster running on Azure, either managed by [AKS] or provisioned with [AKS Engine]. 
-
-**Note** If running MSI-enabled AKS cluster, please make sure to follow the [MSI specific](docs/readmes/README.msi.md) documentation before getting started.
-
-### 1. Create the Deployment
-
-AAD Pod Identity consists of the Managed Identity Controller (MIC) deployment, the Node Managed Identity (NMI) daemon set, and several standard and custom resources. For more information, see [Components].
-
-Run this command to create the `aad-pod-identity` deployment on an RBAC-enabled cluster:
-
-```shell
-kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
-```
-
-Or run this command to deploy to a non-RBAC cluster:
-
-```shell
-kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment.yaml
-```
-
-> Important: For AKS clusters with limited [egress-traffic], Please install pod-identity in `kube-system` namespace using the [helm charts].
-
-### 2. Create an Azure Identity
-
-Run this [Azure CLI] command, and take note of the `clientId` and `id` values it returns:
-
-```shell
-az identity create -g <resourcegroup> -n <name> -o json
-```
-
-Here is an example of the output:
-
-```json
-$ az identity create -g myresourcegroup -n myidentity -o json
-{
-  "clientId": "00000000-0000-0000-0000-000000000000",
-  "clientSecretUrl": "https://control-eastus.identity.azure.net/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/myresourcegroup/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myidentity/credentials?tid=00000000-0000-0000-0000-000000000000&oid=00000000-0000-0000-0000-000000000000&aid=00000000-0000-0000-0000-000000000000",
-  "id": "/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/myresourcegroup/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myidentity",
-  "location": "eastus",
-  "name": "myidentity",
-  "principalId": "00000000-0000-0000-0000-000000000000",
-  "resourceGroup": "myresourcegroup",
-  "tags": {},
-  "tenantId": "00000000-0000-0000-0000-000000000000",
-  "type": "Microsoft.ManagedIdentity/userAssignedIdentities"
-}
-```
-
-### 3. Install the Azure Identity
-
-Save this Kubernetes manifest to a file named `aadpodidentity.yaml`:
-
-```yaml
-apiVersion: "aadpodidentity.k8s.io/v1"
-kind: AzureIdentity
-metadata:
-  name: <a-idname>
-spec:
-  type: 0
-  ResourceID: /subscriptions/<subid>/resourcegroups/<resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>
-  ClientID: <clientId>
-```
-
-Replace the placeholders with your user identity values. Set `type: 0` for user-assigned MSI or `type: 1` for Service Principal.
-
-Finally, save your changes to the file, then create the `AzureIdentity` resource in your cluster:
-
-```shell
-kubectl apply -f aadpodidentity.yaml
-```
-
-### 4. (Optional) Match pods in the namespace
-
-For matching pods in the namespace, please refer to namespaced [README](docs/readmes/README.namespaced.md).
-
-### 5. Install the Azure Identity Binding
-
-Save this Kubernetes manifest to a file named `aadpodidentitybinding.yaml`:
-
-```yaml
-apiVersion: "aadpodidentity.k8s.io/v1"
-kind: AzureIdentityBinding
-metadata:
-  name: demo1-azure-identity-binding
-spec:
-  AzureIdentity: <a-idname>
-  Selector: <label value to match>
-```
-
-Replace the placeholders with your values. Ensure that the `AzureIdentity` name matches the one in `aadpodidentity.yaml`.
-
-Finally, save your changes to the file, then create the `AzureIdentityBinding` resource in your cluster:
-
-```shell
-kubectl apply -f aadpodidentitybinding.yaml
-```
-
-For a pod to match an identity binding, it needs a [label] with the key `aadpodidbinding` whose value is that of the `Selector:` field in the binding. Here is an example pod with a label:
-
-```shell
-$ kubectl get po busybox0 --show-labels
-NAME       READY     STATUS    RESTARTS   AGE       LABELS
-busybox0   1/1       Running   10         10h       aadpodidbinding=select_it,app=busybox0
-```
-
-This pod will match the binding below:
-
-```yaml
-apiVersion: "aadpodidentity.k8s.io/v1"
-kind: AzureIdentityBinding
-metadata:
-  name: test-azure-id-binding
-spec:
-  AzureIdentity: "test-azure-identity"
-  Selector: "select_it"
-```
-
-### 6. Set Permissions for MIC
-
-This step is only required for user-assigned MSI.
-
-The MIC uses the service principal [credentials stored in the cluster] to access Azure resources. This service principal needs `Microsoft.ManagedIdentity/userAssignedIdentities/\*/assign/action` permission on the identity to work with user-assigned MSI.
-
-If the Azure identity is in the same resource group as your AKS cluster nodes, you can skip this section. (For [AKS], a resource group was added with an `MC_` prefix when you created the cluster.) Otherwise, follow these steps to assign the required permissions:
-
-1. Find the service principal used by your cluster. You can run the following command to obtain the SP:
-
-```Bash
-az aks show -g <resourcegroup> -n <name> --query servicePrincipalProfile.clientId -o tsv
-```
-
-Replace `<resourcegroup>` with the name of the resource group that holds the AKS Cluster and `<name>` with the name of the AKS Cluster.
-
-For more information please refer to the [AKS docs].
-
-2. Assign the required permissions with the following command:
-
-```shell
-az role assignment create --role "Managed Identity Operator" --assignee <sp id> --scope <full id of the managed identity>
-```
-
-Where `<full id of the managed identity>` is the `id` of the identity created in [2. Create an Azure Identity](#2-create-an-azure-identity)
-
-### Uninstall Notes
-
-The NMI pods modify the nodes' [iptables] to intercept calls to Azure Instance Metadata endpoint. This allows NMI to insert identities assigned to a pod before executing the request on behalf of the caller.
-
-These iptables entries will be cleaned up when the pod-identity pods are uninstalled. However, if the pods are terminated for unexpected reasons, the iptables entries can be removed with these commands on the node:
-
-```shell
-# remove the custom chain reference
-iptables -t nat -D PREROUTING -j aad-metadata
-
-# flush the custom chain
-iptables -t nat -F aad-metadata
-
-# remove the custom chain
-iptables -t nat -X aad-metadata
-```
-
-## Demo
-
-The demonstration program illustrates how, after setting the identity and binding, the sample app can list VMs in an Azure resource group. To deploy the demo, please ensure you have completed the [Prerequisites] and understood the previous sections in this document.
-
-The demo program can be found here: [cmd/demo](cmd/demo).
-
-Here are some excerpts from the demo.
-
-### Get a Service Principal Token from an MSI Endpoint
-
-```go
-spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, resource)
-```
-
-### List VMs with Seamless Authorization
-
-```go
-import "github.com/Azure/go-autorest/autorest/azure/auth"
-
-authorizer, err := auth.NewAuthorizerFromEnvironment()
-if err != nil {
-    logger.Errorf("failed NewAuthorizerFromEnvironment: %+v", authorizer)
-    return
-}
-vmClient := compute.NewVirtualMachinesClient(subscriptionID)
-vmClient.Authorizer = authorizer
-vmlist, err := vmClient.List(context.Background(), resourceGroup)
-```
-
-### Assign the Reader Role
-
-The user-assigned identity needs the "Reader" role on the resource group to list its VMs. Provide the `principalId` from the user-assigned identity to this command:
-
-```shell
-az role assignment create --role Reader --assignee <principalid> --scope /subscriptions/<subscriptionid>/resourcegroups/<resourcegroup>
-```
-
-### Start the Demo Pod
-
-Update the `deploy/demo/deployment.yaml` arguments with your subscription, clientID and resource group, then create the demo deployment:
-
-```shell
-kubectl apply -f deploy/demo/deployment.yaml
-```
+It is recommended to get familiar with the AAD Pod Identity ecosystem before diving into the demo. It consists of the Managed Identity Controller (MIC) deployment, the Node Managed Identity (NMI) DaemonSet, and several standard and custom resources.
 
 ## Components
 
-AAD Pod Identity has two components: the [Managed Identity Controller] (MIC) and the [Node Managed Identity] (NMI) pod.
+AAD Pod Identity has two components: the [Managed Identity Controller] (MIC) and the [Node Managed Identity] (NMI).
 
 ### Managed Identity Controller
 
@@ -243,6 +46,7 @@ Specifically, when a pod is scheduled, the MIC assigns an identity to the underl
 The authorization request to fetch a Service Principal Token from an MSI endpoint is sent to a standard Instance Metadata endpoint which is redirected to the NMI pod. The redirection is accomplished by adding rules to redirect POD CIDR traffic with metadata endpoint IP on port 80 to the NMI endpoint. The NMI server identifies the pod based on the remote address of the request and then queries Kubernetes (through MIC) for a matching Azure identity. NMI then makes an Azure Active Directory Authentication Library ([ADAL]) request to get the token for the client id and returns it as a response. If the request had client id as part of the query, it is validated against the admin-configured client id.
 
 Here is an example cURL command that will fetch an Azure KeyVault token from within a pod identified by an AAD-Pod-Identity selector:
+
 ```bash
 curl http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://vault.azure.net
 ```
@@ -253,6 +57,181 @@ Here is an example cURL command:
 
 ```bash
 curl http://127.0.0.1:2579/host/token/?resource=https://vault.azure.net -H "podname: nginx-flex-kv-int" -H "podns: default"
+```
+
+For more information, please refer to the [design documentation](./docs/design/concept.md).
+
+## Demo
+
+You will need a Kubernetes cluster running on Azure, either managed by [AKS] or provisioned with [AKS Engine].
+
+You will also need to install the following tools:
+- [Azure CLI]
+- [jq]
+
+> If running MSI-enabled AKS cluster, please make sure to follow the [MSI specific](docs/readmes/README.msi.md) documentation before getting started.
+
+Set the following Azure-related environment variables:
+
+```bash
+export SUBSCRIPTION_ID="<SubscriptionId>"
+export RESOURCE_GROUP="<ResourceGroup>"
+export IDENTITY_NAME="demo"
+```
+
+### 1. Deploy aad-pod-identity
+
+Deploy `aad-pod-identity` components to an RBAC-enabled cluster:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
+```
+
+Deploy `aad-pod-identity` components to a non-RBAC cluster:
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment.yaml
+```
+
+> Important: For AKS clusters with limited [egress-traffic], Please install pod-identity in `kube-system` namespace using the [helm charts].
+
+### 2. Create an identity on Azure
+
+Create an identity on Azure and store the client ID and resource ID of the identity as environment variables.
+
+```bash
+OUTPUT="$(az identity create --resource-group $RESOURCE_GROUP --name $IDENTITY_NAME -ojson)"
+export IDENTITY_CLIENT_ID="$(jq -r '.clientId' <<< $OUTPUT)"
+export IDENTITY_RESOURCE_ID="$(jq -r '.id' <<< $OUTPUT)"
+```
+
+Assign the role "Reader" to the identity so that it has read access to the resource group:
+
+```bash
+OUTPUT="$(az role assignment create --role Reader --assignee $IDENTITY_CLIENT_ID --scope /subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP)"
+export IDENTITY_ASSIGNMENT_ID="$(jq -r '.id' <<< $OUTPUT)"
+```
+
+### 3. Deploy AzureIdentity
+
+Create an AzureIdentity in your cluster that references the identity you created above:
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: "aadpodidentity.k8s.io/v1"
+kind: AzureIdentity
+metadata:
+  name: $IDENTITY_NAME
+spec:
+  type: 0
+  ResourceID: $IDENTITY_RESOURCE_ID
+  ClientID: $IDENTITY_CLIENT_ID
+EOF
+```
+
+> Set `type: 0` for user-assigned MSI or `type: 1` for Service Principal.
+
+### 4. (Optional) Match pods in the namespace
+
+For matching pods in the namespace, please refer to namespaced [README](docs/readmes/README.namespaced.md).
+
+### 5. Deploy AzureIdentityBinding
+
+Create an AzureIdentityBinding that reference the AzureIdentity you created above:
+
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: "aadpodidentity.k8s.io/v1"
+kind: AzureIdentityBinding
+metadata:
+  name: $IDENTITY_NAME-binding
+spec:
+  AzureIdentity: $IDENTITY_NAME
+  Selector: $IDENTITY_NAME
+EOF
+```
+
+### 6. Deployment and Validation
+
+For a pod to match an identity binding, it needs a [label] with the key `aadpodidbinding` whose value is that of the `Selector:` field in the AzureIdentityBinding. Deploy a pod that validates the functionality:
+
+```bash
+cat << EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: demo
+  labels:
+    aadpodidbinding: $IDENTITY_NAME
+spec:
+  containers:
+  - name: demo
+    image: mcr.microsoft.com/k8s/aad-pod-identity/demo:1.2
+    args:
+      - --subscriptionid=$SUBSCRIPTION_ID
+      - --clientid=$IDENTITY_CLIENT_ID
+      - --resourcegroup=$RESOURCE_GROUP
+    env:
+      - name: MY_POD_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.name
+      - name: MY_POD_NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+      - name: MY_POD_IP
+        valueFrom:
+          fieldRef:
+            fieldPath: status.podIP
+  nodeSelector:
+    kubernetes.io/os: linux
+EOF
+```
+
+> `mcr.microsoft.com/k8s/aad-pod-identity/demo` is an image that demostrates the use of AAD pod identity. The source code can be found [here](./cmd/demo/main.go).
+
+To verify that the pod is indeed using the identity correctly:
+
+```bash
+kubectl logs demo
+```
+
+If successful, the log output would be similar to the following output:
+```
+...
+succesfully doARMOperations vm count 1
+succesfully acquired a token using the MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token)
+succesfully acquired a token, userAssignedID MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token) clientID(xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+succesfully made GET on instance metadata
+...
+```
+
+Once you are done with the demo, clean up your resources:
+
+```bash
+kubectl delete pod demo
+kubectl delete azureidentity $IDENTITY_NAME
+kubectl delete azureidentitybinding $IDENTITY_NAME-binding
+az role assignment delete --id $IDENTITY_ASSIGNMENT_ID
+az identity delete --resource-group $RESOURCE_GROUP --name $IDENTITY_NAME
+```
+
+## Uninstall Notes
+
+The NMI pods modify the nodes' [iptables] to intercept calls to Azure Instance Metadata endpoint. This allows NMI to insert identities assigned to a pod before executing the request on behalf of the caller.
+
+These iptables entries will be cleaned up when the pod-identity pods are uninstalled. However, if the pods are terminated for unexpected reasons, the iptables entries can be removed with these commands on the node:
+
+```bash
+# remove the custom chain reference
+iptables -t nat -D PREROUTING -j aad-metadata
+
+# flush the custom chain
+iptables -t nat -F aad-metadata
+
+# remove the custom chain
+iptables -t nat -X aad-metadata
 ```
 
 ## What To Do Next?
@@ -291,3 +270,4 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 [Tutorial]: docs/tutorial/README.md
 [helm charts]: https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity
 [egress-traffic]: https://docs.microsoft.com/en-us/azure/aks/limit-egress-traffic
+[jq]: https://stedolan.github.io/jq/download/
