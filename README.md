@@ -121,8 +121,8 @@ metadata:
   name: $IDENTITY_NAME
 spec:
   type: 0
-  ResourceID: $IDENTITY_RESOURCE_ID
-  ClientID: $IDENTITY_CLIENT_ID
+  resourceID: $IDENTITY_RESOURCE_ID
+  clientID: $IDENTITY_CLIENT_ID
 EOF
 ```
 
@@ -143,8 +143,8 @@ kind: AzureIdentityBinding
 metadata:
   name: $IDENTITY_NAME-binding
 spec:
-  AzureIdentity: $IDENTITY_NAME
-  Selector: $IDENTITY_NAME
+  azureIdentity: $IDENTITY_NAME
+  selector: $IDENTITY_NAME
 EOF
 ```
 
