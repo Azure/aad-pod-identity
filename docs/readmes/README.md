@@ -10,3 +10,4 @@
 # Others
 
 1. [Pod Security Policy (PSP)](README.pod-security-policy.md)
+2. [Troubleshooting](README.troubleshooting.md)
