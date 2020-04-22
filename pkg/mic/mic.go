@@ -436,7 +436,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		// for each node or vmss
 		nodeMap := make(map[string]trackUserAssignedMSIIds)
 
-		// seperate the add and delete list per node
+		// separate the add, delete and update list per node
 		c.convertAssignedIDListToMap(addList, deleteList, afterUpdateList, nodeMap)
 
 		// process the delete and add list
@@ -1009,7 +1009,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 
 	for _, updateID := range nodeTrackList.assignedIDsToUpdate {
 		if err := semCreateOrUpdate.Acquire(ctx, 1); err != nil {
-			klog.Errorf("Failed to acquire semaphore in the create loop: %v", err)
+			klog.Errorf("Failed to acquire semaphore in the update loop: %v", err)
 			return
 		}
 		go func(assignedID aadpodid.AzureAssignedIdentity) {

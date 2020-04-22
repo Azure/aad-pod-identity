@@ -526,12 +526,12 @@ func (c *Client) UpdateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityAdditionOperationName)
+			c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityUpdateOperationName)
 			return
 		}
 		c.reporter.Report(
-			metrics.AssignedIdentityAdditionCountM.M(1),
-			metrics.AssignedIdentityAdditionDurationM.M(metrics.SinceInSeconds(begin)))
+			metrics.AssignedIdentityUpdateCountM.M(1),
+			metrics.AssignedIdentityUpdateDurationM.M(metrics.SinceInSeconds(begin)))
 
 	}()
 
