@@ -191,7 +191,7 @@ func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs [
 	requiresUpdate := info.SetUserIdentities(ids)
 
 	if requiresUpdate {
-		klog.Infof("Updating user assigned MSIs on %s", name)
+		klog.Infof("Updating user assigned MSIs on %s, assign [%d], unassign [%d]", name, len(addUserAssignedMSIIDs), len(removeUserAssignedMSIIDs))
 		timeStarted := time.Now()
 		if err := updateFunc(); err != nil {
 			return err

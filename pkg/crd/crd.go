@@ -41,6 +41,7 @@ type ClientInt interface {
 	SyncCacheAll(exit <-chan struct{}, initial bool)
 	RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
+	UpdateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) error
 	UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) error
 	UpgradeAll() error
 	ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error)
@@ -515,6 +516,32 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	}
 
 	klog.V(5).Infof("Time take to create %s: %v", assignedIdentity.Name, time.Since(begin))
+	stats.Update(stats.AssignedIDAdd, time.Since(begin))
+	return nil
+}
+
+func (c *Client) UpdateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
+	klog.Infof("Got assigned id %s/%s to update", assignedIdentity.Namespace, assignedIdentity.Name)
+	begin := time.Now()
+
+	defer func() {
+		if err != nil {
+			c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityUpdateOperationName)
+			return
+		}
+		c.reporter.Report(
+			metrics.AssignedIdentityUpdateCountM.M(1),
+			metrics.AssignedIdentityUpdateDurationM.M(metrics.SinceInSeconds(begin)))
+
+	}()
+
+	v1AssignedID := aadpodv1.ConvertInternalAssignedIdentityToV1AssignedIdentity(*assignedIdentity)
+	err = c.rest.Put().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Body(&v1AssignedID).Do().Error()
+	if err != nil {
+		return fmt.Errorf("failed to update assigned identity: %v", err)
+	}
+
+	klog.V(5).Infof("Time take to update %s/%s: %v", assignedIdentity.Namespace, assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDAdd, time.Since(begin))
 	return nil
 }
