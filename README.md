@@ -32,7 +32,7 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 
 With https://github.com/Azure/aad-pod-identity/pull/398, the [client-go](https://github.com/kubernetes/client-go) library is upgraded to v0.17.2, where CRD fields are now case sensitive. If you are upgrading MIC and NMI from v1.x.x to v1.6.0, no action is required since existing `AzureIdentity` and `AzureIdentityBinding` are backward-compatible.
 
-However, for future `AzureIdentity` and `AzureIdentityBinding` created using v1.6.0+, the following fields needs to be changed:
+However, for future `AzureIdentity` and `AzureIdentityBinding` created using v1.6.0+, the following fields need to be changed:
 
 ### `AzureIdentity`
 
@@ -173,7 +173,7 @@ EOF
 
 ### 6. Deployment and Validation
 
-For a pod to match an identity binding, it needs a [label] with the key `aadpodidbinding` whose value is that of the `Selector:` field in the `AzureIdentityBinding`. Deploy a pod that validates the functionality:
+For a pod to match an identity binding, it needs a [label] with the key `aadpodidbinding` whose value is that of the `selector:` field in the `AzureIdentityBinding`. Deploy a pod that validates the functionality:
 
 ```bash
 cat << EOF | kubectl apply -f -

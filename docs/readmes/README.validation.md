@@ -28,8 +28,8 @@ Following are the two major resources to enable this check.
 
 ### Constraint Template
 
-`ConstraintTemplate` describes both the [Rego](https://www.openpolicyagent.org/docs/v0.10.7/how-do-i-write-policies/) that enforces the constraint and the schema of the constraint. 
-   
+`ConstraintTemplate` describes both the [Rego](https://www.openpolicyagent.org/docs/v0.10.7/how-do-i-write-policies/) that enforces the constraint and the schema of the constraint.
+
    * User assigned MSI is expected to have Resource ID in the given format.
 
    ```
@@ -113,8 +113,8 @@ metadata:
   name: testidentityvalid
 spec:
   type: 0
-  ResourceID: /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/myResourceGroup/providers/Microsoft.ManagedIdentity/userAssignedIdentities/testidentity
-  ClientID: 00000000-0000-0000-0000-000000000000
+  resourceID: /subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/myResourceGroup/providers/Microsoft.ManagedIdentity/userAssignedIdentities/testidentity
+  clientID: 00000000-0000-0000-0000-000000000000
 ```
 
    * Following identity will violate the constraint and request will be rejected,  as resource ID is not of correct format (`resourcegroups/<resourcegroup>` is missing in resourceID).
@@ -126,8 +126,8 @@ metadata:
   name: testidentityinvalid
 spec:
   type: 0
-  ResourceID: /subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myidentity
-  ClientID: 00000000-0000-0000-0000-000000000000
+  resourceID: /subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myidentity
+  clientID: 00000000-0000-0000-0000-000000000000
 ```
 
 ```sh
