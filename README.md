@@ -12,7 +12,8 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 
 ## Contents
 
-* [Features](./docs/readmes/README.md#features)
+* [v1.6.0 Breaking Change](#v160-breaking-change)
+* [Getting Started](#getting-started)
 * [Components](#components)
   + [Managed Identity Controller](#managed-identity-controller)
   + [Node Managed Identity](#node-managed-identity)
@@ -27,6 +28,34 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 * [What To Do Next?](#what-to-do-next)
 * [Code of Conduct](#code-of-conduct)
 
+## v1.6.0 Breaking Change
+
+With https://github.com/Azure/aad-pod-identity/pull/398, the [client-go](https://github.com/kubernetes/client-go) library is upgraded to v0.17.2, where CRD fields are now case sensitive. If you are upgrading MIC and NMI from v1.x.x to v1.6.0, MIC v1.6.0+ will upgrade the fields of existing `AzureIdentity` and `AzureIdentityBinding` on startup to the new format to ensure backward compatibility. A configmap called `aad-pod-identity-config` is created to record and confirm the successful type upgrade.
+
+However, for future `AzureIdentity` and `AzureIdentityBinding` created using v1.6.0+, the following fields need to be changed:
+
+### `AzureIdentity`
+
+| < 1.6.0          | >= 1.6.0         |
+|------------------|------------------|
+| `ClientID`       | `clientID`       |
+| `ClientPassword` | `clientPassword` |
+| `ResourceID`     | `resourceID`     |
+| `TenantID`       | `tenantID`       |
+
+### `AzureIdentityBinding`
+
+| < 1.6.0         | >= 1.6.0        |
+|-----------------|-----------------|
+| `AzureIdentity` | `azureIdentity` |
+| `Selector`      | `selector`      |
+
+### `AzurePodIdentityException`
+
+| < 1.6.0         | >= 1.6.0        |
+|-----------------|-----------------|
+| `PodLabels`     | `podLabels`     |
+
 ## Getting Started
 
 It is recommended to get familiar with the AAD Pod Identity ecosystem before diving into the demo. It consists of the Managed Identity Controller (MIC) deployment, the Node Managed Identity (NMI) DaemonSet, and several standard and custom resources.
@@ -39,7 +68,7 @@ AAD Pod Identity has two components: the [Managed Identity Controller] (MIC) and
 
 The Managed Identity Controller (MIC) is a Kubernetes [custom resource] that watches for changes to pods, identities, and bindings through the Kubernetes API server. When it detects a relevant change, the MIC adds or deletes assigned identities as needed.
 
-Specifically, when a pod is scheduled, the MIC assigns an identity to the underlying VM/VMSS during the creation phase. When the pod is deleted, it removes the assigned identity from the underlying VM/VMSS. The MIC takes similar actions when AzureIdentity or AzureIdentityBinding are created or deleted.
+Specifically, when a pod is scheduled, the MIC assigns an identity to the underlying VM/VMSS during the creation phase. When the pod is deleted, it removes the assigned identity from the underlying VM/VMSS. The MIC takes similar actions when `AzureIdentity` or `AzureIdentityBinding` are created or deleted.
 
 ### Node Managed Identity
 
@@ -109,9 +138,9 @@ Assign the role "Reader" to the identity so it has read access to the resource g
 export IDENTITY_ASSIGNMENT_ID="$(az role assignment create --role Reader --assignee $IDENTITY_CLIENT_ID --scope /subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP --query id -otsv)"
 ```
 
-### 3. Deploy AzureIdentity
+### 3. Deploy `AzureIdentity`
 
-Create an AzureIdentity in your cluster that references the identity you created above:
+Create an `AzureIdentity` in your cluster that references the identity you created above:
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -132,9 +161,9 @@ EOF
 
 For matching pods in the namespace, please refer to namespaced [README](docs/readmes/README.namespaced.md).
 
-### 5. Deploy AzureIdentityBinding
+### 5. Deploy `AzureIdentityBinding`
 
-Create an AzureIdentityBinding that reference the AzureIdentity you created above:
+Create an `AzureIdentityBinding` that reference the `AzureIdentity` you created above:
 
 ```bash
 cat <<EOF | kubectl apply -f -
@@ -150,7 +179,7 @@ EOF
 
 ### 6. Deployment and Validation
 
-For a pod to match an identity binding, it needs a [label] with the key `aadpodidbinding` whose value is that of the `Selector:` field in the AzureIdentityBinding. Deploy a pod that validates the functionality:
+For a pod to match an identity binding, it needs a [label] with the key `aadpodidbinding` whose value is that of the `selector:` field in the `AzureIdentityBinding`. Deploy a pod that validates the functionality:
 
 ```bash
 cat << EOF | kubectl apply -f -
