@@ -32,9 +32,13 @@ adminsecret: {}
 #   clientID: <service principal client id>
 #   clientSecret: <service principal client secret>
 
+# Operation mode for pod-identity. Default is standard mode that has MIC doing identity assignment
+# Allowed values: "standard", "managed"
+operationMode: "standard"
+
 mic:
   image: mic
-  tag: 1.5.5
+  tag: 1.6.0
 
   priorityClassName: ""
 
@@ -96,7 +100,7 @@ mic:
 
 nmi:
   image: nmi
-  tag: 1.5.5
+  tag: 1.6.0
 
   priorityClassName: ""
 
