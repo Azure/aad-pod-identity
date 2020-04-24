@@ -21,9 +21,7 @@ rules:
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureidentitybindings", "azureidentities", "azurepodidentityexceptions"]
   verbs: ["get", "list", "watch"]
-{{- if eq .Values.operationMode "standard" }}
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureassignedidentities"]
   verbs: ["get", "list", "watch"]
-{{- end -}}
 {{- end }}

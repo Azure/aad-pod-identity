@@ -8,8 +8,8 @@ metadata:
     {{- include "aad-pod-identity.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.azureIdentity.type }}
-  resourceID: {{ required ".Values.azureIdentity.resourceID is required!" .Values.azureIdentity.resourceID }}
-  clientID: {{ required ".Values.azureIdentity.clientID is required!" .Values.azureIdentity.clientID }}
+  ResourceID: {{ required ".Values.azureIdentity.resourceID is required!" .Values.azureIdentity.resourceID }}
+  ClientID: {{ required ".Values.azureIdentity.clientID is required!" .Values.azureIdentity.clientID }}
 ---
 apiVersion: "aadpodidentity.k8s.io/v1"
 kind: AzureIdentityBinding
@@ -19,6 +19,6 @@ metadata:
   labels:
     {{- include "aad-pod-identity.labels" . | nindent 4 }}
 spec:
-  azureIdentity: {{ .Values.azureIdentity.name }}
-  selector: {{ required ".Values.azureIdentityBinding.selector is required!" .Values.azureIdentityBinding.selector }}
+  AzureIdentity: {{ .Values.azureIdentity.name }}
+  Selector: {{ required ".Values.azureIdentityBinding.selector is required!" .Values.azureIdentityBinding.selector }}
 {{- end }}
