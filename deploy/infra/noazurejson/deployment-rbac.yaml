@@ -178,11 +178,17 @@ rules:
   resources: ["events"]
   verbs: ["create", "patch"]
 - apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "create", "update"]
+- apiGroups: [""]
   resources: ["endpoints"]
   verbs: ["create", "get","update"]
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureidentitybindings", "azureidentities"]
-  verbs: ["get", "list", "watch", "post"]
+  verbs: ["get", "list", "watch", "post", "update"]
+- apiGroups: ["aadpodidentity.k8s.io"]
+  resources: ["azurepodidentityexceptions"]
+  verbs: ["list", "update"]
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureassignedidentities"]
   verbs: ["*"]
@@ -242,6 +248,10 @@ spec:
         args:
           - "--logtostderr"
         env:
+          - name: MIC_POD_NAMESPACE
+            valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           - name: CLOUD
             valueFrom:
               secretKeyRef:
