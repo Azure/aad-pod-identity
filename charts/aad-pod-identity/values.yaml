@@ -38,7 +38,7 @@ operationMode: "standard"
 
 mic:
   image: mic
-  tag: 1.6
+  tag: 1.6.0
 
   priorityClassName: ""
 
@@ -100,7 +100,7 @@ mic:
 
 nmi:
   image: nmi
-  tag: 1.6
+  tag: 1.6.0
 
   priorityClassName: ""
 

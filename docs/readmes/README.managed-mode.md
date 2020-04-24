@@ -1,9 +1,9 @@
 # Pod Identity in Managed mode
-> Available from 1.6 release
+> Available from 1.6.0 release
 
 ## Introduction
 
-Starting from 1.6 release,2 modes of operation are supported for pod-identity
+Starting from 1.6.0 release,2 modes of operation are supported for pod-identity
 - Standard Mode
 - Managed Mode
 
@@ -16,6 +16,8 @@ This is the default mode in which pod-identity will be deployed. In this mode, t
 In this mode, there is only the NMI component deployed in the cluster. The identity assignment needs to be manually performed.
 
 Deploy `aad-pod-identity` components to an RBAC-enabled cluster in managed mode:
+
+- This installs NMI in managed mode in the kube-system namespace
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/managed-mode-deployment.yaml

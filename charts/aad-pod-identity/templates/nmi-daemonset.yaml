@@ -74,6 +74,9 @@ spec:
           - --metadata-header-required={{ .Values.nmi.metadataHeaderRequired }}
           {{- end }}
           - --operation-mode={{ .Values.operationMode }}
+          {{- if eq .Values.operationMode "managed" }}
+          - --forceNamespaced
+          {{- end }}
         env:
           - name: HOST_IP
             valueFrom:
@@ -83,8 +86,10 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: spec.nodeName
+          {{- if eq .Values.operationMode "standard" }}
           - name: FORCENAMESPACED
             value: "{{ .Values.forceNameSpaced }}"
+          {{- end }}
         securityContext:
           privileged: true
           capabilities:
