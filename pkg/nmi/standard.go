@@ -74,11 +74,12 @@ func (sc *StandardClient) GetIdentities(ctx context.Context, podns, podname, cli
 		}
 		// if client id exists in the request, then send the first identity that matched the client id
 		if len(clientID) != 0 && id.Spec.ClientID == clientID {
+			klog.Infof("clientID in request: %s, %s/%s has been matched with azure identity %s/%s", utils.RedactClientID(clientID), podns, podname, id.Namespace, id.Name)
 			return &id, nil
 		}
 	}
 
-	return nil, fmt.Errorf("azureidentity is not configured for the pod")
+	return nil, fmt.Errorf("no azure identity found for request clientID %s", utils.RedactClientID(clientID))
 }
 
 // listPodIDsWithRetry returns a list of matched identities in Assigned state, boolean indicating if at least an identity was found in Created state and error if any
