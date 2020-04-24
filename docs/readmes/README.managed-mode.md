@@ -1,9 +1,9 @@
 # Pod Identity in Managed mode
-> Available from 1.6 release
+> Available from 1.6.0 release
 
 ## Introduction
 
-Starting from 1.6 release,2 modes of operation are supported for pod-identity
+Starting from 1.6.0 release,2 modes of operation are supported for pod-identity
 - Standard Mode
 - Managed Mode
 
