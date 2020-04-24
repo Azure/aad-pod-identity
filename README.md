@@ -30,7 +30,7 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 
 ## v1.6.0 Breaking Change
 
-With https://github.com/Azure/aad-pod-identity/pull/398, the [client-go](https://github.com/kubernetes/client-go) library is upgraded to v0.17.2, where CRD fields are now case sensitive. If you are upgrading MIC and NMI from v1.x.x to v1.6.0, MIC v1.6.0+ will upgrade the fields of existing `AzureIdentity` and `AzureIdentityBinding` on startup to the new format to ensure backward compatibility. A configmap called `aad-pod-identity-config` is created to record and confirm the successful type upgrade.
+With https://github.com/Azure/aad-pod-identity/pull/398, the [client-go](https://github.com/kubernetes/client-go) library is upgraded to v0.17.2, where CRD [fields are now case sensitive](https://github.com/kubernetes/kubernetes/issues/64612). If you are upgrading MIC and NMI from v1.x.x to v1.6.0, MIC v1.6.0+ will upgrade the fields of existing `AzureIdentity` and `AzureIdentityBinding` on startup to the new format to ensure backward compatibility. A configmap called `aad-pod-identity-config` is created to record and confirm the successful type upgrade.
 
 However, for future `AzureIdentity` and `AzureIdentityBinding` created using v1.6.0+, the following fields need to be changed:
 
