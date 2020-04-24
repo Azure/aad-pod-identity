@@ -50,7 +50,7 @@ Aad-pod-identity has a new flag `immutable-user-msis` which can be used to preve
 The list is comma separated. Example: 00000000-0000-0000-0000-000000000000,11111111-1111-1111-1111-111111111111
 
 ## Metadata header required flag
-> Available from 1.6.0 release
+> Available from 1.6 release
 
 When you query the Instance Metadata Service, you must provide the header `Metadata: true` to ensure the request was not unintentionally redirected. You can see examples of this header in [the Azure documentation](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service#using-headers).
 

@@ -1,4 +1,4 @@
-{{- if and .Values.rbac.enabled (eq .Values.operationMode "standard") }}
+{{- if .Values.rbac.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
