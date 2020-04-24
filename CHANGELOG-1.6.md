@@ -1,3 +1,5 @@
+:warning: v1.6.0 contains breaking changes. Please carefully review this [doc](README.md#v160-breaking-change) before upgrade from 1.x.x versions of pod-identity.
+
 # v1.6.0
 
 ### Features

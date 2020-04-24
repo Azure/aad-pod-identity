@@ -3,7 +3,7 @@
 
 ## Introduction
 
-Starting from 1.6.0 release,2 modes of operation are supported for pod-identity
+Starting from 1.6.0 release, 2 modes of operation are supported for pod-identity
 - Standard Mode
 - Managed Mode
 
@@ -22,6 +22,8 @@ Deploy `aad-pod-identity` components to an RBAC-enabled cluster in managed mode:
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/managed-mode-deployment.yaml
 ```
+
+**NOTE** Managed mode is only supported in namespaced mode. This ensures pods in namespace are only matched with `AzureIdentity` and `AzureIdentityBinding` in the same namespace.
 
 To assign the identity to the VM, run the following command -
 
