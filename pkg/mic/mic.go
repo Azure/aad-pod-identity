@@ -12,11 +12,14 @@ import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	"github.com/Azure/aad-pod-identity/pkg/crd"
+	"github.com/Azure/aad-pod-identity/pkg/filewatcher"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	"github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/aad-pod-identity/version"
+
+	"github.com/fsnotify/fsnotify"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -70,6 +73,7 @@ type Client struct {
 	CRDClient            crd.ClientInt
 	CloudClient          cloudprovider.ClientInt
 	PodClient            pod.ClientInt
+	CloudConfigWatcher   filewatcher.ClientInt
 	EventRecorder        record.EventRecorder
 	EventChannel         chan aadpodid.EventType
 	NodeClient           NodeGetter
@@ -149,6 +153,25 @@ func NewMICClient(cfg *Config) (*Client, error) {
 	podClient := pod.NewPodClient(informer, eventCh)
 	klog.V(1).Infof("Pod Client initialized")
 
+	cloudConfigWatcher, err := filewatcher.NewFileWatcher(
+		func(event fsnotify.Event) {
+			if event.Op&fsnotify.Write == fsnotify.Write {
+				if err := cloudClient.Init(); err != nil {
+					return
+				}
+				klog.V(1).Infof("Cloud provider re-initialized")
+			}
+		}, func(err error) {
+			klog.Error(err)
+		})
+	if err != nil {
+		return nil, err
+	}
+	if err := cloudConfigWatcher.Add(cfg.CloudCfgPath); err != nil {
+		return nil, err
+	}
+	klog.V(1).Infof("Cloud config watcher initialized")
+
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: clientSet.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: aadpodid.CRDGroup})
@@ -172,6 +195,7 @@ func NewMICClient(cfg *Config) (*Client, error) {
 		CRDClient:            crdClient,
 		CloudClient:          cloudClient,
 		PodClient:            podClient,
+		CloudConfigWatcher:   cloudConfigWatcher,
 		EventRecorder:        recorder,
 		EventChannel:         eventCh,
 		NodeClient:           &NodeClient{informer.Core().V1().Nodes()},
@@ -326,6 +350,13 @@ func (c *Client) Start(exit <-chan struct{}) {
 	go func() {
 		c.NodeClient.Start(exit)
 		klog.V(6).Infof("Node client started")
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		c.CloudConfigWatcher.Start(exit)
+		klog.V(6).Infof("Cloud config watcher started")
 		wg.Done()
 	}()
 
