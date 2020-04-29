@@ -101,6 +101,17 @@ func GetIdentityPrincipalID(resourceGroup, identityName string) (string, error) 
 	return strings.TrimSpace(string(out)), nil
 }
 
+// GetIdentityResourceID will return the resource id of a user-assigned identity on Azure
+func GetIdentityResourceID(resourceGroup, identityName string) (string, error) {
+	cmd := exec.Command("az", "identity", "show", "-g", resourceGroup, "-n", identityName, "--query", "id", "-otsv")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get the id from the identity in Azure")
+	}
+
+	return strings.TrimSpace(string(out)), nil
+}
+
 // WaitOnReaderRoleAssignment will block until the assignement of 'Reader' role to an identity is executed successfully
 func WaitOnReaderRoleAssignment(subscriptionID, resourceGroup, identityName, keyvaultName string) (bool, error) {
 	principalID, err := GetIdentityPrincipalID(resourceGroup, identityName)
@@ -193,9 +204,9 @@ func StopKubelet(resourceGroup, vmName string) error {
 }
 
 // EnableUserAssignedIdentityOnVM will enable a user assigned identity to a VM
-func EnableUserAssignedIdentityOnVM(resourceGroup, vmName, identityName string) error {
-	fmt.Printf("# Assigning user assigned identity '%s' to %s...\n", identityName, vmName)
-	cmd := exec.Command("az", "vm", "identity", "assign", "-g", resourceGroup, "-n", vmName, "--identities", identityName)
+func EnableUserAssignedIdentityOnVM(resourceGroup, vmName, identityResourceID string) error {
+	fmt.Printf("# Assigning user assigned identity '%s' to %s...\n", identityResourceID, vmName)
+	cmd := exec.Command("az", "vm", "identity", "assign", "-g", resourceGroup, "-n", vmName, "--identities", identityResourceID)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return errors.Wrapf(err, "Failed to assign user assigned identity to VM: %s", string(out))
@@ -205,9 +216,9 @@ func EnableUserAssignedIdentityOnVM(resourceGroup, vmName, identityName string) 
 }
 
 // EnableUserAssignedIdentityOnVMSS will enable a user assigned identity to a VM
-func EnableUserAssignedIdentityOnVMSS(resourceGroup, vmName, identityName string) error {
-	fmt.Printf("# Assigning user assigned identity '%s' to %s...\n", identityName, vmName)
-	cmd := exec.Command("az", "vmss", "identity", "assign", "-g", resourceGroup, "-n", vmName, "--identities", identityName)
+func EnableUserAssignedIdentityOnVMSS(resourceGroup, vmName, identityResourceID string) error {
+	fmt.Printf("# Assigning user assigned identity '%s' to %s...\n", identityResourceID, vmName)
+	cmd := exec.Command("az", "vmss", "identity", "assign", "-g", resourceGroup, "-n", vmName, "--identities", identityResourceID)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return errors.Wrapf(err, "Failed to assign user assigned identity to VM: %s", string(out))
