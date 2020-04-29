@@ -2,6 +2,21 @@ apiVersion: v1
 entries:
   aad-pod-identity:
   - apiVersion: v1
+    appVersion: 1.6.1
+    created: "2020-04-24T12:12:20.536485-07:00"
+    description: Deploy components for aad-pod-identity
+    digest: 83cf174df7c2fbf93107c4a197e336b59d131b8aeef9a104a3f203e0354b1770
+    home: https://github.com/Azure/aad-pod-identity
+    maintainers:
+    - email: anish.ramasekar@gmail.com
+      name: aramase
+    name: aad-pod-identity
+    sources:
+    - https://github.com/Azure/aad-pod-identity
+    urls:
+    - https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts/aad-pod-identity-1.6.1.tgz
+    version: 1.6.1
+  - apiVersion: v1
     appVersion: 1.6.0
     created: "2020-04-24T12:12:20.536485-07:00"
     description: Deploy components for aad-pod-identity
