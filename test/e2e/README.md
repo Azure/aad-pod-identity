@@ -51,6 +51,7 @@ export NMI_MODE='...'
 ```
 
 If you are using system asssigned identity cluster, please set the following variable:
+
 ```bash
 export SYSTEM_MSI_CLUSTER=true
 ```
