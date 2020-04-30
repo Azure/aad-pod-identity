@@ -3,7 +3,15 @@
     "properties": {
         "orchestratorProfile": {
             "orchestratorType": "Kubernetes",
-            "orchestratorRelease": "$K8S_RELEASE"
+            "orchestratorRelease": "$K8S_RELEASE",
+            "kubernetesConfig": {
+                "addons": [
+                    {
+                        "name": "aad-pod-identity",
+                        "enabled": false
+                    }
+                ]
+            }
         },
         "masterProfile": {
             "count": 1,

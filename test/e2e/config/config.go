@@ -33,14 +33,15 @@ func ParseConfig() (*Config, error) {
 		return nil, err
 	}
 
-	if c.IdentityResourceGroup == "" && c.ClusterResourceGroup == "" {
+	if c.IdentityResourceGroup == "" {
 		// Assume user-assigned identities are within the cluster resource group
-		c.IdentityResourceGroup = strings.ToLower(c.ResourceGroup)
-		c.ClusterResourceGroup = strings.ToLower(c.ResourceGroup)
-	} else {
-		c.IdentityResourceGroup = strings.ToLower(c.IdentityResourceGroup)
-		c.ClusterResourceGroup = strings.ToLower(c.ClusterResourceGroup)
+		c.IdentityResourceGroup = c.ResourceGroup
 	}
+	if c.ClusterResourceGroup == "" {
+		c.ClusterResourceGroup = c.ResourceGroup
+	}
+	c.IdentityResourceGroup = strings.ToLower(c.IdentityResourceGroup)
+	c.ClusterResourceGroup = strings.ToLower(c.ClusterResourceGroup)
 
 	return c, nil
 }

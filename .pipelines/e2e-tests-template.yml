@@ -94,9 +94,6 @@ jobs:
               kubectl wait pod -n kube-system --for=condition=Ready --all
               kubectl get nodes -owide
               kubectl cluster-info
-
-              # Install gatekeeper
-              kubectl apply -f https://raw.githubusercontent.com/open-policy-agent/gatekeeper/master/deploy/gatekeeper.yaml
             displayName: "aks-engine deploy"
 
           - script: |
