@@ -15,50 +15,41 @@ func TestFileWatcher(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tempFile.Name())
+	defer func() {
+		err := os.Remove(tempFile.Name())
+		assert.NoError(t, err)
+	}()
 
-	writeCount := 0
-	removed := false
-	fw, err := NewFileWatcher(func(event fsnotify.Event) {
-		if event.Op&fsnotify.Write == fsnotify.Write {
-			writeCount++
-		} else if event.Op&fsnotify.Remove == fsnotify.Remove {
-			removed = true
-		}
-	}, func(err error) {
-		t.Fatal(err)
-	})
+	writeCh := make(chan string, 1)
+	errCh := make(chan error, 1)
+	fw, err := NewFileWatcher(
+		func(event fsnotify.Event) {
+			if event.Op&fsnotify.Write == fsnotify.Write {
+				writeCh <- event.Name
+			}
+		}, func(err error) {
+			errCh <- err
+		})
 	assert.NoError(t, err)
 
-	go fw.Start(make(chan struct{}))
+	fw.Start(make(chan struct{}))
 	_, err = tempFile.Write([]byte("test0"))
 	assert.NoError(t, err)
-	// Sleep for 1 second to allow event propagation
-	time.Sleep(1 * time.Second)
-	assert.Equal(t, 0, writeCount)
-	assert.Equal(t, false, removed)
+	assert.Len(t, errCh, 0)
+	assert.Len(t, writeCh, 0)
 
 	err = fw.Add(tempFile.Name())
 	assert.NoError(t, err)
+	assert.Len(t, errCh, 0)
+	assert.Len(t, writeCh, 0)
 
 	_, err = tempFile.Write([]byte("test1"))
 	assert.NoError(t, err)
-	// Sleep for 1 second to allow event propagation
-	time.Sleep(1 * time.Second)
-	assert.Equal(t, 1, writeCount)
-	assert.Equal(t, false, removed)
-
-	_, err = tempFile.Write([]byte("test2"))
-	assert.NoError(t, err)
-	time.Sleep(1 * time.Second)
-	assert.NoError(t, err)
-	assert.Equal(t, 2, writeCount)
-	assert.Equal(t, false, removed)
-
-	err = os.Remove(tempFile.Name())
-	assert.NoError(t, err)
-	time.Sleep(1 * time.Second)
-	assert.NoError(t, err)
-	assert.Equal(t, 2, writeCount)
-	assert.Equal(t, true, removed)
+	assert.Len(t, errCh, 0)
+	select {
+	case f := <-writeCh:
+		assert.Equal(t, tempFile.Name(), f)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("Timeout waiting for a fsnotify event")
+	}
 }
