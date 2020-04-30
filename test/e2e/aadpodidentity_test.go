@@ -1431,6 +1431,7 @@ func setupIdentityFormatValidationInfra() {
 	// install Gatekeeper policy controller
 	err := infra.InstallGatekeeper()
 	Expect(err).NotTo(HaveOccurred())
+	time.Sleep(60 * time.Second)
 
 	var output []byte
 	// install identity format template
