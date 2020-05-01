@@ -315,7 +315,7 @@ func GetVMUserAssignedIdentities(resourceGroup, vmName string) (map[string]UserA
 		return nil, errors.Wrap(err, "Failed to unmarshall json")
 	}
 
-	return userAssignedIdentities, nil
+	return convertKeysToLower(userAssignedIdentities), nil
 }
 
 // GetVMSSUserAssignedIdentities will return the list of user assigned identity in a given VM
@@ -345,7 +345,7 @@ func GetVMSSUserAssignedIdentities(resourceGroup, name string) (map[string]UserA
 		return nil, errors.Wrap(err, "Failed to unmarshall json")
 	}
 
-	return userAssignedIdentities, nil
+	return convertKeysToLower(userAssignedIdentities), nil
 }
 
 // RemoveUserAssignedIdentityFromVM will remove a user assigned identity to a VM
@@ -447,4 +447,12 @@ func RemoveSystemAssignedIdentityFromVMSS(resourceGroup, name string) error {
 	}
 
 	return nil
+}
+
+func convertKeysToLower(m map[string]UserAssignedIdentity) map[string]UserAssignedIdentity {
+	mLower := make(map[string]UserAssignedIdentity)
+	for k, v := range m {
+		mLower[strings.ToLower(k)] = v
+	}
+	return mLower
 }
