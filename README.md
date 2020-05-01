@@ -93,10 +93,9 @@ curl http://127.0.0.1:2579/host/token/?resource=https://vault.azure.net -H "podn
 
 For more information, please refer to the [design documentation](./docs/design/concept.md).
 
-
 ## Role Assignment
 
-Your cluster will need the correct role assignment configuration to perform Azure-related operations such as assigning and us-assigning the identity on the underlying VM/VMSS. Please refer to the [role assignment](./docs/readmes/README.role-assignment.md) documentation to see if your cluster requires additional role assignments.
+Your cluster will need the correct role assignment configuration to perform Azure-related operations such as assigning and un-assigning the identity on the underlying VM/VMSS. Please refer to the [role assignment](./docs/readmes/README.role-assignment.md) documentation to review and set required role assignments.
 
 ## Demo
 
@@ -109,6 +108,7 @@ export SUBSCRIPTION_ID="<SubscriptionId>"
 export RESOURCE_GROUP="<ResourceGroup>"
 export IDENTITY_NAME="demo"
 ```
+
 ### 1. Deploy aad-pod-identity
 
 Deploy `aad-pod-identity` components to an RBAC-enabled cluster:

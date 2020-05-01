@@ -1,19 +1,17 @@
 # Role Assignment
 
-> This section only applies if the user-assigned identities you wish to assign to your workload are not within the cluster resource group. For AKS, the cluster resource group refers to the resource group with a `MC_` prefix.
-
-Without the proper role assignments, your Azure cluster will not have the correct permission to assign and un-assign identities that are not within the cluster resource group.
+AKS and aks-engine clusters require an identity to communicate with Azure. This identity can be either a **managed identity** (in the form of system-assigned identity or user-assigned identity) or a **service principal**. This section explains various role assignments that need to be performed before using AAD Pod Identity. Without the proper role assignments, your Azure cluster will not have the correct permission to assign and un-assign identities from the underlying virtual machines (VM) or virtual machine scale sets (VMSS).
 
 ## Introduction
 
-The [MIC](../../README.md#managed-identity-controller) component in AAD Pod Identity needs to authenticate with Azure to create and remove identity assignment from the underlying virtual machines (VM) or virtual machine scale sets (VMSS). Currently, MIC will use one of the following two ways to authenticate with Azure:
+Currently, [MIC](../../README.md#managed-identity-controller) uses one of the following two ways to authenticate with Azure:
 
-1. [Service principal](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal) through `/etc/kubernetes/azure.json` available in every node, or credential defined by environment variables;
-2. [Managed identity](https://docs.microsoft.com/en-us/azure/aks/use-managed-identity) (it can be using a system-assigned identity or user-assigned identity)
+1. [Managed Identity](https://docs.microsoft.com/en-us/azure/aks/use-managed-identity) (system-assigned identity or user-assigned identity)
+2. [Service Principal](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal) through `/etc/kubernetes/azure.json`, which is available in every node, or credentials defined by environment variables;
 
-> Clusters with managed identity are compatible with AAD Pod Identity 1.5+.
+> Clusters with managed identity are only compatible with AAD Pod Identity 1.5+.
 
-## More on authentication method
+## More on authentication methods
 
 [`/etc/kubernetes/azure.json`](https://github.com/kubernetes-sigs/cloud-provider-azure/blob/master/docs/cloud-provider-config.md#auth-configs) is a well-known JSON file in each node that provides the details about which method MIC uses for authentication:
 
@@ -23,19 +21,32 @@ The [MIC](../../README.md#managed-identity-controller) component in AAD Pod Iden
 | User-assigned managed identity cluster | `useManagedIdentityExtension: true` and `userAssignedIdentityID:"<UserAssignedIdentityID>"` |
 | Service principal (default)            | `aadClientID: "<AADClientID>"` and `aadClientSecret: "<AADClientSecret>"`                   |
 
-## Performing Role Assignment
+## Obtaining the principal ID of the managed identity / service principal
 
-After your cluster is provisioned, depending on your cluster configuration, run one of the following commands to retrieve the **Principal ID** of your service principal / managed identity:
+After your cluster is provisioned, depending on your cluster identity configuration, run one of the following commands to retrieve the **Principal ID** of your managed identity or service principal, which will be used for role assignment in the next section:
 
-| Cluster configuration                            | Command                                                                                                  |
-|--------------------------------------------------|----------------------------------------------------------------------------------------------------------|
-| AKS cluster with service principal               | `az aks show -g <ClusterResourceGroup> -n <ClusterName> --query servicePrincipalProfile.clientId -otsv`          |
-| AKS cluster with managed identity                | `az aks show -g <ClusterResourceGroup> -n <ClusterName> --query identityProfile.kubeletidentity.clientId -otsv` |
-| aks-engine cluster with service principal        | Use the client ID of the service principal defined in the API model                                      |
+| Cluster configuration                            | Command                                                                                                         |
+|--------------------------------------------------|-----------------------------------------------------------------------------------------------------------------|
+| AKS cluster with service principal               | `az aks show -g <AKSResourceGroup> -n <AKSClusterName> --query servicePrincipalProfile.clientId -otsv`             |
+| AKS cluster with managed identity                | `az aks show -g <AKSResourceGroup> -n <AKSClusterName> --query identityProfile.kubeletidentity.clientId -otsv`     |
+| aks-engine cluster with service principal        | Use the client ID of the service principal defined in the API model                                             |
 | aks-engine cluster with system-assigned identity | `az <vm\|vmss> identity show -g <ClusterResourceGroup> -n <VM\|VMSS Name> --query principalId -otsv`            |
 | aks-engine cluster with user-assigned identity   | `az <vm\|vmss> identity show -g <ClusterResourceGroup> -n <VM\|VMSS Name> --query userAssignedIdentities -otsv` |
 
-The roles [Managed Identity Operator](https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#managed-identity-operator) must be assigned to the cluster service principal / managed identity before deploying AAD Pod Identity so that it can assign and un-assign identities that are not within the cluster resource group. You can run the following command to assign the role with the identity resource group scope:
+## Performing role assignments
+
+The roles [**Managed Identity Operator**](https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#managed-identity-operator) and [**Virtual Machine Contributor**](https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#virtual-machine-contributor) must be assigned to the cluster managed identity or service principal, identified by the principal ID obtained above, before deploying AAD Pod Identity so that it can assign and un-assign identities from the underlying VM/VMSS.
+
+> For AKS cluster, the cluster resource group refers to the resource group with a `MC_` prefix, which contains all of the infrastructure resources associated with the cluster like VM/VMSS.
+
+```bash
+az role assignment create --role "Managed Identity Operator" --assignee <PrincipalID> --scope /subscriptions/<SubscriptionID>/resourcegroups/<ClusterResourceGroup>
+az role assignment create --role "Virtual Machine Contributor" --assignee <PrincipalID> --scope /subscriptions/<SubscriptionID>/resourcegroups/<ClusterResourceGroup>
+```
+
+## User-assigned identities that are not within the cluster resource group
+
+There are additional role assignments required if you wish to assign user-assigned identities that are not within the cluster resource group. You can run the following command to assign the **Managed Identity Operator** role with the identity resource group scope:
 
 ```bash
 az role assignment create --role "Managed Identity Operator" --assignee <PrincipalID> --scope /subscriptions/<SubscriptionID>/resourcegroups/<IdentityResourceGroup>
@@ -46,3 +57,9 @@ To enable fine-grained control on which user-assigned identity the cluster has a
 ```bash
 az role assignment create --role "Managed Identity Operator" --assignee <PrincipalID>  --scope /subscriptions/<SubscriptionID>/resourcegroups/<IdentityResourceGroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<IdentityName>
 ```
+
+## Useful links
+
+- [Use managed identities in AKS](https://docs.microsoft.com/en-us/azure/aks/use-managed-identity)
+- [Service principals with AKS](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal)
+- [What are managed identities for Azure resources?](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview)
