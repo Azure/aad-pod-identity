@@ -17,6 +17,7 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 * [Components](#components)
   + [Managed Identity Controller](#managed-identity-controller)
   + [Node Managed Identity](#node-managed-identity)
+* [Role Assignment](#role-assignment)
 * [Demo](#demo)
   + [1. Deploy aad-pod-identity](#1-deploy-aad-pod-identity)
   + [2. Create an identity on Azure](#2-create-an-identity-on-azure)
@@ -66,9 +67,9 @@ AAD Pod Identity has two components: the [Managed Identity Controller] (MIC) and
 
 ### Managed Identity Controller
 
-The Managed Identity Controller (MIC) is a Kubernetes [custom resource] that watches for changes to pods, identities, and bindings through the Kubernetes API server. When it detects a relevant change, the MIC adds or deletes assigned identities as needed.
+The Managed Identity Controller (MIC) is a Kubernetes [custom resource] that watches for changes to pods, `AzureIdentity` and `AzureIdentityBindings` through the Kubernetes API server. When it detects a relevant change, the MIC adds or deletes `AzureAssignedIdentity` as needed.
 
-Specifically, when a pod is scheduled, the MIC assigns an identity to the underlying VM/VMSS during the creation phase. When the pod is deleted, it removes the assigned identity from the underlying VM/VMSS. The MIC takes similar actions when `AzureIdentity` or `AzureIdentityBinding` are created or deleted.
+Specifically, when a pod is scheduled, the MIC assigns the identity on Azure to the underlying VM/VMSS during the creation phase. When the pod is deleted, it removes the identity from the underlying VM/VMSS on Azure. The MIC takes similar actions when `AzureIdentity` or `AzureIdentityBinding` are created or deleted.
 
 ### Node Managed Identity
 
@@ -92,13 +93,15 @@ curl http://127.0.0.1:2579/host/token/?resource=https://vault.azure.net -H "podn
 
 For more information, please refer to the [design documentation](./docs/design/concept.md).
 
+## Role Assignment
+
+Your cluster will need the correct role assignment configuration to perform Azure-related operations such as assigning and un-assigning the identity on the underlying VM/VMSS. Please refer to the [role assignment](./docs/readmes/README.role-assignment.md) documentation to review and set required role assignments.
+
 ## Demo
 
 You will need [Azure CLI] installed and a Kubernetes cluster running on Azure, either managed by [AKS] or provisioned with [AKS Engine].
 
-> If running MSI-enabled AKS cluster, please make sure to follow the [MSI specific](docs/readmes/README.msi.md) documentation before getting started.
-
-Set the following Azure-related environment variables:
+Set the following Azure-related environment variables before getting started:
 
 ```bash
 export SUBSCRIPTION_ID="<SubscriptionId>"
