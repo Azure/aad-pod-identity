@@ -96,7 +96,7 @@ For more information, please refer to the [design documentation](./docs/design/c
 
 ## Role Assignment
 
-Your cluster will need the correct role assignment configuration to perform Azure-related operations such as creating and deleting identity assignments. For more information, please refer to the [role assignment](./docs/readmes/README.role-assignment.md) documentation.
+Your cluster will need the correct role assignment configuration to perform Azure-related operations such as assigning and us-assigning the identity on the underlying VM/VMSS. Please refer to the [role assignment](./docs/readmes/README.role-assignment.md) documentation to see if your cluster requires additional role assignments.
 
 ## Demo
 
