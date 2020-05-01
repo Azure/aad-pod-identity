@@ -298,10 +298,10 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		}
 	})
 
-	It("should not alter the user assigned identity on VM after AAD pod identity is created and deleted", func() {
+	It("should not alter the user assigned identity on VM after AAD pod identity is created and deleted [PR]", func() {
 		azureIdentityResource := "/subscriptions/%s/resourceGroups/%s/providers/Microsoft.ManagedIdentity/userAssignedIdentities/%s"
-		clusterIdentityResource := fmt.Sprintf(azureIdentityResource, cfg.SubscriptionID, cfg.IdentityResourceGroup, clusterIdentity)
-		keyvaultIdentityResource := fmt.Sprintf(azureIdentityResource, cfg.SubscriptionID, cfg.IdentityResourceGroup, keyvaultIdentity)
+		clusterIdentityResource := strings.ToLower(fmt.Sprintf(azureIdentityResource, cfg.SubscriptionID, cfg.IdentityResourceGroup, clusterIdentity))
+		keyvaultIdentityResource := strings.ToLower(fmt.Sprintf(azureIdentityResource, cfg.SubscriptionID, cfg.IdentityResourceGroup, keyvaultIdentity))
 
 		// Assign user assigned identity to every node
 		nodeList, err := node.GetAll()
