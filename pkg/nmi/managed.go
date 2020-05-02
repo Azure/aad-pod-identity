@@ -44,6 +44,7 @@ func (mc *ManagedClient) GetIdentities(ctx context.Context, podns, podname, clie
 	for _, id := range azureIdentities {
 		// if client id exists in the request, then send the first identity that matched the client id
 		if len(clientID) != 0 && id.Spec.ClientID == clientID {
+			klog.Infof("clientID in request: %s, %s/%s has been matched with azure identity %s/%s", utils.RedactClientID(clientID), podns, podname, id.Namespace, id.Name)
 			return &id, nil
 		}
 		// if client doesn't exist in the request, then return the first identity in the same namespace as the pod
@@ -52,7 +53,7 @@ func (mc *ManagedClient) GetIdentities(ctx context.Context, podns, podname, clie
 			return &id, nil
 		}
 	}
-	return nil, fmt.Errorf("no matching azure identity found for pod")
+	return nil, fmt.Errorf("no azure identity found for request clientID %s", utils.RedactClientID(clientID))
 }
 
 // GetToken ...

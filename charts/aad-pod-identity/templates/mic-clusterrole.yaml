@@ -1,4 +1,4 @@
-{{- if .Values.rbac.enabled }}
+{{- if and .Values.rbac.enabled (eq .Values.operationMode "standard") }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -17,11 +17,17 @@ rules:
   resources: ["events"]
   verbs: ["create", "patch"]
 - apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "create", "update"]
+- apiGroups: [""]
   resources: ["endpoints"]
   verbs: [ "create", "get", "update"]
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureidentitybindings", "azureidentities"]
-  verbs: ["get", "list", "watch", "post"]
+  verbs: ["get", "list", "watch", "post", "update"]
+- apiGroups: ["aadpodidentity.k8s.io"]
+  resources: ["azurepodidentityexceptions"]
+  verbs: ["list", "update"]
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureassignedidentities"]
   verbs: ["*"]

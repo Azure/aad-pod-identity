@@ -178,18 +178,20 @@ func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs [
 	}
 
 	ids := make(map[string]bool)
-	// add new ids to the list
-	for _, userAssignedMSIID := range addUserAssignedMSIIDs {
-		ids[userAssignedMSIID] = true
-	}
 	// remove msi ids from the list
 	for _, userAssignedMSIID := range removeUserAssignedMSIIDs {
 		ids[userAssignedMSIID] = false
 	}
+	// add new ids to the list
+	// add is done after setting del ids in the map to ensure an identity if in
+	// both add and del list is not deleted
+	for _, userAssignedMSIID := range addUserAssignedMSIIDs {
+		ids[userAssignedMSIID] = true
+	}
 	requiresUpdate := info.SetUserIdentities(ids)
 
 	if requiresUpdate {
-		klog.Infof("Updating user assigned MSIs on %s", name)
+		klog.Infof("Updating user assigned MSIs on %s, assign [%d], unassign [%d]", name, len(addUserAssignedMSIIDs), len(removeUserAssignedMSIIDs))
 		timeStarted := time.Now()
 		if err := updateFunc(); err != nil {
 			return err

@@ -75,7 +75,7 @@ spec:
         name: iptableslock
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.5.5"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.6.0"
         imagePullPolicy: Always
         args:
           - "--host-ip=$(HOST_IP)"
@@ -146,12 +146,16 @@ spec:
     spec:
       containers:
       - name: mic
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.5.5"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.6.0"
         imagePullPolicy: Always
         args:
           - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"
           - "--logtostderr"
         env:
+          - name: MIC_POD_NAMESPACE
+            valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
           - name: CLOUD
             valueFrom:
               secretKeyRef:

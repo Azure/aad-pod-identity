@@ -1,6 +1,3 @@
-GO111MODULE ?= on
-export GO111MODULE
-
 ORG_PATH=github.com/Azure
 PROJECT_NAME := aad-pod-identity
 REPO_PATH="$(ORG_PATH)/$(PROJECT_NAME)"
@@ -48,6 +45,23 @@ NMI_IMAGE ?= $(REPO_PREFIX)/$(NMI_BINARY_NAME):$(NMI_VERSION)
 MIC_IMAGE ?= $(REPO_PREFIX)/$(MIC_BINARY_NAME):$(MIC_VERSION)
 DEMO_IMAGE ?= $(REPO_PREFIX)/$(DEMO_BINARY_NAME):$(DEMO_VERSION)
 IDENTITY_VALIDATOR_IMAGE ?= $(REPO_PREFIX)/$(IDENTITY_VALIDATOR_BINARY_NAME):$(IDENTITY_VALIDATOR_VERSION)
+ALL_DOCS := $(shell find . -name '*.md' -type f | sort)
+TOOLS_MOD_DIR := ./tools
+TOOLS_DIR := $(abspath ./.tools)
+
+$(TOOLS_DIR)/golangci-lint: $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
+	cd $(TOOLS_MOD_DIR) && \
+	go build -o $(TOOLS_DIR)/golangci-lint github.com/golangci/golangci-lint/cmd/golangci-lint
+
+$(TOOLS_DIR)/misspell: $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
+	cd $(TOOLS_MOD_DIR) && \
+	go build -o $(TOOLS_DIR)/misspell github.com/client9/misspell/cmd/misspell
+
+.PHONY: lint
+lint: $(TOOLS_DIR)/golangci-lint $(TOOLS_DIR)/misspell
+	$(TOOLS_DIR)/golangci-lint run
+	$(TOOLS_DIR)/misspell -w $(ALL_DOCS) && \
+	go mod tidy
 
 .PHONY: clean-nmi
 clean-nmi:
@@ -100,6 +114,9 @@ build-identity-validator: clean-identity-validator
 .PHONY: build
 build: clean build-nmi build-mic build-demo build-identity-validator
 
+.PHONY: precommit
+precommit: build unit-test lint
+
 .PHONY: deepcopy-gen
 deepcopy-gen:
 	deepcopy-gen -i ./pkg/apis/aadpodidentity/v1/ -o . -O aadpodidentity_deepcopy_generated -p aadpodidentity
@@ -125,22 +142,22 @@ image:image-nmi image-mic image-demo image-identity-validator
 
 .PHONY: push-nmi
 push-nmi: validate-version-NMI
-	az acr repository show --name $(REGISTRY_NAME) --image $(NMI_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
+	az acr repository show --name $(REGISTRY_NAME) --image $(NMI_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
 	docker push $(REGISTRY)/$(NMI_IMAGE)
 
 .PHONY: push-mic
 push-mic: validate-version-MIC
-	az acr repository show --name $(REGISTRY_NAME) --image $(MIC_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(MIC_IMAGE) already exists" && exit 1; fi
+	az acr repository show --name $(REGISTRY_NAME) --image $(MIC_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(MIC_IMAGE) already exists" && exit 1; fi
 	docker push $(REGISTRY)/$(MIC_IMAGE)
 
 .PHONY: push-demo
 push-demo: validate-version-DEMO
-	az acr repository show --name $(REGISTRY_NAME) --image $(DEMO_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(DEMO_IMAGE) already exists" && exit 1; fi
+	az acr repository show --name $(REGISTRY_NAME) --image $(DEMO_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(DEMO_IMAGE) already exists" && exit 1; fi
 	docker push $(REGISTRY)/$(DEMO_IMAGE)
 
 .PHONY: push-identity-validator
 push-identity-validator: validate-version-IDENTITY_VALIDATOR
-	az acr repository show --name $(REGISTRY_NAME) --image $(IDENTITY_VALIDATOR_IMAGE) > /dev/null 2>&1; if [[ $$? -eq 0 ]]; then echo "$(IDENTITY_VALIDATOR_IMAGE) already exists" && exit 1; fi
+	az acr repository show --name $(REGISTRY_NAME) --image $(IDENTITY_VALIDATOR_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(IDENTITY_VALIDATOR_IMAGE) already exists" && exit 1; fi
 	docker push $(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE)
 
 .PHONY: push

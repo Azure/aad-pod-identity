@@ -363,20 +363,20 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 
 	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
-		klog.Error(err)
+		klog.Errorf("failed to get matching identities for pod: %s/%s, error: %+v", podns, podname, err)
 		http.Error(w, err.Error(), getErrorResponseStatusCode(podID != nil))
 		return
 	}
 
 	token, err := s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, *podID)
 	if err != nil {
-		klog.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
+		klog.Errorf("failed to get service principal token for pod: %s/%s, error: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 	response, err := json.Marshal(newMSIResponse(*token))
 	if err != nil {
-		klog.Errorf("failed to marshal service principal token for pod:%s/%s, %+v", podns, podname, err)
+		klog.Errorf("failed to marshal service principal token for pod: %s/%s, error: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

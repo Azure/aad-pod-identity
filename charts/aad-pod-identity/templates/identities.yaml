@@ -11,8 +11,8 @@ items:
         {{- include "aad-pod-identity.labels" $ | nindent 8 }}
     spec:
       type: {{ .type }}
-      ResourceID: {{ required "resourceID is required!" .resourceID }}
-      ClientID: {{ required "clientID is required!" .clientID }}
+      resourceID: {{ required "resourceID is required!" .resourceID }}
+      clientID: {{ required "clientID is required!" .clientID }}
   - apiVersion: "aadpodidentity.k8s.io/v1"
     kind: AzureIdentityBinding
     metadata:
@@ -21,6 +21,6 @@ items:
       labels:
         {{- include "aad-pod-identity.labels" $ | nindent 8 }}
     spec:
-      AzureIdentity: {{ .name }}
-      Selector: {{ required "binding.selector is required!" .binding.selector }}
+      azureIdentity: {{ .name }}
+      selector: {{ required "binding.selector is required!" .binding.selector }}
 {{- end }}

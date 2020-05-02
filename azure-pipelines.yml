@@ -1,52 +1,29 @@
-# Go
-# Build your Go project.
-# Add steps that test, save build artifacts, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/go
-
 trigger:
   branches:
     include:
-    - master
+      - master
   paths:
     exclude:
-    - docs/*
+      - docs/*
 
 pr:
   branches:
     include:
-    - master
+      - master
   paths:
     exclude:
-    - docs/*
+      - docs/*
 
 pool:
- vmImage: 'Ubuntu-16.04'
+  vmImage: ubuntu-latest
 
-variables:
- GOBIN:  '$(GOPATH)/bin' # Go binaries path
- GOROOT: '/usr/local/go1.13' # Go installation path
- GOPATH: '$(system.defaultWorkingDirectory)/gopath' # Go workspace path
- modulePath: '$(GOPATH)/src/github.com/$(build.repository.name)' # Path to the module's code
- GO111MODULE: 'on'
-
-steps:
-- script: |
-    mkdir -p '$(GOBIN)'
-    mkdir -p '$(GOPATH)/pkg'
-    mkdir -p '$(modulePath)'
-    shopt -s extglob
-    mv !(gopath) '$(modulePath)'
-    echo '##vso[task.prependpath]$(GOBIN)'
-    echo '##vso[task.prependpath]$(GOROOT)/bin'
-  displayName: 'Set up the Go workspace'
-- script:  make build
-  workingDirectory: '$(modulePath)'
-  displayName: 'Build'
-- script: |
-   make unit-test
-  workingDirectory: '$(modulePath)'
-  displayName: 'Run tests'
-- script: |
-   make helm-lint
-  workingDirectory: '$(modulePath)'
-  displayName: 'Run helm lint'
+jobs:
+  - template: .pipelines/unit-tests-template.yml
+  - template: .pipelines/e2e-tests-template.yml
+    parameters:
+      k8sReleases:
+        - "1.18"
+      clusterConfigs:
+        # File names in test/e2e/cluster_configs without file extension
+        - "vmss"
+        - "vmas"

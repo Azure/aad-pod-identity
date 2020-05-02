@@ -59,9 +59,9 @@ func TestSimple(t *testing.T) {
 	vmssProvider := "azure:///subscriptions/fakeSub/resourceGroups/fakeGroup/providers/Microsoft.Compute/virtualMachineScaleSets/node4/virtualMachines/0"
 
 	for _, cfg := range []config.AzureConfig{
-		config.AzureConfig{},
-		config.AzureConfig{VMType: "vmss"},
-		config.AzureConfig{VMType: "vm"},
+		{},
+		{VMType: "vmss"},
+		{VMType: "vm"},
 	} {
 		desc := cfg.VMType
 		if desc == "" {
@@ -130,6 +130,13 @@ func TestSimple(t *testing.T) {
 			}
 
 			cloudClient.UpdateUserMSI([]string{"ID3"}, nil, node4.Name, true)
+			testMSI = []string{"ID4", "ID3"}
+			if !cloudClient.CompareMSI(node4.Name, true, testMSI) {
+				cloudClient.PrintMSI(t)
+				t.Error("MSI mismatch")
+			}
+
+			cloudClient.UpdateUserMSI([]string{"ID3"}, []string{"ID3"}, node4.Name, true)
 			testMSI = []string{"ID4", "ID3"}
 			if !cloudClient.CompareMSI(node4.Name, true, testMSI) {
 				cloudClient.PrintMSI(t)

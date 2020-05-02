@@ -144,7 +144,7 @@ func (i *vmIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 
 	nodeList := make(map[string]bool)
 	// add all current existing ids
-	for id, _ := range i.info.UserAssignedIdentities {
+	for id := range i.info.UserAssignedIdentities {
 		nodeList[id] = true
 	}
 

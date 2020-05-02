@@ -1,0 +1,16 @@
+jobs:
+  - job: unit_tests
+    timeoutInMinutes: 10
+    cancelTimeoutInMinutes: 5
+    workspace:
+      clean: all
+    steps:
+      - task: GoTool@0
+        inputs:
+          version: 1.14.1
+      - script: make build
+        displayName: Build
+      - script: make unit-test
+        displayName: Run unit tests
+      - script: make helm-lint
+        displayName: Run helm lint

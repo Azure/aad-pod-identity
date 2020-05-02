@@ -1,8 +1,6 @@
-FROM golang:1.13.4 AS build
-ENV GO111MODULE=on
+FROM golang:1.14.1 AS build
 WORKDIR /go/src/github.com/Azure/aad-pod-identity
-COPY go.mod go.mod
-COPY go.sum go.sum
+COPY go.mod go.sum ./
 RUN go mod download
 COPY . ./
 ARG NMI_VERSION=0.0.0-dev
@@ -11,7 +9,7 @@ ARG DEMO_VERSION=0.0.0-dev
 ARG IDENTITY_VALIDATOR_VERSION=0.0.0-dev
 RUN make build
 
-FROM alpine:3.10.3 AS base
+FROM alpine:3.11.5 AS base
 RUN apk add --no-cache \
     ca-certificates \
     iptables \
