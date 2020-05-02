@@ -136,7 +136,7 @@ kubectl delete crd azurepodidentityexceptions.aadpodidentity.k8s.io
 
 ## Upgrading to a New Major Chart Version
 
-A major chart version change (like v1.5.5 -> v2.0.0) indicates that there is a backward-incompatible (breaking) change needing manual actions.
+A major chart version change (like v1.6.0 -> v2.0.0) indicates that there is a backward-incompatible (breaking) change needing manual actions.
 
 ### 2.0.0
 
