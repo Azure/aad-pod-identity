@@ -1080,7 +1080,6 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 
 		for _, delID := range nodeTrackList.assignedIDsToDelete {
 			id := delID.Spec.AzureIdentityRef
-			removedID := delID.Spec.AzureIdentityRef
 			removedBinding := delID.Spec.AzureBindingRef
 			isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
 			idExistsOnNode := c.checkIfMSIExistsOnNode(id, delID.Spec.NodeName, idList)
@@ -1101,7 +1100,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 				continue
 			}
 
-			klog.Infof("Updating msis on node %s failed, but identity %s/%s has successfully been removed from node", delID.Spec.NodeName, removedID.Namespace, removedID.Name)
+			klog.Infof("Updating msis on node %s failed, but identity %s/%s has successfully been removed from node", delID.Spec.NodeName, id.Namespace, id.Name)
 
 			// remove assigned identity crd from cluster as the identity has successfully been removed from the node
 			err = c.removeAssignedIdentity(&delID)
@@ -1168,7 +1167,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 				klog.Error(err)
 				return
 			}
-			klog.Infof("deleted assigned identity %s/%s", delID.Namespace, delID.Name)
+			klog.V(1).Infof("deleted assigned identity %s/%s", assignedID.Namespace, assignedID.Name)
 		}(delID)
 	}
 

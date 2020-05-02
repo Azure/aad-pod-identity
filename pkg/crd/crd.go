@@ -490,7 +490,10 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 
 	var res aadpodv1.AzureAssignedIdentity
 	err = c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Do().Into(&res)
-	if !apierrors.IsNotFound(err) {
+	if apierrors.IsNotFound(err) {
+		return nil
+	}
+	if err != nil {
 		return err
 	}
 	if hasFinalizer(&res) {
