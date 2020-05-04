@@ -1068,7 +1068,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 			c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding applied",
 				fmt.Sprintf("Binding %s applied on node %s for pod %s", binding.Name, createID.Spec.NodeName, createID.Name))
 
-			klog.Infof("Updating msis on node %s failed, but identity %s has successfully been assigned to node", createID.Spec.NodeName, binding.Name)
+			klog.Infof("Updating msis on node %s failed, but identity %s/%s has successfully been assigned to node", createID.Spec.NodeName, id.Namespace, id.Name)
 
 			// Identity is successfully assigned to node, so update the status of assigned identity to assigned
 			if updateErr := c.updateAssignedIdentityStatus(&createID, aadpodid.AssignedIDAssigned); updateErr != nil {
@@ -1096,24 +1096,19 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 			// the identity still exists on node, which means removing the identity from the node failed
 			if isUserAssignedMSI && !inUse && idExistsOnNode {
 				message := fmt.Sprintf("Binding %s removal from node %s for pod %s resulted in error %v", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod, err.Error())
-				c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error", message)
 				klog.Error(message)
 				continue
 			}
 
-			klog.Infof("Updating msis on node %s failed, but identity %s has successfully been removed from node", delID.Spec.NodeName, removedBinding.Name)
+			klog.Infof("Updating msis on node %s failed, but identity %s/%s has successfully been removed from node", delID.Spec.NodeName, id.Namespace, id.Name)
 
 			// remove assigned identity crd from cluster as the identity has successfully been removed from the node
 			err = c.removeAssignedIdentity(&delID)
 			if err != nil {
-				c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error",
-					fmt.Sprintf("Removing assigned identity binding %s node %s for pod %s resulted in error %v", removedBinding.Name, delID.Spec.NodeName, delID.Name, err.Error()))
 				klog.Error(err)
 				continue
 			}
-			// the identity was successfully removed from node
-			c.EventRecorder.Event(removedBinding, corev1.EventTypeNormal, "binding removed",
-				fmt.Sprintf("Binding %s removed from node %s for pod %s", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod))
+			klog.Infof("deleted assigned identity %s/%s", delID.Namespace, delID.Name)
 		}
 		stats.Put(stats.TotalCreateOrUpdate, time.Since(beginAdding))
 		return
@@ -1157,7 +1152,6 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 		}
 		go func(assignedID aadpodid.AzureAssignedIdentity) {
 			defer semDel.Release(1)
-			removedBinding := assignedID.Spec.AzureBindingRef
 			// update the status for the assigned identity to Unassigned as the identity has been successfully removed from node.
 			// this will ensure on next sync loop we only try to delete the assigned identity instead of doing everything.
 			err := c.updateAssignedIdentityStatus(&assignedID, aadpodid.AssignedIDUnAssigned)
@@ -1170,14 +1164,10 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 			// remove assigned identity crd from cluster as the identity has successfully been removed from the node
 			err = c.removeAssignedIdentity(&assignedID)
 			if err != nil {
-				c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error",
-					fmt.Sprintf("Removing assigned identity binding %s node %s for pod %s resulted in error %v", removedBinding.Name, assignedID.Spec.NodeName, assignedID.Name, err))
 				klog.Error(err)
 				return
 			}
-			// the identity was successfully removed from node
-			c.EventRecorder.Event(removedBinding, corev1.EventTypeNormal, "binding removed",
-				fmt.Sprintf("Binding %s removed from node %s for pod %s", removedBinding.Name, assignedID.Spec.NodeName, assignedID.Spec.Pod))
+			klog.V(1).Infof("deleted assigned identity %s/%s", assignedID.Namespace, assignedID.Name)
 		}(delID)
 	}
 
