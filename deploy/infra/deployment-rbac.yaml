@@ -121,7 +121,7 @@ spec:
         name: iptableslock
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.5.5"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.6.0"
         imagePullPolicy: Always
         args:
           - "--host-ip=$(HOST_IP)"
@@ -245,11 +245,17 @@ rules:
   resources: ["events"]
   verbs: ["create", "patch"]
 - apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "create", "update"]
+- apiGroups: [""]
   resources: ["endpoints"]
   verbs: ["create", "get","update"]
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureidentitybindings", "azureidentities"]
-  verbs: ["get", "list", "watch", "post"]
+  verbs: ["get", "list", "watch", "post", "update"]
+- apiGroups: ["aadpodidentity.k8s.io"]
+  resources: ["azurepodidentityexceptions"]
+  verbs: ["list", "update"]
 - apiGroups: ["aadpodidentity.k8s.io"]
   resources: ["azureassignedidentities"]
   verbs: ["*"]
@@ -292,11 +298,16 @@ spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.5.5"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.6.0"
         imagePullPolicy: Always
         args:
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
+        env:
+        - name: MIC_POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace                
         resources:
           limits:
             cpu: 200m

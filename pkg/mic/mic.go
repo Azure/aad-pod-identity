@@ -15,9 +15,11 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
+	"github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/aad-pod-identity/version"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -39,6 +41,19 @@ const (
 type NodeGetter interface {
 	Get(name string) (*corev1.Node, error)
 	Start(<-chan struct{})
+}
+
+// TypeUpgradeConfig - configuration aspects of type related changes required for client-go upgrade.
+type TypeUpgradeConfig struct {
+	// Key in the config map which indicates if a type upgrade has been performed.
+	TypeUpgradeStatusKey string
+	EnableTypeUpgrade    bool
+}
+
+// CMConfig - config map for aad-pod-identity
+type CMConfig struct {
+	Namespace string
+	Name      string
 }
 
 // LeaderElectionConfig - used to keep track of leader election config.
@@ -69,7 +84,24 @@ type Client struct {
 
 	leaderElector *leaderelection.LeaderElector
 	*LeaderElectionConfig
-	Reporter *metrics.Reporter
+	Reporter       *metrics.Reporter
+	TypeUpgradeCfg *TypeUpgradeConfig
+	CMCfg          *CMConfig
+	CMClient       typedcorev1.ConfigMapInterface
+}
+
+// Config - MIC Config
+type Config struct {
+	CloudCfgPath          string
+	RestConfig            *rest.Config
+	IsNamespaced          bool
+	SyncRetryInterval     time.Duration
+	LeaderElectionCfg     *LeaderElectionConfig
+	EnableScaleFeatures   bool
+	CreateDeleteBatch     int64
+	ImmutableUserMSIsList []string
+	CMcfg                 *CMConfig
+	TypeUpgradeCfg        *TypeUpgradeConfig
 }
 
 // ClientInt ...
@@ -83,15 +115,15 @@ type trackUserAssignedMSIIds struct {
 	removeUserAssignedMSIIDs []string
 	assignedIDsToCreate      []aadpodid.AzureAssignedIdentity
 	assignedIDsToDelete      []aadpodid.AzureAssignedIdentity
+	assignedIDsToUpdate      []aadpodid.AzureAssignedIdentity
 	isvmss                   bool
 }
 
 // NewMICClient returnes new mic client
-func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, syncRetryInterval time.Duration,
-	leaderElectionConfig *LeaderElectionConfig, enableScaleFeatures bool, createDeleteBatch int64, immutableUserMSIsList []string) (*Client, error) {
+func NewMICClient(cfg *Config) (*Client, error) {
 	klog.Infof("Starting to create the pod identity client. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
 
-	clientSet := kubernetes.NewForConfigOrDie(config)
+	clientSet := kubernetes.NewForConfigOrDie(cfg.RestConfig)
 
 	k8sVersion, err := clientSet.ServerVersion()
 	if err == nil {
@@ -100,14 +132,15 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 
 	informer := informers.NewSharedInformerFactory(clientSet, 30*time.Second)
 
-	cloudClient, err := cloudprovider.NewCloudProvider(cloudconfig)
+	cloudClient, err := cloudprovider.NewCloudProvider(cfg.CloudCfgPath)
 	if err != nil {
 		return nil, err
 	}
 	klog.V(1).Infof("Cloud provider initialized")
 
 	eventCh := make(chan aadpodid.EventType, 100)
-	crdClient, err := crd.NewCRDClient(config, eventCh)
+
+	crdClient, err := crd.NewCRDClient(cfg.RestConfig, eventCh)
 	if err != nil {
 		return nil, err
 	}
@@ -122,12 +155,17 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 
 	var immutableUserMSIsMap map[string]bool
 
-	if len(immutableUserMSIsList) > 0 {
+	if len(cfg.ImmutableUserMSIsList) > 0 {
 		// this map contains list of identities that are configured by user as immutable.
 		immutableUserMSIsMap = make(map[string]bool)
-		for _, item := range immutableUserMSIsList {
+		for _, item := range cfg.ImmutableUserMSIsList {
 			immutableUserMSIsMap[strings.ToLower(item)] = true
 		}
+	}
+
+	var cmClient typedcorev1.ConfigMapInterface
+	if cfg.TypeUpgradeCfg.EnableTypeUpgrade {
+		cmClient = clientSet.CoreV1().ConfigMaps(cfg.CMcfg.Namespace)
 	}
 
 	c := &Client{
@@ -137,13 +175,17 @@ func NewMICClient(cloudconfig string, config *rest.Config, isNamespaced bool, sy
 		EventRecorder:        recorder,
 		EventChannel:         eventCh,
 		NodeClient:           &NodeClient{informer.Core().V1().Nodes()},
-		IsNamespaced:         isNamespaced,
-		syncRetryInterval:    syncRetryInterval,
-		enableScaleFeatures:  enableScaleFeatures,
-		createDeleteBatch:    createDeleteBatch,
+		IsNamespaced:         cfg.IsNamespaced,
+		syncRetryInterval:    cfg.SyncRetryInterval,
+		enableScaleFeatures:  cfg.EnableScaleFeatures,
+		createDeleteBatch:    cfg.CreateDeleteBatch,
 		ImmutableUserMSIsMap: immutableUserMSIsMap,
+		TypeUpgradeCfg:       cfg.TypeUpgradeCfg,
+		CMCfg:                cfg.CMcfg,
+		CMClient:             cmClient,
 	}
-	leaderElector, err := c.NewLeaderElector(clientSet, recorder, leaderElectionConfig)
+
+	leaderElector, err := c.NewLeaderElector(clientSet, recorder, cfg.LeaderElectionCfg)
 	if err != nil {
 		klog.Errorf("New leader elector failure. Error: %+v", err)
 		return nil, err
@@ -164,7 +206,7 @@ func (c *Client) Run() {
 	klog.Info("Initiating MIC Leader election")
 	// counter to track number of mic election
 	c.Reporter.Report(metrics.MICNewLeaderElectionCountM.M(1))
-	c.leaderElector.Run()
+	c.leaderElector.Run(context.Background())
 }
 
 // NewLeaderElector - does the required leader election initialization
@@ -174,6 +216,7 @@ func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder reco
 		c.Namespace,
 		c.Name,
 		clientSet.CoreV1(),
+		clientSet.CoordinationV1(),
 		resourcelock.ResourceLockConfig{
 			Identity:      c.Instance,
 			EventRecorder: recorder})
@@ -186,8 +229,8 @@ func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder reco
 		RenewDeadline: c.Duration / 2,
 		RetryPeriod:   c.Duration / 4,
 		Callbacks: leaderelection.LeaderCallbacks{
-			OnStartedLeading: func(exit <-chan struct{}) {
-				c.Start(exit)
+			OnStartedLeading: func(ctx context.Context) {
+				c.Start(ctx.Done())
 			},
 			OnStoppedLeading: func() {
 				klog.Errorf("Lost leader lease")
@@ -205,9 +248,63 @@ func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder reco
 	return leaderElector, nil
 }
 
+func (c *Client) UpgradeTypeIfRequired() error {
+	if c.TypeUpgradeCfg.EnableTypeUpgrade {
+		cm, err := c.CMClient.Get(c.CMCfg.Name, v1.GetOptions{})
+		// If we get an error and its not NotFound then return, because we cannot proceed.
+		if err != nil && !apierrors.IsNotFound(err) {
+			return fmt.Errorf("config map get for %s failed with error: %v", c.CMCfg.Name, err)
+		}
+
+		// Now either the configmap is not there or we successfully got the configmap
+		// Handle the case where the configmap is not found.
+		if err != nil && apierrors.IsNotFound(err) {
+			// Create the configmap
+			newCfgMap := &corev1.ConfigMap{
+				ObjectMeta: v1.ObjectMeta{
+					Namespace: c.CMCfg.Namespace,
+					Name:      c.CMCfg.Name,
+				},
+			}
+			if cm, err = c.CMClient.Create(newCfgMap); err != nil {
+				return fmt.Errorf("create configmap %s/%s failed with error: %v", c.CMCfg.Namespace, c.CMCfg.Name, err)
+			}
+		}
+
+		// We reach here only if the configmap is present or we created new one.
+		// Check if the key for type upgrade is present. If the key is present,
+		// then the upgrade is already performed. If not then go through the type upgrade
+		// process.
+		if v, ok := cm.Data[c.TypeUpgradeCfg.TypeUpgradeStatusKey]; !ok {
+			klog.Infof("Upgrading the types to work with case sensitive go-client")
+			if err := c.CRDClient.UpgradeAll(); err != nil {
+				return fmt.Errorf("type upgrade failed. error: %+v", err)
+			}
+			klog.Infof("Type upgrade completed !!")
+			// Upgrade completed so update the data with the upgrade key.
+			if cm.Data == nil {
+				cm.Data = make(map[string]string)
+			}
+			cm.Data[c.TypeUpgradeCfg.TypeUpgradeStatusKey] = version.MICVersion
+			_, err = c.CMClient.Update(cm)
+			if err != nil {
+				return fmt.Errorf("updating config map key for %s failed. error: %+v", c.TypeUpgradeCfg.TypeUpgradeStatusKey, err)
+			}
+		} else {
+			klog.Infof("Type upgrade status configmap found from version: %s. Skipping type upgrade!", v)
+		}
+	}
+	return nil
+}
+
 // Start ...
 func (c *Client) Start(exit <-chan struct{}) {
 	klog.V(6).Infof("MIC client starting..")
+
+	if err := c.UpgradeTypeIfRequired(); err != nil {
+		klog.Fatalf("Type upgrade failed with error: %v", err)
+		return
+	}
 
 	var wg sync.WaitGroup
 
@@ -275,6 +372,13 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		begin := time.Now()
 		workDone := false
 
+		cacheTime := time.Now()
+
+		// There is a delay in data propogation to cache. It's possible that the creates performed in the previous sync cycle
+		// are not propogated before this sync cycle began. In order to avoid redoing the cycle, we sync cache again.
+		c.CRDClient.SyncCacheAll(exit, false)
+		stats.Put(stats.CacheSync, time.Since(cacheTime))
+
 		// List all pods in all namespaces
 		systemTime := time.Now()
 		listPods, err := c.PodClient.GetPods()
@@ -286,10 +390,12 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		if err != nil {
 			continue
 		}
+		klog.V(6).Infof("Number of bindings: %d", len(*listBindings))
 		listIDs, err := c.CRDClient.ListIds()
 		if err != nil {
 			continue
 		}
+		klog.V(6).Infof("Number of identities: %d", len(*listIDs))
 		idMap, err := c.convertIDListToMap(*listIDs)
 		if err != nil {
 			klog.Error(err)
@@ -300,6 +406,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 		if err != nil {
 			continue
 		}
+		klog.V(6).Infof("Number of assigned identities: %d", len(currentAssignedIDs))
 		stats.Put(stats.System, time.Since(systemTime))
 
 		beginNewListTime := time.Now()
@@ -322,24 +429,25 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			klog.Error(err)
 			continue
 		}
-		klog.V(5).Infof("del: %v, add: %v", deleteList, addList)
+		beforeUpdateList, afterUpdateList := c.getAzureAssignedIdentitiesToUpdate(addList, deleteList)
+		klog.V(5).Infof("del: %v, add: %v, update: %v", deleteList, addList, afterUpdateList)
 
 		// the node map is used to track assigned ids to create/delete, identities to assign/remove
 		// for each node or vmss
 		nodeMap := make(map[string]trackUserAssignedMSIIds)
 
-		// seperate the add and delete list per node
-		c.convertAssignedIDListToMap(addList, deleteList, nodeMap)
+		// separate the add, delete and update list per node
+		c.convertAssignedIDListToMap(addList, deleteList, afterUpdateList, nodeMap)
 
 		// process the delete and add list
 		// determine the list of identities that need to updated, create a node to identity list mapping for add and delete
-		if len(deleteList) > 0 {
+		if len(deleteList) > 0 || len(beforeUpdateList) > 0 {
 			workDone = true
-			c.getListOfIdsToDelete(deleteList, newAssignedIDs, nodeMap, nodeRefs)
+			c.getListOfIdsToDelete(deleteList, beforeUpdateList, afterUpdateList, newAssignedIDs, nodeMap, nodeRefs)
 		}
-		if len(addList) > 0 {
+		if len(addList) > 0 || len(afterUpdateList) > 0 {
 			workDone = true
-			c.getListOfIdsToAssign(addList, nodeMap)
+			c.getListOfIdsToAssign(addList, afterUpdateList, nodeMap)
 		}
 
 		var wg sync.WaitGroup
@@ -365,7 +473,7 @@ func (c *Client) Sync(exit <-chan struct{}) {
 				bindingsFound = len(*listBindings)
 			}
 			klog.Infof("Work done: %v. Found %d pods, %d ids, %d bindings", workDone, len(listPods), idsFound, bindingsFound)
-			klog.Infof("Total work cycles: %d, out of which work was done in: %d.", totalSyncCycles, totalWorkDoneCycles)
+			klog.Infof("Total work cycles: %d, out of which work was done in: %d", totalSyncCycles, totalWorkDoneCycles)
 			stats.Put(stats.Total, time.Since(begin))
 
 			c.Reporter.Report(
@@ -374,16 +482,17 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 			stats.PrintSync()
 			if workDone {
-				// We need to synchronize the cache inorder to get the latest updates. Sync cache has a bug in the current go client which caused thread leak.
-				// Updating of go client has issues with case sensitivity. Avoid this issue by sleping for 500 milliseconds to reduce the chance
-				// of cache misses for assignedidentities updated in the previous cycle.
+				// We need to synchronize the cache inorder to get the latest updates.
+				// Even though we sync at the beginning of every cycle, we are still seeing
+				// conflicts indicating the assigned identities are not reflecting in
+				// the cache. Continue to use the sleep workaround.
 				time.Sleep(time.Millisecond * 200)
 			}
 		}
 	}
 }
 
-func (c *Client) convertAssignedIDListToMap(addList, deleteList map[string]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
+func (c *Client) convertAssignedIDListToMap(addList, deleteList, updateList map[string]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
 	if addList != nil {
 		for _, createID := range addList {
 			if trackList, ok := nodeMap[createID.Spec.NodeName]; ok {
@@ -405,6 +514,17 @@ func (c *Client) convertAssignedIDListToMap(addList, deleteList map[string]aadpo
 			nodeMap[delID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToDelete: []aadpodid.AzureAssignedIdentity{delID}}
 		}
 	}
+
+	if updateList != nil {
+		for _, updateID := range updateList {
+			if trackList, ok := nodeMap[updateID.Spec.NodeName]; ok {
+				trackList.assignedIDsToUpdate = append(trackList.assignedIDsToUpdate, updateID)
+				nodeMap[updateID.Spec.NodeName] = trackList
+				continue
+			}
+			nodeMap[updateID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToUpdate: []aadpodid.AzureAssignedIdentity{updateID}}
+		}
+	}
 }
 
 func (c *Client) createDesiredAssignedIdentityList(
@@ -417,12 +537,14 @@ func (c *Client) createDesiredAssignedIdentityList(
 	newAssignedIDs := make(map[string]aadpodid.AzureAssignedIdentity)
 
 	for _, pod := range listPods {
+		klog.V(6).Infof("Checking pod %s/%s", pod.Namespace, pod.Name)
 		if pod.Spec.NodeName == "" {
 			//Node is not yet allocated. In that case skip the pod
 			klog.V(2).Infof("Pod %s/%s has no assigned node yet. it will be ignored", pod.Namespace, pod.Name)
 			continue
 		}
 		crdPodLabelVal := pod.Labels[aadpodid.CRDLabelKey]
+		klog.V(6).Infof("Pod: %s/%s. Label value: %v", pod.Namespace, pod.Name, crdPodLabelVal)
 		if crdPodLabelVal == "" {
 			//No binding mentioned in the label. Just continue to the next pod
 			klog.V(2).Infof("Pod %s/%s has correct %s label but with no value. it will be ignored", pod.Namespace, pod.Name, aadpodid.CRDLabelKey)
@@ -430,6 +552,7 @@ func (c *Client) createDesiredAssignedIdentityList(
 		}
 		var matchedBindings []aadpodid.AzureIdentityBinding
 		for _, allBinding := range *listBindings {
+			klog.V(6).Infof("Check the binding (pod - %s/%s): %s", pod.Namespace, pod.Name, allBinding.Spec.Selector)
 			if allBinding.Spec.Selector == crdPodLabelVal {
 				klog.V(5).Infof("Found binding match for pod %s/%s with binding %s/%s", pod.Namespace, pod.Name, allBinding.Namespace, allBinding.Name)
 				matchedBindings = append(matchedBindings, allBinding)
@@ -471,8 +594,7 @@ func (c *Client) createDesiredAssignedIdentityList(
 
 // getListOfIdsToDelete will go over the delete list to determine if the id is required to be deleted
 // only user assigned identity not in use are added to the remove list for the node
-func (c *Client) getListOfIdsToDelete(deleteList map[string]aadpodid.AzureAssignedIdentity,
-	newAssignedIDs map[string]aadpodid.AzureAssignedIdentity,
+func (c *Client) getListOfIdsToDelete(deleteList, beforeUpdateList, afterUpdateList, newAssignedIDs map[string]aadpodid.AzureAssignedIdentity,
 	nodeMap map[string]trackUserAssignedMSIIds,
 	nodeRefs map[string]bool) {
 	vmssGroups, err := getVMSSGroups(c.NodeClient, nodeRefs)
@@ -480,43 +602,75 @@ func (c *Client) getListOfIdsToDelete(deleteList map[string]aadpodid.AzureAssign
 		klog.Error(err)
 		return
 	}
+
+	consolidatedMapToCheck := make(map[string]aadpodid.AzureAssignedIdentity)
+	for name, id := range newAssignedIDs {
+		consolidatedMapToCheck[name] = id
+	}
+	for name, id := range afterUpdateList {
+		consolidatedMapToCheck[name] = id
+	}
+
 	for _, delID := range deleteList {
-		klog.V(5).Infof("Deletion of id: %s", delID.Name)
-		inUse, err := c.checkIfInUse(delID, newAssignedIDs, vmssGroups)
+		err := c.shouldRemoveID(delID, consolidatedMapToCheck, nodeMap, vmssGroups)
 		if err != nil {
 			klog.Error(err)
-			continue
 		}
-
-		id := delID.Spec.AzureIdentityRef
-		isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
-		isImmutableIdentity := c.checkIfIdentityImmutable(id.Spec.ClientID)
-
-		// this case includes Assigned state and empty state to ensure backward compatability
-		if delID.Status.Status == aadpodid.AssignedIDAssigned || delID.Status.Status == "" {
-			// only user assigned identities that are not in use and are not defined as
-			// immutable will be removed from underlying node/vmss
-			if !inUse && isUserAssignedMSI && !isImmutableIdentity {
-				c.appendToRemoveListForNode(id.Spec.ResourceID, delID.Spec.NodeName, nodeMap)
-			}
+	}
+	// this loop checks the azure identity before it was updated and cleans up
+	// the old identity
+	for _, oldUpdateID := range beforeUpdateList {
+		err := c.shouldRemoveID(oldUpdateID, consolidatedMapToCheck, nodeMap, vmssGroups)
+		if err != nil {
+			klog.Error(err)
 		}
-		klog.V(5).Infof("Binding removed: %+v", delID.Spec.AzureBindingRef)
 	}
 }
 
 // getListOfIdsToAssign will add the id to the append list for node if it's user assigned identity
-func (c *Client) getListOfIdsToAssign(addList map[string]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
+func (c *Client) getListOfIdsToAssign(addList, updateList map[string]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
 	for _, createID := range addList {
-		id := createID.Spec.AzureIdentityRef
-		isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
-
-		if createID.Status.Status == "" || createID.Status.Status == aadpodid.AssignedIDCreated {
-			if isUserAssignedMSI {
-				c.appendToAddListForNode(id.Spec.ResourceID, createID.Spec.NodeName, nodeMap)
-			}
-		}
-		klog.V(5).Infof("Binding applied: %+v", createID.Spec.AzureBindingRef)
+		c.shouldAssignID(createID, nodeMap)
 	}
+	for _, updateID := range updateList {
+		c.shouldAssignID(updateID, nodeMap)
+	}
+}
+
+func (c *Client) shouldAssignID(assignedID aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
+	id := assignedID.Spec.AzureIdentityRef
+	isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
+
+	if assignedID.Status.Status == "" || assignedID.Status.Status == aadpodid.AssignedIDCreated {
+		if isUserAssignedMSI {
+			c.appendToAddListForNode(id.Spec.ResourceID, assignedID.Spec.NodeName, nodeMap)
+		}
+	}
+	klog.V(5).Infof("Binding applied: %+v", assignedID.Spec.AzureBindingRef)
+}
+
+func (c *Client) shouldRemoveID(assignedID aadpodid.AzureAssignedIdentity,
+	newAssignedIDs map[string]aadpodid.AzureAssignedIdentity,
+	nodeMap map[string]trackUserAssignedMSIIds, vmssGroups *vmssGroupList) error {
+	klog.V(5).Infof("Deletion of id: %s", assignedID.Name)
+	inUse, err := c.checkIfInUse(assignedID, newAssignedIDs, vmssGroups)
+	if err != nil {
+		return err
+	}
+
+	id := assignedID.Spec.AzureIdentityRef
+	isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
+	isImmutableIdentity := c.checkIfIdentityImmutable(id.Spec.ClientID)
+	// this case includes Assigned state and empty state to ensure backward compatability
+	if assignedID.Status.Status == aadpodid.AssignedIDAssigned || assignedID.Status.Status == "" {
+		// only user assigned identities that are not in use and are not defined as
+		// immutable will be removed from underlying node/vmss
+		if !inUse && isUserAssignedMSI && !isImmutableIdentity {
+			c.appendToRemoveListForNode(id.Spec.ResourceID, assignedID.Spec.NodeName, nodeMap)
+		}
+	}
+	klog.V(5).Infof("Binding removed: %+v", assignedID.Spec.AzureBindingRef)
+	return nil
 }
 
 func (c *Client) matchAssignedID(x aadpodid.AzureAssignedIdentity, y aadpodid.AzureAssignedIdentity) (ret bool) {
@@ -563,7 +717,7 @@ func (c *Client) getAzureAssignedIDsToCreate(old, new map[string]aadpodid.AzureA
 			// if the old assigned id is in created state, then the identity assignment to the node
 			// is not done. Adding to the list will ensure we retry identity assignment to node for
 			// this assigned identity.
-			klog.V(5).Infof("ok: %v, Create added: %s", idMatch, assignedIDName)
+			klog.V(5).Infof("ok: %v, Create added: %s as assignedID in CREATED state", idMatch, assignedIDName)
 			create[assignedIDName] = oldAssignedID
 		}
 		if !idMatch {
@@ -608,14 +762,37 @@ func (c *Client) getAzureAssignedIDsToDelete(old, new map[string]aadpodid.AzureA
 	return delete, nil
 }
 
+// getAzureAssignedIdentitiesToUpdate returns a list of assignedIDs that need to be updated
+// because of change in azureIdentity or azurerIdentityBinding
+// returns 2 maps, first the assigned IDs currently on cluster, second the assignedID value to update with
+func (c *Client) getAzureAssignedIdentitiesToUpdate(add, del map[string]aadpodid.AzureAssignedIdentity) (map[string]aadpodid.AzureAssignedIdentity, map[string]aadpodid.AzureAssignedIdentity) {
+	beforeUpdate := make(map[string]aadpodid.AzureAssignedIdentity)
+	afterUpdate := make(map[string]aadpodid.AzureAssignedIdentity)
+	// no updates required as assigned identities will not be in both lists
+	if len(add) == 0 || len(del) == 0 {
+		return beforeUpdate, afterUpdate
+	}
+	for assignedIDName, addAssignedID := range add {
+		if delAssignedID, exists := del[assignedIDName]; exists {
+			// assigned identity exists in add and del list
+			// update the assigned identity to the latest
+			addAssignedID.ObjectMeta = delAssignedID.ObjectMeta
+			beforeUpdate[assignedIDName] = delAssignedID
+			afterUpdate[assignedIDName] = addAssignedID
+			// since this is part of update, remove the assignedID from the add and del list
+			delete(add, assignedIDName)
+			delete(del, assignedIDName)
+		}
+	}
+	return beforeUpdate, afterUpdate
+}
+
 func (c *Client) makeAssignedIDs(azID aadpodid.AzureIdentity, azBinding aadpodid.AzureIdentityBinding, podName, podNameSpace, nodeName string) (res *aadpodid.AzureAssignedIdentity, err error) {
 	binding := azBinding
 	id := azID
 
 	labels := make(map[string]string)
 	labels["nodename"] = nodeName
-	labels["podnamespace"] = podNameSpace
-	labels["podname"] = podName
 
 	oMeta := v1.ObjectMeta{
 		Name:   c.getAssignedIDName(podName, podNameSpace, azID.Name),
@@ -665,6 +842,10 @@ func (c *Client) removeAssignedIdentity(assignedID *aadpodid.AzureAssignedIdenti
 	return nil
 }
 
+func (c *Client) updateAssignedIdentity(assignedID *aadpodid.AzureAssignedIdentity) error {
+	return c.CRDClient.UpdateAssignedIdentity(assignedID)
+}
+
 func (c *Client) appendToRemoveListForNode(resourceID, nodeName string, nodeMap map[string]trackUserAssignedMSIIds) {
 	if trackList, ok := nodeMap[nodeName]; ok {
 		trackList.removeUserAssignedMSIIDs = append(trackList.removeUserAssignedMSIIDs, resourceID)
@@ -683,7 +864,7 @@ func (c *Client) appendToAddListForNode(resourceID, nodeName string, nodeMap map
 	nodeMap[nodeName] = trackUserAssignedMSIIds{addUserAssignedMSIIDs: []string{resourceID}}
 }
 
-func (c *Client) checkIfUserAssignedMSI(id *aadpodid.AzureIdentity) bool {
+func (c *Client) checkIfUserAssignedMSI(id aadpodid.AzureIdentity) bool {
 	return id.Spec.Type == aadpodid.UserAssignedMSI
 }
 
@@ -708,10 +889,18 @@ func getIDKey(ns, name string) string {
 	return strings.Join([]string{ns, name}, "/")
 }
 
-func (c *Client) convertIDListToMap(arr []aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
-	m = make(map[string]aadpodid.AzureIdentity, len(arr))
-	for _, element := range arr {
-		m[getIDKey(element.Namespace, element.Name)] = element
+func (c *Client) convertIDListToMap(azureIdentities []aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
+	m = make(map[string]aadpodid.AzureIdentity, len(azureIdentities))
+	for _, azureIdentity := range azureIdentities {
+		// validate the resourceID in azure identity for type 0 (UserAssignedMSI) to ensure format is as expected
+		if c.checkIfUserAssignedMSI(azureIdentity) {
+			err := utils.ValidateResourceID(azureIdentity.Spec.ResourceID)
+			if err != nil {
+				klog.Errorf("Ignoring azure identity %s/%s, error: %v", azureIdentity.Namespace, azureIdentity.Name, err)
+				continue
+			}
+		}
+		m[getIDKey(azureIdentity.Namespace, azureIdentity.Name)] = azureIdentity
 	}
 	return m, nil
 }
@@ -784,22 +973,23 @@ func (c *Client) updateNodeAndDeps(newAssignedIDs map[string]aadpodid.AzureAssig
 func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedIdentity, nodeOrVMSSName string, nodeTrackList trackUserAssignedMSIIds, nodeRefs map[string]bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 	beginAdding := time.Now()
-	klog.Infof("Processing node %s, add [%d], del [%d]", nodeOrVMSSName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete))
+	klog.Infof("Processing node %s, add [%d], del [%d], update [%d]", nodeOrVMSSName,
+		len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete), len(nodeTrackList.assignedIDsToUpdate))
 
 	ctx := context.TODO()
 	// We have to ensure that we don't overwhelm the API server with too many
 	// requests in flight. We use a token based approach implemented using semaphore to
 	// ensure that only given createDeleteBatch requests are in flight at any point in time.
 	// Note that at this point in the code path, we are doing this in parallel per node/VMSS already.
-	semCreate := semaphore.NewWeighted(c.createDeleteBatch)
+	semCreateOrUpdate := semaphore.NewWeighted(c.createDeleteBatch)
 
 	for _, createID := range nodeTrackList.assignedIDsToCreate {
-		if err := semCreate.Acquire(ctx, 1); err != nil {
+		if err := semCreateOrUpdate.Acquire(ctx, 1); err != nil {
 			klog.Errorf("Failed to acquire semaphore in the create loop: %v", err)
 			return
 		}
 		go func(assignedID aadpodid.AzureAssignedIdentity) {
-			defer semCreate.Release(1)
+			defer semCreateOrUpdate.Release(1)
 			if assignedID.Status.Status == "" {
 				binding := assignedID.Spec.AzureBindingRef
 
@@ -817,14 +1007,40 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 		}(createID)
 	}
 
+	for _, updateID := range nodeTrackList.assignedIDsToUpdate {
+		if err := semCreateOrUpdate.Acquire(ctx, 1); err != nil {
+			klog.Errorf("Failed to acquire semaphore in the update loop: %v", err)
+			return
+		}
+		go func(assignedID aadpodid.AzureAssignedIdentity) {
+			defer semCreateOrUpdate.Release(1)
+			if assignedID.Status.Status == "" {
+				binding := assignedID.Spec.AzureBindingRef
+
+				// this is the state when the azure assigned identity is yet to be created
+				klog.V(5).Infof("Initiating assigned id creation for pod - %s, binding - %s", assignedID.Spec.Pod, binding.Name)
+
+				assignedID.Status.Status = aadpodid.AssignedIDCreated
+				err := c.updateAssignedIdentity(&assignedID)
+				if err != nil {
+					c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error",
+						fmt.Sprintf("Updating assigned identity for pod %s/%s resulted in error %v", assignedID.Namespace, assignedID.Name, err))
+					klog.Error(err)
+				}
+			}
+		}(updateID)
+	}
+
 	// Ensure that all creates are complete
-	if err := semCreate.Acquire(ctx, c.createDeleteBatch); err != nil {
+	if err := semCreateOrUpdate.Acquire(ctx, c.createDeleteBatch); err != nil {
 		klog.Errorf("Failed to acquire semaphore at the end of creates: %v", err)
 		return
 	}
 	// generate unique list so we don't make multiple calls to assign/remove same id
 	addUserAssignedMSIIDs := c.getUniqueIDs(nodeTrackList.addUserAssignedMSIIDs)
 	removeUserAssignedMSIIDs := c.getUniqueIDs(nodeTrackList.removeUserAssignedMSIIDs)
+	createOrUpdateList := append([]aadpodid.AzureAssignedIdentity{}, nodeTrackList.assignedIDsToCreate...)
+	createOrUpdateList = append(createOrUpdateList, nodeTrackList.assignedIDsToUpdate...)
 
 	err := c.CloudClient.UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs, nodeOrVMSSName, nodeTrackList.isvmss)
 	if err != nil {
@@ -835,11 +1051,11 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 			return
 		}
 
-		for _, createID := range nodeTrackList.assignedIDsToCreate {
+		for _, createID := range createOrUpdateList {
 			id := createID.Spec.AzureIdentityRef
 			binding := createID.Spec.AzureBindingRef
 
-			isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
+			isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
 			idExistsOnNode := c.checkIfMSIExistsOnNode(id, createID.Spec.NodeName, idList)
 
 			if isUserAssignedMSI && !idExistsOnNode {
@@ -852,7 +1068,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 			c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding applied",
 				fmt.Sprintf("Binding %s applied on node %s for pod %s", binding.Name, createID.Spec.NodeName, createID.Name))
 
-			klog.Infof("Updating msis on node %s failed, but identity %s has successfully been assigned to node", createID.Spec.NodeName, binding.Name)
+			klog.Infof("Updating msis on node %s failed, but identity %s/%s has successfully been assigned to node", createID.Spec.NodeName, id.Namespace, id.Name)
 
 			// Identity is successfully assigned to node, so update the status of assigned identity to assigned
 			if updateErr := c.updateAssignedIdentityStatus(&createID, aadpodid.AssignedIDAssigned); updateErr != nil {
@@ -865,7 +1081,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 		for _, delID := range nodeTrackList.assignedIDsToDelete {
 			id := delID.Spec.AzureIdentityRef
 			removedBinding := delID.Spec.AzureBindingRef
-			isUserAssignedMSI := c.checkIfUserAssignedMSI(id)
+			isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
 			idExistsOnNode := c.checkIfMSIExistsOnNode(id, delID.Spec.NodeName, idList)
 			vmssGroups, getErr := getVMSSGroups(c.NodeClient, nodeRefs)
 			if getErr != nil {
@@ -880,24 +1096,19 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 			// the identity still exists on node, which means removing the identity from the node failed
 			if isUserAssignedMSI && !inUse && idExistsOnNode {
 				message := fmt.Sprintf("Binding %s removal from node %s for pod %s resulted in error %v", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod, err.Error())
-				c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error", message)
 				klog.Error(message)
 				continue
 			}
 
-			klog.Infof("Updating msis on node %s failed, but identity %s has successfully been removed from node", delID.Spec.NodeName, removedBinding.Name)
+			klog.Infof("Updating msis on node %s failed, but identity %s/%s has successfully been removed from node", delID.Spec.NodeName, id.Namespace, id.Name)
 
 			// remove assigned identity crd from cluster as the identity has successfully been removed from the node
 			err = c.removeAssignedIdentity(&delID)
 			if err != nil {
-				c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error",
-					fmt.Sprintf("Removing assigned identity binding %s node %s for pod %s resulted in error %v", removedBinding.Name, delID.Spec.NodeName, delID.Name, err.Error()))
 				klog.Error(err)
 				continue
 			}
-			// the identity was successfully removed from node
-			c.EventRecorder.Event(removedBinding, corev1.EventTypeNormal, "binding removed",
-				fmt.Sprintf("Binding %s removed from node %s for pod %s", removedBinding.Name, delID.Spec.NodeName, delID.Spec.Pod))
+			klog.Infof("deleted assigned identity %s/%s", delID.Namespace, delID.Name)
 		}
 		stats.Put(stats.TotalCreateOrUpdate, time.Since(beginAdding))
 		return
@@ -905,7 +1116,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 
 	semUpdate := semaphore.NewWeighted(c.createDeleteBatch)
 
-	for _, createID := range nodeTrackList.assignedIDsToCreate {
+	for _, createID := range createOrUpdateList {
 		if err := semUpdate.Acquire(ctx, 1); err != nil {
 			klog.Errorf("Failed to acquire semaphore in the update loop: %v", err)
 			return
@@ -941,7 +1152,6 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 		}
 		go func(assignedID aadpodid.AzureAssignedIdentity) {
 			defer semDel.Release(1)
-			removedBinding := assignedID.Spec.AzureBindingRef
 			// update the status for the assigned identity to Unassigned as the identity has been successfully removed from node.
 			// this will ensure on next sync loop we only try to delete the assigned identity instead of doing everything.
 			err := c.updateAssignedIdentityStatus(&assignedID, aadpodid.AssignedIDUnAssigned)
@@ -954,14 +1164,10 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 			// remove assigned identity crd from cluster as the identity has successfully been removed from the node
 			err = c.removeAssignedIdentity(&assignedID)
 			if err != nil {
-				c.EventRecorder.Event(removedBinding, corev1.EventTypeWarning, "binding remove error",
-					fmt.Sprintf("Removing assigned identity binding %s node %s for pod %s resulted in error %v", removedBinding.Name, assignedID.Spec.NodeName, assignedID.Name, err))
 				klog.Error(err)
 				return
 			}
-			// the identity was successfully removed from node
-			c.EventRecorder.Event(removedBinding, corev1.EventTypeNormal, "binding removed",
-				fmt.Sprintf("Binding %s removed from node %s for pod %s", removedBinding.Name, assignedID.Spec.NodeName, assignedID.Spec.Pod))
+			klog.V(1).Infof("deleted assigned identity %s/%s", assignedID.Namespace, assignedID.Name)
 		}(delID)
 	}
 
@@ -972,6 +1178,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 	}
 
 	stats.UpdateCount(stats.TotalAssignedIDsCreated, len(nodeTrackList.assignedIDsToCreate))
+	stats.UpdateCount(stats.TotalAssignedIDsUpdated, len(nodeTrackList.assignedIDsToUpdate))
 	stats.UpdateCount(stats.TotalAssignedIDsDeleted, len(nodeTrackList.assignedIDsToDelete))
 	stats.Put(stats.TotalCreateOrUpdate, time.Since(beginAdding))
 }
@@ -1038,16 +1245,15 @@ func (c *Client) consolidateVMSSNodes(nodeMap map[string]trackUserAssignedMSIIds
 		}
 
 		vmssTrackList := trackUserAssignedMSIIds{}
-
 		for _, vmssNode := range vmssNodes {
 			vmssTrackList.addUserAssignedMSIIDs = append(vmssTrackList.addUserAssignedMSIIDs, nodeMap[vmssNode].addUserAssignedMSIIDs...)
 			vmssTrackList.removeUserAssignedMSIIDs = append(vmssTrackList.removeUserAssignedMSIIDs, nodeMap[vmssNode].removeUserAssignedMSIIDs...)
 			vmssTrackList.assignedIDsToCreate = append(vmssTrackList.assignedIDsToCreate, nodeMap[vmssNode].assignedIDsToCreate...)
 			vmssTrackList.assignedIDsToDelete = append(vmssTrackList.assignedIDsToDelete, nodeMap[vmssNode].assignedIDsToDelete...)
+			vmssTrackList.assignedIDsToUpdate = append(vmssTrackList.assignedIDsToUpdate, nodeMap[vmssNode].assignedIDsToUpdate...)
 			vmssTrackList.isvmss = true
 
 			delete(nodeMap, vmssNode)
-
 			nodeMap[getVMSSName(vmssName)] = vmssTrackList
 		}
 	}

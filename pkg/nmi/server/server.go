@@ -50,10 +50,10 @@ type Server struct {
 	MICNamespace                       string
 	Initialized                        bool
 	BlockInstanceMetadata              bool
+	MetadataHeaderRequired             bool
 	// TokenClient is client that fetches identities and tokens
 	TokenClient nmi.TokenClient
-
-	Reporter *metrics.Reporter
+	Reporter    *metrics.Reporter
 }
 
 type RedirectorFunc func(*Server, chan<- struct{}, <-chan struct{})
@@ -64,14 +64,19 @@ type NMIResponse struct {
 	ClientID string      `json:"clientid"`
 }
 
-// NewServer will create a new Server with default values.
-func NewServer(micNamespace string, blockInstanceMetadata bool, config *rest.Config) *Server {
-	clientSet := kubernetes.NewForConfigOrDie(config)
-	informer := informers.NewSharedInformerFactory(clientSet, 60*time.Second)
-	podObjCh := make(chan *v1.Pod, 100)
-	podClient := pod.NewPodClientWithPodInfoCh(informer, podObjCh)
+type MetadataResponse struct {
+	Error            string `json:"error"`
+	ErrorDescription string `json:"error_description"`
+}
 
-	reporter, err := metrics.NewReporter()
+// NewServer will create a new Server with default values.
+func NewServer(micNamespace string, blockInstanceMetadata bool, metadataHeaderRequired bool, config *rest.Config) *Server {
+    clientSet := kubernetes.NewForConfigOrDie(config)
+    informer := informers.NewSharedInformerFactory(clientSet, 60*time.Second)
+    podObjCh := make(chan *v1.Pod, 100)
+    podClient := pod.NewPodClientWithPodInfoCh(informer, podObjCh)
+
+    reporter, err := metrics.NewReporter()
 	if err != nil {
 		klog.Errorf("Error creating new reporter to emit metrics: %v", err)
 	} else {
@@ -80,9 +85,10 @@ func NewServer(micNamespace string, blockInstanceMetadata bool, config *rest.Con
 		auth.InitReporter(reporter)
 	}
 	return &Server{
-		MICNamespace:          micNamespace,
-		BlockInstanceMetadata: blockInstanceMetadata,
-		Reporter:              reporter,
+		MICNamespace:           micNamespace,
+		BlockInstanceMetadata:  blockInstanceMetadata,
+		MetadataHeaderRequired: metadataHeaderRequired,
+		Reporter:               reporter,
 		PodClient:             podClient,
 		PodObjChannel:         podObjCh,
 	}
@@ -171,7 +177,7 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 	hostIP := parseRemoteAddr(r.RemoteAddr)
 	rqClientID, rqResource := parseRequestClientIDAndResource(r)
 
-	podns, podname := parseRequestHeader(r)
+	podns, podname := parsePodInfo(r)
 	if podns == "" || podname == "" {
 		klog.Error("missing podname and podns from request")
 		http.Error(w, "missing 'podname' and 'podns' from request header", http.StatusBadRequest)
@@ -280,7 +286,7 @@ func (s *Server) getTokenForExceptedPod(rqClientID, rqResource string) ([]byte, 
 // if the requests contains client id it validates it against the admin
 // configured id.
 func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) {
-	var err error
+    var err error
 	var podns, podname, rqClientID, rqResource string
 	operationType := metrics.PodTokenOperationType
 
@@ -299,6 +305,12 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 		s.Reporter.ReportOperationAndStatusForWorkload(
 			operationType, rqResource, podns, podname, metrics.NMITokenOperationCountM.M(1))
 	}()
+	
+	if s.MetadataHeaderRequired && parseMetadata(r) != "true" {
+		klog.Errorf("metadata header is not specified, req.method=%s reg.path=%s req.remote=%s", r.Method, r.URL.Path, parseRemoteAddr(r.RemoteAddr))
+		metadataNotSpecifiedError(w)
+		return
+	}
 
 	podIP := parseRemoteAddr(r.RemoteAddr)
 	rqClientID, rqResource = parseRequestClientIDAndResource(r)
@@ -349,7 +361,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	var podID *aadpodid.AzureIdentity
 	podID, err = s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
-		klog.Error(err)
+		klog.Errorf("failed to get matching identities for pod: %s/%s, error: %+v", podns, podname, err)
 		http.Error(w, err.Error(), getErrorResponseStatusCode(podID != nil))
 		return
 	}
@@ -357,7 +369,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	var token *adal.Token
 	token, err = s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, *podID)
 	if err != nil {
-		klog.Errorf("failed to get service principal token for pod:%s/%s, %+v", podns, podname, err)
+		klog.Errorf("failed to get service principal token for pod: %s/%s, error: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
@@ -365,7 +377,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	var response []byte
 	response, err = json.Marshal(newMSIResponse(*token))
 	if err != nil {
-		klog.Errorf("failed to marshal service principal token for pod:%s/%s, %+v", podns, podname, err)
+		klog.Errorf("failed to marshal service principal token for pod: %s/%s, error: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -373,7 +385,32 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	return
 }
 
-func parseRequestHeader(r *http.Request) (podns string, podname string) {
+// Error replies to the request without the specified metadata header.
+// It does not otherwise end the request; the caller should ensure no further
+// writes are done to w.
+func metadataNotSpecifiedError(w http.ResponseWriter) {
+	metadataResp := MetadataResponse{
+		Error:            "invalid_request",
+		ErrorDescription: "Required metadata header not specified",
+	}
+	response, err := json.Marshal(metadataResp)
+	if err != nil {
+		klog.Errorf("failed to marshal metadata response, %+v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusBadRequest)
+	fmt.Fprintln(w, string(response))
+	return
+}
+
+func parseMetadata(r *http.Request) (metadata string) {
+	return r.Header.Get("metadata")
+}
+
+func parsePodInfo(r *http.Request) (podns string, podname string) {
 	podns = r.Header.Get("podns")
 	podname = r.Header.Get("podname")
 
@@ -403,6 +440,12 @@ func parseRequestClientIDAndResource(r *http.Request) (clientID string, resource
 
 // defaultPathHandler creates a new request and returns the response body and code
 func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) (ns string) {
+	if s.MetadataHeaderRequired && parseMetadata(r) != "true" {
+		klog.Errorf("metadata header is not specified, req.method=%s reg.path=%s req.remote=%s", r.Method, r.URL.Path, parseRemoteAddr(r.RemoteAddr))
+		metadataNotSpecifiedError(w)
+		return
+	}
+
 	client := &http.Client{}
 	req, err := http.NewRequest(r.Method, r.URL.String(), r.Body)
 	if err != nil || req == nil {

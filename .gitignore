@@ -320,3 +320,6 @@ __pycache__/
 # vim files
 *.swp
 *.swo
+
+# Go tools
+.tools/

@@ -16,6 +16,7 @@ func TestBasicAndDurationReport(t *testing.T) {
 
 	testCounterMetric(t, reporter, AssignedIdentityAdditionCountM)
 	testCounterMetric(t, reporter, AssignedIdentityDeletionCountM)
+	testCounterMetric(t, reporter, AssignedIdentityUpdateCountM)
 	testCounterMetric(t, reporter, MICCycleCountM)
 	testCounterMetric(t, reporter, MICNewLeaderElectionCountM)
 	testCounterMetric(t, reporter, CloudProviderOperationsErrorsCountM)

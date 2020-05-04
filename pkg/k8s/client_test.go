@@ -57,7 +57,7 @@ func (t *TestClientSet) GetTestClientSet() (kubernetes.Interface, *fakerest.REST
 	scheme.AddKnownTypes(TestGroupVersion, &v1.PodList{})
 
 	fakeRestClient := &fakerest.RESTClient{
-		NegotiatedSerializer: serializer.DirectCodecFactory{
+		NegotiatedSerializer: serializer.WithoutConversionCodecFactory{
 			CodecFactory: serializer.NewCodecFactory(scheme)},
 		Resp: &http.Response{
 			StatusCode: http.StatusOK,

@@ -10,6 +10,8 @@ import (
 type Config struct {
 	SubscriptionID           string `envconfig:"SUBSCRIPTION_ID"`
 	ResourceGroup            string `envconfig:"RESOURCE_GROUP"`
+	IdentityResourceGroup    string `envconfig:"IDENTITY_RESOURCE_GROUP"`
+	ClusterResourceGroup     string `envconfig:"CLUSTER_RESOURCE_GROUP"`
 	AzureClientID            string `envconfig:"AZURE_CLIENT_ID"`
 	KeyvaultName             string `envconfig:"KEYVAULT_NAME"`
 	KeyvaultSecretName       string `envconfig:"KEYVAULT_SECRET_NAME"`
@@ -30,6 +32,16 @@ func ParseConfig() (*Config, error) {
 	if err := envconfig.Process("config", c); err != nil {
 		return nil, err
 	}
-	c.ResourceGroup = strings.ToLower(c.ResourceGroup)
+
+	if c.IdentityResourceGroup == "" {
+		// Assume user-assigned identities are within the cluster resource group
+		c.IdentityResourceGroup = c.ResourceGroup
+	}
+	if c.ClusterResourceGroup == "" {
+		c.ClusterResourceGroup = c.ResourceGroup
+	}
+	c.IdentityResourceGroup = strings.ToLower(c.IdentityResourceGroup)
+	c.ClusterResourceGroup = strings.ToLower(c.ClusterResourceGroup)
+
 	return c, nil
 }

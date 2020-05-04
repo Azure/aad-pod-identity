@@ -60,11 +60,11 @@ Let's customize [identity.yaml](identity.yaml):
 apiVersion: "aadpodidentity.k8s.io/v1"
 kind: AzureIdentity
 metadata:
- name: client-principal
+  name: client-principal
 spec:
- type: 0
- ResourceID: <resource-id of client-principal>
- ClientID: <client-id of client-principal>
+  type: 0
+  resourceID: <resource-id of client-principal>
+  clientID: <client-id of client-principal>
 ```
 
 *ResourceID* should be set to the value of *ManagedIdentityId* in the JSON from the previous section.  That is the resource ID of the user managed identity.
@@ -77,10 +77,10 @@ We **do not need to customize** [binding.yaml](binding.yaml).
 apiVersion: "aadpodidentity.k8s.io/v1"
 kind: AzureIdentityBinding
 metadata:
- name: client-principal-binding
+  name: client-principal-binding
 spec:
- AzureIdentity: client-principal
- Selector:  client-principal-pod-binding
+  azureIdentity: client-principal
+  selector:  client-principal-pod-binding
 ```
 
 We can now deploy those two files in the *pir* namespace:

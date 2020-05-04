@@ -14,6 +14,13 @@ image:
 # To match only pods in the namespace containing AzureIdentity set this to true.
 forceNameSpaced: "false"
 
+# When NMI runs on a node where MIC is running, then MIC token request call is also
+# intercepted by NMI. MIC can't get a valid token as to initialize and then
+# assign the identity. Installing an exception for MIC would ensure all token requests
+# for MIC pods directly go to IMDS and not go through the pod-identity validation
+# https://github.com/Azure/aad-pod-identity/blob/master/docs/readmes/README.app-exception.md
+installMICException: "true"
+
 ## If using a separate service principal for aad-pod-identity instead of cluster service principal specify the following
 ## (The chart will perform the base64 encoding for you for values that are stored in secrets.)
 adminsecret: {}
@@ -25,9 +32,15 @@ adminsecret: {}
 #   clientID: <service principal client id>
 #   clientSecret: <service principal client secret>
 
+# Operation mode for pod-identity. Default is standard mode that has MIC doing identity assignment
+# Allowed values: "standard", "managed"
+operationMode: "standard"
+
 mic:
   image: mic
-  tag: 1.5.5
+  tag: 1.6.0
+
+  priorityClassName: ""
 
   # log level. Uses V logs (glog)
   logVerbosity: 0
@@ -39,6 +52,8 @@ mic:
     requests:
       cpu: 100m
       memory: 256Mi
+
+  podAnnotations: {}
 
   ## Node labels for pod assignment
   ## aad-pod-identity is currently only supported on linux
@@ -65,7 +80,7 @@ mic:
   # Override interval in seconds at which sync loop should periodically check for errors and reconcile (default is 3600s)
   syncRetryDuration: ""
 
-  # Override the defult value of immutable identities. 
+  # Override the defult value of immutable identities.
   immutableUserMSIs: []
     # Example of MSIs (should be replaced with the real client ids)
     #- "00000000-0000-0000-0000-000000000000"
@@ -85,7 +100,9 @@ mic:
 
 nmi:
   image: nmi
-  tag: 1.5.5
+  tag: 1.6.0
+
+  priorityClassName: ""
 
   resources:
     limits:
@@ -94,6 +111,8 @@ nmi:
     requests:
       cpu: 100m
       memory: 256Mi
+
+  podAnnotations: {}
 
   ## Node labels for pod assignment
   ## aad-pod-identity is currently only supported on linux
@@ -134,12 +153,16 @@ nmi:
   # default is false
   blockInstanceMetadata: ""
 
+  # https://github.com/Azure/aad-pod-identity/blob/master/docs/readmes/README.featureflags.md#metadata-header-required-flag
+  # default is false
+  metadataHeaderRequired: ""
+
 rbac:
   enabled: true
   # NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity.
   # If using only MSI (type: 0) in AzureIdentity, secret get permission can be disabled by setting this to false.
   allowAccessToSecrets: true
-  
+
 azureIdentity:
   # enabled/disable deployment of azure identity and binding
   enabled: false
