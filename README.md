@@ -130,9 +130,9 @@ kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master
 Create an identity on Azure and store the client ID and resource ID of the identity as environment variables:
 
 ```bash
-az identity create -g $RESOURCE_GROUP -n $IDENTITY_NAME
-export IDENTITY_CLIENT_ID="$(az identity show -g $RESOURCE_GROUP -n $IDENTITY_NAME --query clientId -otsv)"
-export IDENTITY_RESOURCE_ID="$(az identity show -g $RESOURCE_GROUP -n $IDENTITY_NAME --query id -otsv)"
+az identity create -g $RESOURCE_GROUP -n $IDENTITY_NAME --subscription $SUBSCRIPTION_ID
+export IDENTITY_CLIENT_ID="$(az identity show -g $RESOURCE_GROUP -n $IDENTITY_NAME --subscription $SUBSCRIPTION_ID --query clientId -otsv)"
+export IDENTITY_RESOURCE_ID="$(az identity show -g $RESOURCE_GROUP -n $IDENTITY_NAME --subscription $SUBSCRIPTION_ID --query id -otsv)"
 ```
 
 Assign the role "Reader" to the identity so it has read access to the resource group. At the same time, store the identity assignment ID as an environment variable.
