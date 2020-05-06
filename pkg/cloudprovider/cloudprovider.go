@@ -42,11 +42,9 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 	client := &Client{
 		configFile: configFile,
 	}
-
 	if err := client.Init(); err != nil {
 		return nil, err
 	}
-
 	return client, nil
 }
 
