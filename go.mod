@@ -11,6 +11,7 @@ require (
 	github.com/Azure/go-autorest/autorest/to v0.2.0 // indirect
 	github.com/Azure/go-autorest/autorest/validation v0.1.0 // indirect
 	github.com/coreos/go-iptables v0.3.0
+	github.com/fsnotify/fsnotify v1.4.9
 	github.com/golang/groupcache v0.0.0-20180513044358-24b0969c4cb7 // indirect
 	github.com/google/go-cmp v0.3.0
 	github.com/googleapis/gnostic v0.1.0 // indirect

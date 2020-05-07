@@ -27,116 +27,24 @@ type Client struct {
 	VMSSClient VMSSClientInt
 	ExtClient  compute.VirtualMachineExtensionsClient
 	Config     config.AzureConfig
+	configFile string
 }
 
 // ClientInt client interface
 type ClientInt interface {
 	UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs []string, name string, isvmss bool) error
 	GetUserMSIs(name string, isvmss bool) ([]string, error)
+	Init() error
 }
 
 // NewCloudProvider returns a azure cloud provider client
 func NewCloudProvider(configFile string) (c *Client, e error) {
-	azureConfig := config.AzureConfig{}
-	if configFile != "" {
-		klog.V(6).Info("Populate AzureConfig from azure.json")
-		bytes, err := ioutil.ReadFile(configFile)
-		if err != nil {
-			klog.Errorf("Read file (%s) error: %+v", configFile, err)
-			return nil, err
-		}
-		if err = yaml.Unmarshal(bytes, &azureConfig); err != nil {
-			klog.Errorf("Unmarshall error: %v", err)
-			return nil, err
-		}
-	} else {
-		klog.V(6).Info("Populate AzureConfig from secret/environment variables")
-		azureConfig.Cloud = os.Getenv("CLOUD")
-		azureConfig.TenantID = os.Getenv("TENANT_ID")
-		azureConfig.ClientID = os.Getenv("CLIENT_ID")
-		azureConfig.ClientSecret = os.Getenv("CLIENT_SECRET")
-		azureConfig.SubscriptionID = os.Getenv("SUBSCRIPTION_ID")
-		azureConfig.ResourceGroupName = os.Getenv("RESOURCE_GROUP")
-		azureConfig.VMType = os.Getenv("VM_TYPE")
-		azureConfig.UseManagedIdentityExtension = strings.EqualFold(os.Getenv("USE_MSI"), "True")
-		azureConfig.UserAssignedIdentityID = os.Getenv("USER_ASSIGNED_MSI_CLIENT_ID")
-	}
-
-	azureEnv, err := azure.EnvironmentFromName(azureConfig.Cloud)
-	if err != nil {
-		klog.Errorf("Get cloud env error: %+v", err)
-		return nil, err
-	}
-
-	err = adal.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
-	if err != nil {
-		return nil, err
-	}
-
-	oauthConfig, err := adal.NewOAuthConfig(azureEnv.ActiveDirectoryEndpoint, azureConfig.TenantID)
-	if err != nil {
-		klog.Errorf("Create OAuth config error: %+v", err)
-		return nil, err
-	}
-
-	var spt *adal.ServicePrincipalToken
-	if azureConfig.UseManagedIdentityExtension {
-		// MSI endpoint is required for both types of MSI - system assigned and user assigned.
-		msiEndpoint, err := adal.GetMSIVMEndpoint()
-		if err != nil {
-			klog.Errorf("Failed to get MSI endpoint. Error: %+v", err)
-			return nil, err
-		}
-		// UserAssignedIdentityID is empty, so we are going to use system assigned MSI
-		if azureConfig.UserAssignedIdentityID == "" {
-			klog.Infof("MIC using system assigned identity for authentication.")
-			spt, err = adal.NewServicePrincipalTokenFromMSI(msiEndpoint, azureEnv.ResourceManagerEndpoint)
-			if err != nil {
-				klog.Errorf("Get token from system assigned MSI error: %+v", err)
-				return nil, err
-			}
-		} else { // User assigned identity usage.
-			klog.Infof("MIC using user assigned identity: %s for authentication.", utils.RedactClientID(azureConfig.UserAssignedIdentityID))
-			spt, err = adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(msiEndpoint, azureEnv.ResourceManagerEndpoint, azureConfig.UserAssignedIdentityID)
-			if err != nil {
-				klog.Errorf("Get token from user assigned MSI error: %+v", err)
-				return nil, err
-			}
-		}
-	} else { // This is the default scenario - use service principal to get the token.
-		spt, err = adal.NewServicePrincipalToken(
-			*oauthConfig,
-			azureConfig.ClientID,
-			azureConfig.ClientSecret,
-			azureEnv.ResourceManagerEndpoint,
-		)
-		if err != nil {
-			klog.Errorf("Get service principal token error: %+v", err)
-			return nil, err
-		}
-	}
-
-	extClient := compute.NewVirtualMachineExtensionsClient(azureConfig.SubscriptionID)
-	extClient.BaseURI = azure.PublicCloud.ResourceManagerEndpoint
-	extClient.Authorizer = autorest.NewBearerAuthorizer(spt)
-	extClient.PollingDelay = 5 * time.Second
-
 	client := &Client{
-		Config:    azureConfig,
-		ExtClient: extClient,
+		configFile: configFile,
 	}
-
-	client.VMSSClient, err = NewVMSSClient(azureConfig, spt)
-	if err != nil {
-		klog.Errorf("Create VMSS Client error: %+v", err)
+	if err := client.Init(); err != nil {
 		return nil, err
 	}
-	client.VMClient, err = NewVirtualMachinesClient(azureConfig, spt)
-	if err != nil {
-		klog.Errorf("Create VM Client error: %+v", err)
-		return nil, err
-	}
-
 	return client, nil
 }
 
@@ -148,6 +56,108 @@ func withInspection() autorest.PrepareDecorator {
 			return p.Prepare(r)
 		})
 	}
+}
+
+// Init initializes the cloud provider client based
+// on a config path or environment variables
+func (c *Client) Init() error {
+	c.Config = config.AzureConfig{}
+	if c.configFile != "" {
+		klog.V(6).Info("Populate AzureConfig from azure.json")
+		bytes, err := ioutil.ReadFile(c.configFile)
+		if err != nil {
+			klog.Errorf("Read file (%s) error: %+v", c.configFile, err)
+			return err
+		}
+		if err = yaml.Unmarshal(bytes, &c.Config); err != nil {
+			klog.Errorf("Unmarshall error: %v", err)
+			return err
+		}
+	} else {
+		klog.V(6).Info("Populate AzureConfig from secret/environment variables")
+		c.Config.Cloud = os.Getenv("CLOUD")
+		c.Config.TenantID = os.Getenv("TENANT_ID")
+		c.Config.ClientID = os.Getenv("CLIENT_ID")
+		c.Config.ClientSecret = os.Getenv("CLIENT_SECRET")
+		c.Config.SubscriptionID = os.Getenv("SUBSCRIPTION_ID")
+		c.Config.ResourceGroupName = os.Getenv("RESOURCE_GROUP")
+		c.Config.VMType = os.Getenv("VM_TYPE")
+		c.Config.UseManagedIdentityExtension = strings.EqualFold(os.Getenv("USE_MSI"), "True")
+		c.Config.UserAssignedIdentityID = os.Getenv("USER_ASSIGNED_MSI_CLIENT_ID")
+	}
+
+	azureEnv, err := azure.EnvironmentFromName(c.Config.Cloud)
+	if err != nil {
+		klog.Errorf("Get cloud env error: %+v", err)
+		return err
+	}
+
+	err = adal.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
+	if err != nil {
+		klog.Errorf("add to user agent error: %+v", err)
+		return err
+	}
+
+	oauthConfig, err := adal.NewOAuthConfig(azureEnv.ActiveDirectoryEndpoint, c.Config.TenantID)
+	if err != nil {
+		klog.Errorf("Create OAuth config error: %+v", err)
+		return err
+	}
+
+	var spt *adal.ServicePrincipalToken
+	if c.Config.UseManagedIdentityExtension {
+		// MSI endpoint is required for both types of MSI - system assigned and user assigned.
+		msiEndpoint, err := adal.GetMSIVMEndpoint()
+		if err != nil {
+			klog.Errorf("Failed to get MSI endpoint. Error: %+v", err)
+			return err
+		}
+		// UserAssignedIdentityID is empty, so we are going to use system assigned MSI
+		if c.Config.UserAssignedIdentityID == "" {
+			klog.Infof("MIC using system assigned identity for authentication.")
+			spt, err = adal.NewServicePrincipalTokenFromMSI(msiEndpoint, azureEnv.ResourceManagerEndpoint)
+			if err != nil {
+				klog.Errorf("Get token from system assigned MSI error: %+v", err)
+				return err
+			}
+		} else { // User assigned identity usage.
+			klog.Infof("MIC using user assigned identity: %s for authentication.", utils.RedactClientID(c.Config.UserAssignedIdentityID))
+			spt, err = adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(msiEndpoint, azureEnv.ResourceManagerEndpoint, c.Config.UserAssignedIdentityID)
+			if err != nil {
+				klog.Errorf("Get token from user assigned MSI error: %+v", err)
+				return err
+			}
+		}
+	} else { // This is the default scenario - use service principal to get the token.
+		spt, err = adal.NewServicePrincipalToken(
+			*oauthConfig,
+			c.Config.ClientID,
+			c.Config.ClientSecret,
+			azureEnv.ResourceManagerEndpoint,
+		)
+		if err != nil {
+			klog.Errorf("Get service principal token error: %+v", err)
+			return err
+		}
+	}
+
+	extClient := compute.NewVirtualMachineExtensionsClient(c.Config.SubscriptionID)
+	extClient.BaseURI = azure.PublicCloud.ResourceManagerEndpoint
+	extClient.Authorizer = autorest.NewBearerAuthorizer(spt)
+	extClient.PollingDelay = 5 * time.Second
+
+	c.VMSSClient, err = NewVMSSClient(c.Config, spt)
+	if err != nil {
+		klog.Errorf("Create VMSS Client error: %+v", err)
+		return err
+	}
+	c.VMClient, err = NewVirtualMachinesClient(c.Config, spt)
+	if err != nil {
+		klog.Errorf("Create VM Client error: %+v", err)
+		return err
+	}
+
+	return nil
 }
 
 // GetUserMSIs will return a list of all identities on the node or vmss based on value of isvmss

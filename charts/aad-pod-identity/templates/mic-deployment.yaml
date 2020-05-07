@@ -36,7 +36,7 @@ spec:
         imagePullPolicy: {{ .Values.image.imagePullPolicy }}
         args:
           {{- if not .Values.adminsecret }}
-          - "--cloudconfig=/etc/kubernetes/azure.json"
+          - "--cloudconfig={{ .Values.mic.cloudConfig }}"
           {{- end }}
           - "--logtostderr"
           {{- if .Values.mic.logVerbosity }}
@@ -119,7 +119,7 @@ spec:
             readOnly: true
           {{- if not .Values.adminsecret }}
           - name: k8s-azure-file
-            mountPath: /etc/kubernetes/azure.json
+            mountPath: {{ .Values.mic.cloudConfig }}
             readOnly: true
           {{- end }}
         livenessProbe:
@@ -143,7 +143,7 @@ spec:
       {{- if not .Values.adminsecret }}
       - name: k8s-azure-file
         hostPath:
-          path: /etc/kubernetes/azure.json
+          path: {{ .Values.mic.cloudConfig }}
       {{- end }}
 {{- with .Values.mic.nodeSelector }}
       nodeSelector:

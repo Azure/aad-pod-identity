@@ -98,6 +98,9 @@ mic:
   # prometheus port for metrics
   prometheusPort: ""
 
+  # cloud configuration used to authenticate with Azure
+  cloudConfig: "/etc/kubernetes/azure.json"
+
 nmi:
   image: nmi
   tag: 1.6.0
