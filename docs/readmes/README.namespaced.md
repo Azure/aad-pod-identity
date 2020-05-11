@@ -16,8 +16,8 @@ By default, AAD Pod Identity matches pods to identities across namespaces. To ma
         aadpodidentity.k8s.io/Behavior: namespaced
     spec:
       type: 0
-      ResourceID: /subscriptions/<subid>/resourcegroups/<resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>
-      ClientID: <clientId>
+      resourceID: /subscriptions/<subid>/resourcegroups/<resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>
+      clientID: <clientId>
     ```
 
 * Add the `--forceNamespaced` command line argument or set the `FORCENAMESPACED=true` environment variable when starting both the MIC and NMI components.

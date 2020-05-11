@@ -1,7 +1,7 @@
 apiVersion: "aadpodidentity.k8s.io/v1"
 kind: AzureIdentityBinding
 metadata:
- name: client-principal-binding
+  name: client-principal-binding
 spec:
- AzureIdentity: client-principal
- Selector:  client-principal-pod-binding
+  azureIdentity: client-principal
+  selector:  client-principal-pod-binding

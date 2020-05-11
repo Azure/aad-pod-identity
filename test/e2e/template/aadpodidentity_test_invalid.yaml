@@ -4,5 +4,5 @@ metadata:
   name: testidentityinvalid
 spec:
   type: 0
-  ResourceID: /subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myidentity
-  ClientID: 00000000-0000-0000-0000-000000000000
+  resourceID: /subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myidentity
+  clientID: 00000000-0000-0000-0000-000000000000

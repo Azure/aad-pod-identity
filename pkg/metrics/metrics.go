@@ -18,6 +18,8 @@ const (
 	assignedIdentityAdditionCountName      = "assigned_identity_addition_count"
 	assignedIdentityDeletionDurationName   = "assigned_identity_deletion_duration_seconds"
 	assignedIdentityDeletionCountName      = "assigned_identity_deletion_count"
+	assignedIdentityUpdateDurationName     = "assigned_identity_update_duration_seconds"
+	assignedIdentityUpdateCountName        = "assigned_identity_update_count"
 	nmiOperationsDurationName              = "nmi_operations_duration_seconds"
 	micCycleDurationName                   = "mic_cycle_duration_seconds"
 	micCycleCountName                      = "mic_cycle_count"
@@ -46,6 +48,8 @@ const (
 	AssignedIdentityDeletionOperationName = "assigned_identity_deletion"
 	// AssignedIdentityAdditionOperationName ...
 	AssignedIdentityAdditionOperationName = "assigned_identity_addition"
+	// AssignedIdentityUpdateOperationName ...
+	AssignedIdentityUpdateOperationName = "assigned_identity_update"
 	// UpdateAzureAssignedIdentityStatusOperationName ...
 	UpdateAzureAssignedIdentityStatusOperationName = "update_azure_assigned_identity_status"
 	// GetPodListOperationName
@@ -132,6 +136,18 @@ var (
 		imdsOperationsDurationName,
 		"Duration in seconds of imds token operations",
 		stats.UnitMilliseconds)
+
+	// AssignedIdentityUpdateDurationM is a measure that tracks the duration in seconds of assigned_identity_update operations.
+	AssignedIdentityUpdateDurationM = stats.Float64(
+		assignedIdentityUpdateDurationName,
+		"Duration in seconds of assigned identity update operations",
+		stats.UnitMilliseconds)
+
+	// AssignedIdentityUpdateCountM is a measure that tracks the cumulative number of assigned identity update operations.
+	AssignedIdentityUpdateCountM = stats.Int64(
+		assignedIdentityUpdateCountName,
+		"Total number of assigned identity update operations",
+		stats.UnitDimensionless)
 )
 
 var (
@@ -221,6 +237,16 @@ func registerViews() error {
 			Measure:     ImdsOperationsDurationM,
 			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
 			TagKeys:     []tag.Key{operationTypeKey},
+		},
+		&view.View{
+			Description: AssignedIdentityUpdateDurationM.Description(),
+			Measure:     AssignedIdentityUpdateDurationM,
+			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
+		},
+		&view.View{
+			Description: AssignedIdentityUpdateCountM.Description(),
+			Measure:     AssignedIdentityUpdateCountM,
+			Aggregation: view.Count(),
 		},
 	}
 	err := view.Register(views...)

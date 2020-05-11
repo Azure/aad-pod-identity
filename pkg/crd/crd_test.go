@@ -1,6 +1,8 @@
 package crd
 
 import (
+	"testing"
+
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 
@@ -101,4 +103,19 @@ func (c *TestCrdClient) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity
 		assignedIDList = append(assignedIDList, *v)
 	}
 	return &assignedIDList, nil
+}
+
+func TestRemoveFinalizer(t *testing.T) {
+	assignedID := aadpodid.AzureAssignedIdentity{
+		ObjectMeta: v1.ObjectMeta{
+			Finalizers: []string{
+				finalizerName,
+			},
+		},
+	}
+
+	removeFinalizer(&assignedID)
+	if len(assignedID.GetFinalizers()) != 0 {
+		t.Fatalf("expected len to be 0, got: %d", len(assignedID.GetFinalizers()))
+	}
 }

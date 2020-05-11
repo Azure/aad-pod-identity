@@ -29,6 +29,7 @@ const (
 	TotalPutCalls           StatsType = "Number of cloud provider PUT"
 	TotalGetCalls           StatsType = "Number of cloud provider GET"
 	TotalAssignedIDsCreated StatsType = "Number of assigned ids created in this sync cycle"
+	TotalAssignedIDsUpdated StatsType = "Number of assigned ids updated in this sync cycle"
 	TotalAssignedIDsDeleted StatsType = "Number of assigned ids deleted in this sync cycle"
 	K8sGet                  StatsType = "K8s get"
 	K8sPut                  StatsType = "K8s put"
@@ -114,6 +115,7 @@ func PrintSync() {
 		PrintCount(TotalGetCalls)
 
 		PrintCount(TotalAssignedIDsCreated)
+		PrintCount(TotalAssignedIDsUpdated)
 		PrintCount(TotalAssignedIDsDeleted)
 
 		Print(FindAssignedIDCreate)

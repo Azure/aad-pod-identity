@@ -1,0 +1,119 @@
+parameters:
+  - name: k8sReleases
+    type: object
+  - name: clusterConfigs
+    type: object
+
+jobs:
+  - ${{ each k8sRelease in parameters.k8sReleases }}:
+    - ${{ each clusterConfig in parameters.clusterConfigs }}:
+      - job:
+        displayName: ${{ format('v{0}/{1}', k8sRelease, clusterConfig) }}
+        dependsOn: unit_tests
+        timeoutInMinutes: 120
+        cancelTimeoutInMinutes: 5
+        workspace:
+          clean: all
+        variables:
+          - group: aad-pod-identity
+          - name: K8S_RELEASE
+            value: ${{ format('{0}', k8sRelease) }}
+          - name: CLUSTER_CONFIG
+            value: ${{ format('{0}', clusterConfig) }}
+        steps:
+          - task: GoTool@0
+            inputs:
+              version: '1.14.1'
+
+          - script: |
+              az login \
+                --service-principal \
+                -u=$(AAD_CLIENT_ID) \
+                -p=$(AAD_CLIENT_SECRET) \
+                -t=$(TENANT_ID) > /dev/null
+              az account set -s=$(SUBSCRIPTION_ID)
+            displayName: "az login"
+
+          - script: |
+              # Generate image version
+              IMAGE_VERSION="$(git describe --tags --always --dirty)-$(CLUSTER_CONFIG)"
+              echo "Image version: ${IMAGE_VERSION}"
+
+              export MIC_VERSION="${IMAGE_VERSION}"
+              echo "##vso[task.setvariable variable=MIC_VERSION]${MIC_VERSION}"
+              export NMI_VERSION="${IMAGE_VERSION}"
+              echo "##vso[task.setvariable variable=NMI_VERSION]${NMI_VERSION}"
+              export IDENTITY_VALIDATOR_VERSION="${IMAGE_VERSION}"
+              echo "##vso[task.setvariable variable=IDENTITY_VALIDATOR_VERSION]${IDENTITY_VALIDATOR_VERSION}"
+
+              az acr login -n $(REGISTRY_NAME)
+              make image-mic image-nmi image-identity-validator
+              make push-mic push-nmi push-identity-validator
+            displayName: "Build and push MIC, NMI and identity-validator"
+
+          - script: |
+              echo "Installing aks-engine..."
+              curl -LO https://github.com/Azure/aks-engine/releases/download/$(AKS_ENGINE_VERSION)/aks-engine-$(AKS_ENGINE_VERSION)-linux-amd64.tar.gz
+              tar -zxvf aks-engine-$(AKS_ENGINE_VERSION)-linux-amd64.tar.gz
+              sudo mv aks-engine-$(AKS_ENGINE_VERSION)-linux-amd64/aks-engine /usr/local/bin/
+              echo
+
+              echo "Installing kubectl..."
+              curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+              chmod +x kubectl
+              sudo mv kubectl /usr/local/bin/
+            displayName: "Install tools"
+
+          - script: |
+              # Generate SSH keypair
+              echo -e 'y\n' | ssh-keygen -f id_rsa -t rsa -N '' > /dev/null
+              export SSH_PUBLIC_KEY="$(cat id_rsa.pub)"
+
+              # Generate resource group name
+              export RESOURCE_GROUP="aad-pod-identity-e2e-$(openssl rand -hex 6)"
+              echo "##vso[task.setvariable variable=RESOURCE_GROUP]${RESOURCE_GROUP}"
+
+              envsubst < test/e2e/cluster_configs/$(CLUSTER_CONFIG).json > kubernetes.json
+              cat kubernetes.json
+            displayName: "Generate API model"
+
+          - script: |
+              aks-engine deploy \
+                --api-model kubernetes.json \
+                --location $(LOCATION) \
+                --subscription-id $(SUBSCRIPTION_ID) \
+                --client-id $(AAD_CLIENT_ID) \
+                --client-secret $(AAD_CLIENT_SECRET)
+
+              export KUBECONFIG="$(pwd)/_output/${RESOURCE_GROUP}/kubeconfig/kubeconfig.$(LOCATION).json"
+              echo "##vso[task.setvariable variable=KUBECONFIG]${KUBECONFIG}"
+
+              # Sleep for 120 seconds to wait for nodes and pods to become ready
+              sleep 120
+              kubectl wait --for=condition=ready node --all
+              kubectl wait pod -n kube-system --for=condition=Ready --all
+              kubectl get nodes -owide
+              kubectl cluster-info
+            displayName: "aks-engine deploy"
+
+          - script: |
+              export REGISTRY="$(REGISTRY_NAME).azurecr.io/k8s/aad-pod-identity"
+              export CLUSTER_RESOURCE_GROUP="${RESOURCE_GROUP}"
+              export IDENTITY_RESOURCE_GROUP="pi-vmss-e2e-daily"
+              export E2E_TEST_OPTIONS_EXTRA="-ginkgo.focus='${GINKGO_FOCUS}' -ginkgo.skip='${GINKGO_SKIP}'"
+              make e2e
+            env:
+              SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
+            displayName: "Run E2E tests"
+
+          - script: |
+              az group delete -g ${RESOURCE_GROUP} -y --no-wait
+
+              # Allow errors in case the images do not exist
+              set +e
+              az acr login -n $(REGISTRY_NAME)
+              az acr repository delete --name $(REGISTRY_NAME) --image k8s/aad-pod-identity/mic:${MIC_VERSION} --yes
+              az acr repository delete --name $(REGISTRY_NAME) --image k8s/aad-pod-identity/nmi:${NMI_VERSION} --yes
+              az acr repository delete --name $(REGISTRY_NAME) --image k8s/aad-pod-identity/identityvalidator:${IDENTITY_VALIDATOR_VERSION} --yes
+            condition: always()
+            displayName: "Cleanup"

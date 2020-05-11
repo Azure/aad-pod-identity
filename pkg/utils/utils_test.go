@@ -18,9 +18,45 @@ func TestRedactClientID(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		actual := RedactClientID(test.clientID)
-		if actual != test.expected {
-			t.Fatalf("expected: %s, got %s", test.expected, actual)
-		}
+		t.Run(test.name, func(t *testing.T) {
+			actual := RedactClientID(test.clientID)
+			if actual != test.expected {
+				t.Fatalf("expected: %s, got %s", test.expected, actual)
+			}
+		})
+	}
+}
+
+func TestIsValidResourceID(t *testing.T) {
+	tests := []struct {
+		name        string
+		resourceID  string
+		expectedErr bool
+	}{
+		{
+			name:        "invalid resource id 0",
+			resourceID:  "invalidresid",
+			expectedErr: true,
+		},
+		{
+			name:        "invalid resource id 1",
+			resourceID:  "/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourcegroups/0000/providers/Microsoft.ManagedIdentity/keyvault-identity-0",
+			expectedErr: true,
+		},
+		{
+			name:        "valid resource id",
+			resourceID:  "/subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/resourcegroups/0000/providers/Microsoft.ManagedIdentity/userAssignedIdentities/keyvault-identity-0",
+			expectedErr: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := ValidateResourceID(test.resourceID)
+			actualErr := err != nil
+			if actualErr != test.expectedErr {
+				t.Fatalf("expected error: %v, got error: %v", test.expectedErr, err)
+			}
+		})
 	}
 }

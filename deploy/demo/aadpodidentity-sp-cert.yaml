@@ -13,6 +13,6 @@ metadata:
   name: demo-aad1
 spec:
   type: 2
-  TenantID: TENANT_ID
-  ClientID: CLIENT_ID
-  ClientPassword: {"Name":"demo-aad1-sp","Namespace":"default"}
+  tenantID: TENANT_ID
+  clientID: CLIENT_ID
+  clientPassword: {"Name":"demo-aad1-sp","Namespace":"default"}
