@@ -2,6 +2,7 @@ package cloudprovider
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/config"
@@ -187,16 +188,39 @@ func (i *vmssIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 
 	// all identities are the node are to be removed
 	if len(nodeList) == 0 {
-		i.info.UserAssignedIdentities = nil
-		if i.info.Type == compute.ResourceIdentityTypeSystemAssignedUserAssigned {
-			i.info.Type = compute.ResourceIdentityTypeSystemAssigned
-		} else {
-			i.info.Type = compute.ResourceIdentityTypeNone
-		}
+		i.ResetResourceIdentityType()
 		return true
 	}
 
 	i.info.Type = getUpdatedResourceIdentityType(i.info.Type)
 	i.info.UserAssignedIdentities = userAssignedIdentities
 	return len(i.info.UserAssignedIdentities) > 0
+}
+
+func (i *vmssIdentityInfo) RemoveUserIdentity(delID string) bool {
+	removed := false
+	if i.info.UserAssignedIdentities != nil {
+		for id := range i.info.UserAssignedIdentities {
+			if strings.EqualFold(id, delID) {
+				delete(i.info.UserAssignedIdentities, id)
+				removed = true
+				break
+			}
+		}
+	}
+
+	// Modify identity type in case we remove the last identity from the VMSS
+	if len(i.info.UserAssignedIdentities) == 0 {
+		i.ResetResourceIdentityType()
+	}
+	return removed
+}
+
+func (i *vmssIdentityInfo) ResetResourceIdentityType() {
+	i.info.UserAssignedIdentities = nil
+	if i.info.Type == compute.ResourceIdentityTypeSystemAssignedUserAssigned {
+		i.info.Type = compute.ResourceIdentityTypeSystemAssigned
+	} else {
+		i.info.Type = compute.ResourceIdentityTypeNone
+	}
 }

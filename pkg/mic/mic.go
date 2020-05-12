@@ -67,6 +67,12 @@ type LeaderElectionConfig struct {
 	Instance  string
 }
 
+// UpdateUserMSIConfig - parameters for retrying cloudprovider's UpdateUserMSI function
+type UpdateUserMSIConfig struct {
+	MaxRetry    int
+	RetryPeriod time.Duration
+}
+
 // Client has the required pointers to talk to the api server
 // and interact with the CRD related datastructure.
 type Client struct {
@@ -106,6 +112,7 @@ type Config struct {
 	ImmutableUserMSIsList []string
 	CMcfg                 *CMConfig
 	TypeUpgradeCfg        *TypeUpgradeConfig
+	UpdateUserMSICfg      *UpdateUserMSIConfig
 }
 
 // ClientInt ...
@@ -136,7 +143,7 @@ func NewMICClient(cfg *Config) (*Client, error) {
 
 	informer := informers.NewSharedInformerFactory(clientSet, 30*time.Second)
 
-	cloudClient, err := cloudprovider.NewCloudProvider(cfg.CloudCfgPath)
+	cloudClient, err := cloudprovider.NewCloudProvider(cfg.CloudCfgPath, cfg.UpdateUserMSICfg.MaxRetry, cfg.UpdateUserMSICfg.RetryPeriod)
 	if err != nil {
 		return nil, err
 	}
@@ -899,7 +906,7 @@ func (c *Client) getAssignedIDName(podName, podNameSpace, idName string) string 
 
 func (c *Client) checkIfMSIExistsOnNode(id *aadpodid.AzureIdentity, nodeName string, nodeMSIList []string) bool {
 	for _, userAssignedMSI := range nodeMSIList {
-		if userAssignedMSI == id.Spec.ResourceID {
+		if strings.EqualFold(userAssignedMSI, id.Spec.ResourceID) {
 			return true
 		}
 	}
@@ -1093,7 +1100,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 			c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding applied",
 				fmt.Sprintf("Binding %s applied on node %s for pod %s", binding.Name, createID.Spec.NodeName, createID.Name))
 
-			klog.Infof("Updating msis on node %s failed, but identity %s/%s has successfully been assigned to node", createID.Spec.NodeName, id.Namespace, id.Name)
+			klog.Infof("Identity %s/%s has successfully been assigned to node %s", id.Namespace, id.Name, createID.Spec.NodeName)
 
 			// Identity is successfully assigned to node, so update the status of assigned identity to assigned
 			if updateErr := c.updateAssignedIdentityStatus(&createID, aadpodid.AssignedIDAssigned); updateErr != nil {
