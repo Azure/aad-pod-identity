@@ -47,26 +47,28 @@ func NewRetryClient(maxRetry int, retryPeriod time.Duration) ClientInt {
 func (c *client) Do(f Func, shouldRetry ShouldRetryFunc) error {
 	// The original error
 	err := f()
+	if err == nil {
+		return nil
+	}
+
 	// Error occurred when retrying
 	rerr := err
 	for i := 0; i < c.maxRetry; i++ {
-		if err == nil {
-			return nil
-		}
-		if rerr == nil {
-			// Return the original error from the first run,
-			// indicating that we retried running the function
-			return err
+		if rerr == nil || !c.isRetriable(rerr) || !shouldRetry(rerr) {
+			break
 		}
 
-		if !c.isRetriable(rerr) || !shouldRetry(rerr) {
-			return rerr
-		}
 		time.Sleep(c.retryPeriod)
+		// We should retry if:
+		// 1) the last known error is not nil
+		// 2) the error is retriable
+		// 3) shouldRetry returns true
 		rerr = f()
 	}
 
-	return rerr
+	// Return the original error from the first run,
+	// indicating that we retried running the function
+	return err
 }
 
 // RegisterRetriableErrors registers a retriable error to the retrier.

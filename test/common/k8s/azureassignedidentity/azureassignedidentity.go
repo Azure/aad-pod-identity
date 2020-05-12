@@ -93,17 +93,13 @@ func WaitOnLengthMatched(target int, checkStatus bool) (bool, error) {
 					successChannel <- true
 					return
 				}
-				// if checking for assigned identity count to be 0, then we just check if len matches
-				// but if checking for assigned identity count > 1, apart from checking if the len of
-				// assigned identities is desired, we also check if all the assigned identities are in
-				// desired state
-				if (checkStatus || target != 0) && list.Items != nil && len(list.Items) == target {
+				// check if assigned identities are in desired state
+				if (checkStatus || target != 0) && list.Items != nil {
 					var totalAssigned int
 					for _, item := range list.Items {
-						if item.Status.Status != aadpodid.AssignedIDAssigned {
-							break
+						if item.Status.Status == aadpodid.AssignedIDAssigned {
+							totalAssigned++
 						}
-						totalAssigned++
 					}
 					if totalAssigned == target {
 						successChannel <- true
