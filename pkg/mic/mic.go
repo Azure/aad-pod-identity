@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1076,7 +1077,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 
 	err := c.CloudClient.UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs, nodeOrVMSSName, nodeTrackList.isvmss)
 	if err != nil {
-		klog.Errorf("Updating msis on node %s, add [%d], del [%d] failed with error %v", nodeOrVMSSName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete), err)
+		klog.Errorf("Updating msis on node %s, add [%d], del [%d], update[%d] failed with error %v", nodeOrVMSSName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete), len(nodeTrackList.assignedIDsToUpdate), err)
 		idList, getErr := c.getUserMSIListForNode(nodeOrVMSSName, nodeTrackList.isvmss)
 		if getErr != nil {
 			klog.Errorf("Getting list of msis from node %s resulted in error %v", nodeOrVMSSName, getErr)
@@ -1107,6 +1108,19 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 				message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", createID.Name, aadpodid.AssignedIDAssigned, createID.Spec.Pod, updateErr.Error())
 				c.EventRecorder.Event(&createID, corev1.EventTypeWarning, "status update error", message)
 				klog.Error(message)
+			}
+
+			isCreateOperation := false
+			for _, i := range nodeTrackList.assignedIDsToCreate {
+				if reflect.DeepEqual(createID, i) {
+					isCreateOperation = true
+					break
+				}
+			}
+			if isCreateOperation {
+				stats.UpdateCount(stats.TotalAssignedIDsCreated, 1)
+			} else {
+				stats.UpdateCount(stats.TotalAssignedIDsUpdated, 1)
 			}
 		}
 
@@ -1141,6 +1155,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 				continue
 			}
 			klog.Infof("deleted assigned identity %s/%s", delID.Namespace, delID.Name)
+			stats.UpdateCount(stats.TotalAssignedIDsDeleted, 1)
 		}
 		stats.Put(stats.TotalCreateOrUpdate, time.Since(beginAdding))
 		return
