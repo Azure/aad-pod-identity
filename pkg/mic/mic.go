@@ -70,8 +70,8 @@ type LeaderElectionConfig struct {
 
 // UpdateUserMSIConfig - parameters for retrying cloudprovider's UpdateUserMSI function
 type UpdateUserMSIConfig struct {
-	MaxRetry    int
-	RetryPeriod time.Duration
+	MaxRetry      int
+	RetryInterval time.Duration
 }
 
 // Client has the required pointers to talk to the api server
@@ -144,7 +144,7 @@ func NewMICClient(cfg *Config) (*Client, error) {
 
 	informer := informers.NewSharedInformerFactory(clientSet, 30*time.Second)
 
-	cloudClient, err := cloudprovider.NewCloudProvider(cfg.CloudCfgPath, cfg.UpdateUserMSICfg.MaxRetry, cfg.UpdateUserMSICfg.RetryPeriod)
+	cloudClient, err := cloudprovider.NewCloudProvider(cfg.CloudCfgPath, cfg.UpdateUserMSICfg.MaxRetry, cfg.UpdateUserMSICfg.RetryInterval)
 	if err != nil {
 		return nil, err
 	}

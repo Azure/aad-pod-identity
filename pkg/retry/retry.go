@@ -9,11 +9,11 @@ import (
 type Func func() error
 
 // ShouldRetryFunc is a function that consumes the last-known error
-// from the targetted function and determine if we should run it again
+// from the targeted function and determine if we should run it again
 type ShouldRetryFunc func(error) bool
 
 // RetriableError is an error that when occurred,
-// we should retry targetted function.
+// we should retry targeted function.
 type RetriableError string
 
 // ClientInt is an abstraction that retries running a
@@ -27,22 +27,22 @@ type ClientInt interface {
 type client struct {
 	retriableErrors map[RetriableError]bool
 	maxRetry        int
-	retryPeriod     time.Duration
+	retryInterval   time.Duration
 }
 
 var _ ClientInt = &client{}
 
 // NewRetryClient returns an implementation of ClientInt that retries
 // running a given function based on the parameters provided.
-func NewRetryClient(maxRetry int, retryPeriod time.Duration) ClientInt {
+func NewRetryClient(maxRetry int, retryInterval time.Duration) ClientInt {
 	return &client{
 		retriableErrors: make(map[RetriableError]bool),
 		maxRetry:        maxRetry,
-		retryPeriod:     retryPeriod,
+		retryInterval:   retryInterval,
 	}
 }
 
-// Do runs the targetted function f and will retry running
+// Do runs the targeted function f and will retry running
 // it if it returns an error and shouldRetry returns true.
 func (c *client) Do(f Func, shouldRetry ShouldRetryFunc) error {
 	// The original error
@@ -58,7 +58,7 @@ func (c *client) Do(f Func, shouldRetry ShouldRetryFunc) error {
 			break
 		}
 
-		time.Sleep(c.retryPeriod)
+		time.Sleep(c.retryInterval)
 		// We should retry if:
 		// 1) the last known error is not nil
 		// 2) the error is retriable
@@ -81,9 +81,7 @@ func (c *client) RegisterRetriableErrors(rerrs ...RetriableError) {
 // UnregisterRetriableErrors unregisters an error from the retrier.
 func (c *client) UnregisterRetriableErrors(rerrs ...RetriableError) {
 	for _, rerr := range rerrs {
-		if _, ok := c.retriableErrors[rerr]; ok {
-			delete(c.retriableErrors, rerr)
-		}
+		delete(c.retriableErrors, rerr)
 	}
 }
 

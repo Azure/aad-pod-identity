@@ -12,42 +12,46 @@ func TestDo(t *testing.T) {
 	r.RegisterRetriableErrors("err1")
 
 	ran := 0
-	r.Do(func() error {
+	err := r.Do(func() error {
 		ran++
 		return nil
 	}, func(err error) bool {
 		return true
 	})
-	// Targetted function ran once since there is no error occurred
+	// Targeted function ran once since there is no error occurred
 	assert.Equal(t, 1, ran)
+	assert.NoError(t, err)
 
 	ran = 0
-	r.Do(func() error {
+	err = r.Do(func() error {
 		ran++
 		return errors.New("err1 occurred")
 	}, func(err error) bool {
 		return true
 	})
-	// Targetted function ran 3 times (1 initial run and 2 retries)
+	// Targeted function ran 3 times (1 initial run and 2 retries)
 	assert.Equal(t, 3, ran)
+	assert.Error(t, err)
 
 	ran = 0
-	r.Do(func() error {
+	err = r.Do(func() error {
 		ran++
 		return errors.New("err1 occurred")
 	}, func(err error) bool {
 		return false
 	})
-	// Targetted function ran once since shouldRetryFunc returned false
+	// Targeted function ran once since shouldRetryFunc returned false
 	assert.Equal(t, 1, ran)
+	assert.Error(t, err)
 
 	ran = 0
-	r.Do(func() error {
+	err = r.Do(func() error {
 		ran++
 		return errors.New("err2 occurred")
 	}, func(err error) bool {
 		return true
 	})
-	// Targetted function only ran once since err2 was not registered
+	// Targeted function only ran once since err2 was not registered
 	assert.Equal(t, 1, ran)
+	assert.Error(t, err)
 }

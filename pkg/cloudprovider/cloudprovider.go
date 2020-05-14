@@ -44,19 +44,19 @@ const (
 	// have the correct role assignment to access a user-assigned identity.
 	linkedAuthorizationFailed retry.RetriableError = "LinkedAuthorizationFailed"
 	// Occurs when the user-assigned identity does not exist.
-	failedIdentityOperator retry.RetriableError = "FailedIdentityOperation"
+	failedIdentityOperation retry.RetriableError = "FailedIdentityOperation"
 )
 
 // NewCloudProvider returns a azure cloud provider client
-func NewCloudProvider(configFile string, updateUserMSIMaxRetry int, updateUseMSIRetryPeriod time.Duration) (c *Client, e error) {
+func NewCloudProvider(configFile string, updateUserMSIMaxRetry int, updateUseMSIRetryInterval time.Duration) (c *Client, e error) {
 	client := &Client{
 		configFile: configFile,
 	}
 	if err := client.Init(); err != nil {
 		return nil, err
 	}
-	client.RetryClient = retry.NewRetryClient(updateUserMSIMaxRetry, updateUseMSIRetryPeriod)
-	client.RetryClient.RegisterRetriableErrors(linkedAuthorizationFailed, failedIdentityOperator)
+	client.RetryClient = retry.NewRetryClient(updateUserMSIMaxRetry, updateUseMSIRetryInterval)
+	client.RetryClient.RegisterRetriableErrors(linkedAuthorizationFailed, failedIdentityOperation)
 	return client, nil
 }
 

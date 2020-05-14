@@ -27,23 +27,23 @@ func TestRemoveUserIdentityVM(t *testing.T) {
 	testIdentityInfo := &vmIdentityInfo{
 		info: &compute.VirtualMachineIdentity{
 			UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
-				"ID1": nil,
-				"iD2": nil,
+				"id1": {},
+				"id2": {},
 			},
 		},
 	}
 
 	// removing id1 (should be case-insensitive)
-	removed := testIdentityInfo.RemoveUserIdentity("id1")
+	removed := testIdentityInfo.RemoveUserIdentity("ID1")
 	assert.True(t, removed)
 	assert.Len(t, testIdentityInfo.info.UserAssignedIdentities, 1)
 
 	// removing id2 (should be case-insensitive)
-	removed = testIdentityInfo.RemoveUserIdentity("id2")
+	removed = testIdentityInfo.RemoveUserIdentity("ID2")
 	assert.True(t, removed)
 	assert.Len(t, testIdentityInfo.info.UserAssignedIdentities, 0)
 
-	removed = testIdentityInfo.RemoveUserIdentity("id2")
+	removed = testIdentityInfo.RemoveUserIdentity("ID2")
 	assert.False(t, removed)
 	assert.Len(t, testIdentityInfo.info.UserAssignedIdentities, 0)
 }

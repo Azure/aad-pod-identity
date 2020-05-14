@@ -85,7 +85,7 @@ func main() {
 
 	// Parameters for retrying cloudprovider's UpdateUserMSI function
 	flag.IntVar(&updateUserMSIConfig.MaxRetry, "update-user-msi-max-retry", 2, "The maximum retry of UpdateUserMSI call")
-	flag.DurationVar(&updateUserMSIConfig.RetryPeriod, "update-user-msi-retry-period", 1*time.Second, "The duration to wait before retrying UpdateUserMSI")
+	flag.DurationVar(&updateUserMSIConfig.RetryInterval, "update-user-msi-retry-interval", 1*time.Second, "The duration to wait before retrying UpdateUserMSI")
 
 	flag.Parse()
 

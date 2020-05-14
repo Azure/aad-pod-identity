@@ -165,12 +165,14 @@ func (i *vmssIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 	nodeList := make(map[string]bool)
 	// add all current existing ids
 	for id := range i.info.UserAssignedIdentities {
+		id = strings.ToLower(id)
 		nodeList[id] = true
 	}
 
 	// add and remove the new list of identities keeping the same type as before
 	userAssignedIdentities := make(map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue)
 	for id, add := range ids {
+		id = strings.ToLower(id)
 		_, exists := nodeList[id]
 		// already exists on node and want to remove existing identity
 		if exists && !add {
@@ -188,7 +190,12 @@ func (i *vmssIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 
 	// all identities are the node are to be removed
 	if len(nodeList) == 0 {
-		i.ResetResourceIdentityType()
+		i.info.UserAssignedIdentities = nil
+		if i.info.Type == compute.ResourceIdentityTypeSystemAssignedUserAssigned {
+			i.info.Type = compute.ResourceIdentityTypeSystemAssigned
+		} else {
+			i.info.Type = compute.ResourceIdentityTypeNone
+		}
 		return true
 	}
 
@@ -198,29 +205,13 @@ func (i *vmssIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 }
 
 func (i *vmssIdentityInfo) RemoveUserIdentity(delID string) bool {
-	removed := false
+	delID = strings.ToLower(delID)
 	if i.info.UserAssignedIdentities != nil {
-		for id := range i.info.UserAssignedIdentities {
-			if strings.EqualFold(id, delID) {
-				delete(i.info.UserAssignedIdentities, id)
-				removed = true
-				break
-			}
+		if _, ok := i.info.UserAssignedIdentities[delID]; ok {
+			delete(i.info.UserAssignedIdentities, delID)
+			return true
 		}
 	}
 
-	// Modify identity type in case we remove the last identity from the VMSS
-	if len(i.info.UserAssignedIdentities) == 0 {
-		i.ResetResourceIdentityType()
-	}
-	return removed
-}
-
-func (i *vmssIdentityInfo) ResetResourceIdentityType() {
-	i.info.UserAssignedIdentities = nil
-	if i.info.Type == compute.ResourceIdentityTypeSystemAssignedUserAssigned {
-		i.info.Type = compute.ResourceIdentityTypeSystemAssigned
-	} else {
-		i.info.Type = compute.ResourceIdentityTypeNone
-	}
+	return false
 }
