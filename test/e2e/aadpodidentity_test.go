@@ -946,6 +946,45 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 			}
 		}
 	})
+
+	It("should not unassign existing identity if we assign invalid identities [PR]", func() {
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
+		ok, err := azureassignedidentity.WaitOnLengthMatched(1, true)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+
+		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity, keyvaultIdentity)
+
+		err = azureidentity.CreateOnClusterInternal(cfg.SubscriptionID, cfg.IdentityResourceGroup, "invalid-identity-1", "invalid-identity-1", "00000000-0000-0000-0000-000000000000", "aadpodidentity.yaml", templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+		err = azureidentitybinding.Create("invalid-identity-1", keyvaultIdentity, templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = azureidentity.CreateOnClusterInternal(cfg.SubscriptionID, cfg.IdentityResourceGroup, "invalid-identity-2", "invalid-identity-2", "00000000-0000-0000-0000-000000000000", "aadpodidentity.yaml", templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+		err = azureidentitybinding.Create("invalid-identity-2", keyvaultIdentity, templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Wait for all three AzureAssignedIdentities
+		ok, err = azureassignedidentity.WaitOnLengthMatched(3, false)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		azureAssignedIdentities, err := azureassignedidentity.GetAllByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+
+		for _, assignedID := range azureAssignedIdentities {
+			if strings.HasSuffix(assignedID.Name, keyvaultIdentity) {
+				validateAzureAssignedIdentity(assignedID, keyvaultIdentity, keyvaultIdentity)
+			} else {
+				// Ensure that AzureAssignedIdentities with invalid identities are in "Created" state
+				Expect(assignedID.Status.Status, aadpodid.AssignedIDCreated)
+			}
+		}
+	})
 })
 
 func GetVMSS(nodeList *node.List) ([]node.Node, string) {
