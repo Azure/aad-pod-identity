@@ -12,5 +12,6 @@ jobs:
         displayName: Build
       - script: make unit-test
         displayName: Run unit tests
+      - script: make lint
       - script: make helm-lint
         displayName: Run helm lint
