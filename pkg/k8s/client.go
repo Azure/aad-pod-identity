@@ -7,20 +7,20 @@ import (
 	"strings"
 	"time"
 
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
+	crd "github.com/Azure/aad-pod-identity/pkg/crd"
+	"github.com/Azure/aad-pod-identity/pkg/metrics"
+	"github.com/Azure/aad-pod-identity/version"
+
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	informersv1 "k8s.io/client-go/informers/core/v1"
+	"k8s.io/client-go/informers/internalinterfaces"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
-
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
-	crd "github.com/Azure/aad-pod-identity/pkg/crd"
-	"github.com/Azure/aad-pod-identity/pkg/metrics"
-	"github.com/Azure/aad-pod-identity/version"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	informersv1 "k8s.io/client-go/informers/core/v1"
-	"k8s.io/client-go/informers/internalinterfaces"
 )
 
 const (
@@ -121,7 +121,6 @@ func NodeNameFilter(nodeName string) internalinterfaces.TweakListOptionsFunc {
 			l = &metav1.ListOptions{}
 		}
 		l.FieldSelector = l.FieldSelector + "spec.nodeName=" + nodeName
-		return
 	}
 }
 
@@ -199,7 +198,10 @@ func (c *KubeClient) getPodListRetry(podip string, retries int, sleeptime time.D
 		if err == nil {
 			return podList, nil
 		}
-		c.reporter.ReportKubernetesAPIOperationError(metrics.GetPodListOperationName)
+		err = c.reporter.ReportKubernetesAPIOperationError(metrics.GetPodListOperationName)
+		if err != nil {
+			klog.Warningf("Metrics reporter error: %+v", err)
+		}
 
 		if i >= retries {
 			break
@@ -249,7 +251,10 @@ func (c *KubeClient) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodI
 func (c *KubeClient) GetSecret(secretRef *v1.SecretReference) (*v1.Secret, error) {
 	secret, err := c.ClientSet.CoreV1().Secrets(secretRef.Namespace).Get(secretRef.Name, metav1.GetOptions{})
 	if err != nil {
-		c.reporter.ReportKubernetesAPIOperationError(metrics.GetSecretOperationName)
+		merr := c.reporter.ReportKubernetesAPIOperationError(metrics.GetSecretOperationName)
+		if merr != nil {
+			klog.Warningf("Metrics reporter error: %+v", err)
+		}
 		return nil, err
 	}
 	return secret, nil
@@ -273,13 +278,4 @@ func buildConfig() (*rest.Config, error) {
 	}
 
 	return rest.InClusterConfig()
-}
-
-// recordError records the error in appropriate metric
-func recordError(reporter *metrics.Reporter, operation string) {
-	if reporter != nil {
-		reporter.ReportOperation(
-			operation,
-			metrics.KubernetesAPIOperationsErrorsCountM.M(1))
-	}
 }

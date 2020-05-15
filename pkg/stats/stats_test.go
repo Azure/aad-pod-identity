@@ -10,7 +10,7 @@ import (
 )
 
 func TestBasics(t *testing.T) {
-	validateMap := make(map[stats.StatsType]time.Duration)
+	validateMap := make(map[stats.Type]time.Duration)
 	stats.Init()
 	stats.Put(stats.Total, time.Second*20)
 	validateMap[stats.Total] = time.Second * 20

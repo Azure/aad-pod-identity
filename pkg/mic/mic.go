@@ -405,8 +405,8 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 		cacheTime := time.Now()
 
-		// There is a delay in data propogation to cache. It's possible that the creates performed in the previous sync cycle
-		// are not propogated before this sync cycle began. In order to avoid redoing the cycle, we sync cache again.
+		// There is a delay in data propagation to cache. It's possible that the creates performed in the previous sync cycle
+		// are not propagated before this sync cycle began. In order to avoid redoing the cycle, we sync cache again.
 		c.CRDClient.SyncCacheAll(exit, false)
 		stats.Put(stats.CacheSync, time.Since(cacheTime))
 
@@ -524,37 +524,31 @@ func (c *Client) Sync(exit <-chan struct{}) {
 }
 
 func (c *Client) convertAssignedIDListToMap(addList, deleteList, updateList map[string]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
-	if addList != nil {
-		for _, createID := range addList {
-			if trackList, ok := nodeMap[createID.Spec.NodeName]; ok {
-				trackList.assignedIDsToCreate = append(trackList.assignedIDsToCreate, createID)
-				nodeMap[createID.Spec.NodeName] = trackList
-				continue
-			}
-			nodeMap[createID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToCreate: []aadpodid.AzureAssignedIdentity{createID}}
+	for _, createID := range addList {
+		if trackList, ok := nodeMap[createID.Spec.NodeName]; ok {
+			trackList.assignedIDsToCreate = append(trackList.assignedIDsToCreate, createID)
+			nodeMap[createID.Spec.NodeName] = trackList
+			continue
 		}
+		nodeMap[createID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToCreate: []aadpodid.AzureAssignedIdentity{createID}}
 	}
 
-	if deleteList != nil {
-		for _, delID := range deleteList {
-			if trackList, ok := nodeMap[delID.Spec.NodeName]; ok {
-				trackList.assignedIDsToDelete = append(trackList.assignedIDsToDelete, delID)
-				nodeMap[delID.Spec.NodeName] = trackList
-				continue
-			}
-			nodeMap[delID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToDelete: []aadpodid.AzureAssignedIdentity{delID}}
+	for _, delID := range deleteList {
+		if trackList, ok := nodeMap[delID.Spec.NodeName]; ok {
+			trackList.assignedIDsToDelete = append(trackList.assignedIDsToDelete, delID)
+			nodeMap[delID.Spec.NodeName] = trackList
+			continue
 		}
+		nodeMap[delID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToDelete: []aadpodid.AzureAssignedIdentity{delID}}
 	}
 
-	if updateList != nil {
-		for _, updateID := range updateList {
-			if trackList, ok := nodeMap[updateID.Spec.NodeName]; ok {
-				trackList.assignedIDsToUpdate = append(trackList.assignedIDsToUpdate, updateID)
-				nodeMap[updateID.Spec.NodeName] = trackList
-				continue
-			}
-			nodeMap[updateID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToUpdate: []aadpodid.AzureAssignedIdentity{updateID}}
+	for _, updateID := range updateList {
+		if trackList, ok := nodeMap[updateID.Spec.NodeName]; ok {
+			trackList.assignedIDsToUpdate = append(trackList.assignedIDsToUpdate, updateID)
+			nodeMap[updateID.Spec.NodeName] = trackList
+			continue
 		}
+		nodeMap[updateID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToUpdate: []aadpodid.AzureAssignedIdentity{updateID}}
 	}
 }
 
@@ -692,7 +686,7 @@ func (c *Client) shouldRemoveID(assignedID aadpodid.AzureAssignedIdentity,
 	id := assignedID.Spec.AzureIdentityRef
 	isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
 	isImmutableIdentity := c.checkIfIdentityImmutable(id.Spec.ClientID)
-	// this case includes Assigned state and empty state to ensure backward compatability
+	// this case includes Assigned state and empty state to ensure backward compatibility
 	if assignedID.Status.Status == aadpodid.AssignedIDAssigned || assignedID.Status.Status == "" {
 		// only user assigned identities that are not in use and are not defined as
 		// immutable will be removed from underlying node/vmss

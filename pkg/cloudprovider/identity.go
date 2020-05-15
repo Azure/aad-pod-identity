@@ -1,8 +1,6 @@
 package cloudprovider
 
 import (
-	"strings"
-
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 )
 
@@ -21,15 +19,6 @@ type IdentityHolder interface {
 type IdentityInfo interface {
 	GetUserIdentityList() []string
 	SetUserIdentities(map[string]bool) bool
-}
-
-func checkIfIDInList(idList []string, desiredID string) bool {
-	for _, id := range idList {
-		if strings.EqualFold(id, desiredID) {
-			return true
-		}
-	}
-	return false
 }
 
 // getUpdatedResourceIdentityType returns the new resource identity type

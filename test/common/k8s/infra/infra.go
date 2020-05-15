@@ -7,6 +7,7 @@ import (
 	"text/template"
 
 	"github.com/Azure/aad-pod-identity/test/common/util"
+
 	"github.com/pkg/errors"
 )
 

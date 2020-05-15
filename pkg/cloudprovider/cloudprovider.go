@@ -3,16 +3,16 @@ package cloudprovider
 import (
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path"
 	"regexp"
 	"strings"
 	"time"
 
-	config "github.com/Azure/aad-pod-identity/pkg/config"
+	"github.com/Azure/aad-pod-identity/pkg/config"
 	"github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/aad-pod-identity/version"
+
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
@@ -46,16 +46,6 @@ func NewCloudProvider(configFile string) (c *Client, e error) {
 		return nil, err
 	}
 	return client, nil
-}
-
-func withInspection() autorest.PrepareDecorator {
-	return func(p autorest.Preparer) autorest.Preparer {
-		return autorest.PreparerFunc(func(r *http.Request) (*http.Request, error) {
-			klog.Infof("Inspecting Request: Method: %s \n URL: %s, URI: %s\n", r.Method, r.URL, r.RequestURI)
-
-			return p.Prepare(r)
-		})
-	}
 }
 
 // Init initializes the cloud provider client based
@@ -252,16 +242,6 @@ const (
 	// VMSSResourceType virtual machine scale sets resource type
 	VMSSResourceType = "virtualMachineScaleSets"
 )
-
-func vmTypeOrDefault(r *azure.Resource, val string) string {
-	switch r.ResourceType {
-	case VMResourceType:
-		return "vm"
-	case VMSSResourceType:
-		return "vmss"
-	}
-	return val
-}
 
 // ParseResourceID is a slightly modified version of https://github.com/Azure/go-autorest/blob/528b76fd0ebec0682f3e3da7c808cd472b999615/autorest/azure/azure.go#L175
 // The modification here is to support a nested resource such as is the case for a node resource in a vmss.

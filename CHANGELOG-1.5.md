@@ -77,7 +77,7 @@
 
 ### Bug Fixes
 
-- Fix AzureIdentity with sevice principal ([#197](https://github.com/Azure/aad-pod-identity/pull/197))
+- Fix AzureIdentity with service principal ([#197](https://github.com/Azure/aad-pod-identity/pull/197))
 - Determine resource manager endpoint based on cloud name ([#226](https://github.com/Azure/aad-pod-identity/pull/226))
 - Fix incorrect resource endpoint with sp ([#251](https://github.com/Azure/aad-pod-identity/pull/251))
 - Fix vmss identity deletion for ID in use ([#203](https://github.com/Azure/aad-pod-identity/pull/203))

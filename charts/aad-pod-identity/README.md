@@ -93,7 +93,7 @@ az identity create -g <resource-group> -n <id-name>
 #### Installing charts
 
 * If you need the `AzureIdentity` and `AzureIdentityBinding` resources to be created as part of the chart installation, update the values.yml to enable the azureIdentity and replace the resourceID, clientID using the values for the user identity.
-* If you need the aad-pod-identity deployment to use it's own service principal credentials instead of the cluster service prinicipal '/etc/kubernetes/azure.json`, then uncomment this section and add the appropriate values for each required field.
+* If you need the aad-pod-identity deployment to use it's own service principal credentials instead of the cluster service principal '/etc/kubernetes/azure.json`, then uncomment this section and add the appropriate values for each required field.
 
 ```
 adminsecret:

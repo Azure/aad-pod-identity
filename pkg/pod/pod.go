@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 
 	v1 "k8s.io/api/core/v1"
@@ -13,8 +14,6 @@ import (
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
-
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 )
 
 // Client represents new pod client

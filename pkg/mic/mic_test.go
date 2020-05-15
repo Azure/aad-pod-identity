@@ -11,13 +11,12 @@ import (
 
 	internalaadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	cp "github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	"github.com/Azure/aad-pod-identity/pkg/config"
 	"github.com/Azure/aad-pod-identity/pkg/crd"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
-
-	cp "github.com/Azure/aad-pod-identity/pkg/cloudprovider"
 	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -572,9 +571,7 @@ func (c *TestCrdClient) UnSetError() {
 func (c *TestCrdClient) waitForAssignedIDs(count int) bool {
 	i := 0
 	for i < 10 {
-		select {
-		case <-time.After(1 * time.Second):
-		}
+		time.Sleep(1 * time.Second)
 
 		assignedIDs, err := c.ListAssignedIDs()
 		if err != nil {
@@ -1091,12 +1088,10 @@ func TestAddDelMICClient(t *testing.T) {
 
 	nodeClient.AddNode("test-node2")
 	podClient.AddPod("test-pod2", "default", "test-node2", "test-select2")
-	podClient.GetPods()
 
 	crdClient.CreateID("test-id4", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "")
 	crdClient.CreateBinding("testbinding4", "default", "test-id4", "test-select4", "")
 	podClient.AddPod("test-pod4", "default", "test-node2", "test-select4")
-	podClient.GetPods()
 
 	eventCh <- internalaadpodid.PodCreated
 	eventCh <- internalaadpodid.PodCreated
@@ -1119,7 +1114,6 @@ func TestAddDelMICClient(t *testing.T) {
 	crdClient.CreateID("test-id3", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "")
 	crdClient.CreateBinding("testbinding3", "default", "test-id3", "test-select3", "")
 	podClient.AddPod("test-pod3", "default", "test-node2", "test-select3")
-	podClient.GetPods()
 
 	eventCh <- internalaadpodid.PodCreated
 	eventCh <- internalaadpodid.PodDeleted

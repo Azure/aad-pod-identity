@@ -1,15 +1,14 @@
 package main
 
 import (
-	"flag"
-
-	"github.com/Azure/aad-pod-identity/version"
-
 	"encoding/json"
+	"flag"
 	"os"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	"github.com/Azure/aad-pod-identity/pkg/crd"
+	"github.com/Azure/aad-pod-identity/version"
+
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
@@ -23,8 +22,8 @@ func main() {
 	defer klog.Flush()
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "Path to the kube config")
 
-	flag.Set("logtostderr", "true")
-	flag.Set("v", "10")
+	_ = flag.Set("logtostderr", "true")
+	_ = flag.Set("v", "10")
 
 	flag.Parse()
 
@@ -58,7 +57,7 @@ func main() {
 	for _, v := range *ids {
 		buf, err := json.MarshalIndent(v, "", "    ")
 		if err != nil {
-			klog.Errorf("Error in marshalling: %+v", err)
+			klog.Errorf("Error in marshaling: %+v", err)
 			os.Exit(1)
 		}
 		klog.Infof("\n%s", string(buf))
@@ -72,7 +71,7 @@ func main() {
 	for _, v := range *bindings {
 		buf, err := json.MarshalIndent(v, "", "    ")
 		if err != nil {
-			klog.Errorf("Error in marshalling: %+v", err)
+			klog.Errorf("Error in marshaling: %+v", err)
 			os.Exit(1)
 		}
 		klog.Infof("\n%s", string(buf))
@@ -86,7 +85,7 @@ func main() {
 	for _, a := range *assignedIDs {
 		buf, err := json.MarshalIndent(a, "", "    ")
 		if err != nil {
-			klog.Errorf("Error in marshalling: %+v", err)
+			klog.Errorf("Error in marshaling: %+v", err)
 			os.Exit(1)
 		}
 		klog.Infof("\n%s", string(buf))

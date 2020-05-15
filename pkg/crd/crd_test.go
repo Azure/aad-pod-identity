@@ -3,12 +3,11 @@ package crd
 import (
 	"testing"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/rest"
-
 	internalaadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+
 	api "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type TestCrdClient struct {
@@ -18,19 +17,10 @@ type TestCrdClient struct {
 	idMap         map[string]*aadpodid.AzureIdentity
 }
 
-func NewTestCrdClient(config *rest.Config) *TestCrdClient {
-	return &TestCrdClient{
-		assignedIDMap: make(map[string]*aadpodid.AzureAssignedIdentity),
-		bindingMap:    make(map[string]*aadpodid.AzureIdentityBinding),
-		idMap:         make(map[string]*aadpodid.AzureIdentity),
-	}
-}
-
 func (c *TestCrdClient) Start(exit <-chan struct{}) {
 }
 
 func (c *TestCrdClient) SyncCache(exit <-chan struct{}) {
-
 }
 
 func (c *TestCrdClient) CreateCrdWatchers(eventCh chan internalaadpodid.EventType) (err error) {

@@ -11,6 +11,7 @@ import (
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -255,7 +256,6 @@ func NodeNameFilter(nodeName string) internalinterfaces.TweakListOptionsFunc {
 			l = &v1.ListOptions{}
 		}
 		l.LabelSelector = l.LabelSelector + "nodename=" + nodeName
-		return
 	}
 }
 
@@ -479,7 +479,10 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityDeletionOperationName)
+			err = c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityDeletionOperationName)
+			if err != nil {
+				klog.Warningf("Metrics reporter error: %+v", err)
+			}
 			return
 		}
 		c.reporter.Report(
@@ -514,7 +517,10 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityAdditionOperationName)
+			err = c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityAdditionOperationName)
+			if err != nil {
+				klog.Warningf("Metrics reporter error: %+v", err)
+			}
 			return
 		}
 		c.reporter.Report(
@@ -539,13 +545,15 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	return nil
 }
 
+// UpdateAssignedIdentity updates an existing assigned identity
 func (c *Client) UpdateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
 	klog.Infof("Got assigned id %s/%s to update", assignedIdentity.Namespace, assignedIdentity.Name)
 	begin := time.Now()
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityUpdateOperationName)
+			err = c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityUpdateOperationName)
+			klog.Warningf("Metrics reporter error: %+v", err)
 			return
 		}
 		c.reporter.Report(
@@ -786,7 +794,10 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportKubernetesAPIOperationError(metrics.UpdateAzureAssignedIdentityStatusOperationName)
+			err = c.reporter.ReportKubernetesAPIOperationError(metrics.UpdateAzureAssignedIdentityStatusOperationName)
+			if err != nil {
+				klog.Warningf("Metrics reporter error: %+v", err)
+			}
 		}
 	}()
 

@@ -4,9 +4,8 @@ import (
 	"errors"
 	"strings"
 
-	"k8s.io/klog"
-
 	"github.com/coreos/go-iptables/iptables"
+	"k8s.io/klog"
 )
 
 var (

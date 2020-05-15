@@ -8,6 +8,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	"github.com/Azure/aad-pod-identity/version"
+
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
@@ -39,7 +40,11 @@ func NewVirtualMachinesClient(config config.AzureConfig, spt *adal.ServicePrinci
 	client.BaseURI = azureEnv.ResourceManagerEndpoint
 	client.Authorizer = autorest.NewBearerAuthorizer(spt)
 	client.PollingDelay = 5 * time.Second
-	client.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
+	err = client.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
+	if err != nil {
+		klog.Errorf("Error updating user agent: %+v", err)
+		return nil, err
+	}
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
@@ -61,10 +66,16 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportCloudProviderOperationError(metrics.GetVMOperationName)
+			err = c.reporter.ReportCloudProviderOperationError(metrics.GetVMOperationName)
+			if err != nil {
+				klog.Warningf("Metrics reporter error: %+v", err)
+			}
 			return
 		}
-		c.reporter.ReportCloudProviderOperationDuration(metrics.GetVMOperationName, time.Since(begin))
+		err = c.reporter.ReportCloudProviderOperationDuration(metrics.GetVMOperationName, time.Since(begin))
+		if err != nil {
+			klog.Warningf("Metrics reporter error: %+v", err)
+		}
 	}()
 
 	vm, err := c.client.Get(ctx, rgName, nodeName, "")
@@ -86,10 +97,16 @@ func (c *VMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachi
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportCloudProviderOperationError(metrics.PutVMOperationName)
+			err = c.reporter.ReportCloudProviderOperationError(metrics.PutVMOperationName)
+			if err != nil {
+				klog.Warningf("Metrics reporter error: %+v", err)
+			}
 			return
 		}
-		c.reporter.ReportCloudProviderOperationDuration(metrics.PutVMOperationName, time.Since(begin))
+		err = c.reporter.ReportCloudProviderOperationDuration(metrics.PutVMOperationName, time.Since(begin))
+		if err != nil {
+			klog.Warningf("Metrics reporter error: %+v", err)
+		}
 	}()
 
 	if future, err = c.client.Update(ctx, rg, nodeName, compute.VirtualMachineUpdate{
