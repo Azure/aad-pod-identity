@@ -894,6 +894,97 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 
 		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity, identity)
 	})
+
+	It("should assign the valid identity to the node when batch assigning identities that contain invalid identities [PR]", func() {
+		// Create three AzureIdentities and AzureIdentityBindings:
+		// one of them is keyvault-identity (valid) and two of which are invalid
+		err := azureidentity.CreateOnCluster(cfg.SubscriptionID, cfg.IdentityResourceGroup, keyvaultIdentity, keyvaultIdentity, templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+		err = azureidentitybinding.Create(keyvaultIdentity, keyvaultIdentity, templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = azureidentity.CreateOnClusterInternal(cfg.SubscriptionID, cfg.IdentityResourceGroup, "invalid-identity-1", "invalid-identity-1", "00000000-0000-0000-0000-000000000000", "aadpodidentity.yaml", templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+		err = azureidentitybinding.Create("invalid-identity-1", keyvaultIdentity, templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = azureidentity.CreateOnClusterInternal(cfg.SubscriptionID, cfg.IdentityResourceGroup, "invalid-identity-2", "invalid-identity-2", "00000000-0000-0000-0000-000000000000", "aadpodidentity.yaml", templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+		err = azureidentitybinding.Create("invalid-identity-2", keyvaultIdentity, templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Create an identityvalidator that consumes the three AzureIdentities created above
+		data := infra.IdentityValidatorTemplateData{
+			Name:                     identityValidator,
+			IdentityBinding:          keyvaultIdentity,
+			Registry:                 cfg.Registry,
+			IdentityValidatorVersion: cfg.IdentityValidatorVersion,
+			Replicas:                 "1",
+		}
+		err = infra.CreateIdentityValidator(cfg.SubscriptionID, cfg.IdentityResourceGroup, templateOutputPath, data)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Wait for one AzureAssignedIdentity to be in "Assigned" state
+		ok, err := azureassignedidentity.WaitOnLengthMatched(1, true)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		// Wait for all three AzureAssignedIdentities
+		ok, err = azureassignedidentity.WaitOnLengthMatched(3, false)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		azureAssignedIdentities, err := azureassignedidentity.GetAllByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+
+		for _, assignedID := range azureAssignedIdentities {
+			if strings.HasSuffix(assignedID.Name, keyvaultIdentity) {
+				validateAzureAssignedIdentity(assignedID, keyvaultIdentity, keyvaultIdentity)
+			} else {
+				// Ensure that AzureAssignedIdentities with invalid identities are in "Created" state
+				Expect(assignedID.Status.Status, aadpodid.AssignedIDCreated)
+			}
+		}
+	})
+
+	It("should not unassign existing identity if we assign invalid identities [PR]", func() {
+		setUpIdentityAndDeployment(keyvaultIdentity, "", "1")
+		ok, err := azureassignedidentity.WaitOnLengthMatched(1, true)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		azureAssignedIdentity, err := azureassignedidentity.GetByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+
+		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity, keyvaultIdentity)
+
+		err = azureidentity.CreateOnClusterInternal(cfg.SubscriptionID, cfg.IdentityResourceGroup, "invalid-identity-1", "invalid-identity-1", "00000000-0000-0000-0000-000000000000", "aadpodidentity.yaml", templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+		err = azureidentitybinding.Create("invalid-identity-1", keyvaultIdentity, templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+
+		err = azureidentity.CreateOnClusterInternal(cfg.SubscriptionID, cfg.IdentityResourceGroup, "invalid-identity-2", "invalid-identity-2", "00000000-0000-0000-0000-000000000000", "aadpodidentity.yaml", templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+		err = azureidentitybinding.Create("invalid-identity-2", keyvaultIdentity, templateOutputPath)
+		Expect(err).NotTo(HaveOccurred())
+
+		// Wait for all three AzureAssignedIdentities
+		ok, err = azureassignedidentity.WaitOnLengthMatched(3, false)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(ok).To(Equal(true))
+
+		azureAssignedIdentities, err := azureassignedidentity.GetAllByPrefix(identityValidator)
+		Expect(err).NotTo(HaveOccurred())
+
+		for _, assignedID := range azureAssignedIdentities {
+			if strings.HasSuffix(assignedID.Name, keyvaultIdentity) {
+				validateAzureAssignedIdentity(assignedID, keyvaultIdentity, keyvaultIdentity)
+			} else {
+				// Ensure that AzureAssignedIdentities with invalid identities are in "Created" state
+				Expect(assignedID.Status.Status, aadpodid.AssignedIDCreated)
+			}
+		}
+	})
 })
 
 func GetVMSS(nodeList *node.List) ([]node.Node, string) {

@@ -19,6 +19,7 @@ type IdentityHolder interface {
 type IdentityInfo interface {
 	GetUserIdentityList() []string
 	SetUserIdentities(map[string]bool) bool
+	RemoveUserIdentity(string) bool
 }
 
 // getUpdatedResourceIdentityType returns the new resource identity type

@@ -2,6 +2,7 @@ package cloudprovider
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/config"
@@ -164,12 +165,14 @@ func (i *vmssIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 	nodeList := make(map[string]bool)
 	// add all current existing ids
 	for id := range i.info.UserAssignedIdentities {
+		id = strings.ToLower(id)
 		nodeList[id] = true
 	}
 
 	// add and remove the new list of identities keeping the same type as before
 	userAssignedIdentities := make(map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue)
 	for id, add := range ids {
+		id = strings.ToLower(id)
 		_, exists := nodeList[id]
 		// already exists on node and want to remove existing identity
 		if exists && !add {
@@ -199,4 +202,16 @@ func (i *vmssIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 	i.info.Type = getUpdatedResourceIdentityType(i.info.Type)
 	i.info.UserAssignedIdentities = userAssignedIdentities
 	return len(i.info.UserAssignedIdentities) > 0
+}
+
+func (i *vmssIdentityInfo) RemoveUserIdentity(delID string) bool {
+	delID = strings.ToLower(delID)
+	if i.info.UserAssignedIdentities != nil {
+		if _, ok := i.info.UserAssignedIdentities[delID]; ok {
+			delete(i.info.UserAssignedIdentities, delID)
+			return true
+		}
+	}
+
+	return false
 }

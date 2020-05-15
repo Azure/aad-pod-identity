@@ -34,6 +34,7 @@ var (
 	immutableUserMSIs   string
 	cmConfig            mic.CMConfig
 	typeUpgradeConfig   mic.TypeUpgradeConfig
+	updateUserMSIConfig mic.UpdateUserMSIConfig
 )
 
 func main() {
@@ -81,6 +82,10 @@ func main() {
 	// Config map details for the type changes in the context of client-go upgrade.
 	flag.StringVar(&typeUpgradeConfig.TypeUpgradeStatusKey, "type-upgrade-status-key", "type-upgrade-status", "Configmap key for type upgrade status")
 	flag.BoolVar(&typeUpgradeConfig.EnableTypeUpgrade, "enable-type-upgrade", true, "Enable type upgrade")
+
+	// Parameters for retrying cloudprovider's UpdateUserMSI function
+	flag.IntVar(&updateUserMSIConfig.MaxRetry, "update-user-msi-max-retry", 2, "The maximum retry of UpdateUserMSI call")
+	flag.DurationVar(&updateUserMSIConfig.RetryInterval, "update-user-msi-retry-interval", 1*time.Second, "The duration to wait before retrying UpdateUserMSI")
 
 	flag.Parse()
 
@@ -142,6 +147,7 @@ func main() {
 		ImmutableUserMSIsList: immutableUserMSIsList,
 		CMcfg:                 &cmConfig,
 		TypeUpgradeCfg:        &typeUpgradeConfig,
+		UpdateUserMSICfg:      &updateUserMSIConfig,
 	}
 
 	micClient, err := mic.NewMICClient(micConfig)

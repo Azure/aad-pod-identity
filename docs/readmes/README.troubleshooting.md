@@ -39,3 +39,17 @@ Common issues or questions that users have run into when using pod identity are 
 ### Ignoring azure identity \<podns\>/\<podname\>, error: Invalid resource id: "", must match /subscriptions/\<subid\>/resourcegroups/\<resourcegroup\>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/\<name\>
 
 If you are using MIC v1.6.0+, you will need to ensure the correct capitalization of `AzureIdentity` and `AzureIdentityBinding` fields. For more information, please refer to [this section](../../README.md#v160-breaking-change).
+
+### LinkedAuthorizationFailed
+
+If you received the following error message in MIC:
+
+```log
+Code="LinkedAuthorizationFailed" Message="The client '<ClientID>' with object id '<ObjectID>' has permission to perform action 'Microsoft.Compute/<VMType>/write' on scope '<VM/VMSS scope>'; however, it does not have permission to perform action 'Microsoft.ManagedIdentity/userAssignedIdentities/assign/action' on the linked scope(s) '<UserAssignedIdentityScope>' or the linked scope(s) are invalid."
+```
+
+It means that your cluster service principal / managed identity does not have the correct role assignment to assign the chosen user-assigned identities to the VM/VMSS. For more information, please follow this [documentation](README.role-assignment.md) to allow your cluster service principal / managed identity to perform identity-related operation.
+
+Past issues:
+
+- https://github.com/Azure/aad-pod-identity/issues/585
