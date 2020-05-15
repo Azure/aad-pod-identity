@@ -83,13 +83,9 @@ func getEndpointByIP(ip string) (*v1.HNSEndpoint, error) {
 }
 
 func addEndpointPolicy(endpoint *v1.HNSEndpoint, metadataIP string, metadataPort string, nmiIP string, nmiPort string) error {
+    endpoint.Policies = updateEndpointPolicies(endpoint.Policies, metadataIP)
 
-	if checkProxyPolicyExists(endpoint) == true {
-		klog.Infof("Proxy policy exists for endpoint %s. Skipping...\n", endpoint.Id)
-		return nil
-	}
-
-	klog.Infof("No proxy policy exists for the endpoint. Trying to apply policy to endpoint %s\n", endpoint.Id)
+	klog.Infof("Trying to apply policy to endpoint %s\n", endpoint.Id)
 	policy := &v1.ProxyPolicy{
 		Type:        v1.Proxy,
 		IP:          metadataIP,
@@ -120,18 +116,8 @@ func addEndpointPolicy(endpoint *v1.HNSEndpoint, metadataIP string, metadataPort
 }
 
 func deleteEndpointPolicy(endpoint *v1.HNSEndpoint, metadataIP string) error {
-	index := 0
-	var proxyPolicy v1.ProxyPolicy
-	for i, p := range endpoint.Policies {
-		err := json.Unmarshal(p, &proxyPolicy)
-		if err != nil && proxyPolicy.IP == metadataIP {
-			index = i
-			break
-		}
-	}
-
-	endpoint.Policies = append(endpoint.Policies[:index], endpoint.Policies[index+1:]...)
-
+	endpoint.Policies = updateEndpointPolicies(endpoint.Policies, metadataIP)
+	
 	jsonStr, err := json.Marshal(endpoint)
 	if err != nil {
 		return err
@@ -149,18 +135,6 @@ func deleteEndpointPolicy(endpoint *v1.HNSEndpoint, metadataIP string) error {
 	return err
 }
 
-func checkProxyPolicyExists(endpoint *v1.HNSEndpoint) bool {
-	var proxyPolicy v1.ProxyPolicy
-	for _, p := range endpoint.Policies {
-		err := json.Unmarshal(p, &proxyPolicy)
-		if err != nil {
-			return true
-		}
-	}
-
-	return false
-}
-
 func callHcnProxyAgent(req msg.HNSRequest) ([]byte, error) {
 	klog.Info("Calling HNS Agent")
 	res := client.InvokeHNSRequest(req)
@@ -172,4 +146,23 @@ func callHcnProxyAgent(req msg.HNSRequest) ([]byte, error) {
 	klog.Infof("Server response: %s", string(b))
 
 	return res.Response, nil
+}
+
+func updateEndpointPolicies(policies []json.RawMessage, metadataIP string) ([]json.RawMessage) {
+	count := -1
+	index := 0
+    var proxyPolicy v1.ProxyPolicy
+	
+	endpointPolicies := policies
+	
+	for i, p := range policies {
+		err := json.Unmarshal(p, &proxyPolicy)
+		if err == nil && proxyPolicy.IP == metadataIP {
+			count++
+			index = i - count
+			endpointPolicies = append(endpointPolicies[:index], endpointPolicies[index+1:]...)
+		}
+	}
+
+	return endpointPolicies
 }

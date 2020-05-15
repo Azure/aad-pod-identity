@@ -33,7 +33,7 @@ func TestApplyEndpointRoutePolicy(t *testing.T) {
 			metadataPort: "80",
 			nmiIP: "127.10.0.23",
 			nmiPort: "8329",
-			expectedError: errors.New(`open \\.\pipe\hnspipe: The system cannot find the file specified.`),
+			expectedError: errors.New(`No endpoint found for Pod IP - 127.10.0.152. Error: open \\.\pipe\hnspipe: The system cannot find the file specified.`),
 		},
 	}
 
@@ -68,7 +68,7 @@ func TestDeleteEndpointRoutePolicy(t *testing.T) {
 			name: "Success with non-existant pipe",
 			podIP: "127.10.0.152",
 			metadataIP: "169.254.169.254",
-			expectedError: errors.New(`open \\.\pipe\hnspipe: The system cannot find the file specified.`),
+			expectedError: errors.New(`No endpoint found for Pod IP - 127.10.0.152. Error: open \\.\pipe\hnspipe: The system cannot find the file specified.`),
 		},
 	}
 
