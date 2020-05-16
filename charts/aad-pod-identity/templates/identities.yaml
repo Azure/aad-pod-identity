@@ -1,3 +1,4 @@
+{{- if not (empty .Values.azureIdentities) -}}
 apiVersion: v1
 kind: List
 items:
@@ -24,3 +25,4 @@ items:
       azureIdentity: {{ .name }}
       selector: {{ required "binding.selector is required!" .binding.selector }}
 {{- end }}
+{{- end -}}
