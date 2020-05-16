@@ -14,13 +14,6 @@ type TestPodClient struct {
 	pods []*corev1.Pod
 }
 
-func NewTestPodClient() *TestPodClient {
-	var pods []*corev1.Pod
-	return &TestPodClient{
-		pods: pods,
-	}
-}
-
 func (c TestPodClient) Start(exit <-chan struct{}) {
 	klog.Info("Start called from the test interface")
 }

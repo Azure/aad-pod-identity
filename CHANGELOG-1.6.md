@@ -7,7 +7,7 @@
 - Deny requests without metadata header to avoid SSRF ([#500](https://github.com/Azure/aad-pod-identity/pull/500))
 
 ### Bug Fixes
-- Fix issue that casued failures with long pod name > 63 chars ([#545](https://github.com/Azure/aad-pod-identity/pull/545))
+- Fix issue that caused failures with long pod name > 63 chars ([#545](https://github.com/Azure/aad-pod-identity/pull/545))
 - Fix updating assigned identity when azure identity updated ([#559](https://github.com/Azure/aad-pod-identity/pull/559))
 
 ### Other Improvements

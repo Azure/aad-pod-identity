@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"contrib.go.opencensus.io/exporter/prometheus"
-
 	"k8s.io/klog"
 )
 

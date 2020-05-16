@@ -2,12 +2,14 @@ package cloudprovider
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/config"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	"github.com/Azure/aad-pod-identity/version"
+
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
@@ -39,7 +41,11 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 	client.BaseURI = azureEnv.ResourceManagerEndpoint
 	client.Authorizer = autorest.NewBearerAuthorizer(spt)
 	client.PollingDelay = 5 * time.Second
-	client.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
+	err = client.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
+	if err != nil {
+		klog.Errorf("Error updating user agent: %+v", err)
+		return nil, err
+	}
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
@@ -62,10 +68,16 @@ func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmssIdentities comput
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportCloudProviderOperationError(metrics.PutVmssOperationName)
+			err = c.reporter.ReportCloudProviderOperationError(metrics.PutVmssOperationName)
+			if err != nil {
+				klog.Warningf("Metrics reporter error: %+v", err)
+			}
 			return
 		}
-		c.reporter.ReportCloudProviderOperationDuration(metrics.PutVmssOperationName, time.Since(begin))
+		err = c.reporter.ReportCloudProviderOperationDuration(metrics.PutVmssOperationName, time.Since(begin))
+		if err != nil {
+			klog.Warningf("Metrics reporter error: %+v", err)
+		}
 	}()
 
 	if future, err = c.client.Update(ctx, rg, vmssName, compute.VirtualMachineScaleSetUpdate{
@@ -89,10 +101,16 @@ func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMac
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportCloudProviderOperationError(metrics.GetVmssOperationName)
+			err = c.reporter.ReportCloudProviderOperationError(metrics.GetVmssOperationName)
+			if err != nil {
+				klog.Warningf("Metrics reporter error: %+v", err)
+			}
 			return
 		}
-		c.reporter.ReportCloudProviderOperationDuration(metrics.GetVmssOperationName, time.Since(begin))
+		err = c.reporter.ReportCloudProviderOperationDuration(metrics.GetVmssOperationName, time.Since(begin))
+		if err != nil {
+			klog.Warningf("Metrics reporter error: %+v", err)
+		}
 	}()
 	vm, err := c.client.Get(ctx, rgName, vmssName)
 	if err != nil {
@@ -147,12 +165,14 @@ func (i *vmssIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 	nodeList := make(map[string]bool)
 	// add all current existing ids
 	for id := range i.info.UserAssignedIdentities {
+		id = strings.ToLower(id)
 		nodeList[id] = true
 	}
 
 	// add and remove the new list of identities keeping the same type as before
 	userAssignedIdentities := make(map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue)
 	for id, add := range ids {
+		id = strings.ToLower(id)
 		_, exists := nodeList[id]
 		// already exists on node and want to remove existing identity
 		if exists && !add {
@@ -182,4 +202,16 @@ func (i *vmssIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 	i.info.Type = getUpdatedResourceIdentityType(i.info.Type)
 	i.info.UserAssignedIdentities = userAssignedIdentities
 	return len(i.info.UserAssignedIdentities) > 0
+}
+
+func (i *vmssIdentityInfo) RemoveUserIdentity(delID string) bool {
+	delID = strings.ToLower(delID)
+	if i.info.UserAssignedIdentities != nil {
+		if _, ok := i.info.UserAssignedIdentities[delID]; ok {
+			delete(i.info.UserAssignedIdentities, delID)
+			return true
+		}
+	}
+
+	return false
 }

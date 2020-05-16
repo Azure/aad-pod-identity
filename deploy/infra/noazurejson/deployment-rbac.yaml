@@ -302,13 +302,3 @@ spec:
           periodSeconds: 5
       nodeSelector:
         beta.kubernetes.io/os: linux
----
-apiVersion: "aadpodidentity.k8s.io/v1"
-kind: AzurePodIdentityException
-metadata:
-  name: mic-exception
-  namespace: default
-spec:
-  podLabels:
-    app: mic
-    component: mic

@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSetUserIdentitiesVMSS(t *testing.T) {
-	testIdentityInfo := &vmssIdentityInfo{
-		info: &compute.VirtualMachineScaleSetIdentity{},
+func TestSetUserIdentitiesVM(t *testing.T) {
+	testIdentityInfo := &vmIdentityInfo{
+		info: &compute.VirtualMachineIdentity{},
 	}
 
 	// adding id1
@@ -23,10 +23,10 @@ func TestSetUserIdentitiesVMSS(t *testing.T) {
 	assert.True(t, update)
 }
 
-func TestRemoveUserIdentityVMSS(t *testing.T) {
-	testIdentityInfo := &vmssIdentityInfo{
-		info: &compute.VirtualMachineScaleSetIdentity{
-			UserAssignedIdentities: map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{
+func TestRemoveUserIdentityVM(t *testing.T) {
+	testIdentityInfo := &vmIdentityInfo{
+		info: &compute.VirtualMachineIdentity{
+			UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
 				"id1": {},
 				"id2": {},
 			},

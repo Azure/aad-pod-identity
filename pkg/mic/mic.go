@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -67,6 +68,12 @@ type LeaderElectionConfig struct {
 	Instance  string
 }
 
+// UpdateUserMSIConfig - parameters for retrying cloudprovider's UpdateUserMSI function
+type UpdateUserMSIConfig struct {
+	MaxRetry      int
+	RetryInterval time.Duration
+}
+
 // Client has the required pointers to talk to the api server
 // and interact with the CRD related datastructure.
 type Client struct {
@@ -106,6 +113,7 @@ type Config struct {
 	ImmutableUserMSIsList []string
 	CMcfg                 *CMConfig
 	TypeUpgradeCfg        *TypeUpgradeConfig
+	UpdateUserMSICfg      *UpdateUserMSIConfig
 }
 
 // ClientInt ...
@@ -136,7 +144,7 @@ func NewMICClient(cfg *Config) (*Client, error) {
 
 	informer := informers.NewSharedInformerFactory(clientSet, 30*time.Second)
 
-	cloudClient, err := cloudprovider.NewCloudProvider(cfg.CloudCfgPath)
+	cloudClient, err := cloudprovider.NewCloudProvider(cfg.CloudCfgPath, cfg.UpdateUserMSICfg.MaxRetry, cfg.UpdateUserMSICfg.RetryInterval)
 	if err != nil {
 		return nil, err
 	}
@@ -405,8 +413,8 @@ func (c *Client) Sync(exit <-chan struct{}) {
 
 		cacheTime := time.Now()
 
-		// There is a delay in data propogation to cache. It's possible that the creates performed in the previous sync cycle
-		// are not propogated before this sync cycle began. In order to avoid redoing the cycle, we sync cache again.
+		// There is a delay in data propagation to cache. It's possible that the creates performed in the previous sync cycle
+		// are not propagated before this sync cycle began. In order to avoid redoing the cycle, we sync cache again.
 		c.CRDClient.SyncCacheAll(exit, false)
 		stats.Put(stats.CacheSync, time.Since(cacheTime))
 
@@ -524,37 +532,31 @@ func (c *Client) Sync(exit <-chan struct{}) {
 }
 
 func (c *Client) convertAssignedIDListToMap(addList, deleteList, updateList map[string]aadpodid.AzureAssignedIdentity, nodeMap map[string]trackUserAssignedMSIIds) {
-	if addList != nil {
-		for _, createID := range addList {
-			if trackList, ok := nodeMap[createID.Spec.NodeName]; ok {
-				trackList.assignedIDsToCreate = append(trackList.assignedIDsToCreate, createID)
-				nodeMap[createID.Spec.NodeName] = trackList
-				continue
-			}
-			nodeMap[createID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToCreate: []aadpodid.AzureAssignedIdentity{createID}}
+	for _, createID := range addList {
+		if trackList, ok := nodeMap[createID.Spec.NodeName]; ok {
+			trackList.assignedIDsToCreate = append(trackList.assignedIDsToCreate, createID)
+			nodeMap[createID.Spec.NodeName] = trackList
+			continue
 		}
+		nodeMap[createID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToCreate: []aadpodid.AzureAssignedIdentity{createID}}
 	}
 
-	if deleteList != nil {
-		for _, delID := range deleteList {
-			if trackList, ok := nodeMap[delID.Spec.NodeName]; ok {
-				trackList.assignedIDsToDelete = append(trackList.assignedIDsToDelete, delID)
-				nodeMap[delID.Spec.NodeName] = trackList
-				continue
-			}
-			nodeMap[delID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToDelete: []aadpodid.AzureAssignedIdentity{delID}}
+	for _, delID := range deleteList {
+		if trackList, ok := nodeMap[delID.Spec.NodeName]; ok {
+			trackList.assignedIDsToDelete = append(trackList.assignedIDsToDelete, delID)
+			nodeMap[delID.Spec.NodeName] = trackList
+			continue
 		}
+		nodeMap[delID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToDelete: []aadpodid.AzureAssignedIdentity{delID}}
 	}
 
-	if updateList != nil {
-		for _, updateID := range updateList {
-			if trackList, ok := nodeMap[updateID.Spec.NodeName]; ok {
-				trackList.assignedIDsToUpdate = append(trackList.assignedIDsToUpdate, updateID)
-				nodeMap[updateID.Spec.NodeName] = trackList
-				continue
-			}
-			nodeMap[updateID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToUpdate: []aadpodid.AzureAssignedIdentity{updateID}}
+	for _, updateID := range updateList {
+		if trackList, ok := nodeMap[updateID.Spec.NodeName]; ok {
+			trackList.assignedIDsToUpdate = append(trackList.assignedIDsToUpdate, updateID)
+			nodeMap[updateID.Spec.NodeName] = trackList
+			continue
 		}
+		nodeMap[updateID.Spec.NodeName] = trackUserAssignedMSIIds{assignedIDsToUpdate: []aadpodid.AzureAssignedIdentity{updateID}}
 	}
 }
 
@@ -692,7 +694,7 @@ func (c *Client) shouldRemoveID(assignedID aadpodid.AzureAssignedIdentity,
 	id := assignedID.Spec.AzureIdentityRef
 	isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
 	isImmutableIdentity := c.checkIfIdentityImmutable(id.Spec.ClientID)
-	// this case includes Assigned state and empty state to ensure backward compatability
+	// this case includes Assigned state and empty state to ensure backward compatibility
 	if assignedID.Status.Status == aadpodid.AssignedIDAssigned || assignedID.Status.Status == "" {
 		// only user assigned identities that are not in use and are not defined as
 		// immutable will be removed from underlying node/vmss
@@ -905,7 +907,7 @@ func (c *Client) getAssignedIDName(podName, podNameSpace, idName string) string 
 
 func (c *Client) checkIfMSIExistsOnNode(id *aadpodid.AzureIdentity, nodeName string, nodeMSIList []string) bool {
 	for _, userAssignedMSI := range nodeMSIList {
-		if userAssignedMSI == id.Spec.ResourceID {
+		if strings.EqualFold(userAssignedMSI, id.Spec.ResourceID) {
 			return true
 		}
 	}
@@ -1075,7 +1077,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 
 	err := c.CloudClient.UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs, nodeOrVMSSName, nodeTrackList.isvmss)
 	if err != nil {
-		klog.Errorf("Updating msis on node %s, add [%d], del [%d] failed with error %v", nodeOrVMSSName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete), err)
+		klog.Errorf("Updating msis on node %s, add [%d], del [%d], update[%d] failed with error %v", nodeOrVMSSName, len(nodeTrackList.assignedIDsToCreate), len(nodeTrackList.assignedIDsToDelete), len(nodeTrackList.assignedIDsToUpdate), err)
 		idList, getErr := c.getUserMSIListForNode(nodeOrVMSSName, nodeTrackList.isvmss)
 		if getErr != nil {
 			klog.Errorf("Getting list of msis from node %s resulted in error %v", nodeOrVMSSName, getErr)
@@ -1099,13 +1101,26 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 			c.EventRecorder.Event(binding, corev1.EventTypeNormal, "binding applied",
 				fmt.Sprintf("Binding %s applied on node %s for pod %s", binding.Name, createID.Spec.NodeName, createID.Name))
 
-			klog.Infof("Updating msis on node %s failed, but identity %s/%s has successfully been assigned to node", createID.Spec.NodeName, id.Namespace, id.Name)
+			klog.Infof("Identity %s/%s has successfully been assigned to node %s", id.Namespace, id.Name, createID.Spec.NodeName)
 
 			// Identity is successfully assigned to node, so update the status of assigned identity to assigned
 			if updateErr := c.updateAssignedIdentityStatus(&createID, aadpodid.AssignedIDAssigned); updateErr != nil {
 				message := fmt.Sprintf("Updating assigned identity %s status to %s for pod %s failed with error %v", createID.Name, aadpodid.AssignedIDAssigned, createID.Spec.Pod, updateErr.Error())
 				c.EventRecorder.Event(&createID, corev1.EventTypeWarning, "status update error", message)
 				klog.Error(message)
+			}
+
+			isCreateOperation := false
+			for _, i := range nodeTrackList.assignedIDsToCreate {
+				if reflect.DeepEqual(createID, i) {
+					isCreateOperation = true
+					break
+				}
+			}
+			if isCreateOperation {
+				stats.UpdateCount(stats.TotalAssignedIDsCreated, 1)
+			} else {
+				stats.UpdateCount(stats.TotalAssignedIDsUpdated, 1)
 			}
 		}
 
@@ -1140,6 +1155,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 				continue
 			}
 			klog.Infof("deleted assigned identity %s/%s", delID.Namespace, delID.Name)
+			stats.UpdateCount(stats.TotalAssignedIDsDeleted, 1)
 		}
 		stats.Put(stats.TotalCreateOrUpdate, time.Since(beginAdding))
 		return

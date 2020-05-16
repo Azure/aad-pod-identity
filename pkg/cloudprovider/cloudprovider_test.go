@@ -1,16 +1,19 @@
 package cloudprovider
 
 import (
+	"errors"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/Azure/aad-pod-identity/pkg/config"
+	"github.com/Azure/aad-pod-identity/pkg/retry"
+
+	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	"github.com/Azure/go-autorest/autorest/azure"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 )
 
 func TestParseResourceID(t *testing.T) {
@@ -76,11 +79,26 @@ func TestSimple(t *testing.T) {
 			node3 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node3-0"}, Spec: corev1.NodeSpec{ProviderID: vmProvider}}
 			node4 := &corev1.Node{ObjectMeta: metav1.ObjectMeta{Name: "node4-vmss0000000"}, Spec: corev1.NodeSpec{ProviderID: vmssProvider}}
 
-			cloudClient.UpdateUserMSI([]string{"ID0", "ID0again"}, []string{}, node0.Name, false)
-			cloudClient.UpdateUserMSI([]string{"ID1"}, []string{}, node1.Name, false)
-			cloudClient.UpdateUserMSI([]string{"ID2"}, []string{}, node2.Name, false)
-			cloudClient.UpdateUserMSI([]string{"ID3"}, []string{}, node3.Name, false)
-			cloudClient.UpdateUserMSI([]string{"ID4"}, []string{}, node4.Name, true)
+			err := cloudClient.UpdateUserMSI([]string{"ID0", "ID0again"}, []string{}, node0.Name, false)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+			err = cloudClient.UpdateUserMSI([]string{"ID1"}, []string{}, node1.Name, false)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+			err = cloudClient.UpdateUserMSI([]string{"ID2"}, []string{}, node2.Name, false)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+			err = cloudClient.UpdateUserMSI([]string{"ID3"}, []string{}, node3.Name, false)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+			err = cloudClient.UpdateUserMSI([]string{"ID4"}, []string{}, node4.Name, true)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
 
 			testMSI := []string{"ID0", "ID0again"}
 			if !cloudClient.CompareMSI(node0.Name, false, testMSI) {
@@ -88,8 +106,14 @@ func TestSimple(t *testing.T) {
 				t.Error("MSI mismatch")
 			}
 
-			cloudClient.UpdateUserMSI([]string{}, []string{"ID0"}, node0.Name, false)
-			cloudClient.UpdateUserMSI([]string{}, []string{"ID2"}, node2.Name, false)
+			err = cloudClient.UpdateUserMSI([]string{}, []string{"ID0"}, node0.Name, false)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+			err = cloudClient.UpdateUserMSI([]string{}, []string{"ID2"}, node2.Name, false)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
 
 			testMSI = []string{"ID0again"}
 			if !cloudClient.CompareMSI(node0.Name, false, testMSI) {
@@ -115,34 +139,90 @@ func TestSimple(t *testing.T) {
 			}
 
 			// test the UpdateUserMSI interface
-			cloudClient.UpdateUserMSI([]string{"ID1", "ID2", "ID3"}, []string{"ID0again"}, node0.Name, false)
+			err = cloudClient.UpdateUserMSI([]string{"ID1", "ID2", "ID3"}, []string{"ID0again"}, node0.Name, false)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+
 			testMSI = []string{"ID1", "ID2", "ID3"}
 			if !cloudClient.CompareMSI(node0.Name, false, testMSI) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
 
-			cloudClient.UpdateUserMSI(nil, []string{"ID3"}, node3.Name, false)
+			err = cloudClient.UpdateUserMSI(nil, []string{"ID3"}, node3.Name, false)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+
 			testMSI = []string{}
 			if !cloudClient.CompareMSI(node3.Name, false, testMSI) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
 
-			cloudClient.UpdateUserMSI([]string{"ID3"}, nil, node4.Name, true)
+			err = cloudClient.UpdateUserMSI([]string{"ID3"}, nil, node4.Name, true)
+			if err != nil {
+				t.Error("Couldn't update MSI")
+			}
+
 			testMSI = []string{"ID4", "ID3"}
 			if !cloudClient.CompareMSI(node4.Name, true, testMSI) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
 
-			cloudClient.UpdateUserMSI([]string{"ID3"}, []string{"ID3"}, node4.Name, true)
+			err = cloudClient.UpdateUserMSI([]string{"ID3"}, []string{"ID3"}, node4.Name, true)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+
 			testMSI = []string{"ID4", "ID3"}
 			if !cloudClient.CompareMSI(node4.Name, true, testMSI) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
 		})
+	}
+}
+
+func TestExtractIdentitiesFromError(t *testing.T) {
+	testCases := []struct {
+		err                  error
+		expectedErroneousIDs []string
+	}{
+		{
+			err: errors.New(`on the linked scope(s) '/subscriptions/xxxxxxxx-1234-5678-xxxx-xxxxxxxxxxxx/resourcegroups/rg-1234/providers/Microsoft.ManagedIdentity/userAssignedIdentities/user-id-1' or the linked scope(s) are invalid`),
+			expectedErroneousIDs: []string{
+				"/subscriptions/xxxxxxxx-1234-5678-xxxx-xxxxxxxxxxxx/resourcegroups/rg-1234/providers/Microsoft.ManagedIdentity/userAssignedIdentities/user-id-1",
+			},
+		},
+		{
+			err: errors.New(`on the linked scope(s) '/subscriptions/xxxxxxxx-1234-5678-xxxx-xxxxxxxxxxxx/resourcegroups/rg-1234/providers/Microsoft.ManagedIdentity/userAssignedIdentities/user-id-1,/subscriptions/xxxxxxxx-4321-8765-xxxx-xxxxxxxxxxxx/resourcegroups/rg-4567/providers/Microsoft.ManagedIdentity/userAssignedIdentities/user-id-2' or the linked scope(s) are invalid`),
+			expectedErroneousIDs: []string{
+				"/subscriptions/xxxxxxxx-1234-5678-xxxx-xxxxxxxxxxxx/resourcegroups/rg-1234/providers/Microsoft.ManagedIdentity/userAssignedIdentities/user-id-1",
+				"/subscriptions/xxxxxxxx-4321-8765-xxxx-xxxxxxxxxxxx/resourcegroups/rg-4567/providers/Microsoft.ManagedIdentity/userAssignedIdentities/user-id-2",
+			},
+		},
+		{
+			err:                  errors.New(`error message`),
+			expectedErroneousIDs: []string{},
+		},
+		{
+			err:                  nil,
+			expectedErroneousIDs: []string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		actual := extractIdentitiesFromError(tc.err)
+		if len(tc.expectedErroneousIDs) != len(actual) {
+			t.Fatalf("expected to extract %d identity, but got %d", len(tc.expectedErroneousIDs), len(actual))
+		}
+
+		if !isSliceEqual(actual, tc.expectedErroneousIDs) {
+			t.Fatalf("expected %v to be extracted from the error message, but got %v", tc.expectedErroneousIDs, actual)
+		}
 	}
 }
 
@@ -164,14 +244,15 @@ func (c *TestVMClient) SetError(err error) {
 	c.err = &err
 }
 
-func (c *TestVMClient) UnSetError() {
+func (c *TestVMClient) UnsetError() {
 	c.err = nil
 }
 
-func (c *TestVMClient) Get(rgName string, nodeName string) (ret compute.VirtualMachine, err error) {
+func (c *TestVMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, error) {
 	stored := c.nodeMap[nodeName]
 	if stored == nil {
 		vm := new(compute.VirtualMachine)
+		vm.Identity = &compute.VirtualMachineIdentity{}
 		c.nodeMap[nodeName] = vm
 		c.nodeIDs[nodeName] = make(map[string]bool)
 		return *vm, nil
@@ -188,6 +269,8 @@ func (c *TestVMClient) Get(rgName string, nodeName string) (ret compute.VirtualM
 
 func (c *TestVMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachine) error {
 	if c.err != nil {
+		// Only return the error once
+		defer c.UnsetError()
 		return *c.err
 	}
 
@@ -223,26 +306,24 @@ func (c *TestVMClient) ListMSI() (ret map[string]*[]string) {
 	return ret
 }
 
-func (c *TestVMClient) CompareMSI(nodeName string, userIDs []string) bool {
+func (c *TestVMClient) CompareMSI(nodeName string, expectedUserIDs []string) bool {
 	stored := c.nodeMap[nodeName]
 	if stored == nil || stored.Identity == nil {
 		return false
 	}
 
-	var ids []string
+	var actualUserIDs []string
 	for k := range c.nodeIDs[nodeName] {
-		ids = append(ids, k)
+		actualUserIDs = append(actualUserIDs, k)
 	}
-	if ids == nil {
-		if len(userIDs) == 0 && stored.Identity.Type == compute.ResourceIdentityTypeNone { // Validate that we have reset the resource type as none.
+	if actualUserIDs == nil {
+		if len(expectedUserIDs) == 0 && stored.Identity.Type == compute.ResourceIdentityTypeNone { // Validate that we have reset the resource type as none.
 			return true
 		}
 		return false
 	}
 
-	sort.Strings(ids)
-	sort.Strings(userIDs)
-	return reflect.DeepEqual(ids, userIDs)
+	return isSliceEqual(actualUserIDs, expectedUserIDs)
 }
 
 type TestVMSSClient struct {
@@ -256,17 +337,18 @@ func (c *TestVMSSClient) SetError(err error) {
 	c.err = &err
 }
 
-func (c *TestVMSSClient) UnSetError() {
+func (c *TestVMSSClient) UnsetError() {
 	c.err = nil
 }
 
-func (c *TestVMSSClient) Get(rgName string, nodeName string) (ret compute.VirtualMachineScaleSet, err error) {
+func (c *TestVMSSClient) Get(rgName string, nodeName string) (compute.VirtualMachineScaleSet, error) {
 	stored := c.nodeMap[nodeName]
 	if stored == nil {
-		vm := new(compute.VirtualMachineScaleSet)
-		c.nodeMap[nodeName] = vm
+		vmss := new(compute.VirtualMachineScaleSet)
+		vmss.Identity = &compute.VirtualMachineScaleSetIdentity{}
+		c.nodeMap[nodeName] = vmss
 		c.nodeIDs[nodeName] = make(map[string]bool)
-		return *vm, nil
+		return *vmss, nil
 	}
 
 	storedIDs := c.nodeIDs[nodeName]
@@ -280,6 +362,8 @@ func (c *TestVMSSClient) Get(rgName string, nodeName string) (ret compute.Virtua
 
 func (c *TestVMSSClient) UpdateIdentities(rg, nodeName string, vmss compute.VirtualMachineScaleSet) error {
 	if c.err != nil {
+		// Only return the error once
+		defer c.UnsetError()
 		return *c.err
 	}
 	if vmss.Identity != nil && vmss.Identity.UserAssignedIdentities != nil {
@@ -314,27 +398,30 @@ func (c *TestVMSSClient) ListMSI() (ret map[string]*[]string) {
 	return ret
 }
 
-func (c *TestVMSSClient) CompareMSI(nodeName string, userIDs []string) bool {
+func (c *TestVMSSClient) CompareMSI(nodeName string, expectedUserIDs []string) bool {
 	stored := c.nodeMap[nodeName]
 	if stored == nil || stored.Identity == nil {
 		return false
 	}
 
-	var ids []string
+	var actualUserIDs []string
 	for k := range c.nodeIDs[nodeName] {
-		ids = append(ids, k)
+		actualUserIDs = append(actualUserIDs, k)
 	}
 
-	if ids == nil {
-		if len(userIDs) == 0 && stored.Identity.Type == compute.ResourceIdentityTypeNone { // Validate that we have reset the resource type as none.
+	if actualUserIDs == nil {
+		// Validate that we have reset the resource type as none.
+		if len(expectedUserIDs) == 0 && stored.Identity.Type == compute.ResourceIdentityTypeNone {
 			return true
 		}
 		return false
 	}
 
-	sort.Strings(ids)
-	sort.Strings(userIDs)
-	return reflect.DeepEqual(ids, userIDs)
+	if len(actualUserIDs) != len(expectedUserIDs) {
+		return false
+	}
+
+	return isSliceEqual(actualUserIDs, expectedUserIDs)
 }
 
 func (c *TestCloudClient) ListMSI() (ret map[string]*[]string) {
@@ -388,10 +475,7 @@ func (c *TestCloudClient) PrintMSI(t *testing.T) {
 
 func (c *TestCloudClient) SetError(err error) {
 	c.testVMClient.SetError(err)
-}
-
-func (c *TestCloudClient) UnSetError() {
-	c.testVMClient.UnSetError()
+	c.testVMSSClient.SetError(err)
 }
 
 func NewTestVMClient() *TestVMClient {
@@ -423,10 +507,12 @@ func NewTestVMSSClient() *TestVMSSClient {
 func NewTestCloudClient(cfg config.AzureConfig) *TestCloudClient {
 	vmClient := NewTestVMClient()
 	vmssClient := NewTestVMSSClient()
+	retryClient := retry.NewRetryClient(2, 0)
 	cloudClient := &Client{
-		Config:     cfg,
-		VMClient:   vmClient,
-		VMSSClient: vmssClient,
+		Config:      cfg,
+		VMClient:    vmClient,
+		VMSSClient:  vmssClient,
+		RetryClient: retryClient,
 	}
 
 	return &TestCloudClient{
@@ -434,4 +520,18 @@ func NewTestCloudClient(cfg config.AzureConfig) *TestCloudClient {
 		vmClient,
 		vmssClient,
 	}
+}
+
+func isSliceEqual(s1, s2 []string) bool {
+	if len(s1) != len(s2) {
+		return false
+	}
+	sort.Strings(s1)
+	sort.Strings(s2)
+	for i := range s1 {
+		if !strings.EqualFold(s1[i], s2[i]) {
+			return false
+		}
+	}
+	return true
 }
