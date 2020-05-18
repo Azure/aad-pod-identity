@@ -252,7 +252,7 @@ az role assignment delete --id $IDENTITY_ASSIGNMENT_ID
 az identity delete -g $RESOURCE_GROUP -n $IDENTITY_NAME
 ```
 
-## Uninstall Notes
+## Uninstall Nodes
 
 The NMI pods modify the nodes' [iptables] to intercept calls to IMDS endpoint within a node. This allows NMI to insert identities assigned to a pod before executing the request on behalf of the caller.
 
