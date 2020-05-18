@@ -28,6 +28,7 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 * [Uninstall Notes](#uninstall-notes)
 * [What To Do Next?](#what-to-do-next)
 * [Code of Conduct](#code-of-conduct)
+* [Support](#support)
 
 ## v1.6.0 Breaking Change
 
@@ -292,6 +293,10 @@ iptables -t nat -X aad-metadata
 ## Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information, see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+
+## Support
+
+aad-pod-identity is an open source project that is [**not** covered by the Microsoft Azure support policy](https://support.microsoft.com/en-us/help/2941892/support-for-linux-and-open-source-technology-in-azure). [Please search open issues here](https://github.com/Azure/aad-pod-identity/issues), and if your issue isn't already represented please [open a new one](https://github.com/Azure/aad-pod-identity/issues/new/choose). The project maintainers will respond to the best of their abilities.
 
 
 [ADAL]: https://docs.microsoft.com/azure/active-directory/develop/active-directory-authentication-libraries
