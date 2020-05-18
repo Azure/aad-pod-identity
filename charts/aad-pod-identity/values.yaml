@@ -166,18 +166,17 @@ rbac:
   # If using only MSI (type: 0) in AzureIdentity, secret get permission can be disabled by setting this to false.
   allowAccessToSecrets: true
 
-azureIdentity:
-  # enabled/disable deployment of azure identity and binding
-  enabled: false
-  name: "azure-identity"
-  # if not defined, then the azure identity will be deployed in the same namespace as the chart
-  namespace: ""
-  # type 0: MSI, type 1: Service Principal
-  type: 0
-  # /subscriptions/subscription-id/resourcegroups/resource-group/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name
-  resourceID: ""
-  clientID: ""
-
-azureIdentityBinding:
-  name: "azure-identity-binding"
-  selector: "demo"
+# Create azure identities and bindings
+azureIdentities: []
+  # - name: "azure-identity"
+  #   # if not defined, then the azure identity will be deployed in the same namespace as the chart
+  #   namespace: ""
+  #   # type 0: MSI, type 1: Service Principal
+  #   type: 0
+  #   # /subscriptions/subscription-id/resourcegroups/resource-group/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name
+  #   resourceID: ""
+  #   clientID: ""
+  #   binding:
+  #     name: "azure-identity-binding"
+  #     # The selector will also need to be included in labels for app deployment
+  #     selector: "demo"
