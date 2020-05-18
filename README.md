@@ -109,6 +109,8 @@ export RESOURCE_GROUP="<ResourceGroup>"
 export IDENTITY_NAME="demo"
 ```
 
+> For AKS cluster, there are two resource groups that you need to be aware of - the resource group that contains the AKS cluster itself, and the cluster resource group (`MC_<AKSClusterName>_<AKSResourceGroup>_<Location>`). The latter contains all of the infrastructure resources associated with the cluster like VM/VMSS and VNet. Depending on where you deploy your user-assigned identities, you might need additional role assignments. Please refer to [Role Assignment](#role-assignment) for more information. For this demo, it is recommended to use the cluster resource group (the one with `MC_` prefix) as the `RESOURCE_GROUP` environment variable.
+
 ### 1. Deploy aad-pod-identity
 
 Deploy `aad-pod-identity` components to an RBAC-enabled cluster:
@@ -128,6 +130,15 @@ kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master
 # For managed identity clusters, deploy the MIC exception by running -
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/mic-exception.yaml
 ```
+
+Deploy `aad-pod-identity` using Helm:
+
+```bash
+helm repo add aad-pod-identity https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts
+helm install aad-pod-identity aad-pod-identity/aad-pod-identity
+```
+
+For a list of overwritable values when installing with Helm, please refer to [this section](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#configuration).
 
 > Important: For AKS clusters with limited [egress-traffic], Please install pod-identity in `kube-system` namespace using the [helm charts].
 
