@@ -521,7 +521,7 @@ func getErrorResponseStatusCode(identityFound bool) int {
 		return http.StatusNotFound
 	}
 	// if no identity in at least CREATED state was found, then it means the identity creation is not part of the
-	// current ongoing sync cycle. So we return 400 to mimics the behavior from IMDS. It is a non-retriable error
+	// current ongoing sync cycle. So we return 400 to mimic the behavior from IMDS. It is a non-retriable error
 	// code so we give mic enough time to finish current sync cycle and process identity in the next sync cycle.
 	return http.StatusBadRequest
 }
