@@ -230,7 +230,7 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
 		klog.Error(err)
-		http.Error(w, err.Error(), getErrorResponseStatusCode(podID != nil))
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	token, err := s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, *podID)
@@ -368,7 +368,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
 		klog.Errorf("failed to get matching identities for pod: %s/%s, error: %+v", podns, podname, err)
-		http.Error(w, err.Error(), getErrorResponseStatusCode(podID != nil))
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -511,19 +511,6 @@ func handleTermination() {
 
 	klog.Infof("Exiting with %v", exitCode)
 	os.Exit(exitCode)
-}
-
-func getErrorResponseStatusCode(identityFound bool) int {
-	// if at least an identity was found in created state then we return 404 which is a retriable error code
-	// in the go-autorest library. If the identity is in CREATED state then the identity is being processed in
-	// this sync cycle and should move to ASSIGNED state soon.
-	if identityFound {
-		return http.StatusNotFound
-	}
-	// if no identity in at least CREATED state was found, then it means the identity creation is not part of the
-	// current ongoing sync cycle. So we return 400 to mimic the behavior from IMDS. It is a non-retriable error
-	// code so we give mic enough time to finish current sync cycle and process identity in the next sync cycle.
-	return http.StatusBadRequest
 }
 
 func validateResourceParamExists(resource string) bool {
