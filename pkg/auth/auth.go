@@ -36,7 +36,6 @@ func GetServicePrincipalTokenFromMSI(resource string) (*adal.Token, error) {
 		}
 	}()
 
-	// Get the MSI endpoint accoriding with the OS (Linux/Windows)
 	msiEndpoint, err := adal.GetMSIVMEndpoint()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get the MSI endpoint. Error: %v", err)
@@ -74,7 +73,6 @@ func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string
 		}
 	}()
 
-	// Get the MSI endpoint accoriding with the OS (Linux/Windows)
 	msiEndpoint, err := adal.GetMSIVMEndpoint()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get the MSI endpoint. Error: %v", err)
