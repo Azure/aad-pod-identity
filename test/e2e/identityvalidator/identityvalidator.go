@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/pkg/errors"
 	"k8s.io/klog"
@@ -26,6 +27,10 @@ var (
 	keyvaultSecretVersion = pflag.String("keyvault-secret-version", "", "the version of the keyvault secret we are extracting with pod identity")
 )
 
+const (
+	contextTimeout = 150 * time.Second
+)
+
 func main() {
 	pflag.Parse()
 
@@ -41,14 +46,17 @@ func main() {
 	}
 	klog.Infof("Successfully obtain MSIEndpoint: %s\n", msiEndpoint)
 
+	ctx, ctxCancel := context.WithTimeout(context.Background(), contextTimeout)
+	defer ctxCancel()
+
 	if *keyvaultName != "" && *keyvaultSecretName != "" {
 		// Test if the pod identity is set up correctly
-		if err := testUserAssignedIdentityOnPod(msiEndpoint, *identityClientID, *keyvaultName, *keyvaultSecretName, *keyvaultSecretVersion); err != nil {
+		if err := testUserAssignedIdentityOnPod(ctx, msiEndpoint, *identityClientID, *keyvaultName, *keyvaultSecretName, *keyvaultSecretVersion); err != nil {
 			klog.Fatalf("testUserAssignedIdentityOnPod failed, %+v", err)
 		}
 	} else {
 		// Test if the cluster-wide user assigned identity is set up correctly
-		if err := testClusterWideUserAssignedIdentity(msiEndpoint, *subscriptionID, *resourceGroup, *identityClientID); err != nil {
+		if err := testClusterWideUserAssignedIdentity(ctx, msiEndpoint, *subscriptionID, *resourceGroup, *identityClientID); err != nil {
 			klog.Fatalf("testClusterWideUserAssignedIdentity failed, %+v", err)
 		}
 	}
@@ -60,7 +68,7 @@ func main() {
 }
 
 // testClusterWideUserAssignedIdentity will verify whether cluster-wide user assigned identity is working properly
-func testClusterWideUserAssignedIdentity(msiEndpoint, subscriptionID, resourceGroup, identityClientID string) error {
+func testClusterWideUserAssignedIdentity(ctx context.Context, msiEndpoint, subscriptionID, resourceGroup, identityClientID string) error {
 	os.Setenv("AZURE_CLIENT_ID", identityClientID)
 	defer os.Unsetenv("AZURE_CLIENT_ID")
 	token, err := adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(msiEndpoint, azure.PublicCloud.ResourceManagerEndpoint, identityClientID)
@@ -70,7 +78,7 @@ func testClusterWideUserAssignedIdentity(msiEndpoint, subscriptionID, resourceGr
 
 	vmClient := compute.NewVirtualMachinesClient(subscriptionID)
 	vmClient.Authorizer = autorest.NewBearerAuthorizer(token)
-	vmlist, err := vmClient.List(context.Background(), resourceGroup)
+	vmlist, err := vmClient.List(ctx, resourceGroup)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to verify cluster-wide user assigned identity")
 	}
@@ -80,7 +88,7 @@ func testClusterWideUserAssignedIdentity(msiEndpoint, subscriptionID, resourceGr
 }
 
 // testUserAssignedIdentityOnPod will verify whether a pod identity is working properly
-func testUserAssignedIdentityOnPod(msiEndpoint, identityClientID, keyvaultName, keyvaultSecretName, keyvaultSecretVersion string) error {
+func testUserAssignedIdentityOnPod(ctx context.Context, msiEndpoint, identityClientID, keyvaultName, keyvaultSecretName, keyvaultSecretVersion string) error {
 	// When new authorizer is created, azure-sdk-for-go  tries to create dataplane authorizer using MSI. It checks the AZURE_CLIENT_ID to get the client id
 	// for the user assigned identity. If client id not found, then NewServicePrincipalTokenFromMSI is invoked instead of using the actual
 	// user assigned identity. Setting this env var ensures we validate GetSecret using the desired user assigned identity.
@@ -94,7 +102,7 @@ func testUserAssignedIdentityOnPod(msiEndpoint, identityClientID, keyvaultName, 
 	}
 
 	klog.Infof("%s %s %s\n", keyvaultName, keyvaultSecretName, keyvaultSecretVersion)
-	secret, err := keyClient.GetSecret(context.Background(), fmt.Sprintf("https://%s.vault.azure.net", keyvaultName), keyvaultSecretName, keyvaultSecretVersion)
+	secret, err := keyClient.GetSecret(ctx, fmt.Sprintf("https://%s.vault.azure.net", keyvaultName), keyvaultSecretName, keyvaultSecretVersion)
 	if err != nil || *secret.Value == "" {
 		return errors.Wrapf(err, "Failed to verify user assigned identity on pod")
 	}
