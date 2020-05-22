@@ -38,7 +38,7 @@ operationMode: "standard"
 
 mic:
   image: mic
-  tag: 1.6.0
+  tag: 1.6.1
 
   priorityClassName: ""
 
@@ -101,9 +101,19 @@ mic:
   # cloud configuration used to authenticate with Azure
   cloudConfig: "/etc/kubernetes/azure.json"
 
+  # The maximum retry of UpdateUserMSI call. MIC updates all the identities in a batch. If a single identity contains an error
+  # or is invalid, then the entire operation fails. Configuring this flag will make MIC retry by removing the erroneous identities
+  # returned in the error
+  # Default value is 2.
+  updateUserMSIMaxRetry: ""
+
+  # The duration to wait before retrying UpdateUserMSI (batch assigning/un-assigning identity from VM/VMSS) in case of errors
+  # Default value is 1s
+  updateUserMSIRetryInterval: ""
+
 nmi:
   image: nmi
-  tag: 1.6.0
+  tag: 1.6.1
 
   priorityClassName: ""
 
