@@ -69,6 +69,12 @@ spec:
           {{- if .Values.mic.prometheusPort }}
           - --prometheus-port={{ .Values.mic.prometheusPort }}
           {{- end }}
+          {{- if .Values.mic.updateUserMSIMaxRetry }}
+          - --update-user-msi-max-retry={{ .Values.mic.updateUserMSIMaxRetry }}
+          {{- end }}
+          {{- if .Values.mic.updateUserMSIRetryInterval }}
+          - --update-user-msi-retry-interval={{ .Values.mic.updateUserMSIRetryInterval }}
+          {{- end }}
         env:
           - name: MIC_POD_NAMESPACE
             valueFrom:
