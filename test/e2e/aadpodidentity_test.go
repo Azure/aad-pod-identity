@@ -848,7 +848,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		validateAzureAssignedIdentity(azureAssignedIdentity, keyvaultIdentity, keyvaultIdentity)
 	})
 
-	It("should pass the identity format validation with gatekeeper constraint [PR]", func() {
+	It("should pass the identity format validation with gatekeeper constraint", func() {
 		// setup the required infra
 		setupIdentityFormatValidationInfra()
 
