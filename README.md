@@ -119,7 +119,7 @@ Deploy `aad-pod-identity` components to an RBAC-enabled cluster:
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
 
-# For managed identity clusters, deploy the MIC exception by running -
+# For AKS clusters, deploy the MIC and AKS add-on exception by running -
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/mic-exception.yaml
 ```
 
@@ -128,7 +128,7 @@ Deploy `aad-pod-identity` components to a non-RBAC cluster:
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment.yaml
 
-# For managed identity clusters, deploy the MIC exception by running -
+# For AKS clusters, deploy the MIC and AKS add-on exception by running -
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/mic-exception.yaml
 ```
 
