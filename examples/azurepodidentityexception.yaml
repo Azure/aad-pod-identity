@@ -3,6 +3,6 @@ kind: AzurePodIdentityException
 metadata:
   name: test-exception
 spec:
-  PodLabels:
+  podLabels:
     foo: bar
     app: custom

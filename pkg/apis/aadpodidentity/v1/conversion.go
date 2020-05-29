@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 

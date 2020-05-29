@@ -1,10 +1,4 @@
-trigger:
-  branches:
-    include:
-      - master
-  paths:
-    exclude:
-      - docs/*
+trigger: none
 
 pr:
   branches:
@@ -18,8 +12,8 @@ pool:
   vmImage: ubuntu-latest
 
 jobs:
-  - template: .pipelines/unit-tests-template.yml
-  - template: .pipelines/e2e-tests-template.yml
+  - template: unit-tests-template.yml
+  - template: e2e-tests-template.yml
     parameters:
       k8sReleases:
         - "1.18"

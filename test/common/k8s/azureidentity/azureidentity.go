@@ -13,25 +13,30 @@ import (
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/test/common/util"
+
 	"github.com/pkg/errors"
 )
 
 // CreateOnClusterOld will create an Azure Identity on a Kubernetes cluster
 func CreateOnClusterOld(subscriptionID, resourceGroup, name, templateOutputPath string) error {
-	return CreateOnClusterInternal(subscriptionID, resourceGroup, name, name, "aadpodidentity-old.yaml", templateOutputPath)
+	clientID, err := GetClientID(resourceGroup, name)
+	if err != nil {
+		return err
+	}
+	return CreateOnClusterInternal(subscriptionID, resourceGroup, name, name, clientID, "aadpodidentity-old.yaml", templateOutputPath)
 }
 
 // CreateOnCluster will create an Azure Identity on a Kubernetes cluster
 func CreateOnCluster(subscriptionID, resourceGroup, identity, name, templateOutputPath string) error {
-	return CreateOnClusterInternal(subscriptionID, resourceGroup, identity, name, "aadpodidentity.yaml", templateOutputPath)
-}
-
-// CreateOnClusterInternal will create an Azure Identity on a Kubernetes cluster
-func CreateOnClusterInternal(subscriptionID, resourceGroup, identity, name, templateInputFile, templateOutputPath string) error {
 	clientID, err := GetClientID(resourceGroup, identity)
 	if err != nil {
 		return err
 	}
+	return CreateOnClusterInternal(subscriptionID, resourceGroup, identity, name, clientID, "aadpodidentity.yaml", templateOutputPath)
+}
+
+// CreateOnClusterInternal will create an Azure Identity on a Kubernetes cluster
+func CreateOnClusterInternal(subscriptionID, resourceGroup, identity, name, clientID, templateInputFile, templateOutputPath string) error {
 
 	t, err := template.New(templateInputFile).ParseFiles(path.Join("template", templateInputFile))
 	if err != nil {

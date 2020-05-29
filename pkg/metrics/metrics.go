@@ -8,7 +8,6 @@ import (
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
-
 	"k8s.io/klog"
 )
 
@@ -167,83 +166,83 @@ func SinceInSeconds(start time.Time) float64 {
 // registerViews register views to be collected by exporter
 func registerViews() error {
 	views := []*view.View{
-		&view.View{
+		{
 			Description: AssignedIdentityAdditionDurationM.Description(),
 			Measure:     AssignedIdentityAdditionDurationM,
 			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
 		},
-		&view.View{
+		{
 			Description: AssignedIdentityAdditionCountM.Description(),
 			Measure:     AssignedIdentityAdditionCountM,
 			Aggregation: view.Count(),
 		},
-		&view.View{
+		{
 			Description: AssignedIdentityDeletionDurationM.Description(),
 			Measure:     AssignedIdentityDeletionDurationM,
 			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
 		},
-		&view.View{
+		{
 			Description: AssignedIdentityDeletionCountM.Description(),
 			Measure:     AssignedIdentityDeletionCountM,
 			Aggregation: view.Count(),
 		},
-		&view.View{
+		{
 			Description: NMIOperationsDurationM.Description(),
 			Measure:     NMIOperationsDurationM,
 			Aggregation: view.Distribution(0.5, 1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100),
 			TagKeys:     []tag.Key{operationTypeKey, statusCodeKey, namespaceKey, resourceKey},
 		},
-		&view.View{
+		{
 			Description: MICCycleDurationM.Description(),
 			Measure:     MICCycleDurationM,
 			Aggregation: view.Distribution(0.5, 1, 5, 10, 30, 60, 120, 300, 600, 900, 1200),
 		},
-		&view.View{
+		{
 			Description: MICCycleCountM.Description(),
 			Measure:     MICCycleCountM,
 			Aggregation: view.Count(),
 		},
-		&view.View{
+		{
 			Description: MICNewLeaderElectionCountM.Description(),
 			Measure:     MICNewLeaderElectionCountM,
 			Aggregation: view.Count(),
 		},
-		&view.View{
+		{
 			Description: CloudProviderOperationsErrorsCountM.Description(),
 			Measure:     CloudProviderOperationsErrorsCountM,
 			Aggregation: view.Count(),
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
-		&view.View{
+		{
 			Description: CloudProviderOperationsDurationM.Description(),
 			Measure:     CloudProviderOperationsDurationM,
 			Aggregation: view.Distribution(0.5, 1, 5, 10, 30, 60, 120, 300, 600, 900, 1200),
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
-		&view.View{
+		{
 			Description: KubernetesAPIOperationsErrorsCountM.Description(),
 			Measure:     KubernetesAPIOperationsErrorsCountM,
 			Aggregation: view.Count(),
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
-		&view.View{
+		{
 			Description: ImdsOperationsErrorsCountM.Description(),
 			Measure:     ImdsOperationsErrorsCountM,
 			Aggregation: view.Count(),
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
-		&view.View{
+		{
 			Description: ImdsOperationsDurationM.Description(),
 			Measure:     ImdsOperationsDurationM,
 			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
-		&view.View{
+		{
 			Description: AssignedIdentityUpdateDurationM.Description(),
 			Measure:     AssignedIdentityUpdateDurationM,
 			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
 		},
-		&view.View{
+		{
 			Description: AssignedIdentityUpdateCountM.Description(),
 			Measure:     AssignedIdentityUpdateCountM,
 			Aggregation: view.Count(),

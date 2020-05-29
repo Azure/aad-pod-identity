@@ -11,12 +11,12 @@ kind: AzurePodIdentityException
 metadata:
   name: test-exception
 spec:
-  PodLabels:
+  podLabels:
     foo: bar
     app: custom
 ```
 
-Use the [sample template](examples/azurepodidentityexception.yaml), replace the PodLabels with a list of desired values and then create the resource on the cluster:
+Use the [sample template](../../examples/azurepodidentityexception.yaml), replace the podLabels with a list of desired values and then create the resource on the cluster:
 
 ```shell
 kubectl apply -f examples/aadpodidentityexception.yaml

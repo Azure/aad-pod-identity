@@ -1,6 +1,6 @@
 # AAD Pod Identity
 
-[![Build Status](https://dev.azure.com/azure/aad-pod-identity/_apis/build/status/aad-pod-identity-CI?branchName=master)](https://dev.azure.com/azure/aad-pod-identity/_build/latest?definitionId=22&branchName=master)
+[![Build Status](https://dev.azure.com/azure/aad-pod-identity/_apis/build/status/aad-pod-identity-nightly?branchName=master)](https://dev.azure.com/azure/aad-pod-identity/_build/latest?definitionId=77&branchName=master)
 [![GoDoc](https://godoc.org/github.com/Azure/aad-pod-identity?status.svg)](https://godoc.org/github.com/Azure/aad-pod-identity)
 [![Go Report Card](https://goreportcard.com/badge/github.com/Azure/aad-pod-identity)](https://goreportcard.com/report/github.com/Azure/aad-pod-identity)
 
@@ -28,6 +28,7 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 * [Uninstall Notes](#uninstall-notes)
 * [What To Do Next?](#what-to-do-next)
 * [Code of Conduct](#code-of-conduct)
+* [Support](#support)
 
 ## v1.6.0 Breaking Change
 
@@ -109,19 +110,36 @@ export RESOURCE_GROUP="<ResourceGroup>"
 export IDENTITY_NAME="demo"
 ```
 
+> For AKS cluster, there are two resource groups that you need to be aware of - the resource group that contains the AKS cluster itself, and the cluster resource group (`MC_<AKSClusterName>_<AKSResourceGroup>_<Location>`). The latter contains all of the infrastructure resources associated with the cluster like VM/VMSS and VNet. Depending on where you deploy your user-assigned identities, you might need additional role assignments. Please refer to [Role Assignment](#role-assignment) for more information. For this demo, it is recommended to use the cluster resource group (the one with `MC_` prefix) as the `RESOURCE_GROUP` environment variable.
+
 ### 1. Deploy aad-pod-identity
 
 Deploy `aad-pod-identity` components to an RBAC-enabled cluster:
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
+
+# For AKS clusters, deploy the MIC and AKS add-on exception by running -
+kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/mic-exception.yaml
 ```
 
 Deploy `aad-pod-identity` components to a non-RBAC cluster:
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment.yaml
+
+# For AKS clusters, deploy the MIC and AKS add-on exception by running -
+kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/mic-exception.yaml
 ```
+
+Deploy `aad-pod-identity` using Helm:
+
+```bash
+helm repo add aad-pod-identity https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts
+helm install aad-pod-identity aad-pod-identity/aad-pod-identity
+```
+
+For a list of overwritable values when installing with Helm, please refer to [this section](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#configuration).
 
 > Important: For AKS clusters with limited [egress-traffic], Please install pod-identity in `kube-system` namespace using the [helm charts].
 
@@ -229,10 +247,10 @@ kubectl logs demo
 If successful, the log output would be similar to the following output:
 ```
 ...
-succesfully doARMOperations vm count 1
-succesfully acquired a token using the MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token)
-succesfully acquired a token, userAssignedID MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token) clientID(xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
-succesfully made GET on instance metadata
+successfully doARMOperations vm count 1
+successfully acquired a token using the MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token)
+successfully acquired a token, userAssignedID MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token) clientID(xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+successfully made GET on instance metadata
 ...
 ```
 
@@ -275,6 +293,10 @@ iptables -t nat -X aad-metadata
 ## Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information, see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+
+## Support
+
+aad-pod-identity is an open source project that is [**not** covered by the Microsoft Azure support policy](https://support.microsoft.com/en-us/help/2941892/support-for-linux-and-open-source-technology-in-azure). [Please search open issues here](https://github.com/Azure/aad-pod-identity/issues), and if your issue isn't already represented please [open a new one](https://github.com/Azure/aad-pod-identity/issues/new/choose). The project maintainers will respond to the best of their abilities.
 
 
 [ADAL]: https://docs.microsoft.com/azure/active-directory/develop/active-directory-authentication-libraries

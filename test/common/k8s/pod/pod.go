@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Azure/aad-pod-identity/test/common/util"
+
 	"github.com/pkg/errors"
 )
 
@@ -95,7 +96,7 @@ func RunCommandInPod(execCmd ...string) (string, error) {
 	util.PrintCommand(cmd)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return string(out), errors.Wrap(err, fmt.Sprintf("Failed to execute command in pod"))
+		return string(out), errors.Wrap(err, "Failed to execute command in pod")
 	}
 	return string(out), err
 }
@@ -172,7 +173,9 @@ func DeletePod(podName string) error {
 	_, err := cmd.CombinedOutput()
 
 	if err != nil {
-		errors.Wrap(err, "Pod delete command failed with error")
+		err = errors.Wrap(err, "Pod delete command failed with error")
+		return err
 	}
+
 	return nil
 }

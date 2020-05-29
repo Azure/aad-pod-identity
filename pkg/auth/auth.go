@@ -7,8 +7,10 @@ import (
 
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/version"
-	adal "github.com/Azure/go-autorest/autorest/adal"
 	"golang.org/x/crypto/pkcs12"
+
+	"github.com/Azure/go-autorest/autorest/adal"
+	"k8s.io/klog"
 )
 
 const (
@@ -24,13 +26,18 @@ func GetServicePrincipalTokenFromMSI(resource string) (*adal.Token, error) {
 
 	defer func() {
 		if err != nil {
-			reporter.ReportIMDSOperationError(metrics.AdalTokenFromMSIOperationName)
+			err = reporter.ReportIMDSOperationError(metrics.AdalTokenFromMSIOperationName)
+			if err != nil {
+				klog.Warningf("Metrics reporter error: %+v", err)
+			}
 			return
 		}
-		reporter.ReportIMDSOperationDuration(metrics.AdalTokenFromMSIOperationName, time.Since(begin))
+		err = reporter.ReportIMDSOperationDuration(metrics.AdalTokenFromMSIOperationName, time.Since(begin))
+		if err != nil {
+			klog.Warningf("Metrics reporter error: %+v", err)
+		}
 	}()
 
-	// Get the MSI endpoint accoriding with the OS (Linux/Windows)
 	msiEndpoint, err := adal.GetMSIVMEndpoint()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get the MSI endpoint. Error: %v", err)
@@ -56,13 +63,18 @@ func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string
 
 	defer func() {
 		if err != nil {
-			reporter.ReportIMDSOperationError(metrics.AdalTokenFromMSIWithUserAssignedIDOperationName)
+			err = reporter.ReportIMDSOperationError(metrics.AdalTokenFromMSIWithUserAssignedIDOperationName)
+			if err != nil {
+				klog.Warningf("Metrics reporter error: %+v", err)
+			}
 			return
 		}
-		reporter.ReportIMDSOperationDuration(metrics.AdalTokenFromMSIWithUserAssignedIDOperationName, time.Since(begin))
+		err = reporter.ReportIMDSOperationDuration(metrics.AdalTokenFromMSIWithUserAssignedIDOperationName, time.Since(begin))
+		if err != nil {
+			klog.Warningf("Metrics reporter error: %+v", err)
+		}
 	}()
 
-	// Get the MSI endpoint accoriding with the OS (Linux/Windows)
 	msiEndpoint, err := adal.GetMSIVMEndpoint()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get the MSI endpoint. Error: %v", err)
@@ -91,10 +103,16 @@ func GetServicePrincipalToken(adEndpointFromSpec, tenantID, clientID, secret, re
 
 	defer func() {
 		if err != nil {
-			reporter.ReportIMDSOperationError(metrics.AdalTokenOperationName)
+			err = reporter.ReportIMDSOperationError(metrics.AdalTokenOperationName)
+			if err != nil {
+				klog.Warningf("Metrics reporter error: %+v", err)
+			}
 			return
 		}
-		reporter.ReportIMDSOperationDuration(metrics.AdalTokenOperationName, time.Since(begin))
+		err = reporter.ReportIMDSOperationDuration(metrics.AdalTokenOperationName, time.Since(begin))
+		if err != nil {
+			klog.Warningf("Metrics reporter error: %+v", err)
+		}
 	}()
 
 	activeDirectoryEndpoint := defaultActiveDirectoryEndpoint

@@ -9,12 +9,10 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
-
-	"k8s.io/klog"
-
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/spf13/pflag"
+	"k8s.io/klog"
 )
 
 var (

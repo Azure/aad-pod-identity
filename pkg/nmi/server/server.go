@@ -23,6 +23,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/nmi"
 	"github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
+
 	"github.com/Azure/go-autorest/autorest/adal"
 	"k8s.io/klog"
 )
@@ -192,12 +193,15 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	_, resource := parseRequestClientIDAndResource(r)
 
 	if appHandlerReporter != nil {
-		appHandlerReporter.ReportOperationAndStatus(
+		err := appHandlerReporter.ReportOperationAndStatus(
 			r.URL.Path,
 			strconv.Itoa(rw.statusCode),
 			ns,
 			resource,
 			metrics.NMIOperationsDurationM.M(metrics.SinceInSeconds(start)))
+		if err != nil {
+			klog.Warningf("Metrics reporter error: %+v", err)
+		}
 	}
 }
 
@@ -226,7 +230,7 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
 		klog.Error(err)
-		http.Error(w, err.Error(), getErrorResponseStatusCode(podID != nil))
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	token, err := s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, *podID)
@@ -245,7 +249,7 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write(response)
+	_, _ = w.Write(response)
 	return
 }
 
@@ -357,14 +361,14 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 			http.Error(w, err.Error(), errorCode)
 			return
 		}
-		w.Write(response)
+		_, _ = w.Write(response)
 		return
 	}
 
 	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
 	if err != nil {
 		klog.Errorf("failed to get matching identities for pod: %s/%s, error: %+v", podns, podname, err)
-		http.Error(w, err.Error(), getErrorResponseStatusCode(podID != nil))
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -380,7 +384,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.Write(response)
+	_, _ = w.Write(response)
 	return
 }
 
@@ -402,7 +406,6 @@ func metadataNotSpecifiedError(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusBadRequest)
 	fmt.Fprintln(w, string(response))
-	return
 }
 
 func parseMetadata(r *http.Request) (metadata string) {
@@ -475,7 +478,7 @@ func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) (ns 
 		klog.Errorf("failed io operation of reading response body for %s, %+v", req.URL.String(), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	w.Write(body)
+	_, _ = w.Write(body)
 	return
 }
 
@@ -510,26 +513,10 @@ func handleTermination() {
 	os.Exit(exitCode)
 }
 
-func getErrorResponseStatusCode(identityFound bool) int {
-	// if at least an identity was found in created state then we return 404 which is a retriable error code
-	// in the go-autorest library. If the identity is in CREATED state then the identity is being processed in
-	// this sync cycle and should move to ASSIGNED state soon.
-	if identityFound {
-		return http.StatusNotFound
-	}
-	// if no identity in at least CREATED state was found, then it means the identity creation is not part of the
-	// current ongoing sync cycle. So we return 403 which a non-retriable error code so we give mic enough time to
-	// finish current sync cycle and process identity in the next sync cycle.
-	return http.StatusForbidden
-}
-
 func validateResourceParamExists(resource string) bool {
 	// check if resource exists in the request
 	// if resource doesn't exist in the request, then adal libraries will return the same error
 	// IMDS also returns an error with 400 response code if resource parameter is empty
 	// this is done to emulate same behavior observed while requesting token from IMDS
-	if len(resource) == 0 {
-		return false
-	}
-	return true
+	return len(resource) != 0
 }

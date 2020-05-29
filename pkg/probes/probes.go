@@ -14,9 +14,9 @@ func InitHealthProbe(condition *bool) {
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		if *condition {
-			w.Write([]byte("Active"))
+			_, _ = w.Write([]byte("Active"))
 		} else {
-			w.Write([]byte("Not Active"))
+			_, _ = w.Write([]byte("Not Active"))
 		}
 	})
 }

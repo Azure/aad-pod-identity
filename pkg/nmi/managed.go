@@ -9,6 +9,7 @@ import (
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	utils "github.com/Azure/aad-pod-identity/pkg/utils"
+
 	"github.com/Azure/go-autorest/autorest/adal"
 	"k8s.io/klog"
 )
@@ -41,6 +42,10 @@ func (mc *ManagedClient) GetIdentities(ctx context.Context, podns, podname, clie
 	}
 	// get all the azure identities based on azure identity bindings
 	azureIdentities, err := mc.KubeClient.ListPodIdsWithBinding(podns, pod.Labels)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get azure identities %s/%s, err: %+v", podns, podname, err)
+	}
+
 	for _, id := range azureIdentities {
 		// if client id exists in the request, then send the first identity that matched the client id
 		if len(clientID) != 0 && id.Spec.ClientID == clientID {
