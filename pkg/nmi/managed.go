@@ -95,7 +95,7 @@ func (mc *ManagedClient) GetToken(ctx context.Context, rqClientID, rqResource st
 		tenantID := azureID.Spec.TenantID
 		adEndpoint := azureID.Spec.ADEndpoint
 		klog.Infof("matched identityType:%v adendpoint:%s tenantid:%s clientid:%s resource:%s",
-			adEndpoint, idType, tenantID, utils.RedactClientID(clientID), rqResource)
+			idType, adEndpoint, tenantID, utils.RedactClientID(clientID), rqResource)
 		secret, err := mc.KubeClient.GetSecret(&azureID.Spec.ClientPassword)
 		if err != nil {
 			return nil, err

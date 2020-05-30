@@ -136,7 +136,7 @@ func GetServicePrincipalToken(adEndpointFromSpec, tenantID, clientID, secret, re
 	return &token, nil
 }
 
-// GetServicePrincipalTokenWithCertificate return the token for the assigned user with the certificate
+// GetServicePrincipalTokenWithCertificate return the token for the assigned user with certificate
 func GetServicePrincipalTokenWithCertificate(adEndpointFromSpec, tenantID, clientID string, certificate []byte, password, resource string) (*adal.Token, error) {
 	begin := time.Now()
 	var err error
