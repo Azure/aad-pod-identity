@@ -7,6 +7,7 @@ import (
 
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/version"
+
 	"github.com/Azure/go-autorest/autorest/adal"
 
 	"golang.org/x/crypto/pkcs12"
