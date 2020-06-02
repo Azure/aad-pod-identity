@@ -7,9 +7,9 @@ import (
 
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/version"
-	"golang.org/x/crypto/pkcs12"
-
 	"github.com/Azure/go-autorest/autorest/adal"
+
+	"golang.org/x/crypto/pkcs12"
 	"k8s.io/klog"
 )
 
@@ -143,10 +143,17 @@ func GetServicePrincipalTokenWithCertificate(adEndpointFromSpec, tenantID, clien
 
 	defer func() {
 		if err != nil {
-			reporter.ReportIMDSOperationError(metrics.AdalTokenOperationName)
+			err = reporter.ReportIMDSOperationError(metrics.AdalTokenOperationName)
+			if err != nil {
+				klog.Warningf("Metrics reporter error: %+v", err)
+			}
+
 			return
 		}
-		reporter.ReportIMDSOperationDuration(metrics.AdalTokenOperationName, time.Since(begin))
+		err = reporter.ReportIMDSOperationDuration(metrics.AdalTokenOperationName, time.Since(begin))
+		if err != nil {
+			klog.Warningf("Metrics reporter error: %+v", err)
+		}
 	}()
 
 	activeDirectoryEndpoint := defaultActiveDirectoryEndpoint

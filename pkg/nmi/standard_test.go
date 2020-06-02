@@ -83,7 +83,10 @@ func TestGetTokenForMatchingIDBySPCertificate(t *testing.T) {
 	val, _ := base64.StdEncoding.DecodeString("YWJjZA==")
 	secret.Data["Certificate"] = val
 	secret.Data["Password"] = val
-	fakeClient.CoreV1().Secrets("default").Create(secret)
+	_, err = fakeClient.CoreV1().Secrets("default").Create(secret)
+	if err != nil {
+		t.Fatalf("Error creating secret: %v", err)
+	}
 
 	kubeClient := &k8s.KubeClient{ClientSet: fakeClient}
 	tokenClient, err := NewStandardTokenClient(kubeClient, Config{})
@@ -104,7 +107,7 @@ func TestGetTokenForMatchingIDBySPCertificate(t *testing.T) {
 			ClientPassword: secretRef,
 		},
 	}
-	tokenClient.GetToken(context.Background(), podID.Spec.ClientID, "https://management.azure.com/", podID)
+	_, _ = tokenClient.GetToken(context.Background(), podID.Spec.ClientID, "https://management.azure.com/", podID)
 }
 
 func TestGetIdentitiesStandardClient(t *testing.T) {
