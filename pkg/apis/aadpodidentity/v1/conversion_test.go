@@ -283,9 +283,13 @@ func TestConvertV1IdentityWithSecretClientIdToInternalIdentityIfNoSecretFound(t 
 	client := fake.NewSimpleClientset()
 	_, err := ConvertV1IdentityToInternalIdentity(idV1, client)
 
-	errorMessage := "Unable to retrieve a secret named test in namespace test. get failed for Secret with error: secrets \"test\" not found"
+	if err == nil {
+		t.Errorf("Error was not returned.")
+	}
+
+	errorMessage := "Unable to retrieve a secret named test in namespace test. secrets \"test\" not found"
 	if !cmp.Equal(errorMessage, err.Error()) {
-		t.Errorf("Error message was not returned")
+		t.Errorf("Error message did not match expected. Expected: %s. Actual: %s", errorMessage, err.Error())
 	}
 }
 
@@ -295,9 +299,13 @@ func TestConvertV1IdentityWithSecretResourceIdToInternalIdentityIfNoSecretFound(
 	client := fake.NewSimpleClientset()
 	_, err := ConvertV1IdentityToInternalIdentity(idV1, client)
 
-	errorMessage := "Unable to retrieve a secret named test in namespace test. get failed for Secret with error: secrets \"test\" not found"
+	if err == nil {
+		t.Errorf("Error was not returned.")
+	}
+
+	errorMessage := "Unable to retrieve a secret named test in namespace test. secrets \"test\" not found"
 	if !cmp.Equal(errorMessage, err.Error()) {
-		t.Errorf("Error message was not returned")
+		t.Errorf("Error message did not match expected. Expected: %s. Actual: %s", errorMessage, err.Error())
 	}
 }
 
@@ -349,7 +357,7 @@ func TestConvertV1AssignedIdentityToInternalAssignedIdentity(t *testing.T) {
 
 	convertedAssignedIDInternal, err = ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIDV1, nil)
 
-	if err != nil{
+	if err != nil {
 		t.Errorf("Failed to convert from v1 to internal AzureAssignedIdentity")
 	}
 
