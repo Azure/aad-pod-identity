@@ -347,7 +347,12 @@ func TestConvertV1AssignedIdentityToInternalAssignedIdentity(t *testing.T) {
 	assignedIDV1.Spec.AzureIdentityRef = nil
 	assignedIDV1.Spec.AzureBindingRef = nil
 
-	convertedAssignedIDInternal, _ = ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIDV1, nil)
+	convertedAssignedIDInternal, err = ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIDV1, nil)
+
+	if err != nil{
+		t.Errorf("Failed to convert from v1 to internal AzureAssignedIdentity")
+	}
+
 	assignedIDInternal = CreateInternalAssignedIdentity()
 	assignedIDInternal.Spec.AzureIdentityRef = &aadpodid.AzureIdentity{}
 	assignedIDInternal.Spec.AzureBindingRef = &aadpodid.AzureIdentityBinding{}
