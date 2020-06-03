@@ -277,6 +277,30 @@ func TestConvertV1IdentityWithSecretClientIdToInternalIdentity(t *testing.T) {
 	}
 }
 
+func TestConvertV1IdentityWithSecretClientIdToInternalIdentityIfNoSecretFound(t *testing.T) {
+	idV1 := CreateV1IdentityWithClientIdSecretRef()
+
+	client := fake.NewSimpleClientset()
+	_, err := ConvertV1IdentityToInternalIdentity(idV1, client)
+
+	errorMessage := "Unable to retrieve a secret named test in namespace test. get failed for Secret with error: secrets \"test\" not found"
+	if !cmp.Equal(errorMessage, err.Error()) {
+		t.Errorf("Error message was not returned")
+	}
+}
+
+func TestConvertV1IdentityWithSecretResourceIdToInternalIdentityIfNoSecretFound(t *testing.T) {
+	idV1 := CreateV1IdentityWithResourceIdSecretRef()
+
+	client := fake.NewSimpleClientset()
+	_, err := ConvertV1IdentityToInternalIdentity(idV1, client)
+
+	errorMessage := "Unable to retrieve a secret named test in namespace test. get failed for Secret with error: secrets \"test\" not found"
+	if !cmp.Equal(errorMessage, err.Error()) {
+		t.Errorf("Error message was not returned")
+	}
+}
+
 func TestConvertV1IdentityWithSecretResourceIdToInternalIdentity(t *testing.T) {
 	idV1 := CreateV1IdentityWithResourceIdSecretRef()
 

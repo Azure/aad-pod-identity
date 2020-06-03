@@ -34,7 +34,7 @@ func ConvertV1IdentityToInternalIdentity(identity AzureIdentity, c kubernetes.In
 		clientIDSecret, err := getSecret(c, identity.Spec.ClientIDSecretRef.Namespace, identity.Spec.ClientIDSecretRef.Name)
 
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Unable to retrieve a secret named %s in namespace %s. %s", identity.Spec.ClientIDSecretRef.Name, identity.Spec.ClientIDSecretRef.Namespace, err.Error())
 		}
 
 		for _, v := range clientIDSecret.Data {
@@ -49,7 +49,7 @@ func ConvertV1IdentityToInternalIdentity(identity AzureIdentity, c kubernetes.In
 		resourceIDSecret, err := getSecret(c, identity.Spec.ResourceIDSecretRef.Namespace, identity.Spec.ResourceIDSecretRef.Name)
 
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("Unable to retrieve a secret named %s in namespace %s. %s", identity.Spec.ResourceIDSecretRef.Name, identity.Spec.ResourceIDSecretRef.Namespace, err.Error())
 		}
 
 		for _, v := range resourceIDSecret.Data {
