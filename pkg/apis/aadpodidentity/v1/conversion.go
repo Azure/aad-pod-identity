@@ -1,11 +1,16 @@
 package v1
 
 import (
+	"fmt"
 	"reflect"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 func ConvertV1BindingToInternalBinding(identityBinding AzureIdentityBinding) (resIdentityBinding aadpodid.AzureIdentityBinding) {
@@ -22,15 +27,45 @@ func ConvertV1BindingToInternalBinding(identityBinding AzureIdentityBinding) (re
 	}
 }
 
-func ConvertV1IdentityToInternalIdentity(identity AzureIdentity) (resIdentity aadpodid.AzureIdentity) {
-	return aadpodid.AzureIdentity{
+func ConvertV1IdentityToInternalIdentity(identity AzureIdentity, c kubernetes.Interface) (resIdentity *aadpodid.AzureIdentity, err error) {
+	clientID := identity.Spec.ClientID
+
+	if identity.Spec.ClientIDSecretRef != nil {
+		clientIDSecret, err := getSecret(c, identity.Spec.ClientIDSecretRef.Namespace, identity.Spec.ClientIDSecretRef.Name)
+
+		if err != nil {
+			return nil, err
+		}
+
+		for _, v := range clientIDSecret.Data {
+			clientID = string(v)
+			break
+		}
+	}
+
+	resourceID := identity.Spec.ResourceID
+
+	if identity.Spec.ResourceIDSecretRef != nil {
+		resourceIDSecret, err := getSecret(c, identity.Spec.ResourceIDSecretRef.Namespace, identity.Spec.ResourceIDSecretRef.Name)
+
+		if err != nil {
+			return nil, err
+		}
+
+		for _, v := range resourceIDSecret.Data {
+			resourceID = string(v)
+			break
+		}
+	}
+
+	return &aadpodid.AzureIdentity{
 		TypeMeta:   identity.TypeMeta,
 		ObjectMeta: identity.ObjectMeta,
 		Spec: aadpodid.AzureIdentitySpec{
 			ObjectMeta:     identity.Spec.ObjectMeta,
 			Type:           aadpodid.IdentityType(identity.Spec.Type),
-			ResourceID:     identity.Spec.ResourceID,
-			ClientID:       identity.Spec.ClientID,
+			ResourceID:     resourceID,
+			ClientID:       clientID,
 			ClientPassword: identity.Spec.ClientPassword,
 			TenantID:       identity.Spec.TenantID,
 			ADResourceID:   identity.Spec.ADResourceID,
@@ -38,20 +73,26 @@ func ConvertV1IdentityToInternalIdentity(identity AzureIdentity) (resIdentity aa
 			Replicas:       identity.Spec.Replicas,
 		},
 		Status: aadpodid.AzureIdentityStatus(identity.Status),
-	}
+	}, nil
 }
 
-func ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIdentity AzureAssignedIdentity) (resAssignedIdentity aadpodid.AzureAssignedIdentity) {
+func ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIdentity AzureAssignedIdentity, c kubernetes.Interface) (resAssignedIdentity *aadpodid.AzureAssignedIdentity, err error) {
 	var retIdentity aadpodid.AzureIdentity
 	var retBinding aadpodid.AzureIdentityBinding
 	if assignedIdentity.Spec.AzureIdentityRef != nil {
-		retIdentity = ConvertV1IdentityToInternalIdentity(*assignedIdentity.Spec.AzureIdentityRef)
+		tempIdentity, err := ConvertV1IdentityToInternalIdentity(*assignedIdentity.Spec.AzureIdentityRef, c)
+
+		if err != nil {
+			return nil, err
+		}
+
+		retIdentity = *tempIdentity
 	}
 	if assignedIdentity.Spec.AzureBindingRef != nil {
 		retBinding = ConvertV1BindingToInternalBinding(*assignedIdentity.Spec.AzureBindingRef)
 	}
 
-	return aadpodid.AzureAssignedIdentity{
+	return &aadpodid.AzureAssignedIdentity{
 		TypeMeta:   assignedIdentity.TypeMeta,
 		ObjectMeta: assignedIdentity.ObjectMeta,
 		Spec: aadpodid.AzureAssignedIdentitySpec{
@@ -64,7 +105,7 @@ func ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIdentity AzureA
 			Replicas:         assignedIdentity.Spec.Replicas,
 		},
 		Status: aadpodid.AzureAssignedIdentityStatus(assignedIdentity.Status),
-	}
+	}, nil
 }
 
 func ConvertV1PodIdentityExceptionToInternalPodIdentityException(idException AzurePodIdentityException) (residException aadpodid.AzurePodIdentityException) {
@@ -151,6 +192,17 @@ func ConvertInternalAssignedIdentityToV1AssignedIdentity(assignedIdentity aadpod
 		Kind:    reflect.TypeOf(out).Name()})
 
 	return out
+}
+
+func getSecret(c kubernetes.Interface, namespace string, secretName string) (*corev1.Secret, error) {
+
+	secret, err := c.CoreV1().Secrets(namespace).Get(secretName, v1.GetOptions{})
+
+	if err != nil {
+		return nil, fmt.Errorf("get failed for Secret with error: %v", err)
+	}
+
+	return secret, err
 }
 
 // ConvertInternalPodIdentityExceptionToV1PodIdentityException is currently not needed, as AzurePodIdentityException are only listed and not created within the project

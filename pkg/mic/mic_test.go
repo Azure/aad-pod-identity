@@ -530,8 +530,13 @@ func (c *TestCrdClient) ListIds() (res *[]internalaadpodid.AzureIdentity, err er
 	idList := make([]internalaadpodid.AzureIdentity, 0)
 	c.mu.Lock()
 	for _, v := range c.idMap {
-		currID := aadpodid.ConvertV1IdentityToInternalIdentity(*v)
-		idList = append(idList, currID)
+		currID, err := aadpodid.ConvertV1IdentityToInternalIdentity(*v, nil)
+
+		if err != nil {
+			return nil, err
+		}
+
+		idList = append(idList, *currID)
 	}
 	c.mu.Unlock()
 	return &idList, nil

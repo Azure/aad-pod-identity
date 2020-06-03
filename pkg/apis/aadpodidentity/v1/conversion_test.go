@@ -1,12 +1,16 @@
 package v1
 
 import (
+	b64 "encoding/base64"
 	"testing"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 
 	"github.com/google/go-cmp/cmp"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 var objectMetaName string = "objectMetaName"
@@ -53,6 +57,54 @@ func CreateV1Identity() (retV1Identity AzureIdentity) {
 			Type:       idTypeV1,
 			ResourceID: rID,
 			Replicas:   &replicas,
+		},
+		Status: AzureIdentityStatus{
+			AvailableReplicas: replicas,
+		},
+	}
+}
+
+func CreateV1IdentityWithClientIdSecretRef() (retV1Identity AzureIdentity) {
+	return AzureIdentity{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: objectMetaName,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AzureIdentity",
+			APIVersion: "aadpodidentity.k8s.io/v1",
+		},
+		Spec: AzureIdentitySpec{
+			Type:       idTypeV1,
+			ResourceID: rID,
+			Replicas:   &replicas,
+			ClientIDSecretRef: &v1.SecretReference{
+				Name:      "test",
+				Namespace: "test",
+			},
+		},
+		Status: AzureIdentityStatus{
+			AvailableReplicas: replicas,
+		},
+	}
+}
+
+func CreateV1IdentityWithResourceIdSecretRef() (retV1Identity AzureIdentity) {
+	return AzureIdentity{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: objectMetaName,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "AzureIdentity",
+			APIVersion: "aadpodidentity.k8s.io/v1",
+		},
+		Spec: AzureIdentitySpec{
+			Type:       idTypeV1,
+			ResourceID: rID,
+			Replicas:   &replicas,
+			ResourceIDSecretRef: &v1.SecretReference{
+				Name:      "test",
+				Namespace: "test",
+			},
 		},
 		Status: AzureIdentityStatus{
 			AvailableReplicas: replicas,
@@ -184,18 +236,83 @@ func TestConvertV1BindingToInternalBinding(t *testing.T) {
 
 func TestConvertV1IdentityToInternalIdentity(t *testing.T) {
 	idV1 := CreateV1Identity()
-	convertedIDInternal := ConvertV1IdentityToInternalIdentity(idV1)
+	convertedIDInternal, err := ConvertV1IdentityToInternalIdentity(idV1, nil)
+
+	if err != nil {
+		t.Error(err)
+		t.Errorf("Failed to convert from v1 to internal AzureAssignedIdentity. %s", err)
+	}
+
 	idInternal := CreateInternalIdentity()
 
 	if !cmp.Equal(idInternal, convertedIDInternal) {
-		t.Errorf("Failed to convert from v1 to internal AzureIdentity")
+		t.Errorf("Failed to convert from v1 to internal AzureIdentity %s %s", idInternal.Name, convertedIDInternal.Name)
+	}
+}
+
+func TestConvertV1IdentityWithSecretClientIdToInternalIdentity(t *testing.T) {
+	idV1 := CreateV1IdentityWithClientIdSecretRef()
+
+	secretClientId := "mysecretclientid"
+	encodedSecretClientId := []byte(b64.StdEncoding.EncodeToString([]byte(secretClientId)))
+
+	client := fake.NewSimpleClientset(&v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "test",
+		},
+		Data: map[string][]byte{
+			"data": encodedSecretClientId,
+		},
+	})
+	convertedIDInternal, err := ConvertV1IdentityToInternalIdentity(idV1, client)
+
+	if err != nil {
+		t.Error(err)
+		t.Errorf("Failed to convert from v1 to internal AzureAssignedIdentity")
+	}
+
+	if !cmp.Equal(string(encodedSecretClientId), convertedIDInternal.Spec.ClientID) {
+		t.Errorf("Failed to convert from v1 to internal AzureIdentity %s %s", encodedSecretClientId, convertedIDInternal.Spec.ClientID)
+	}
+}
+
+func TestConvertV1IdentityWithSecretResourceIdToInternalIdentity(t *testing.T) {
+	idV1 := CreateV1IdentityWithResourceIdSecretRef()
+
+	secretClientId := "mysecretclientid"
+	encodedSecretClientId := []byte(b64.StdEncoding.EncodeToString([]byte(secretClientId)))
+
+	client := fake.NewSimpleClientset(&v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "test",
+		},
+		Data: map[string][]byte{
+			"data": encodedSecretClientId,
+		},
+	})
+	convertedIDInternal, err := ConvertV1IdentityToInternalIdentity(idV1, client)
+
+	if err != nil {
+		t.Error(err)
+		t.Errorf("Failed to convert from v1 to internal AzureAssignedIdentity")
+	}
+
+	if !cmp.Equal(string(encodedSecretClientId), convertedIDInternal.Spec.ResourceID) {
+		t.Errorf("Failed to convert from v1 to internal AzureIdentity %s %s", encodedSecretClientId, convertedIDInternal.Spec.ResourceID)
 	}
 }
 
 func TestConvertV1AssignedIdentityToInternalAssignedIdentity(t *testing.T) {
 	assignedIDV1 := CreateV1AssignedIdentity()
 
-	convertedAssignedIDInternal := ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIDV1)
+	convertedAssignedIDInternal, err := ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIDV1, nil)
+
+	if err != nil {
+		t.Errorf("Failed to convert from v1 to internal AzureAssignedIdentity")
+	}
+
 	assignedIDInternal := CreateInternalAssignedIdentity()
 
 	if !cmp.Equal(assignedIDInternal, convertedAssignedIDInternal) {
@@ -206,7 +323,7 @@ func TestConvertV1AssignedIdentityToInternalAssignedIdentity(t *testing.T) {
 	assignedIDV1.Spec.AzureIdentityRef = nil
 	assignedIDV1.Spec.AzureBindingRef = nil
 
-	convertedAssignedIDInternal = ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIDV1)
+	convertedAssignedIDInternal, _ = ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIDV1, nil)
 	assignedIDInternal = CreateInternalAssignedIdentity()
 	assignedIDInternal.Spec.AzureIdentityRef = &aadpodid.AzureIdentity{}
 	assignedIDInternal.Spec.AzureBindingRef = &aadpodid.AzureIdentityBinding{}

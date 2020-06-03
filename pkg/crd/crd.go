@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/informers/internalinterfaces"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
@@ -33,6 +34,7 @@ const (
 // Client represents all the watchers
 type Client struct {
 	rest                         *rest.RESTClient
+	kubernetes                   kubernetes.Interface
 	BindingInformer              cache.SharedInformer
 	IDInformer                   cache.SharedInformer
 	AssignedIDInformer           cache.SharedInformer
@@ -104,12 +106,15 @@ func NewCRDClientLite(config *rest.Config, nodeName string, scale, isStandardMod
 		return nil, err
 	}
 
+	kubeClient := kubernetes.NewForConfigOrDie(config)
+
 	return &Client{
 		AssignedIDInformer:           assignedIDListInformer,
 		PodIdentityExceptionInformer: podIdentityExceptionInformer,
 		BindingInformer:              bindingListInformer,
 		IDInformer:                   idListInformer,
 		rest:                         restClient,
+		kubernetes:                   kubeClient,
 		reporter:                     reporter,
 	}, nil
 }
@@ -149,8 +154,11 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 		return nil, err
 	}
 
+	kubeClient := kubernetes.NewForConfigOrDie(config)
+
 	return &Client{
 		rest:               restClient,
+		kubernetes:         kubeClient,
 		BindingInformer:    bindingInformer,
 		IDInformer:         idInformer,
 		AssignedIDInformer: assignedIDListInformer,
@@ -624,8 +632,13 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 			Group:   aadpodv1.CRDGroup,
 			Version: aadpodv1.CRDVersion,
 			Kind:    reflect.TypeOf(*o).String()})
-		out := aadpodv1.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o)
-		resList = append(resList, out)
+		out, err := aadpodv1.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o, c.kubernetes)
+
+		if err != nil {
+			return nil, err
+		}
+
+		resList = append(resList, *out)
 		klog.V(6).Infof("Appending Assigned ID: %s/%s to list.", o.Namespace, o.Name)
 	}
 
@@ -655,9 +668,14 @@ func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdenti
 			Version: aadpodv1.CRDVersion,
 			Kind:    reflect.TypeOf(*o).String()})
 
-		out := aadpodv1.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o)
+		out, err := aadpodv1.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o, c.kubernetes)
+
+		if err != nil {
+			return nil, err
+		}
+
 		// assigned identities names are unique across namespaces as we use pod name-<id ns>-<id name>
-		result[o.Name] = out
+		result[o.Name] = *out
 		klog.V(6).Infof("Added to map with key: %s", o.Name)
 	}
 
@@ -686,9 +704,13 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 			Version: aadpodv1.CRDVersion,
 			Kind:    reflect.TypeOf(*o).String()})
 
-		out := aadpodv1.ConvertV1IdentityToInternalIdentity(*o)
+		out, err := aadpodv1.ConvertV1IdentityToInternalIdentity(*o, c.kubernetes)
 
-		resList = append(resList, out)
+		if err != nil {
+			return nil, err
+		}
+
+		resList = append(resList, *out)
 		klog.V(6).Infof("Appending Identity: %s/%s to list.", o.Namespace, o.Name)
 	}
 

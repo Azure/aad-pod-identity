@@ -119,6 +119,12 @@ type AzureIdentitySpec struct {
 	//Both User Assigned MSI and SP can use this field.
 	ClientID string `json:"clientID"`
 
+	// Secret Reference for a User Assigned MSI resource id.
+	ResourceIDSecretRef *api.SecretReference `json:"resourceidSecretRef,omitempty"`
+
+	// Secret Reference for a Client ID
+	ClientIDSecretRef *api.SecretReference `json:"clientidSecretRef,omitempty"`
+
 	//Used for service principal
 	ClientPassword api.SecretReference `json:"clientPassword"`
 	// Service principal tenant id.
