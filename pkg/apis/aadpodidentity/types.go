@@ -120,8 +120,9 @@ type AzurePodIdentityExceptionList struct {
 type IdentityType int
 
 const (
-	UserAssignedMSI  IdentityType = 0
-	ServicePrincipal IdentityType = 1
+	UserAssignedMSI             IdentityType = 0
+	ServicePrincipal            IdentityType = 1
+	ServicePrincipalCertificate IdentityType = 2
 )
 
 type AzureIdentitySpec struct {

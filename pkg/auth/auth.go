@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"crypto/rsa"
 	"fmt"
 	"time"
 
@@ -8,11 +9,13 @@ import (
 	"github.com/Azure/aad-pod-identity/version"
 
 	"github.com/Azure/go-autorest/autorest/adal"
+
+	"golang.org/x/crypto/pkcs12"
 	"k8s.io/klog"
 )
 
 const (
-	activeDirectoryEndpoint = "https://login.microsoftonline.com/"
+	defaultActiveDirectoryEndpoint = "https://login.microsoftonline.com/"
 )
 
 var reporter *metrics.Reporter
@@ -94,8 +97,8 @@ func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string
 	return &token, nil
 }
 
-// GetServicePrincipalToken return the token for the assigned user
-func GetServicePrincipalToken(tenantID, clientID, secret, resource string) (*adal.Token, error) {
+// GetServicePrincipalToken return the token for the assigned user with client secret
+func GetServicePrincipalToken(adEndpointFromSpec, tenantID, clientID, secret, resource string) (*adal.Token, error) {
 	begin := time.Now()
 	var err error
 
@@ -113,11 +116,61 @@ func GetServicePrincipalToken(tenantID, clientID, secret, resource string) (*ada
 		}
 	}()
 
+	activeDirectoryEndpoint := defaultActiveDirectoryEndpoint
+	if adEndpointFromSpec != "" {
+		activeDirectoryEndpoint = adEndpointFromSpec
+	}
 	oauthConfig, err := adal.NewOAuthConfig(activeDirectoryEndpoint, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("creating the OAuth config: %v", err)
+		return nil, fmt.Errorf("Failed to create OAuth config. Error: %v", err)
 	}
 	spt, err := adal.NewServicePrincipalToken(*oauthConfig, clientID, secret, resource)
+	if err != nil {
+		return nil, err
+	}
+	// obtain a fresh token
+	err = spt.Refresh()
+	if err != nil {
+		return nil, err
+	}
+	token := spt.Token()
+	return &token, nil
+}
+
+// GetServicePrincipalTokenWithCertificate return the token for the assigned user with certificate
+func GetServicePrincipalTokenWithCertificate(adEndpointFromSpec, tenantID, clientID string, certificate []byte, password, resource string) (*adal.Token, error) {
+	begin := time.Now()
+	var err error
+
+	defer func() {
+		if err != nil {
+			err = reporter.ReportIMDSOperationError(metrics.AdalTokenOperationName)
+			if err != nil {
+				klog.Warningf("Metrics reporter error: %+v", err)
+			}
+			return
+		}
+		err = reporter.ReportIMDSOperationDuration(metrics.AdalTokenOperationName, time.Since(begin))
+		if err != nil {
+			klog.Warningf("Metrics reporter error: %+v", err)
+		}
+	}()
+
+	activeDirectoryEndpoint := defaultActiveDirectoryEndpoint
+	if adEndpointFromSpec != "" {
+		activeDirectoryEndpoint = adEndpointFromSpec
+	}
+	oauthConfig, err := adal.NewOAuthConfig(activeDirectoryEndpoint, tenantID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create OAuth config. Error: %v", err)
+	}
+
+	privateKey, cert, err := pkcs12.Decode(certificate, password)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to decode certificate. Error: %v", err)
+	}
+
+	spt, err := adal.NewServicePrincipalTokenFromCertificate(*oauthConfig, clientID, cert, privateKey.(*rsa.PrivateKey), resource)
 	if err != nil {
 		return nil, err
 	}

@@ -71,6 +71,45 @@ func TestGetTokenForMatchingIDBySP(t *testing.T) {
 	_, _ = tokenClient.GetToken(context.Background(), podID.Spec.ClientID, "https://management.azure.com/", podID)
 }
 
+func TestGetTokenForMatchingIDBySPCertificate(t *testing.T) {
+	fakeClient := fake.NewSimpleClientset()
+	reporter, err := metrics.NewReporter()
+	if err != nil {
+		t.Fatalf("expected nil error, got: %+v", err)
+	}
+	auth.InitReporter(reporter)
+
+	secret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "certificate"}, Data: make(map[string][]byte)}
+	val, _ := base64.StdEncoding.DecodeString("YWJjZA==")
+	secret.Data["certificate"] = val
+	secret.Data["password"] = val
+	_, err = fakeClient.CoreV1().Secrets("default").Create(secret)
+	if err != nil {
+		t.Fatalf("Error creating secret: %v", err)
+	}
+
+	kubeClient := &k8s.KubeClient{ClientSet: fakeClient}
+	tokenClient, err := NewStandardTokenClient(kubeClient, Config{})
+	if err != nil {
+		t.Fatalf("expected err to be nil, got: %v", err)
+	}
+
+	secretRef := v1.SecretReference{
+		Name:      "certificate",
+		Namespace: "default",
+	}
+
+	podID := aadpodid.AzureIdentity{
+		Spec: aadpodid.AzureIdentitySpec{
+			Type:           aadpodid.ServicePrincipalCertificate,
+			TenantID:       "tid",
+			ClientID:       "aabc0000-a83v-9h4m-000j-2c0a66b0c1f9",
+			ClientPassword: secretRef,
+		},
+	}
+	_, _ = tokenClient.GetToken(context.Background(), podID.Spec.ClientID, "https://management.azure.com/", podID)
+}
+
 func TestGetIdentitiesStandardClient(t *testing.T) {
 	cases := []struct {
 		name                  string

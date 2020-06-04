@@ -12,7 +12,7 @@ func TestGetServicePrincipalToken(t *testing.T) {
 		t.Fatalf("expected nil error, got: %+v", err)
 	}
 	InitReporter(reporter)
-	_, err = GetServicePrincipalToken("tid", "cid", "", "")
+	_, err = GetServicePrincipalToken("adEndpoint", "tid", "cid", "", "")
 	if err == nil {
 		t.Fatal("should be error with empty secret")
 	}
