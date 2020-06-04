@@ -81,8 +81,8 @@ func TestGetTokenForMatchingIDBySPCertificate(t *testing.T) {
 
 	secret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "certificate"}, Data: make(map[string][]byte)}
 	val, _ := base64.StdEncoding.DecodeString("YWJjZA==")
-	secret.Data["Certificate"] = val
-	secret.Data["Password"] = val
+	secret.Data["certificate"] = val
+	secret.Data["password"] = val
 	_, err = fakeClient.CoreV1().Secrets("default").Create(secret)
 	if err != nil {
 		t.Fatalf("Error creating secret: %v", err)
