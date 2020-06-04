@@ -122,7 +122,7 @@ func GetServicePrincipalToken(adEndpointFromSpec, tenantID, clientID, secret, re
 	}
 	oauthConfig, err := adal.NewOAuthConfig(activeDirectoryEndpoint, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("creating the OAuth config: %v", err)
+		return nil, fmt.Errorf("Failed to create OAuth config. Error: %v", err)
 	}
 	spt, err := adal.NewServicePrincipalToken(*oauthConfig, clientID, secret, resource)
 	if err != nil {
@@ -148,7 +148,6 @@ func GetServicePrincipalTokenWithCertificate(adEndpointFromSpec, tenantID, clien
 			if err != nil {
 				klog.Warningf("Metrics reporter error: %+v", err)
 			}
-
 			return
 		}
 		err = reporter.ReportIMDSOperationDuration(metrics.AdalTokenOperationName, time.Since(begin))
@@ -163,12 +162,12 @@ func GetServicePrincipalTokenWithCertificate(adEndpointFromSpec, tenantID, clien
 	}
 	oauthConfig, err := adal.NewOAuthConfig(activeDirectoryEndpoint, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("creating the OAuth config: %v", err)
+		return nil, fmt.Errorf("Failed to create OAuth config. Error: %v", err)
 	}
 
 	privateKey, cert, err := pkcs12.Decode(certificate, password)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to decode certificate. Error: %v", err)
 	}
 
 	spt, err := adal.NewServicePrincipalTokenFromCertificate(*oauthConfig, clientID, cert, privateKey.(*rsa.PrivateKey), resource)

@@ -168,7 +168,8 @@ func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource s
 	case aadpodid.ServicePrincipal:
 		tenantID := azureID.Spec.TenantID
 		adEndpoint := azureID.Spec.ADEndpoint
-		klog.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantID, utils.RedactClientID(clientID), rqResource)
+		klog.Infof("matched identityType:%v adendpoint:%s tenantid:%s clientid:%s resource:%s",
+			idType, adEndpoint, tenantID, utils.RedactClientID(clientID), rqResource)
 		secret, err := sc.KubeClient.GetSecret(&azureID.Spec.ClientPassword)
 		if err != nil {
 			return nil, err
@@ -183,7 +184,8 @@ func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource s
 	case aadpodid.ServicePrincipalCertificate:
 		tenantID := azureID.Spec.TenantID
 		adEndpoint := azureID.Spec.ADEndpoint
-		klog.Infof("matched identityType:%v tenantid:%s clientid:%s resource:%s", idType, tenantID, utils.RedactClientID(clientID), rqResource)
+		klog.Infof("matched identityType:%v adendpoint:%s tenantid:%s clientid:%s resource:%s",
+			idType, adEndpoint, tenantID, utils.RedactClientID(clientID), rqResource)
 		secret, err := sc.KubeClient.GetSecret(&azureID.Spec.ClientPassword)
 		if err != nil {
 			return nil, err

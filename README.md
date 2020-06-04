@@ -176,7 +176,7 @@ spec:
 EOF
 ```
 
-> Set `type: 0` for user-assigned MSI or `type: 1` for Service Principal.
+> Set `type: 0` for user-assigned MSI, `type: 1` for Service Principal with client secret, or `type: 2` for Service Principal with certificate. For more information, see [here](https://github.com/Azure/aad-pod-identity/tree/master/deploy/demo).
 
 ### 4. (Optional) Match pods in the namespace
 
