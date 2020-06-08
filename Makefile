@@ -167,6 +167,10 @@ push: push-nmi push-mic push-demo push-identity-validator
 e2e:
 	GOOS=$(TEST_GOOS) go test github.com/Azure/$(PROJECT_NAME)/test/e2e $(E2E_TEST_OPTIONS)
 
+.PHONY: e2e-new
+e2e-new:
+	make -C test/e2e_new/ run
+
 .PHONY: unit-test
 unit-test:
 	GOOS=$(TEST_GOOS) go test -race -count=1 $(shell go list ./... | grep -v /test/e2e) -v

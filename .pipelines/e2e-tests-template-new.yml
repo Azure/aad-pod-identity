@@ -8,7 +8,7 @@ jobs:
   - ${{ each k8sRelease in parameters.k8sReleases }}:
     - ${{ each clusterConfig in parameters.clusterConfigs }}:
       - job:
-        displayName: ${{ format('v{0}/{1}', k8sRelease, clusterConfig) }}
+        displayName: ${{ format('v{0}/{1}-new', k8sRelease, clusterConfig) }}
         dependsOn: unit_tests
         timeoutInMinutes: 120
         cancelTimeoutInMinutes: 5
@@ -36,7 +36,7 @@ jobs:
 
           - script: |
               # Generate image version
-              IMAGE_VERSION="$(git describe --tags --always --dirty)-$(CLUSTER_CONFIG)"
+              IMAGE_VERSION="$(git describe --tags --always --dirty)-$(CLUSTER_CONFIG)-new"
               echo "Image version: ${IMAGE_VERSION}"
 
               export MIC_VERSION="${IMAGE_VERSION}"
@@ -100,10 +100,12 @@ jobs:
               export REGISTRY="$(REGISTRY_NAME).azurecr.io/k8s/aad-pod-identity"
               export CLUSTER_RESOURCE_GROUP="${RESOURCE_GROUP}"
               export IDENTITY_RESOURCE_GROUP="pi-vmss-e2e-daily"
-              export E2E_TEST_OPTIONS_EXTRA="-ginkgo.focus='${GINKGO_FOCUS}' -ginkgo.skip='${GINKGO_SKIP}'"
-              make e2e
+              make e2e-new
             env:
               SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
+              AZURE_CLIENT_ID: $(AZURE_CLIENT_ID)
+              AZURE_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
+              AZURE_TENANT_ID: $(AZURE_TENANT_ID)
             displayName: "Run E2E tests"
 
           - script: |
