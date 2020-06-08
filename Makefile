@@ -123,7 +123,7 @@ deepcopy-gen:
 
 .PHONY: image-nmi
 image-nmi:
-	docker build -t "$(REGISTRY)/$(NMI_IMAGE)" --build-arg NMI_VERSION="$(NMI_VERSION)" --target=nmi .
+	docker build -t "$(REGISTRY)/$(NMI_IMAGE)" --build-arg NMI_VERSION="$(NMI_VERSION)" --build-arg BASEIMAGE=us.gcr.io/k8s-artifacts-prod/build-image/debian-iptables-amd64:v12.1.0 --target=nmi .
 
 .PHONY: image-mic
 image-mic:
