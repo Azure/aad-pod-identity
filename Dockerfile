@@ -1,19 +1,17 @@
+ARG BASEIMAGE=us.gcr.io/k8s-artifacts-prod/build-image/debian-base-amd64:v2.1.0
+
 FROM golang:1.14 AS build
 WORKDIR /go/src/github.com/Azure/aad-pod-identity
-COPY go.mod go.sum ./
+ADD . .
 RUN go mod download
-COPY . ./
-ARG NMI_VERSION=0.0.0-dev
-ARG MIC_VERSION=0.0.0-dev
-ARG DEMO_VERSION=0.0.0-dev
-ARG IDENTITY_VALIDATOR_VERSION=0.0.0-dev
+ARG NMI_VERSION
+ARG MIC_VERSION
+ARG DEMO_VERSION
+ARG IDENTITY_VALIDATOR_VERSION
 RUN make build
 
-FROM alpine:3.11 AS base
-RUN apk add --no-cache \
-    ca-certificates \
-    iptables \
-    && update-ca-certificates
+FROM $BASEIMAGE AS base
+RUN clean-install ca-certificates
 
 FROM base AS nmi
 COPY --from=build /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/

@@ -623,6 +623,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		pods, err := pod.GetAllNameByPrefix("mic")
 		Expect(err).NotTo(HaveOccurred())
 		Expect(pods).NotTo(BeNil())
+		time.Sleep(45 * time.Second)
 
 		leader, err := getMICLeader()
 		Expect(err).NotTo(HaveOccurred())
@@ -1194,6 +1195,10 @@ func getMICLeader() (string, error) {
 }
 
 func checkProbe(p string, endpoint string) string {
+	// install wget in the pod as MIC and NMI use debian base image
+	_, err := pod.RunCommandInPod("exec", p, "--", "clean-install", "wget")
+	Expect(err).NotTo(HaveOccurred())
+
 	output, err := pod.RunCommandInPod("exec", p, "--", "wget", "http://127.0.0.1:8080/"+endpoint, "-q", "-O", "-")
 	Expect(err).NotTo(HaveOccurred())
 	fmt.Printf("Output: %s\n", output)
