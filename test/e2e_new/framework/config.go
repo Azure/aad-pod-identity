@@ -1,4 +1,6 @@
-package config
+// +build e2e_new
+
+package framework
 
 import (
 	"strings"
@@ -13,6 +15,8 @@ type Config struct {
 	IdentityResourceGroup    string `envconfig:"IDENTITY_RESOURCE_GROUP"`
 	ClusterResourceGroup     string `envconfig:"CLUSTER_RESOURCE_GROUP"`
 	AzureClientID            string `envconfig:"AZURE_CLIENT_ID"`
+	AzureClientSecret        string `envconfig:"AZURE_CLIENT_SECRET"`
+	AzureTenantID            string `envconfig:"AZURE_TENANT_ID"`
 	KeyvaultName             string `envconfig:"KEYVAULT_NAME"`
 	KeyvaultSecretName       string `envconfig:"KEYVAULT_SECRET_NAME"`
 	KeyvaultSecretVersion    string `envconfig:"KEYVAULT_SECRET_VERSION"`
@@ -26,11 +30,11 @@ type Config struct {
 	NmiMode                  string `envconfig:"NMI_MODE" default:"standard"`
 }
 
-// ParseConfig will parse needed environment variables for running the tests
+// ParseConfig parses the needed environment variables for running the tests
 func ParseConfig() (*Config, error) {
 	c := new(Config)
 	if err := envconfig.Process("config", c); err != nil {
-		return nil, err
+		return c, err
 	}
 
 	if c.IdentityResourceGroup == "" {
