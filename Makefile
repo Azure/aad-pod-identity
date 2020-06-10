@@ -194,6 +194,6 @@ check-mod: mod
 .PHONY: helm-lint
 helm-lint:
 	# Download and install Helm
-	curl https://raw.githubusercontent.com/helm/helm/master/scripts/get | bash
+	curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 	# run lint on helm charts
 	helm lint --strict charts/aad-pod-identity
