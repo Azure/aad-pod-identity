@@ -14,4 +14,4 @@ spec:
   type: 1
   tenantID: TENANT_ID
   clientID: CLIENT_ID
-  clientPassword: {"Name":"demo-aad1-sp","Namespace":"default"}
+  clientPassword: {"name":"demo-aad1-sp","namespace":"default"}
