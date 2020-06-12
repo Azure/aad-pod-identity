@@ -23,6 +23,9 @@ spec:
   - name: v1
     served: true
     storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
   {{- end }}
   names:
     kind: AzureAssignedIdentity
@@ -49,6 +52,9 @@ spec:
   - name: v1
     served: true
     storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
   {{- end }}
   names:
     kind: AzureIdentityBinding
@@ -75,6 +81,9 @@ spec:
   - name: v1
     served: true
     storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
   {{- end }}
   names:
     kind: AzureIdentity
@@ -102,6 +111,9 @@ spec:
   - name: v1
     served: true
     storage: true
+    schema:
+      openAPIV3Schema:
+        type: object
   {{- end }}
   names:
     kind: AzurePodIdentityException
