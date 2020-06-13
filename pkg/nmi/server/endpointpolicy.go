@@ -147,17 +147,18 @@ func callHcnProxyAgent(req msg.HNSRequest) ([]byte, error) {
 		response, err := callHcnProxyAgentInternal(req)
 		if err != nil {
 			if retryCount > maxRetryCount {
-				klog.Info("Calling HNS Agent failed after all retries, giving up")
+				klog.Errorf("Calling HNS Agent failed after all retries, giving up")
 				return nil, err
 			}
 
-			klog.Info("Calling HNS Agent failed, will retry in %s, Error: %w", sleepFactor, err)
+			klog.Infof("Calling HNS Agent failed, will retry in %s, Error: %w", sleepFactor, err)
 			time.Sleep(sleepFactor * time.Second)
 			sleepFactor = sleepFactor * 2
 			retryCount++
 			continue
 		}
 
+		klog.Info("Call to HNS Agent successful")
 		return response, nil
 	}
 }
