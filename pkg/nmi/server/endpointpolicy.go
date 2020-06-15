@@ -147,7 +147,7 @@ func callHcnProxyAgent(req msg.HNSRequest) ([]byte, error) {
 		response, err := callHcnProxyAgentInternal(req)
 		if err != nil {
 			if retryCount > maxRetryCount {
-				klog.Errorf("Calling HNS Agent failed after all retries, giving up")
+				klog.Info("Calling HNS Agent failed after all retries, giving up")
 				return nil, err
 			}
 
