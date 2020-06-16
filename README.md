@@ -132,7 +132,7 @@ kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/mic-exception.yaml
 ```
 
-Deploy `aad-pod-identity` using Helm:
+Deploy `aad-pod-identity` using [Helm 3](https://v3.helm.sh/):
 
 ```bash
 helm repo add aad-pod-identity https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts
