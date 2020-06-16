@@ -144,4 +144,4 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 5
       nodeSelector:
-        beta.kubernetes.io/os: linux
+        kubernetes.io/os: linux
