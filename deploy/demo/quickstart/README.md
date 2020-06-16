@@ -17,27 +17,27 @@ The quickstart demo for AAD Pod Identity is a single script designed to steamlin
 ### 1. Edit the aad-pod-identity-demo-config.json file
 The aad-pod-identity-demo-config.json file is the only file you will have to edit to get AAD Pod Identity quickstart demo deployed. Please open the json file and edit the following properties:
 
-* ASSETSRESOURCEGROUPNAME
-* ACCESSRESOURCEGROUPNAME
-* NOACCESSRESOURCEGROUPNAME
-* LOCATION
-* MSINAME
-* PODIDENTITYLABEL
-* PODIDENTITYJSONFILENAME
-* AZUREIDENTITYBINDINGJSONFILENAME
+* assetsResourceGroupName
+* accessResourceGroupName
+* noAccessResourceGroupName
+* location
+* msiName
+* podIdentityLabel
+* podIdentityJsonFileName
+* azureIdentityBindingJsonFileName
 
 Once you have finished editing the aad-pod-identity-demo-config.json to your specific configuration, it should look similar to the example below.
 
 ```
 {
-    "ASSETSRESOURCEGROUPNAME": "aad-pod-identity-assets",
-    "ACCESSRESOURCEGROUPNAME": "aad-pod-identity-access",
-    "NOACCESSRESOURCEGROUPNAME": "aad-pod-identity-noaccess",
-    "LOCATION": "eastus2",
-    "MSINAME": "pod-identity-acct",
-    "PODIDENTITYLABEL": "use-pod-identity",
-    "PODIDENTITYJSONFILENAME": "aadpodidentity.json",
-    "AZUREIDENTITYBINDINGJSONFILENAME": "azureidentitybindings.json"
+    "assetsResourceGroupName": "aad-pod-identity-assets",
+    "accessResourceGroupName": "aad-pod-identity-access",
+    "noAccessResourceGroupName": "aad-pod-identity-noaccess",
+    "location": "eastus2",
+    "msiName": "pod-identity-acct",
+    "podIdentityLabel": "use-pod-identity",
+    "podIdentityJsonFileName": "aadpodidentity.json",
+    "azureIdentityBindingJsonFileName": "azureidentitybindings.json"
 }
 ```
 
