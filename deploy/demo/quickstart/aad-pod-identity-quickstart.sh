@@ -116,7 +116,9 @@ if [ $1 = "deploy" ]; then
 	echo "Completed creation of ${AZURE_IDENTITY_BINDING_JSON_FILE_NAME}."
 	echo "Applying all necessary Kubernetes (RBAC config) configuration files for Azure AD Pod Identity..."
 	kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
-	sleep 30
+	# sleep 30
+	kubectl wait pod --for=condition=Ready --timeout=30s -l component=mic
+        kubectl wait pod --for=condition=Ready --timeout=30s -l component=nmi
 	kubectl apply -f ./${POD_IDENTITY_JSON_FILE_NAME//\"/}
 	kubectl apply -f ./${AZURE_IDENTITY_BINDING_JSON_FILE_NAME//\"/}
 	echo "Deployment of AAD Pod Identity demo has been completed."
