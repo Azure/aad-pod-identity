@@ -99,7 +99,7 @@ if [ $1 = "deploy" ]; then
 	echo "Assigning MSI ${MSI_NAME} Reader role access to access resource group ${NO_ACCESS_RESOURCE_GROUP_NAME}..."
 	NO_ACCESS_RESOURCE_GROUP_ID=$(az group create -l ${LOCATION//\"/} -n ${NO_ACCESS_RESOURCE_GROUP_NAME//\"/} --query id -o tsv)
 	ASSIGN_READER=$(az role assignment create --assignee-object-id ${MSI_PRINCIPAL_ID//\"/} --scope ${NO_ACCESS_RESOURCE_GROUP_ID//\"/} --role Reader 2>/dev/null)
-	echo "Completed assigning MSI ${MSI_NAME} Contributor role access to access resource group ${ACCESS_RESOURCE_GROUP_NAME}."
+	echo "Completed assigning MSI ${MSI_NAME} Reader role access to access resource group ${ACCESS_RESOURCE_GROUP_NAME}."
 	echo "Creating and updating ${POD_IDENTITY_JSON_FILE_NAME} from template..."
 	jq -r --arg MSI_NAME "$MSI_NAME" '.items[].metadata.name |= $MSI_NAME' ./aadpodidentity-template.json . > ${POD_IDENTITY_JSON_FILE_NAME//\"/}
 	CLIENT_ID=$(jq -r --arg MSI_CLIENT_ID "$MSI_CLIENT_ID" '.items[].spec.ClientID |= $MSI_CLIENT_ID' ${POD_IDENTITY_JSON_FILE_NAME//\"/} . | grep ClientID)
