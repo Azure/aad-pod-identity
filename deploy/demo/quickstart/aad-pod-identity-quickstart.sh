@@ -8,14 +8,14 @@ validate_demo_config_file () {
 		#echo $1
 		echo "The JSON config file has been validated."
 		echo "Retrieving config file data..."
-		ASSETSRESOURCEGROUPNAME=$(jq '.ASSETSRESOURCEGROUPNAME' $1)
-		ACCESSRESOURCEGROUPNAME=$(jq '.ACCESSRESOURCEGROUPNAME' $1)
-		NOACCESSRESOURCEGROUPNAME=$(jq '.NOACCESSRESOURCEGROUPNAME' $1)
-		LOCATION=$(jq '.LOCATION' $1)
-		MSINAME=$(jq '.MSINAME' $1)
-		PODIDENTITYLABEL=$(jq '.PODIDENTITYLABEL' $1)
-		PODIDENTITYJSONFILENAME=$(jq '.PODIDENTITYJSONFILENAME' $1)
-		AZUREIDENTITYBINDINGJSONFILENAME=$(jq '.AZUREIDENTITYBINDINGJSONFILENAME' $1)
+		ASSETS_RESOURCE_GROUP_NAME=$(jq '.assetsResourceGroupName' $1)
+		ACCESS_RESOURCE_GROUP_NAME=$(jq '.accessResourceGroupName' $1)
+		NO_ACCESS_RESOURCE_GROUP_NAME=$(jq '.noAccessResourceGroupName' $1)
+		LOCATION=$(jq '.location' $1)
+		MSI_NAME=$(jq '.msiName' $1)
+		POD_IDENTITY_LABEL=$(jq '.podIdentityLabel' $1)
+		POD_IDENTITY_JSON_FILE_NAME=$(jq '.podIdentityJsonFileName' $1)
+		AZURE_IDENTITY_BINDING_JSON_FILE_NAME=$(jq '.azureIdentityBindingJsonFileName' $1)
 	else
 		echo "The file input of ${1} does not seem to exists. Please verify the file exists."
 		echo "Exiting script"
@@ -27,14 +27,14 @@ validate_demo_config_file () {
 validate_azure_resource_group () {
 	# ${1//\"/} is used to remove quotes from string, which is needed for the az commands
 	echo "Validating the existence of Azure resource group ${1}..."
-	RESOURCEGROUP=$(az group show -n ${1//\"/} --query name -o tsv 2>/dev/null)
-	if [ "$RESOURCEGROUP" == ${1//\"/} ]; then
+	RESOURCE_GROUP=$(az group show -n ${1//\"/} --query name -o tsv 2>/dev/null)
+	if [ "$RESOURCE_GROUP" == ${1//\"/} ]; then
 		echo "Azure resource group ${1} already exists. No action needed."
 	else
 		echo "Azure resource group ${1} does not exist. Creating resource group now..."
 		validate_azure_location $LOCATION
 		# TODO - create resource group
-		CREATEDRESOURCEGROUP=$(az group create -l ${2//\"/} -n ${1//\"/} -o tsv 2>/dev/null)
+		CREATED_RESOURCE_GROUP=$(az group create -l ${2//\"/} -n ${1//\"/} -o tsv 2>/dev/null)
 		# TODO - error handling on RG creation
 	fi
 }
@@ -43,16 +43,16 @@ validate_azure_resource_group () {
 validate_azure_location () {
 	# ${1//\"/} is used to removed quotes from string, which is needed for the az commands
 	echo "Validating the Azure location specified for the resource group creation..."
-	LOCATIONEXISTS="false"
-	AZURELOCATIONS=$(az account list-locations --query "[].name" -o tsv 2>/dev/null)
-	for location in $AZURELOCATIONS; do
+	LOCATION_EXISTS="false"
+	AZURE_LOCATIONS=$(az account list-locations --query "[].name" -o tsv 2>/dev/null)
+	for location in $AZURE_LOCATIONS; do
     	if [ $location == ${1//\"/} ]; then
-        	LOCATIONEXISTS="true"
+        	LOCATION_EXISTS="true"
         	break
     	fi
 	done
 
-	if [ $LOCATIONEXISTS == "true" ]; then
+	if [ $LOCATION_EXISTS == "true" ]; then
 		echo "The Azure location ${1} is a valid Azure location."
 	else
 		echo "The Azure location ${1} is not a valide Azure location."
@@ -67,17 +67,17 @@ validate_azure_location () {
 validate_msi_account () {
 	# ${1//\"/} is used to remove quotes from string, which is needed for the az commands
 	echo "Validating the existence of the Azure Managed Service Identity ${1}..."
-	MSINAMEQUERY=$(az ad sp list --display-name ${1//\"/} -o json | jq -r '.[].displayName')
+	MSI_NAME_QUERY=$(az ad sp list --display-name ${1//\"/} -o json | jq -r '.[].displayName')
 	# echo "MSINAMEQUERY is ${MSINAMEQUERY}"
 	# echo ${1//\"/}
 	# exit
-	if [ $MSINAMEQUERY == ${1//\"/} ]; then
+	if [ $MSI_NAME_QUERY == ${1//\"/} ]; then
 		echo "Azure Managed Service Identity ${1} already exists. Gathering MSI details..."
-		read MSINAME MSICLIENTID MSIRESOURCEID MSIPRINCIPALID < <(echo $(az ad sp list --display-name ${1//\"/} -o json | jq -r '.[].displayName, .[].appId, .[].alternativeNames[1], .[].objectId'))
+		read MSI_NAME MSI_CLIENT_ID MSI_RESOURCE_ID MSI_PRINCIPAL_ID < <(echo $(az ad sp list --display-name ${1//\"/} -o json | jq -r '.[].displayName, .[].appId, .[].alternativeNames[1], .[].objectId'))
 	else
 		echo "Azure Managed Service Identity ${1} does not exist. Creating MSI now..."
-		read MSINAME MSICLIENTID MSIRESOURCEID MSIPRINCIPALID < <(echo $(az identity create -g ${2//\"/} -n ${1//\"/} -o json | jq -r '.name, .clientId, .id, .principalId'))
-		echo "Created MSI account ${MSINAME}, and allowing account to propagate the AAD directory..."
+		read MSI_NAME MSI_CLIENT_ID MSI_RESOURCE_ID MSI_PRINCIPAL_ID < <(echo $(az identity create -g ${2//\"/} -n ${1//\"/} -o json | jq -r '.name, .clientId, .id, .principalId'))
+		echo "Created MSI account ${MSI_NAME}, and allowing account to propagate the AAD directory..."
 		sleep 30
 	fi
 }
@@ -88,37 +88,37 @@ echo "Validating action of the script..."
 if [ $1 = "deploy" ]; then
 	echo "Script is to deploy AAD Pod Idenity demo."
 	validate_demo_config_file "$2"
-	validate_azure_resource_group $ASSETSRESOURCEGROUPNAME $LOCATION # Creating/Validating the Assets Resource Group
-	validate_azure_resource_group $ACCESSRESOURCEGROUPNAME $LOCATION # Creating/Validating the Access Resrouce Group
-	validate_azure_resource_group $NOACCESSRESOURCEGROUPNAME $LOCATION # Creating/Validating the No Access Resource Group
-	validate_msi_account $MSINAME $ASSETSRESOURCEGROUPNAME # Creating/Validating the Managed Service Identity
-	echo "Assigning MSI ${MSINAME} Contributor role access to access resource group ${ACCESSRESOURCEGROUPNAME}..."
-	ACCESSRESOURCEGROUPID=$(az group create -l ${LOCATION//\"/} -n ${ACCESSRESOURCEGROUPNAME//\"/} --query id -o tsv)
-	ASSIGNCONTRIBUTOR=$(az role assignment create --assignee-object-id ${MSIPRINCIPALID//\"/} --scope ${ACCESSRESOURCEGROUPID//\"/} --role Contributor 2>/dev/null)
-	echo "Completed assigning MSI ${MSINAME} Contributor role access to access resource group ${ACCESSRESOURCEGROUPNAME}."
-	echo "Assigning MSI ${MSINAME} Reader role access to access resource group ${NOACCESSRESOURCEGROUPNAME}..."
-	NOACCESSRESOURCEGROUPID=$(az group create -l ${LOCATION//\"/} -n ${NOACCESSRESOURCEGROUPNAME//\"/} --query id -o tsv)
-	ASSIGNREADER=$(az role assignment create --assignee-object-id ${MSIPRINCIPALID//\"/} --scope ${NOACCESSRESOURCEGROUPID//\"/} --role Reader 2>/dev/null)
-	echo "Completed assigning MSI ${MSINAME} Contributor role access to access resource group ${ACCESSRESOURCEGROUPNAME}."
-	echo "Creating and updating ${PODIDENTITYJSONFILENAME} from template..."
-	jq -r --arg MSINAME "$MSINAME" '.items[].metadata.name |= $MSINAME' ./aadpodidentity-template.json . > ${PODIDENTITYJSONFILENAME//\"/}
-	CLIENTID=$(jq -r --arg MSICLIENTID "$MSICLIENTID" '.items[].spec.ClientID |= $MSICLIENTID' ${PODIDENTITYJSONFILENAME//\"/} . | grep ClientID)
-	sed -i "11s/.*/$CLIENTID/g" ${PODIDENTITYJSONFILENAME//\"/}
-	RESOURCEID=$(jq -r --arg MSIRESOURCEID "$MSIRESOURCEID" '.items[].spec.ResourceID |= $MSIRESOURCEID' ${PODIDENTITYJSONFILENAME//\"/} . | grep ResourceID)
-	sed -i "12s#.*#$RESOURCEID#g" ${PODIDENTITYJSONFILENAME//\"/}
-	echo "Completed creation of ${PODIDENTITYJSONFILENAME}."
-	echo "Creating and updating ${AZUREIDENTITYBINDINGJSONFILENAME} from template..."
-	jq -r --arg MSINAME "$MSINAME" '.items[].metadata.name |= $MSINAME' ./azureidentitybindings-template.json . > ${AZUREIDENTITYBINDINGJSONFILENAME//\"/}
-	AZUREIDENTITY=$(jq -r --arg MSINAME "$MSINAME" '.items[].spec.AzureIdentity |= $MSINAME' ${AZUREIDENTITYBINDINGJSONFILENAME//\"/} . | grep -E "Identity\W")
-	sed -i "12s/.*/$AZUREIDENTITY/g" ${AZUREIDENTITYBINDINGJSONFILENAME//\"/}
-	SELECTOR=$(jq -r --arg PODIDENTITYLABEL "${PODIDENTITYLABEL//\"/}" '.items[].spec.Selector |= $PODIDENTITYLABEL' ${AZUREIDENTITYBINDINGJSONFILENAME//\"/} . | grep Selector)
-	sed -i "13s/.*/$SELECTOR/g" ${AZUREIDENTITYBINDINGJSONFILENAME//\"/}
-	echo "Completed creation of ${AZUREIDENTITYBINDINGJSONFILENAME}."
+	validate_azure_resource_group $ASSETS_RESOURCE_GROUP_NAME $LOCATION # Creating/Validating the Assets Resource Group
+	validate_azure_resource_group $ACCESS_RESOURCE_GROUP_NAME $LOCATION # Creating/Validating the Access Resrouce Group
+	validate_azure_resource_group $NO_ACCESS_RESOURCE_GROUP_NAME $LOCATION # Creating/Validating the No Access Resource Group
+	validate_msi_account $MSI_NAME $ASSETS_RESOURCE_GROUP_NAME # Creating/Validating the Managed Service Identity
+	echo "Assigning MSI ${MSI_NAME} Contributor role access to access resource group ${ACCESSRESOURCEGROUPNAME}..."
+	ACCESS_RESOURCE_GROUP_ID=$(az group create -l ${LOCATION//\"/} -n ${ACCESS_RESOURCE_GROUP_NAME//\"/} --query id -o tsv)
+	ASSIGN_CONTRIBUTOR=$(az role assignment create --assignee-object-id ${MSI_PRINCIPAL_ID//\"/} --scope ${ACCESS_RESOURCE_GROUP_ID//\"/} --role Contributor 2>/dev/null)
+	echo "Completed assigning MSI ${MSI_NAME} Contributor role access to access resource group ${ACCESS_RESOURCE_GROUP_NAME}."
+	echo "Assigning MSI ${MSI_NAME} Reader role access to access resource group ${NO_ACCESS_RESOURCE_GROUP_NAME}..."
+	NO_ACCESS_RESOURCE_GROUP_ID=$(az group create -l ${LOCATION//\"/} -n ${NO_ACCESS_RESOURCE_GROUP_NAME//\"/} --query id -o tsv)
+	ASSIGN_READER=$(az role assignment create --assignee-object-id ${MSI_PRINCIPAL_ID//\"/} --scope ${NO_ACCESS_RESOURCE_GROUP_ID//\"/} --role Reader 2>/dev/null)
+	echo "Completed assigning MSI ${MSI_NAME} Contributor role access to access resource group ${ACCESS_RESOURCE_GROUP_NAME}."
+	echo "Creating and updating ${POD_IDENTITY_JSON_FILE_NAME} from template..."
+	jq -r --arg MSI_NAME "$MSI_NAME" '.items[].metadata.name |= $MSI_NAME' ./aadpodidentity-template.json . > ${POD_IDENTITY_JSON_FILE_NAME//\"/}
+	CLIENT_ID=$(jq -r --arg MSI_CLIENT_ID "$MSI_CLIENT_ID" '.items[].spec.ClientID |= $MSI_CLIENT_ID' ${POD_IDENTITY_JSON_FILE_NAME//\"/} . | grep ClientID)
+	sed -i "11s/.*/$CLIENT_ID/g" ${POD_IDENTITY_JSON_FILE_NAME//\"/}
+	RESOURCE_ID=$(jq -r --arg MSI_RESOURCE_ID "$MSI_RESOURCE_ID" '.items[].spec.ResourceID |= $MSI_RESOURCE_ID' ${POD_IDENTITY_JSON_FILE_NAME//\"/} . | grep ResourceID)
+	sed -i "12s#.*#$RESOURCEID#g" ${POD_IDENTITY_JSON_FILE_NAME//\"/}
+	echo "Completed creation of ${POD_IDENTITY_JSON_FILE_NAME}."
+	echo "Creating and updating ${AZURE_IDENTITY_BINDING_JSON_FILE_NAME} from template..."
+	jq -r --arg MSI_NAME "$MSI_NAME" '.items[].metadata.name |= $MSI_NAME' ./azureidentitybindings-template.json . > ${AZURE_IDENTITY_BINDING_JSON_FILE_NAME//\"/}
+	AZURE_IDENTITY=$(jq -r --arg MSI_NAME "$MSI_NAME" '.items[].spec.AzureIdentity |= $MSI_NAME' ${AZURE_IDENTITY_BINDING_JSON_FILE_NAME//\"/} . | grep -E "Identity\W")
+	sed -i "12s/.*/$AZURE_IDENTITY/g" ${AZURE_IDENTITY_BINDING_JSON_FILE_NAME//\"/}
+	SELECTOR=$(jq -r --arg POD_IDENTITY_LABEL "${POD_IDENTITY_LABEL//\"/}" '.items[].spec.Selector |= $POD_IDENTITY_LABEL' ${AZURE_IDENTITY_BINDING_JSON_FILE_NAME//\"/} . | grep Selector)
+	sed -i "13s/.*/$SELECTOR/g" $AZURE_IDENTITY_BINDING_JSON_FILE_NAME//\"/}
+	echo "Completed creation of ${AZURE_IDENTITY_BINDING_JSON_FILE_NAME}."
 	echo "Applying all necessary Kubernetes (RBAC config) configuration files for Azure AD Pod Identity..."
 	kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
 	sleep 30
-	kubectl apply -f ./${PODIDENTITYJSONFILENAME//\"/}
-	kubectl apply -f ./${AZUREIDENTITYBINDINGJSONFILENAME//\"/}
+	kubectl apply -f ./${POD_IDENTITY_JSON_FILE_NAME//\"/}
+	kubectl apply -f ./${AZURE_IDENTITY_BINDING_JSON_FILE_NAME//\"/}
 	echo "Deployment of AAD Pod Identity demo has been completed."
 	echo "Please refer to the documentation's next steps to demo the AAD Pod Identity functionality."
 	echo "Script completed."
@@ -127,16 +127,16 @@ elif [ $1 = "clean" ]; then
 	echo "Script is to clean up AAD Pod Idenity demo."
 	echo "Starting AAD Pod Identity demo cleanup..."
 	validate_demo_config_file "$2"
-	echo "Removing Azure Identity Binding for Managed Service Identity ${MSINAME} from Kubernetes cluster..."
-	kubectl delete -f ./${AZUREIDENTITYBINDINGJSONFILENAME//\"/}
-	echo "Removing Azure Identity for Managed Service Identity ${MSINAME} from Kubernetes cluster..."
-	kubectl delete -f ./${PODIDENTITYJSONFILENAME//\"/}
-	echo "Removing the ${ASSETSRESOURCEGROUPNAME} resource group, which will also remove the MSI ${MSINAME} account..."
-	REMOVEASSETSRG=$(az group delete --name ${ASSETSRESOURCEGROUPNAME//\"/} --yes 2>/dev/null)
-	echo "Removing the ${ACCESSRESOURCEGROUPNAME} resource group..."
-	REMOVEACCESSRG=$(az group delete --name ${ACCESSRESOURCEGROUPNAME//\"/} --yes 2>/dev/null)
-	echo "Removing the ${NOACCESSRESOURCEGROUPNAME} resource group..."
-	REMOVENOACCESSRG=$(az group delete --name ${NOACCESSRESOURCEGROUPNAME//\"/} --yes 2>/dev/null)
+	echo "Removing Azure Identity Binding for Managed Service Identity ${MSI_NAME} from Kubernetes cluster..."
+	kubectl delete -f ./${AZURE_IDENTITY_BINDING_JSON_FILE_NAME//\"/}
+	echo "Removing Azure Identity for Managed Service Identity ${MSI_NAME} from Kubernetes cluster..."
+	kubectl delete -f ./${POD_IDENTITY_JSON_FILE_NAME//\"/}
+	echo "Removing the ${ASSETS_RESOURCE_GROUP_NAME} resource group, which will also remove the MSI ${MSI_NAME} account..."
+	REMOVE_ASSETS_RG=$(az group delete --name ${ASSETS_RESOURCE_GROUP_NAME//\"/} --yes 2>/dev/null)
+	echo "Removing the ${ACCESS_RESOURCE_GROUP_NAME} resource group..."
+	REMOVE_ACCESS_RG=$(az group delete --name ${ACCESS_RESOURCE_GROUP_NAME//\"/} --yes 2>/dev/null)
+	echo "Removing the ${NO_ACCESS_RESOURCE_GROUP_NAME} resource group..."
+	REMOVE_NO_ACCESS_RG=$(az group delete --name ${NO_ACCESS_RESOURCE_GROUP_NAME//\"/} --yes 2>/dev/null)
 	echo "Please remember to remove any pods with AAD Pod Identity dependency from the demo."
 	echo "Script completed."
 	exit 0
