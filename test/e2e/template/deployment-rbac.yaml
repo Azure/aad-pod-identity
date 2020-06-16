@@ -149,7 +149,7 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 5
       nodeSelector:
-        beta.kubernetes.io/os: linux
+        kubernetes.io/os: linux
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -257,3 +257,5 @@ spec:
       - name: k8s-azure-file
         hostPath:
           path: /etc/kubernetes/azure.json
+      nodeSelector:
+        kubernetes.io/os: linux

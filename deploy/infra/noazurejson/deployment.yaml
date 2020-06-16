@@ -111,7 +111,7 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 5
       nodeSelector:
-        beta.kubernetes.io/os: linux
+        kubernetes.io/os: linux
 ---
 apiVersion: v1
 data:
@@ -219,4 +219,4 @@ spec:
         hostPath:
           path: /etc/kubernetes/certs
       nodeSelector:
-        beta.kubernetes.io/os: linux
+        kubernetes.io/os: linux

@@ -58,7 +58,7 @@ mic:
   ## Node labels for pod assignment
   ## aad-pod-identity is currently only supported on linux
   nodeSelector:
-    beta.kubernetes.io/os: linux
+    kubernetes.io/os: linux
 
   tolerations: []
 
@@ -130,7 +130,7 @@ nmi:
   ## Node labels for pod assignment
   ## aad-pod-identity is currently only supported on linux
   nodeSelector:
-    beta.kubernetes.io/os: linux
+    kubernetes.io/os: linux
 
   tolerations: []
 
