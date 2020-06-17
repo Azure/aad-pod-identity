@@ -190,3 +190,6 @@ azureIdentities: []
   #     name: "azure-identity-binding"
   #     # The selector will also need to be included in labels for app deployment
   #     selector: "demo"
+
+# If true, install necessary custom resources.
+installCRDs: false
