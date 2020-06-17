@@ -14,6 +14,20 @@ import (
 	"k8s.io/klog"
 )
 
+const (
+	InvalidOperation = "InvalidOperation"
+	NotFound         = "NotFound"
+)
+
+type endpointPolicyError struct {
+	errType string
+	err     error
+}
+
+func (e *endpointPolicyError) Error() string {
+	return fmt.Sprintf("%s: %v", e.errType, e.err)
+}
+
 // ApplyEndpointRoutePolicy applies the route policy against the pod ip endpoint
 func ApplyEndpointRoutePolicy(podIP string, metadataIP string, metadataPort string, nmiIP string, nmiPort string) error {
 	if podIP == "" {
@@ -21,8 +35,13 @@ func ApplyEndpointRoutePolicy(podIP string, metadataIP string, metadataPort stri
 	}
 
 	endpoint, err := getEndpointByIP(podIP)
+
 	if err != nil {
-		return fmt.Errorf("No endpoint found for Pod IP - %s. Error: %w", podIP, err)
+		if endpointPolicyError, ok := err.(*endpointPolicyError); ok {
+			return fmt.Errorf("Get endpoint for Pod IP - %s. Error: %w", podIP, endpointPolicyError.err)
+		}
+
+		return fmt.Errorf("Get endpoint for Pod IP - %s. Error: %w", podIP, err)
 	}
 
 	err = addEndpointPolicy(endpoint, metadataIP, metadataPort, nmiIP, nmiPort)
@@ -40,13 +59,22 @@ func DeleteEndpointRoutePolicy(podIP string, metadataIP string) error {
 	}
 
 	endpoint, err := getEndpointByIP(podIP)
+
 	if err != nil {
-		return fmt.Errorf("No endpoint found for Pod IP - %s. Error: %w", podIP, err)
+		if endpointPolicyError, ok := err.(*endpointPolicyError); ok {
+			if endpointPolicyError.errType == InvalidOperation {
+				return fmt.Errorf("Get endpoint for Pod IP - %s. Error: %w", podIP, endpointPolicyError.err)
+			} else if endpointPolicyError.errType == NotFound {
+				klog.Infof("No deleting action: no endpoint found for Pod IP - %s.", podIP)
+				return nil
+			}
+		}
+		return fmt.Errorf("Get endpoint for Pod IP - %s. Error: %w", podIP, err)
 	}
 
 	err = deleteEndpointPolicy(endpoint, metadataIP)
 	if err != nil {
-		return fmt.Errorf("Could't delete policy for endpoint - %s. Error: %w", endpoint.Id, err)
+		return fmt.Errorf("Could't delete policy for endpoint - %s. Error: %v", endpoint.Id, err)
 	}
 
 	return nil
@@ -64,13 +92,13 @@ func getEndpointByIP(ip string) (*v1.HNSEndpoint, error) {
 	klog.Info("Enumerating all endpoints\n")
 	response, err := callHcnProxyAgent(request)
 	if err != nil {
-		return nil, err
+		return nil, &endpointPolicyError{InvalidOperation, err}
 	}
 
 	var endpoints []v1.HNSEndpoint
 	err = json.Unmarshal(response, &endpoints)
 	if err != nil {
-		return nil, err
+		return nil, &endpointPolicyError{InvalidOperation, err}
 	}
 
 	for _, ep := range endpoints {
@@ -80,7 +108,7 @@ func getEndpointByIP(ip string) (*v1.HNSEndpoint, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("No endpoint found for IP address - %s", ip)
+	return nil, &endpointPolicyError{NotFound, fmt.Errorf("No endpoint found for Pod IP - %s.", ip)}
 }
 
 func addEndpointPolicy(endpoint *v1.HNSEndpoint, metadataIP string, metadataPort string, nmiIP string, nmiPort string) error {

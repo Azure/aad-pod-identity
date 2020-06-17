@@ -57,13 +57,25 @@ func Sync(server *Server, subRoutineDone chan<- struct{}, mainRoutineDone <-chan
 					klog.Infof("Start to delete: Pod UID and Pod Name:%s %s", pod.UID, pod.Name)
 					err := DeleteEndpointRoutePolicy(podIP, server.MetadataIP)
 					uploadIPRoutePolicyMetrics(err, server, podIP)
-					delete(podMap, pod.UID)
+
+					if err != nil {
+						klog.Errorf("Failed to delete endpoint route policy: %w", err)
+					} else {
+						delete(podMap, pod.UID)
+					}
 				} else {
 					klog.Infof("Start to add: Pod UID and Pod Name:%s %s", pod.UID, pod.Name)
-					podMap[pod.UID] = pod.Status.PodIP
 					err := ApplyEndpointRoutePolicy(pod.Status.PodIP, server.MetadataIP, server.MetadataPort, server.HostIP, server.NMIPort)
 					uploadIPRoutePolicyMetrics(err, server, pod.Status.PodIP)
+
+					if err != nil {
+						klog.Errorf("Failed to apply endpoint route policy: %w", err)
+					} else {
+						podMap[pod.UID] = pod.Status.PodIP
+					}
 				}
+
+				klog.Info("The current pod map:", podMap)
 			}
 		}
 	}
@@ -75,7 +87,7 @@ func ApplyRoutePolicyForExistingPods(server *Server) {
 
 	listPods, err := server.PodClient.ListPods()
 	if err != nil {
-		klog.Error(err)
+		klog.Errorf("Failed to list pods when applying route policy for all existing pods: %+v", err)
 	}
 
 	for _, podItem := range listPods {
@@ -83,8 +95,15 @@ func ApplyRoutePolicyForExistingPods(server *Server) {
 			klog.Infof("Get Host IP, Node Name and Pod IP: \n %s %s %s \n", podItem.Status.HostIP, podItem.Spec.NodeName, podItem.Status.PodIP)
 			err := ApplyEndpointRoutePolicy(podItem.Status.PodIP, server.MetadataIP, server.MetadataPort, server.HostIP, server.NMIPort)
 			uploadIPRoutePolicyMetrics(err, server, podItem.Status.PodIP)
+			if err != nil {
+				klog.Errorf("Failed to apply endpoint route policy when applying route policy for all existing pods: %+v", err)
+			} else {
+				podMap[podItem.UID] = podItem.Status.PodIP
+			}
 		}
 	}
+
+	klog.Info("The current pod map:", podMap)
 }
 
 // DeleteRoutePolicyForExistingPods deletes the route policy for existing pods
@@ -96,7 +115,7 @@ func DeleteRoutePolicyForExistingPods(server *Server) {
 
 	listPods, err := server.PodClient.ListPods()
 	if err != nil {
-		klog.Error(err)
+		klog.Errorf("Failed to list pods when deleting route policy for all existing pods: %+v", err)
 		exitCode = 1
 	}
 
@@ -105,8 +124,15 @@ func DeleteRoutePolicyForExistingPods(server *Server) {
 			klog.Infof("Get Host IP, Node Name and Pod IP: \n %s %s %s \n", podItem.Status.HostIP, podItem.Spec.NodeName, podItem.Status.PodIP)
 			err := DeleteEndpointRoutePolicy(podItem.Status.PodIP, server.MetadataIP)
 			uploadIPRoutePolicyMetrics(err, server, podItem.Status.PodIP)
+			if err != nil {
+				klog.Errorf("Failed to delete endpoint route policy when deleting route policy for all existing pods: %+v", err)
+			} else {
+				delete(podMap, podItem.UID)
+			}
 		}
 	}
+
+	klog.Info("The current pod map:", podMap)
 
 	// wait for pod to delete
 	klog.Info("Handled termination, awaiting pod deletion")
