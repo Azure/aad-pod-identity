@@ -39,7 +39,6 @@ type Server struct {
 	NMIPort                            string
 	MetadataIP                         string
 	MetadataPort                       string
-	HostIP                             string
 	NodeName                           string
 	IPTableUpdateTimeIntervalInSeconds int
 	MICNamespace                       string
@@ -102,7 +101,7 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) updateIPTableRulesInternal() {
-	klog.V(5).Infof("node(%s) hostip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, localhost, s.MetadataIP, s.MetadataPort, s.NMIPort)
+	klog.V(5).Infof("node(%s) ip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, localhost, s.MetadataIP, s.MetadataPort, s.NMIPort)
 
 	if err := iptables.AddCustomChain(s.MetadataIP, s.MetadataPort, localhost, s.NMIPort); err != nil {
 		klog.Fatalf("%s", err)
