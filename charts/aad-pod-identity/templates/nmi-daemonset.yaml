@@ -41,7 +41,9 @@ spec:
         image: "{{ .Values.image.repository }}/{{ .Values.nmi.image }}:{{ .Values.nmi.tag }}"
         imagePullPolicy: {{ .Values.image.imagePullPolicy }}
         args:
+          {{- if semverCompare "<= 1.6.1" .Values.nmi.tag }}
           - "--host-ip=$(HOST_IP)"
+          {{- end }}
           - "--node=$(NODE_NAME)"
           {{- if .Values.nmi.probePort }}
           - --http-probe-port={{ .Values.nmi.probePort }}
@@ -78,10 +80,12 @@ spec:
           - --forceNamespaced
           {{- end }}
         env:
+          {{- if semverCompare "<= 1.6.1" .Values.nmi.tag }}
           - name: HOST_IP
             valueFrom:
               fieldRef:
                 fieldPath: status.podIP
+          {{- end }}
           - name: NODE_NAME
             valueFrom:
               fieldRef:
