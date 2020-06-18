@@ -71,6 +71,8 @@ func Delete(input DeleteInput) {
 	Expect(input.Deleter).NotTo(BeNil(), "input.Deleter is required for AzureIdentityBinding.Delete")
 	Expect(input.AzureIdentityBinding).NotTo(BeNil(), "input.AzureIdentityBinding is required for AzureIdentityBinding.Delete")
 
+	By(fmt.Sprintf("Deleting AzureIdentityBinding \"%s\"", input.AzureIdentityBinding.Name))
+
 	Eventually(func() error {
 		return input.Deleter.Delete(context.TODO(), input.AzureIdentityBinding)
 	}, deleteTimeout, deletePolling).Should(Succeed())

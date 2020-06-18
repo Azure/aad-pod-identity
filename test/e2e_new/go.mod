@@ -7,6 +7,7 @@ require (
 	github.com/Azure/azure-sdk-for-go v40.4.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.10.0
 	github.com/Azure/go-autorest/autorest/adal v0.8.2
+	github.com/Azure/go-autorest/autorest/to v0.2.0
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/onsi/ginkgo v1.12.2
 	github.com/onsi/gomega v1.10.1

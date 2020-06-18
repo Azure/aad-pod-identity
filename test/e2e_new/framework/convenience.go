@@ -15,10 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-const (
-	DefaultNamespace = "default"
-)
-
 // TryAddDefaultSchemes tries to add various schemes.
 func TryAddDefaultSchemes(scheme *runtime.Scheme) {
 	// Add the core schemes.

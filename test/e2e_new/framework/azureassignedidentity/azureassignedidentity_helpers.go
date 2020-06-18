@@ -12,6 +12,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -45,10 +46,37 @@ func Wait(input WaitInput) {
 		azureAssignedIdentity := &aadpodv1.AzureAssignedIdentity{}
 
 		// AzureAssignedIdentity is always in default namespace unless MIC is in namespaced mode
-		if err := input.Getter.Get(context.TODO(), client.ObjectKey{Name: name, Namespace: "default"}, azureAssignedIdentity); err != nil {
+		if err := input.Getter.Get(context.TODO(), client.ObjectKey{Name: name, Namespace: corev1.NamespaceDefault}, azureAssignedIdentity); err != nil {
 			return false, err
 		}
 		if azureAssignedIdentity.Status.Status == input.StateToWaitFor {
+			return true, nil
+		}
+		return false, nil
+	}, waitTimeout, waitPolling).Should(BeTrue())
+}
+
+// WaitForLenInput is the input for WaitForLen.
+type WaitForLenInput struct {
+	Lister framework.Lister
+	Len    int
+}
+
+// WaitForLen waits for the number of AzureAssignedIdentities to reach a desired length.
+func WaitForLen(input WaitForLenInput) {
+	Expect(input.Lister).NotTo(BeNil(), "input.Lister is required for AzureAssignedIdentity.WaitForLen")
+	Expect(input.Len >= 0).To(BeTrue(), "input.Len must be positive for AzureAssignedIdentity.WaitForLen")
+
+	By(fmt.Sprintf("Ensuring that there exists %d AzureAssignedIdentity", input.Len))
+
+	Eventually(func() (bool, error) {
+		azureAssignedIdentityList := &aadpodv1.AzureAssignedIdentityList{}
+
+		// AzureAssignedIdentity is always in default namespace unless MIC is in namespaced mode
+		if err := input.Lister.List(context.TODO(), azureAssignedIdentityList, client.InNamespace(corev1.NamespaceDefault)); err != nil {
+			return false, err
+		}
+		if len(azureAssignedIdentityList.Items) == input.Len {
 			return true, nil
 		}
 		return false, nil
