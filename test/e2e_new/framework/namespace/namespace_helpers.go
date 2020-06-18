@@ -77,6 +77,5 @@ func Delete(input DeleteInput) {
 		} else {
 			return true, nil
 		}
-
 	}, deleteTimeout, deletePolling).Should(BeTrue())
 }

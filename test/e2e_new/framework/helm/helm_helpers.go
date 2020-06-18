@@ -27,6 +27,8 @@ type InstallInput struct {
 
 // Install installs aad-pod-identity via Helm 3.
 func Install(input InstallInput) {
+	Expect(input.Config).NotTo(BeNil(), "input.Config is required for Helm.Install")
+
 	operationMode := "standard"
 	if input.ManagedMode {
 		operationMode = "managed"
@@ -51,13 +53,12 @@ func Install(input InstallInput) {
 		fmt.Sprintf("--set=operationMode=%s", operationMode),
 	})
 
-	By(fmt.Sprintf("helm %s", strings.Join(args, " ")))
-	helmExecute(args)
+	helm(args)
 }
 
 // Uninstall uninstalls aad-pod-identity via Helm 3.
 func Uninstall() {
-	helmExecute([]string{
+	helm([]string{
 		"uninstall",
 		chartName,
 	})
@@ -67,7 +68,9 @@ func Upgrade() {
 	// TODO
 }
 
-func helmExecute(args []string) {
+func helm(args []string) {
+	By(fmt.Sprintf("helm %s", strings.Join(args, " ")))
+
 	cmd := exec.Command("helm", args...)
 	stdoutStderr, err := cmd.CombinedOutput()
 	fmt.Printf("%s", stdoutStderr)

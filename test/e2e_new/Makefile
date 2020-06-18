@@ -6,7 +6,7 @@ GINKGO_FAIL_FAST ?= true
 
 .PHONY: run
 run:
-	cd $(TEST_E2E_DIR); go test -tags=e2e_new -v -ginkgo.v \
+	cd $(TEST_E2E_DIR); go test -tags=e2e_new -timeout=60m -v -ginkgo.v \
 		-ginkgo.focus=$(GINKGO_FOCUS) \
 		-ginkgo.skip=$(GINKGO_SKIP) \
 		-ginkgo.failFast=$(GINKGO_FAIL_FAST)
