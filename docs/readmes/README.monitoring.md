@@ -67,4 +67,12 @@ Counter that tracks the cumulative number of imds token operation errors. Broken
 
 **13. aadpodidentity_imds_operations_duration_seconds**
 
-Histogram that tracks the duration (in seconds) it takes for imds token operations. Broken down by operation type.
+Histogram that tracks the duration (in seconds) it takes for IMDS token operations. Broken down by operation type.
+
+### Prometheus Metrics Endpoints
+
+| Component | Default Metric Port | Metric Path |
+|:---------:|---------------------|-------------|
+| `NMI`     | `9090`              | `/metrics`   |
+| `MIC`     | `8888`              | `/metrics`   |
+
