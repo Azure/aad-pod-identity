@@ -20,6 +20,7 @@ import (
 
 const (
 	keyvaultIdentity = "keyvault-identity"
+	clusterIdentity  = "cluster-identity"
 )
 
 var (
@@ -63,6 +64,7 @@ var _ = BeforeSuite(func() {
 
 	iptables.WaitForRules(iptables.WaitForRulesInput{
 		Creator:         kubeClient,
+		Getter:          kubeClient,
 		Lister:          kubeClient,
 		Namespace:       iptablesNamespace.Name,
 		KubeconfigPath:  clusterProxy.GetKubeconfigPath(),
@@ -79,6 +81,7 @@ var _ = AfterSuite(func() {
 
 	iptables.WaitForRules(iptables.WaitForRulesInput{
 		Creator:         kubeClient,
+		Getter:          kubeClient,
 		Lister:          kubeClient,
 		Namespace:       iptablesNamespace.Name,
 		KubeconfigPath:  clusterProxy.GetKubeconfigPath(),
