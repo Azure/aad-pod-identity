@@ -7,7 +7,7 @@ import (
 )
 
 var _ = Describe("When deploying AzurePodIdentityException", func() {
-	It("should pass validation by bypassing nmi using azurepodidentityexception crd", func() {
+	It("should pass validation by bypassing nmi using AzurePodIdentityException CRD", func() {
 
 	})
 })

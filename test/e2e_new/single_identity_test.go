@@ -85,6 +85,7 @@ var _ = Describe("[PR] When deploying one identity", func() {
 
 	It("should pass the identity validation", func() {
 		identityvalidator.Validate(identityvalidator.ValidateInput{
+			Getter:           kubeClient,
 			Config:           config,
 			KubeconfigPath:   kubeconfigPath,
 			PodName:          identityValidator.Name,
@@ -117,6 +118,7 @@ var _ = Describe("[PR] When deploying one identity", func() {
 		})
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
+			Getter:           kubeClient,
 			Config:           config,
 			KubeconfigPath:   kubeconfigPath,
 			PodName:          identityValidator.Name,
@@ -138,6 +140,7 @@ var _ = Describe("[PR] When deploying one identity", func() {
 		})
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
+			Getter:           kubeClient,
 			Config:           config,
 			KubeconfigPath:   kubeconfigPath,
 			PodName:          identityValidator.Name,
@@ -147,23 +150,82 @@ var _ = Describe("[PR] When deploying one identity", func() {
 		})
 	})
 
-	It("should establish a new AzureAssignedIdentity and remove the old one when draining the node containing identity validator", func() {
+	It("should update AzureAssignedIdentity and when AzureIdentity fields are updated", func() {
+		azureIdentity = azureidentity.Update(azureidentity.UpdateInput{
+			Updater:             kubeClient,
+			Config:              config,
+			AzureClient:         azureClient,
+			AzureIdentity:       azureIdentity,
+			UpdatedIdentityName: fmt.Sprintf("%s-0", keyvaultIdentity),
+		})
 
+		azureassignedidentity.Wait(azureassignedidentity.WaitInput{
+			Getter:            kubeClient,
+			PodName:           identityValidator.Name,
+			Namespace:         ns.Name,
+			AzureIdentityName: azureIdentity.Name,
+			StateToWaitFor:    aadpodv1.AssignedIDAssigned,
+		})
+
+		identityvalidator.Validate(identityvalidator.ValidateInput{
+			Getter:           kubeClient,
+			Config:           config,
+			KubeconfigPath:   kubeconfigPath,
+			PodName:          identityValidator.Name,
+			Namespace:        ns.Name,
+			IdentityClientID: azureIdentity.Spec.ClientID,
+		})
 	})
 
-	It("should pass liveness probe test", func() {
+	It("should pass identity validation with correct identity and fail with wrong identity", func() {
+		// This test is to ensure when 2 identities for the pod exist, the
+		// correct identity is used based on the client id in the request.
+		// keyvault-identity has the right permissions to get and list secret
+		// keyvault-identity-5 only has permission to list and should fail to get secret.
+		keyvaultIdentity5 := fmt.Sprintf("%s-5", keyvaultIdentity)
+		azureIdentityWithoutGetPermission := azureidentity.Create(azureidentity.CreateInput{
+			Creator:      kubeClient,
+			Config:       config,
+			AzureClient:  azureClient,
+			Name:         keyvaultIdentity5,
+			Namespace:    ns.Name,
+			IdentityType: aadpodv1.UserAssignedMSI,
+			IdentityName: keyvaultIdentity5,
+		})
 
-	})
+		azureidentitybinding.Create(azureidentitybinding.CreateInput{
+			Creator:           kubeClient,
+			Name:              fmt.Sprintf("%s-binding", keyvaultIdentity5),
+			Namespace:         ns.Name,
+			AzureIdentityName: azureIdentityWithoutGetPermission.Name,
+			Selector:          keyvaultIdentitySelector,
+		})
 
-	It("should pass multiple identity validating test even when MIC is failing over", func() {
+		azureassignedidentity.Wait(azureassignedidentity.WaitInput{
+			Getter:            kubeClient,
+			PodName:           identityValidator.Name,
+			Namespace:         ns.Name,
+			AzureIdentityName: azureIdentityWithoutGetPermission.Name,
+			StateToWaitFor:    aadpodv1.AssignedIDAssigned,
+		})
 
-	})
+		identityvalidator.Validate(identityvalidator.ValidateInput{
+			Getter:           kubeClient,
+			Config:           config,
+			KubeconfigPath:   kubeconfigPath,
+			PodName:          identityValidator.Name,
+			Namespace:        ns.Name,
+			IdentityClientID: azureIdentity.Spec.ClientID,
+		})
 
-	It("should assign identity with init containers", func() {
-
-	})
-
-	It("should assign new identity and remove old when AzureIdentity updated", func() {
-
+		identityvalidator.Validate(identityvalidator.ValidateInput{
+			Getter:           kubeClient,
+			Config:           config,
+			KubeconfigPath:   kubeconfigPath,
+			PodName:          identityValidator.Name,
+			Namespace:        ns.Name,
+			IdentityClientID: azureIdentityWithoutGetPermission.Spec.ClientID,
+			ExpectError:      true,
+		})
 	})
 })
