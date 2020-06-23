@@ -97,6 +97,7 @@ var _ = Describe("[PR] When deploying multiple identities", func() {
 			})
 
 			identityvalidator.Validate(identityvalidator.ValidateInput{
+				Getter:           kubeClient,
 				Config:           config,
 				KubeconfigPath:   kubeconfigPath,
 				PodName:          identityValidators[i].Name,
@@ -125,6 +126,7 @@ var _ = Describe("[PR] When deploying multiple identities", func() {
 				})
 
 				identityvalidator.Validate(identityvalidator.ValidateInput{
+					Getter:           kubeClient,
 					Config:           config,
 					KubeconfigPath:   kubeconfigPath,
 					PodName:          identityValidators[j].Name,
@@ -148,6 +150,11 @@ var _ = Describe("[PR] When deploying multiple identities", func() {
 			IdentityBindings: expandedAzureIdentityBindings,
 		})
 
+		azureassignedidentity.WaitForLen(azureassignedidentity.WaitForLenInput{
+			Lister: kubeClient,
+			Len:    40,
+		})
+
 		start := time.Now()
 		for i := 0; i < 40; i++ {
 			azureassignedidentity.Wait(azureassignedidentity.WaitInput{
@@ -159,6 +166,7 @@ var _ = Describe("[PR] When deploying multiple identities", func() {
 			})
 
 			identityvalidator.Validate(identityvalidator.ValidateInput{
+				Getter:           kubeClient,
 				Config:           config,
 				KubeconfigPath:   kubeconfigPath,
 				PodName:          identityValidators[i].Name,

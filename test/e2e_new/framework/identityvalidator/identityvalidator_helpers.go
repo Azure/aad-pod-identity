@@ -12,10 +12,12 @@ import (
 	"github.com/Azure/aad-pod-identity/test/e2e_new/framework"
 	"github.com/Azure/aad-pod-identity/test/e2e_new/framework/exec"
 
+	"github.com/Azure/go-autorest/autorest/to"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -24,6 +26,9 @@ const (
 
 	deleteTimeout = 10 * time.Second
 	deletePolling = 1 * time.Second
+
+	waitTimeout = 5 * time.Minute
+	waitPolling = 5 * time.Second
 )
 
 // CreateInput is the input for Create.
@@ -32,6 +37,7 @@ type CreateInput struct {
 	Config          *framework.Config
 	Namespace       string
 	IdentityBinding string
+	InitContainer   bool
 }
 
 // Create creates an identity-validator pod.
@@ -40,6 +46,8 @@ func Create(input CreateInput) *corev1.Pod {
 	Expect(input.Config).NotTo(BeNil(), "input.Config is required for IdentityValidator.Create")
 	Expect(input.Namespace).NotTo(BeEmpty(), "input.Namespace is required for IdentityValidator.Create")
 	Expect(input.IdentityBinding).NotTo(BeEmpty(), "input.IdentityBinding is required for IdentityValidator.Create")
+
+	By(fmt.Sprintf("Creating an identity-validator pod with \"%s\" label", input.IdentityBinding))
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -50,17 +58,7 @@ func Create(input CreateInput) *corev1.Pod {
 			},
 		},
 		Spec: corev1.PodSpec{
-			// InitContainers: []corev1.Container{
-			// 	{
-			// 		Name:  "init-myservice",
-			// 		Image: "microsoft/azure-cli:latest",
-			// 		Command: []string{
-			// 			"sh",
-			// 			"-c",
-			// 			"az login --identity",
-			// 		},
-			// 	},
-			// },
+			TerminationGracePeriodSeconds: to.Int64Ptr(int64(0)),
 			Containers: []corev1.Container{
 				{
 					Name:  "identity-validator",
@@ -100,6 +98,20 @@ func Create(input CreateInput) *corev1.Pod {
 		},
 	}
 
+	if input.InitContainer {
+		pod.Spec.InitContainers = []corev1.Container{
+			{
+				Name:  "init-myservice",
+				Image: "microsoft/azure-cli:latest",
+				Command: []string{
+					"sh",
+					"-c",
+					"az login --identity",
+				},
+			},
+		}
+	}
+
 	Eventually(func() error {
 		return input.Creator.Create(context.TODO(), pod)
 	}, createTimeout, createPolling).Should(Succeed())
@@ -115,7 +127,7 @@ type CreateBatchInput struct {
 	IdentityBindings []*aadpodv1.AzureIdentityBinding
 }
 
-// CreateBatch
+// CreateBatch creates a batch of identity-validator in parallel.
 func CreateBatch(input CreateBatchInput) []*corev1.Pod {
 	Expect(input.Creator).NotTo(BeNil(), "input.Creator is required for IdentityValidator.CreateBatch")
 	Expect(input.Config).NotTo(BeNil(), "input.Config is required for IdentityValidator.CreateBatch")
@@ -161,21 +173,42 @@ func Delete(input DeleteInput) {
 
 // ValidateInput is the input for Validate.
 type ValidateInput struct {
+	Getter           framework.Getter
 	Config           *framework.Config
 	KubeconfigPath   string
 	PodName          string
 	Namespace        string
 	IdentityClientID string
 	ExpectError      bool
+	InitContainer    bool
 }
 
 // Validate performs validation against an identity-validator pod.
 func Validate(input ValidateInput) {
+	Expect(input.Getter).NotTo(BeNil(), "input.Getter is required for IdentityValidator.Validate")
 	Expect(input.Config).NotTo(BeNil(), "input.Config is required for IdentityValidator.Validate")
 	Expect(input.KubeconfigPath).NotTo(BeEmpty(), "input.KubeconfigPath is required for IdentityValidator.Validate")
 	Expect(input.PodName).NotTo(BeEmpty(), "input.PodName is required for IdentityValidator.Validate")
 	Expect(input.Namespace).NotTo(BeEmpty(), "input.Namespace is required for IdentityValidator.Validate")
 	Expect(input.IdentityClientID).NotTo(BeEmpty(), "input.IdentityClientID is required for IdentityValidator.Validate")
+
+	By(fmt.Sprintf("Ensuring Pod \"%s\" is Running", input.PodName))
+	Eventually(func() (bool, error) {
+		pod := &corev1.Pod{}
+		if err := input.Getter.Get(context.TODO(), client.ObjectKey{Name: input.PodName, Namespace: input.Namespace}, pod); err != nil {
+			return false, err
+		}
+		if pod.Status.Phase == corev1.PodRunning {
+			if input.InitContainer {
+				By("Ensuring the exit code of init container is 0")
+				Expect(len(pod.Status.InitContainerStatuses) > 0).To(BeTrue())
+				Expect(pod.Status.InitContainerStatuses[0].State.Terminated.ExitCode == 0).To(BeTrue())
+				Expect(pod.Status.InitContainerStatuses[0].State.Terminated.Reason == "Completed").To(BeTrue())
+			}
+			return true, nil
+		}
+		return false, nil
+	}, waitTimeout, waitPolling).Should(BeTrue())
 
 	args := []string{
 		"identityvalidator",

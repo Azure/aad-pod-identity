@@ -64,7 +64,8 @@ func WaitForRules(input WaitForRulesInput) {
 						},
 					},
 					Spec: corev1.PodSpec{
-						HostNetwork: true,
+						HostNetwork:                   true,
+						TerminationGracePeriodSeconds: to.Int64Ptr(int64(0)),
 						Containers: []corev1.Container{
 							{
 								Name:  "busybox",

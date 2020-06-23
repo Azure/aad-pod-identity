@@ -20,6 +20,9 @@ const (
 	createTimeout = 10 * time.Second
 	createPolling = 1 * time.Second
 
+	updateTimeout = 10 * time.Second
+	updatePolling = 1 * time.Second
+
 	deleteTimeout = 10 * time.Second
 	deletePolling = 1 * time.Second
 
@@ -50,8 +53,6 @@ func Create(input CreateInput) *aadpodv1.AzureIdentity {
 	By(fmt.Sprintf("Creating AzureIdentity \"%s\"", input.Name))
 
 	identityClientID := input.AzureClient.GetIdentityClientID(input.IdentityName)
-	Expect(identityClientID).NotTo(BeNil(), "identityClientID is required for AzureIdentity.Create")
-
 	azureIdentity := &aadpodv1.AzureIdentity{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      input.Name,
@@ -70,6 +71,38 @@ func Create(input CreateInput) *aadpodv1.AzureIdentity {
 	}, createTimeout, createPolling).Should(Succeed())
 
 	return azureIdentity
+}
+
+// UpdateInput is the input for Update.
+type UpdateInput struct {
+	Updater             framework.Updater
+	Config              *framework.Config
+	AzureClient         azure.Client
+	AzureIdentity       *aadpodv1.AzureIdentity
+	UpdatedIdentityName string
+}
+
+// Update updates an AzureIdentity resource.
+func Update(input UpdateInput) *aadpodv1.AzureIdentity {
+	Expect(input.Updater).NotTo(BeNil(), "input.Updater is required for AzureIdentity.Update")
+	Expect(input.Config).NotTo(BeNil(), "input.Config is required for AzureIdentity.Update")
+	Expect(input.AzureClient).NotTo(BeNil(), "input.AzureClient is required for AzureIdentity.Update")
+	Expect(input.AzureIdentity).NotTo(BeNil(), "input.AzureIdentity is required for AzureIdentity.Update")
+	Expect(input.UpdatedIdentityName).NotTo(BeEmpty(), "input.UpdatedIdentityName is required for AzureIdentity.Update")
+
+	By(fmt.Sprintf("Updating AzureIdentity \"%s\" to use \"%s\"", input.AzureIdentity.Name, input.UpdatedIdentityName))
+
+	identityClientID := input.AzureClient.GetIdentityClientID(input.UpdatedIdentityName)
+	Expect(identityClientID).NotTo(BeNil(), "identityClientID is required for AzureIdentity.Update")
+
+	input.AzureIdentity.Spec.ClientID = identityClientID
+	input.AzureIdentity.Spec.ResourceID = fmt.Sprintf(resourceIDTemplate, input.Config.SubscriptionID, input.Config.IdentityResourceGroup, input.UpdatedIdentityName)
+
+	Eventually(func() error {
+		return input.Updater.Update(context.TODO(), input.AzureIdentity)
+	}, updateTimeout, updatePolling).Should(Succeed())
+
+	return input.AzureIdentity
 }
 
 // DeleteInput is the input for Delete.

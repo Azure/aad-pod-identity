@@ -31,6 +31,11 @@ type Deleter interface {
 	Delete(ctx context.Context, obj runtime.Object, opts ...client.DeleteOption) error
 }
 
+// Updater can update resources.
+type Updater interface {
+	Update(ctx context.Context, obj runtime.Object, opts ...client.UpdateOption) error
+}
+
 // GetLister can get and list resources.
 type GetLister interface {
 	Getter

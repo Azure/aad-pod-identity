@@ -53,7 +53,10 @@ func (c *client) GetIdentityClientID(identityName string) string {
 	}
 
 	result, err := c.msiClient.Get(context.TODO(), c.config.IdentityResourceGroup, identityName)
-	Expect(err).To(BeNil())
+	if err != nil {
+		// Dummy client ID
+		return "00000000-0000-0000-0000-000000000000"
+	}
 
 	clientID := result.UserAssignedIdentityProperties.ClientID.String()
 	c.identityClientIDMap[identityName] = clientID
