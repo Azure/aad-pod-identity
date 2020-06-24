@@ -84,14 +84,33 @@ func ensureCustomChain(ipt *iptables.IPTables, destIP, destPort, targetip, targe
 	/*
 		iptables -t nat -S aad-metadata returns 3 rules
 			-N aad-metadata
-			-A aad-metadata ! -s 127.0.0.1/32 -d 169.254.169.254/32 -p tcp -m tcp --dport 80 -j DNAT --to-destination 10.240.3.134:2579
+			-A aad-metadata ! -s 127.0.0.1/32 -d 169.254.169.254/32 -p tcp -m tcp --dport 80 -j DNAT --to-destination 127.0.0.1:<nmi port>
 			-A aad-metadata -j RETURN
 
 		For this reason we check if the length of rules is 3. If not 3, then we flush and create chain again.
 	*/
-	if len(rules) == 3 {
+
+	expectedRules := map[string]struct{}{
+		"-N aad-metadata": {},
+		"-A aad-metadata ! -s 127.0.0.1/32 -d " + destIP + "/32 -p tcp -m tcp --dport " + destPort + " -j DNAT --to-destination " + targetip + ":" + targetport: {},
+		"-A aad-metadata -j RETURN": {},
+	}
+
+	matchingRules := 0
+	// ensure all the rules are as expected with the right IPs
+	// if any rule has been changed, then we need to flush the
+	// entire chain and reconcile with the correct IPs
+	for _, rule := range rules {
+		if _, ok := expectedRules[rule]; !ok {
+			break
+		}
+		matchingRules++
+	}
+	// all the required rules exist, so no need to flush custom chain
+	if matchingRules == len(expectedRules) {
 		return nil
 	}
+
 	if err := flushCreateCustomChainrules(ipt, destIP, destPort,
 		targetip, targetport); err != nil {
 		return err
