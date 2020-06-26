@@ -93,7 +93,7 @@ func Update(input UpdateInput) *aadpodv1.AzureIdentity {
 	By(fmt.Sprintf("Updating AzureIdentity \"%s\" to use \"%s\"", input.AzureIdentity.Name, input.UpdatedIdentityName))
 
 	identityClientID := input.AzureClient.GetIdentityClientID(input.UpdatedIdentityName)
-	Expect(identityClientID).NotTo(BeNil(), "identityClientID is required for AzureIdentity.Update")
+	Expect(identityClientID).NotTo(BeEmpty(), "identityClientID is required for AzureIdentity.Update")
 
 	input.AzureIdentity.Spec.ClientID = identityClientID
 	input.AzureIdentity.Spec.ResourceID = fmt.Sprintf(resourceIDTemplate, input.Config.SubscriptionID, input.Config.IdentityResourceGroup, input.UpdatedIdentityName)

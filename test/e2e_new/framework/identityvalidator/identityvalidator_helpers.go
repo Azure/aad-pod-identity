@@ -38,6 +38,7 @@ type CreateInput struct {
 	Namespace       string
 	IdentityBinding string
 	InitContainer   bool
+	NodeName        string
 }
 
 // Create creates an identity-validator pod.
@@ -110,6 +111,10 @@ func Create(input CreateInput) *corev1.Pod {
 				},
 			},
 		}
+	}
+
+	if input.NodeName != "" {
+		pod.Spec.NodeName = input.NodeName
 	}
 
 	Eventually(func() error {

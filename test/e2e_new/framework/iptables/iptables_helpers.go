@@ -26,11 +26,14 @@ const (
 
 	waitTimeout = 1 * time.Minute
 	waitPolling = 10 * time.Second
+
+	busybox = "busybox"
 )
 
 // WaitForRulesInput is the input for WaitForRules.
 type WaitForRulesInput struct {
 	Creator         framework.Creator
+	Getter          framework.Getter
 	Lister          framework.Lister
 	Namespace       string
 	KubeconfigPath  string
@@ -41,6 +44,7 @@ type WaitForRulesInput struct {
 // WaitForRules waits for iptables rules to exist / get deleted.
 func WaitForRules(input WaitForRulesInput) {
 	Expect(input.Creator).NotTo(BeNil(), "input.Creator is required for iptables.WaitForRules")
+	Expect(input.Getter).NotTo(BeNil(), "input.Getter is required for iptables.WaitForRules")
 	Expect(input.Lister).NotTo(BeNil(), "input.Lister is required for iptables.WaitForRules")
 	Expect(input.Namespace).NotTo(BeEmpty(), "input.Namespace is required for iptables.WaitForRules")
 	Expect(input.KubeconfigPath).NotTo(BeEmpty(), "input.KubeconfigPath is required for iptables.WaitForRules")
@@ -48,19 +52,19 @@ func WaitForRules(input WaitForRulesInput) {
 	if input.CreateDaemonSet {
 		busybox := &appsv1.DaemonSet{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      "busybox",
+				Name:      busybox,
 				Namespace: input.Namespace,
 			},
 			Spec: appsv1.DaemonSetSpec{
 				Selector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
-						"component": "busybox",
+						"component": busybox,
 					},
 				},
 				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
-							"component": "busybox",
+							"component": busybox,
 						},
 					},
 					Spec: corev1.PodSpec{
@@ -68,7 +72,7 @@ func WaitForRules(input WaitForRulesInput) {
 						TerminationGracePeriodSeconds: to.Int64Ptr(int64(0)),
 						Containers: []corev1.Container{
 							{
-								Name:  "busybox",
+								Name:  busybox,
 								Image: "alpine:3.11.5",
 								Stdin: true,
 								Command: []string{
@@ -99,16 +103,21 @@ func WaitForRules(input WaitForRulesInput) {
 	}
 
 	Eventually(func() (bool, error) {
+		ds := &appsv1.DaemonSet{}
+		if err := input.Getter.Get(context.TODO(), client.ObjectKey{Name: busybox, Namespace: input.Namespace}, ds); err != nil {
+			return false, err
+		}
+
+		if ds.Status.NumberReady == 0 || ds.Status.NumberReady != ds.Status.DesiredNumberScheduled {
+			return false, nil
+		}
+
 		pods := &corev1.PodList{}
 		if err := input.Lister.List(context.TODO(), pods, client.InNamespace(input.Namespace)); err != nil {
 			return false, err
 		}
 
 		for _, p := range pods.Items {
-			if p.Status.Phase != corev1.PodRunning {
-				return false, nil
-			}
-
 			if input.ShouldExist {
 				By(fmt.Sprintf("Checking if iptables rules exist in %s", p.Spec.NodeName))
 			} else {
