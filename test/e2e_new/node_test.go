@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	"github.com/Azure/aad-pod-identity/test/e2e_new/framework/azure"
 	"github.com/Azure/aad-pod-identity/test/e2e_new/framework/azureassignedidentity"
 	"github.com/Azure/aad-pod-identity/test/e2e_new/framework/azureidentity"
 	"github.com/Azure/aad-pod-identity/test/e2e_new/framework/azureidentitybinding"
@@ -72,15 +73,15 @@ var _ = Describe("[PR] When managing identities from the underlying nodes", func
 	})
 
 	It("should not delete a user-assigned identity that is being used by a different pod", func() {
-		// This test is specifically testing vmss behavior
+		// This test is specifically testing VMSS behavior
 		// As such we'll look through the cluster to see if there are nodes assigned
-		// to a vmss, and if any of thoe vmss's have more than one node.
+		// to a VMSS, and if any of thoe VMSS's have more than one node.
 		//
-		// We cannot do the test if there is not at least1 vmss with at least 2 nodes
+		// We cannot do the test if there is not at least1 VMSS with at least 2 nodes
 		// attach to it.
 		var vmssNodes []corev1.Node
 		if vmssNodes = getVMSSNodes(nodes); len(vmssNodes) < 2 {
-			Skip("Skipping since there is no vmss node")
+			Skip("Skipping since there is no VMSS node")
 		}
 
 		identityValidator = identityvalidator.Create(identityvalidator.CreateInput{
@@ -302,12 +303,8 @@ func getVMSSNodes(nodes *corev1.NodeList) []corev1.Node {
 	return vmssNodes
 }
 
-func isUserAssignedIdentityExist(identities []string, identityToCheck string) bool {
-	for _, identity := range identities {
-		if s := strings.Split(identity, "/"); strings.EqualFold(s[len(s)-1], identityToCheck) {
-			return true
-		}
-	}
-
-	return false
+func isUserAssignedIdentityExist(identities map[string]bool, identityToCheck string) bool {
+	resourceID := fmt.Sprintf(azure.ResourceIDTemplate, config.SubscriptionID, config.IdentityResourceGroup, identityToCheck)
+	_, ok := identities[strings.ToLower(resourceID)]
+	return ok
 }

@@ -22,7 +22,7 @@ type Client interface {
 	GetIdentityClientID(identityName string) string
 
 	// ListUserAssignedIdentities returns a list of user-assigned identities assigned to the node.
-	ListUserAssignedIdentities(providerID string) []string
+	ListUserAssignedIdentities(providerID string) map[string]bool
 
 	// AssignUserAssignedIdentity assigns a user-assigned identity to a node.
 	AssignUserAssignedIdentity(providerID, identityToAssign string) error
@@ -95,7 +95,7 @@ func (c *client) GetIdentityClientID(identityName string) string {
 }
 
 // ListUserAssignedIdentities returns a list of user-assigned identities assigned to the node.
-func (c *client) ListUserAssignedIdentities(providerID string) []string {
+func (c *client) ListUserAssignedIdentities(providerID string) map[string]bool {
 	nodeManager, nodeName := c.getNodeManager(providerID)
 	return nodeManager.ListUserAssignedIdentities(nodeName)
 }

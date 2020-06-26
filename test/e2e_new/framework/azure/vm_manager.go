@@ -26,15 +26,15 @@ func newVMManager(config *framework.Config, vmClient compute.VirtualMachinesClie
 }
 
 // ListUserAssignedIdentities returns a list of user-assigned identities assigned to the node.
-func (m *vmManager) ListUserAssignedIdentities(vmName string) []string {
-	var userAssignedIdentities []string
+func (m *vmManager) ListUserAssignedIdentities(vmName string) map[string]bool {
+	userAssignedIdentities := make(map[string]bool)
 	vm, err := m.vmClient.Get(context.TODO(), m.config.ClusterResourceGroup, vmName, compute.InstanceView)
 	if err != nil || vm.Identity == nil {
 		return userAssignedIdentities
 	}
 
 	for id := range vm.Identity.UserAssignedIdentities {
-		userAssignedIdentities = append(userAssignedIdentities, id)
+		userAssignedIdentities[strings.ToLower(id)] = true
 	}
 
 	return userAssignedIdentities
@@ -53,7 +53,7 @@ func (m *vmManager) AssignUserAssignedIdentity(vmName, identityToAssign string) 
 		}
 	}
 
-	vm.Identity.UserAssignedIdentities[fmt.Sprintf(resourceIDTemplate, m.config.SubscriptionID, m.config.IdentityResourceGroup, identityToAssign)] = &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{}
+	vm.Identity.UserAssignedIdentities[fmt.Sprintf(ResourceIDTemplate, m.config.SubscriptionID, m.config.IdentityResourceGroup, identityToAssign)] = &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{}
 	switch vm.Identity.Type {
 	case compute.ResourceIdentityTypeSystemAssigned:
 		vm.Identity.Type = compute.ResourceIdentityTypeSystemAssignedUserAssigned

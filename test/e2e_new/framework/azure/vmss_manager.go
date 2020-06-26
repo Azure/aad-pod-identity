@@ -26,15 +26,15 @@ func newVMSSManager(config *framework.Config, vmssClient compute.VirtualMachineS
 }
 
 // ListUserAssignedIdentities returns a list of user-assigned identities assigned to the node.
-func (m *vmssManager) ListUserAssignedIdentities(vmssName string) []string {
-	var userAssignedIdentities []string
+func (m *vmssManager) ListUserAssignedIdentities(vmssName string) map[string]bool {
+	userAssignedIdentities := make(map[string]bool)
 	vmss, err := m.vmssClient.Get(context.TODO(), m.config.ClusterResourceGroup, vmssName)
 	if err != nil || vmss.Identity == nil {
 		return userAssignedIdentities
 	}
 
 	for id := range vmss.Identity.UserAssignedIdentities {
-		userAssignedIdentities = append(userAssignedIdentities, id)
+		userAssignedIdentities[strings.ToLower(id)] = true
 	}
 
 	return userAssignedIdentities
@@ -53,7 +53,7 @@ func (m *vmssManager) AssignUserAssignedIdentity(vmssName, identityToAssign stri
 		}
 	}
 
-	vmss.Identity.UserAssignedIdentities[fmt.Sprintf(resourceIDTemplate, m.config.SubscriptionID, m.config.IdentityResourceGroup, identityToAssign)] = &compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{}
+	vmss.Identity.UserAssignedIdentities[fmt.Sprintf(ResourceIDTemplate, m.config.SubscriptionID, m.config.IdentityResourceGroup, identityToAssign)] = &compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{}
 	switch vmss.Identity.Type {
 	case compute.ResourceIdentityTypeSystemAssigned:
 		vmss.Identity.Type = compute.ResourceIdentityTypeSystemAssignedUserAssigned

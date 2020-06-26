@@ -3,12 +3,12 @@
 package azure
 
 const (
-	resourceIDTemplate = "/subscriptions/%s/resourceGroups/%s/providers/Microsoft.ManagedIdentity/userAssignedIdentities/%s"
+	ResourceIDTemplate = "/subscriptions/%s/resourceGroups/%s/providers/Microsoft.ManagedIdentity/userAssignedIdentities/%s"
 )
 
 type nodeManager interface {
 	// ListUserAssignedIdentities returns a list of user-assigned identities assigned to the node.
-	ListUserAssignedIdentities(nodeName string) []string
+	ListUserAssignedIdentities(nodeName string) map[string]bool
 
 	// AssignUserAssignedIdentity assigns a user-assigned identity to a node.
 	AssignUserAssignedIdentity(nodeName, identityToAssign string) error
