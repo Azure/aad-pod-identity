@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/informers/internalinterfaces"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/klog"
@@ -163,8 +164,9 @@ func newRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
 	crdconfig.GroupVersion = &schema.GroupVersion{Group: aadpodv1.CRDGroup, Version: aadpodv1.CRDVersion}
 	crdconfig.APIPath = "/apis"
 	crdconfig.ContentType = runtime.ContentTypeJSON
-	s := runtime.NewScheme()
-	s.AddKnownTypes(*crdconfig.GroupVersion,
+	scheme := runtime.NewScheme()
+
+	scheme.AddKnownTypes(*crdconfig.GroupVersion,
 		&aadpodv1.AzureIdentity{},
 		&aadpodv1.AzureIdentityList{},
 		&aadpodv1.AzureIdentityBinding{},
@@ -174,8 +176,12 @@ func newRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
 		&aadpodv1.AzurePodIdentityException{},
 		&aadpodv1.AzurePodIdentityExceptionList{},
 	)
-	crdconfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{
-		CodecFactory: serializer.NewCodecFactory(s)}
+
+	if err := clientgoscheme.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+
+	crdconfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)}
 
 	//Client interacting with our CRDs
 	restClient, err := rest.RESTClientFor(&crdconfig)
