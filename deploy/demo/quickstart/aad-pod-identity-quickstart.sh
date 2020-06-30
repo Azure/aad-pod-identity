@@ -55,7 +55,7 @@ validate_azure_location () {
 	if [ $LOCATION_EXISTS == "true" ]; then
 		echo "The Azure location ${1} is a valid Azure location."
 	else
-		echo "The Azure location ${1} is not a valide Azure location."
+		echo "The Azure location ${1} is not a valid Azure location."
 		echo "Please read the Azure documentation for specifying the correct Azure location shortname."
 		echo "For a listing of Azure location shortnames, please use the az account list-locations command."
 		echo "Exiting script."
