@@ -1,6 +1,6 @@
 # Quickstart Demo - AAD Pod Identity
 
-The quickstart demo for AAD Pod Identity is a single script designed to steamline and expedite the installation and setup of AAD Pod Identity for a demo and/or POC with a minimum amount of file editing and Azure infrastructure needed to showcase it's core functionality. If you are unfamiliar with the concept of AAD Pod Identity, it may be best to visit the main [Getting Started](https://github.com/Azure/aad-pod-identity#getting-started) page, and review all the concepts.
+The quickstart demo for AAD Pod Identity is a single script designed to streamline and expedite the installation and setup of AAD Pod Identity for a demo and/or POC with a minimum amount of file editing and Azure infrastructure needed to showcase it's core functionality. If you are unfamiliar with the concept of AAD Pod Identity, it may be best to visit the main [Getting Started](https://github.com/Azure/aad-pod-identity#getting-started) page, and review all the concepts.
 
 ## Getting Started
 > **NOTE: This quickstart makes the following assumptions:**
