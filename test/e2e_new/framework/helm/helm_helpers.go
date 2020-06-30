@@ -29,15 +29,10 @@ type InstallInput struct {
 func Install(input InstallInput) {
 	Expect(input.Config).NotTo(BeNil(), "input.Config is required for Helm.Install")
 
-	operationMode := "standard"
-	if input.ManagedMode {
-		operationMode = "managed"
-	}
-
 	cwd, err := os.Getwd()
 	Expect(err).To(BeNil())
 
-	// Change current working dirrectory to repo root
+	// Change current working directory to repo root
 	// Before installing aad-pod identity through Helm
 	os.Chdir("../..")
 	defer os.Chdir(cwd)
@@ -50,8 +45,11 @@ func Install(input InstallInput) {
 		fmt.Sprintf("--set=image.repository=%s", input.Config.Registry),
 		fmt.Sprintf("--set=mic.tag=%s", input.Config.MICVersion),
 		fmt.Sprintf("--set=nmi.tag=%s", input.Config.NMIVersion),
-		fmt.Sprintf("--set=operationMode=%s", operationMode),
 	})
+
+	if input.ManagedMode {
+		args = append(args, fmt.Sprintf("--set=operationMode=%s", "managed"))
+	}
 
 	helm(args)
 }
@@ -64,8 +62,26 @@ func Uninstall() {
 	})
 }
 
-func Upgrade() {
-	// TODO
+func Upgrade(config *framework.Config) {
+	cwd, err := os.Getwd()
+	Expect(err).To(BeNil())
+
+	// Change current working directory to repo root
+	// Before installing aad-pod identity through Helm
+	os.Chdir("../..")
+	defer os.Chdir(cwd)
+
+	args := append([]string{
+		"upgrade",
+		chartName,
+		"charts/aad-pod-identity",
+		"--wait",
+		fmt.Sprintf("--set=image.repository=%s", config.Registry),
+		fmt.Sprintf("--set=mic.tag=%s", config.MICVersion),
+		fmt.Sprintf("--set=nmi.tag=%s", config.NMIVersion),
+	})
+
+	helm(args)
 }
 
 func helm(args []string) {

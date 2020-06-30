@@ -75,7 +75,9 @@ spec:
           {{- if .Values.nmi.metadataHeaderRequired}}
           - --metadata-header-required={{ .Values.nmi.metadataHeaderRequired }}
           {{- end }}
+          {{- if semverCompare ">= 1.6.0" .Values.nmi.tag }}
           - --operation-mode={{ .Values.operationMode }}
+          {{- end}}
           {{- if eq .Values.operationMode "managed" }}
           - --forceNamespaced
           {{- end }}

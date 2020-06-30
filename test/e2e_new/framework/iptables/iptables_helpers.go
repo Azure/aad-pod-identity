@@ -141,7 +141,7 @@ func WaitForRules(input WaitForRulesInput) {
 					noError: input.ShouldExist,
 				},
 			} {
-				err := exec.KubectlExec(input.KubeconfigPath, p.Name, input.Namespace, strings.Split(cmd.command, " "))
+				_, err := exec.KubectlExec(input.KubeconfigPath, p.Name, input.Namespace, strings.Split(cmd.command, " "))
 				if cmd.noError {
 					Expect(err).To(BeNil())
 				} else {

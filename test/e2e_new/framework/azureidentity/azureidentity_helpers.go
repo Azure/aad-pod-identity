@@ -4,7 +4,10 @@ package azureidentity
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"strings"
 	"time"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
@@ -27,9 +30,12 @@ const (
 	deletePolling = 1 * time.Second
 
 	resourceIDTemplate = "/subscriptions/%s/resourceGroups/%s/providers/Microsoft.ManagedIdentity/userAssignedIdentities/%s"
+
+	apiVersion = "aadpodidentity.k8s.io/v1"
+	kind       = "AzureIdentity"
 )
 
-// CreateInput is the input for Create.
+// CreateInput is the input for Create and CreateOld.
 type CreateInput struct {
 	Creator      framework.Creator
 	Config       *framework.Config
@@ -71,6 +77,65 @@ func Create(input CreateInput) *aadpodv1.AzureIdentity {
 	}, createTimeout, createPolling).Should(Succeed())
 
 	return azureIdentity
+}
+
+// CreateOldInput creates an old AzureIdentity resource.
+// The JSON fields of old AzureIdentity have their first letter capitalized, which we do not support for v1.6.0 and onward.
+// However, we provide support to update existing outdated AzureIdentity.
+func CreateOld(input CreateInput) (string, string) {
+	type azureIdentityOld struct {
+		APIVersion string `json:"apiVersion"`
+		Kind       string `json:"kind"`
+		*aadpodv1.AzureIdentity
+	}
+
+	Expect(input.Config).NotTo(BeNil(), "input.Config is required for AzureIdentity.CreateOld")
+	Expect(input.AzureClient).NotTo(BeNil(), "input.AzureClient is required for AzureIdentity.CreateOld")
+	Expect(input.Name).NotTo(BeEmpty(), "input.Name is required for AzureIdentity.CreateOld")
+	Expect(input.Namespace).NotTo(BeEmpty(), "input.Namespace is required for AzureIdentity.CreateOld")
+	Expect(input.IdentityName).NotTo(BeNil(), "input.IdentityName is required for AzureIdentity.CreateOld")
+	Expect(input.IdentityType).NotTo(BeNil(), "input.IdentityType is required for AzureIdentity.CreateOld")
+
+	By(fmt.Sprintf("Creating old AzureIdentity \"%s\"", input.Name))
+
+	identityClientID := input.AzureClient.GetIdentityClientID(input.IdentityName)
+	azureIdentity := azureIdentityOld{
+		APIVersion: apiVersion,
+		Kind:       kind,
+		AzureIdentity: &aadpodv1.AzureIdentity{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      input.Name,
+				Namespace: input.Namespace,
+			},
+			Spec: aadpodv1.AzureIdentitySpec{
+				Type:       input.IdentityType,
+				ResourceID: fmt.Sprintf(resourceIDTemplate, input.Config.SubscriptionID, input.Config.IdentityResourceGroup, input.IdentityName),
+				ClientID:   identityClientID,
+			},
+		},
+	}
+
+	tmpFile, err := ioutil.TempFile("", "")
+	Expect(err).To(BeNil())
+
+	a, err := json.Marshal(azureIdentity)
+	Expect(err).To(BeNil())
+
+	// Outdated JSON fields start with a capitalized letter
+	converion := map[string]string{
+		"\"clientID\"":   "\"ClientID\"",
+		"\"resourceID\"": "\"ResourceID\"",
+	}
+
+	converted := string(a)
+	for original, replacement := range converion {
+		converted = strings.Replace(converted, original, replacement, -1)
+	}
+
+	_, err = tmpFile.Write([]byte(converted))
+	Expect(err).To(BeNil())
+
+	return tmpFile.Name(), identityClientID
 }
 
 // UpdateInput is the input for Update.

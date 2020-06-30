@@ -30,6 +30,30 @@ type Config struct {
 	NmiMode                  string `envconfig:"NMI_MODE" default:"standard"`
 }
 
+func (c *Config) DeepCopy() *Config {
+	copy := new(Config)
+	copy.SubscriptionID = c.SubscriptionID
+	copy.ResourceGroup = c.ResourceGroup
+	copy.IdentityResourceGroup = c.IdentityResourceGroup
+	copy.ClusterResourceGroup = c.ClusterResourceGroup
+	copy.AzureClientID = c.AzureClientID
+	copy.AzureClientSecret = c.AzureClientSecret
+	copy.AzureTenantID = c.AzureTenantID
+	copy.KeyvaultName = c.KeyvaultName
+	copy.KeyvaultSecretName = c.KeyvaultSecretName
+	copy.KeyvaultSecretVersion = c.KeyvaultSecretVersion
+	copy.MICVersion = c.MICVersion
+	copy.NMIVersion = c.NMIVersion
+	copy.Registry = c.Registry
+	copy.IdentityValidatorVersion = c.IdentityValidatorVersion
+	copy.SystemMSICluster = c.SystemMSICluster
+	copy.EnableScaleFeatures = c.EnableScaleFeatures
+	copy.ImmutableUserMSIs = c.ImmutableUserMSIs
+	copy.NmiMode = c.NmiMode
+
+	return copy
+}
+
 // ParseConfig parses the needed environment variables for running the tests
 func ParseConfig() (*Config, error) {
 	c := new(Config)
