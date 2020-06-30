@@ -44,7 +44,7 @@ Once you have finished editing the aad-pod-identity-demo-config.json to your spe
 Ensure you have saved the configuration file before proceeding to the next step.
 
 ### 2. Deploy the demo using the aad-pod-identity-quickstart.sh script
-The aad-pod-identity-quickstart.sh script takes two parameters. The **first** parameter is the action of the script, and the two available valures are **deploy** and **clean**. The **second** parameter of the script is the file path of the aad-pod-identity-demo-config.json configuration file. The script will read in the values of the configuration file to deploy out the demo environment. 
+The aad-pod-identity-quickstart.sh script takes two parameters. The **first** parameter is the action of the script, and the two available values are **deploy** and **clean**. The **second** parameter of the script is the file path of the aad-pod-identity-demo-config.json configuration file. The script will read in the values of the configuration file to deploy out the demo environment. 
 
 #### Example command for deploying the AAD Pod Identity Demo environment
 
