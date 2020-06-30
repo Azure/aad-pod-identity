@@ -49,7 +49,7 @@ The aad-pod-identity-quickstart.sh script takes two parameters. The **first** pa
 #### Example command for deploying the AAD Pod Identity Demo environment
 
 ```
-/aad-pod-identity/deploy/demo/quickstart$ ./aad-pod-identity-quickstart.sh deploy ./aad-pod-identity-demo-config.json
+./aad-pod-identity-quickstart.sh deploy ./aad-pod-identity-demo-config.json
 ```
 
 ### 3. Test AAD Pod Identity Access
@@ -80,7 +80,7 @@ az network vnet create --name myVirtualNetwork2 --resource-group <No Access Reso
 Using the same aad-pod-identity-quickstart.sh script, we can simply use the **clean** parameter to remove all the Azure assets created to demo AAD Pod Identity. Similar to the same command from step 2 to deploy teh AAD Pod Identity demo, just change **deploy** to **clean** as shown in the example below.
 
 ```
-/aad-pod-identity/deploy/demo/quickstart$ ./aad-pod-identity-quickstart.sh clean ./aad-pod-identity-demo-config.json
+./aad-pod-identity-quickstart.sh clean ./aad-pod-identity-demo-config.json
 ```
 
 ### Summary
