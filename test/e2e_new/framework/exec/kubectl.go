@@ -18,7 +18,8 @@ func KubectlApply(kubeconfigPath, namespace string, args []string) error {
 		fmt.Sprintf("--namespace=%s", namespace),
 	}, args...)
 
-	return kubectl(args)
+	_, err := kubectl(args)
+	return err
 }
 
 // KubectlDelete executes "kubectl delete" given a list of arguments.
@@ -29,11 +30,12 @@ func KubectlDelete(kubeconfigPath, namespace string, args []string) error {
 		fmt.Sprintf("--namespace=%s", namespace),
 	}, args...)
 
-	return kubectl(args)
+	_, err := kubectl(args)
+	return err
 }
 
 // KubectlExec executes "kubectl exec" given a list of arguments.
-func KubectlExec(kubeconfigPath, podName, namespace string, args []string) error {
+func KubectlExec(kubeconfigPath, podName, namespace string, args []string) (string, error) {
 	args = append([]string{
 		"exec",
 		fmt.Sprintf("--kubeconfig=%s", kubeconfigPath),
@@ -45,12 +47,12 @@ func KubectlExec(kubeconfigPath, podName, namespace string, args []string) error
 	return kubectl(args)
 }
 
-func kubectl(args []string) error {
+func kubectl(args []string) (string, error) {
 	By(fmt.Sprintf("kubectl %s", strings.Join(args, " ")))
 
 	cmd := exec.Command("kubectl", args...)
 	stdoutStderr, err := cmd.CombinedOutput()
 	fmt.Printf("%s", stdoutStderr)
 
-	return err
+	return string(stdoutStderr), err
 }

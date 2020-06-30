@@ -4,7 +4,10 @@ package azureidentitybinding
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"strings"
 	"time"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
@@ -21,6 +24,9 @@ const (
 
 	deleteTimeout = 10 * time.Second
 	deletePolling = 1 * time.Second
+
+	apiVersion = "aadpodidentity.k8s.io/v1"
+	kind       = "AzureIdentityBinding"
 )
 
 // CreateInput is the input for Create.
@@ -58,6 +64,61 @@ func Create(input CreateInput) *aadpodv1.AzureIdentityBinding {
 	}, createTimeout, createPolling).Should(Succeed())
 
 	return azureIdentityBinding
+}
+
+// CreateOldInput creates an old AzureIdentityBinding resource.
+// The JSON fields of old AzureIdentityBinding have their first letter capitalized, which we do not support for v1.6.0 and onward.
+// However, we provide support to update existing outdated AzureIdentityBinding.
+func CreateOld(input CreateInput) string {
+	type azureIdentityBindingOld struct {
+		APIVersion string `json:"apiVersion"`
+		Kind       string `json:"kind"`
+		*aadpodv1.AzureIdentityBinding
+	}
+
+	Expect(input.Name).NotTo(BeEmpty(), "input.Name is required for AzureIdentityBinding.Create")
+	Expect(input.Namespace).NotTo(BeEmpty(), "input.Namespace is required for AzureIdentityBinding.Create")
+	Expect(input.AzureIdentityName).NotTo(BeEmpty(), "input.AzureIdentityName is required for AzureIdentityBinding.Create")
+	Expect(input.Selector).NotTo(BeEmpty(), "input.Selector is required for AzureIdentityBinding.Create")
+
+	By(fmt.Sprintf("Creating old AzureIdentityBinding \"%s\"", input.Name))
+
+	azureIdentityBinding := azureIdentityBindingOld{
+		APIVersion: apiVersion,
+		Kind:       kind,
+		AzureIdentityBinding: &aadpodv1.AzureIdentityBinding{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      input.Name,
+				Namespace: input.Namespace,
+			},
+			Spec: aadpodv1.AzureIdentityBindingSpec{
+				AzureIdentity: input.AzureIdentityName,
+				Selector:      input.Selector,
+			},
+		},
+	}
+
+	tmpFile, err := ioutil.TempFile("", "")
+	Expect(err).To(BeNil())
+
+	a, err := json.Marshal(azureIdentityBinding)
+	Expect(err).To(BeNil())
+
+	// Outdated JSON fields start with a capitalized letter
+	converion := map[string]string{
+		"\"azureIdentity\"": "\"AzureIdentity\"",
+		"\"selector\"":      "\"Selector\"",
+	}
+
+	converted := string(a)
+	for original, replacement := range converion {
+		converted = strings.Replace(converted, original, replacement, -1)
+	}
+
+	_, err = tmpFile.Write([]byte(converted))
+	Expect(err).To(BeNil())
+
+	return tmpFile.Name()
 }
 
 // DeleteInput is the input for Delete.

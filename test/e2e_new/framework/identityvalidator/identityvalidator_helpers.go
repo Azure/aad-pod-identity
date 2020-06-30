@@ -231,7 +231,7 @@ func Validate(input ValidateInput) {
 		input.Config.KeyvaultSecretVersion,
 	}
 
-	err := exec.KubectlExec(input.KubeconfigPath, input.PodName, input.Namespace, args)
+	_, err := exec.KubectlExec(input.KubeconfigPath, input.PodName, input.Namespace, args)
 	if input.ExpectError {
 		By(fmt.Sprintf("Ensuring an error has occurred in %s", input.PodName))
 		Expect(err).NotTo(BeNil())
