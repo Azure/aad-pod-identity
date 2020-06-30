@@ -12,7 +12,7 @@ The quickstart demo for AAD Pod Identity is a single script designed to streamli
 > * The latest Azure CLI installed
 > * jq and sed installed | This script was designed to be run in a Linux BASH environment
 
-> If any of the assumptions are not true, it may best best to opt for the full lenght [AAD Pod Tutorial](https://github.com/Azure/aad-pod-identity/tree/master/docs/tutorial#aad-pod-identity-tutorial) or reference the [Getting Started](https://github.com/Azure/aad-pod-identity#getting-started) page.
+> If any of the assumptions are not true, it may best best to opt for the full length [AAD Pod Tutorial](https://github.com/Azure/aad-pod-identity/tree/master/docs/tutorial#aad-pod-identity-tutorial) or reference the [Getting Started](https://github.com/Azure/aad-pod-identity#getting-started) page.
 
 ### 1. Edit the aad-pod-identity-demo-config.json file
 The aad-pod-identity-demo-config.json file is the only file you will have to edit to get AAD Pod Identity quickstart demo deployed. Please open the json file and edit the following properties:
