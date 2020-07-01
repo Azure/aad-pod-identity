@@ -119,15 +119,12 @@ spec:
                 key: ClientSecret
                 name: {{ template "aad-pod-identity.mic.fullname" . }}
           {{- end }}
+        {{- if not .Values.adminsecret }}
         volumeMounts:
-          - name: certificates
-            mountPath: /etc/kubernetes/certs
-            readOnly: true
-          {{- if not .Values.adminsecret }}
           - name: k8s-azure-file
             mountPath: {{ .Values.mic.cloudConfig }}
             readOnly: true
-          {{- end }}
+        {{- end }}
         livenessProbe:
           httpGet:
             path: /healthz
@@ -142,11 +139,8 @@ spec:
         resources:
 {{ toYaml . | indent 12 }}
 {{- end }}
-      volumes:
-      - name: certificates
-        hostPath:
-          path: /etc/kubernetes/certs
       {{- if not .Values.adminsecret }}
+      volumes:
       - name: k8s-azure-file
         hostPath:
           path: {{ .Values.mic.cloudConfig }}
