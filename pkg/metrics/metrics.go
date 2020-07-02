@@ -239,13 +239,13 @@ func registerViews() error {
 			Description: NMITokenOperationCountM.Description(),
 			Measure:     NMITokenOperationCountM,
 			Aggregation: view.Count(),
-			TagKeys:     []tag.Key{operationTypeKey, resourceKey, workloadNamespaceKey, workloadPodKey},
+			TagKeys:     []tag.Key{operationTypeKey, resourceKey, workloadNamespaceKey, workloadPodKey, statusCodeKey},
 		},
 		&view.View{
 			Description: NMITokenOperationFailureCountM.Description(),
 			Measure:     NMITokenOperationFailureCountM,
 			Aggregation: view.Count(),
-			TagKeys:     []tag.Key{operationTypeKey, resourceKey, workloadNamespaceKey, workloadPodKey},
+			TagKeys:     []tag.Key{operationTypeKey, resourceKey, workloadNamespaceKey, workloadPodKey, statusCodeKey},
 		},
 		&view.View{
 			Description: NMIHostPolicyApplyCountM.Description(),
@@ -376,8 +376,8 @@ func (r *Reporter) ReportOperationAndStatus(operationType, statusCode, namespace
 	return nil
 }
 
-// ReportOperationAndStatusForWorkload records given measurements by operation type for the given resource, workload namespace and pod.
-func (r *Reporter) ReportOperationAndStatusForWorkload(operationType, resource, workloadns, workloadpod string, ms ...stats.Measurement) error {
+// ReportOperationAndStatusForWorkload records given measurements by operation type for the given resource, workload namespace, pod and statusCode.
+func (r *Reporter) ReportOperationAndStatusForWorkload(operationType, resource, workloadns, workloadpod, statusCode string, ms ...stats.Measurement) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -387,6 +387,7 @@ func (r *Reporter) ReportOperationAndStatusForWorkload(operationType, resource, 
 		tag.Insert(resourceKey, resource),
 		tag.Insert(workloadNamespaceKey, workloadns),
 		tag.Insert(workloadPodKey, workloadpod),
+		tag.Insert(statusCodeKey, statusCode),
 	)
 	if err != nil {
 		return err
