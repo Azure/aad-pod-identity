@@ -6,13 +6,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/go-autorest/autorest/adal"
+	"k8s.io/klog"
+
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	utils "github.com/Azure/aad-pod-identity/pkg/utils"
-
-	"github.com/Azure/go-autorest/autorest/adal"
-	"k8s.io/klog"
 )
 
 // StandardClient implements the TokenClient interface

@@ -17,15 +17,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Azure/go-autorest/autorest/adal"
+	"k8s.io/klog"
+
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/nmi"
 	"github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
-
-	"github.com/Azure/go-autorest/autorest/adal"
-	"k8s.io/klog"
 )
 
 const (
@@ -455,10 +455,7 @@ func (r TokenRequest) ValidateResourceParamExists() bool {
 	// if resource doesn't exist in the request, then adal libraries will return the same error
 	// IMDS also returns an error with 400 response code if resource parameter is empty
 	// this is done to emulate same behavior observed while requesting token from IMDS
-	if len(r.Resource) == 0 {
-		return false
-	}
-	return true
+	return len(r.Resource) != 0
 }
 
 func parseTokenRequest(r *http.Request) (request TokenRequest) {
@@ -545,4 +542,3 @@ func handleTermination() {
 	klog.Infof("Exiting with %v", exitCode)
 	os.Exit(exitCode)
 }
-

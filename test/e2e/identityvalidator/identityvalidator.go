@@ -92,17 +92,17 @@ func testClusterWideUserAssignedIdentity(ctx context.Context, msiEndpoint, subsc
 	return nil
 }
 
-func authenticateWithMsiResourceId(msiEndpoint, resourceID, resource string) (*adal.Token, error) {
+func authenticateWithMsiResourceID(msiEndpoint, resourceID, resource string) (*adal.Token, error) {
 	// Create HTTP request for a managed services for Azure resources token to access Azure Resource Manager
 	msiURL, err := url.Parse(msiEndpoint)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing MSI endpoint %s: %s", msiEndpoint, err)
 	}
 
-	msi_parameters := url.Values{}
-	msi_parameters.Set("resource", resource)
-	msi_parameters.Set("msi_res_id", resourceID)
-	msiURL.RawQuery = msi_parameters.Encode()
+	msiParameters := url.Values{}
+	msiParameters.Set("resource", resource)
+	msiParameters.Set("msi_res_id", resourceID)
+	msiURL.RawQuery = msiParameters.Encode()
 	req, err := http.NewRequest("GET", msiURL.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating request to %s: %s", msiURL.String(), err)
@@ -148,7 +148,7 @@ func testUserAssignedIdentityOnPod(ctx context.Context, msiEndpoint, identityCli
 		keyClient.Authorizer = authorizer
 	} else if identityResourceID != "" {
 		// The sdk doesn't support authenticating by the resource id, but we can get a token manually
-		token, err := authenticateWithMsiResourceId(msiEndpoint, identityResourceID, "https://vault.azure.net")
+		token, err := authenticateWithMsiResourceID(msiEndpoint, identityResourceID, "https://vault.azure.net")
 		if err != nil {
 			return err
 		}

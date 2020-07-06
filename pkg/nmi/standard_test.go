@@ -269,7 +269,7 @@ func TestGetIdentitiesStandardClient(t *testing.T) {
 		{
 			name: "resource id in request, no identity with same resource id in assigned state",
 			azureIdentities: map[string][]aadpodid.AzureIdentity{
-				aadpodid.AssignedIDCreated: []aadpodid.AzureIdentity{
+				aadpodid.AssignedIDCreated: {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "azid1",
@@ -302,7 +302,7 @@ func TestGetIdentitiesStandardClient(t *testing.T) {
 		{
 			name: "client id in request, found matching identity",
 			azureIdentities: map[string][]aadpodid.AzureIdentity{
-				aadpodid.AssignedIDCreated: []aadpodid.AzureIdentity{
+				aadpodid.AssignedIDCreated: {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "azid1",
@@ -313,7 +313,7 @@ func TestGetIdentitiesStandardClient(t *testing.T) {
 						},
 					},
 				},
-				aadpodid.AssignedIDAssigned: []aadpodid.AzureIdentity{
+				aadpodid.AssignedIDAssigned: {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "azid2",
@@ -343,7 +343,7 @@ func TestGetIdentitiesStandardClient(t *testing.T) {
 		{
 			name: "resource id in request, found matching identity",
 			azureIdentities: map[string][]aadpodid.AzureIdentity{
-				aadpodid.AssignedIDCreated: []aadpodid.AzureIdentity{
+				aadpodid.AssignedIDCreated: {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "azid1",
@@ -354,7 +354,7 @@ func TestGetIdentitiesStandardClient(t *testing.T) {
 						},
 					},
 				},
-				aadpodid.AssignedIDAssigned: []aadpodid.AzureIdentity{
+				aadpodid.AssignedIDAssigned: {
 					{
 						ObjectMeta: metav1.ObjectMeta{
 							Name:      "azid2",
