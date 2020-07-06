@@ -5,7 +5,6 @@ package azureassignedidentity
 import (
 	"context"
 	"fmt"
-	"time"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/test/e2e_new/framework"
@@ -14,11 +13,6 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-)
-
-const (
-	waitTimeout = 5 * time.Minute
-	waitPolling = 5 * time.Second
 )
 
 // WaitInput is the input for Wait.
@@ -53,7 +47,7 @@ func Wait(input WaitInput) {
 			return true, nil
 		}
 		return false, nil
-	}, waitTimeout, waitPolling).Should(BeTrue())
+	}, framework.WaitTimeout, framework.WaitPolling).Should(BeTrue())
 }
 
 // WaitForLenInput is the input for WaitForLen.
@@ -80,5 +74,5 @@ func WaitForLen(input WaitForLenInput) {
 			return true, nil
 		}
 		return false, nil
-	}, waitTimeout, waitPolling).Should(BeTrue())
+	}, framework.WaitTimeout, framework.WaitPolling).Should(BeTrue())
 }

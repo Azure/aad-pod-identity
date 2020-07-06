@@ -20,6 +20,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+const (
+	immutableIdentity = "immutable-identity"
+)
+
 var _ = Describe("[PR] When managing identities from the underlying nodes", func() {
 	var (
 		specName             = "node"
@@ -27,7 +31,6 @@ var _ = Describe("[PR] When managing identities from the underlying nodes", func
 		ns                   *corev1.Namespace
 		azureIdentity        *aadpodv1.AzureIdentity
 		azureIdentityBinding *aadpodv1.AzureIdentityBinding
-		identityValidator    *corev1.Pod
 	)
 
 	BeforeEach(func() {
@@ -84,7 +87,7 @@ var _ = Describe("[PR] When managing identities from the underlying nodes", func
 			Skip("Skipping since there is no VMSS node")
 		}
 
-		identityValidator = identityvalidator.Create(identityvalidator.CreateInput{
+		identityValidator := identityvalidator.Create(identityvalidator.CreateInput{
 			Creator:         kubeClient,
 			Config:          config,
 			Namespace:       ns.Name,
@@ -140,7 +143,7 @@ var _ = Describe("[PR] When managing identities from the underlying nodes", func
 	})
 
 	It("should be able to delete AzureAssignedIdentity when the user-assigned is un-assigned from the underlying node", func() {
-		identityValidator = identityvalidator.Create(identityvalidator.CreateInput{
+		identityValidator := identityvalidator.Create(identityvalidator.CreateInput{
 			Creator:         kubeClient,
 			Config:          config,
 			Namespace:       ns.Name,
@@ -199,7 +202,7 @@ var _ = Describe("[PR] When managing identities from the underlying nodes", func
 		Expect(principalIDBefore).NotTo(BeEmpty())
 		Expect(tenantIDBefore).NotTo(BeEmpty())
 
-		identityValidator = identityvalidator.Create(identityvalidator.CreateInput{
+		identityValidator := identityvalidator.Create(identityvalidator.CreateInput{
 			Creator:         kubeClient,
 			Config:          config,
 			Namespace:       ns.Name,
@@ -241,7 +244,7 @@ var _ = Describe("[PR] When managing identities from the underlying nodes", func
 			Expect(err).To(BeNil())
 		}()
 
-		identityValidator = identityvalidator.Create(identityvalidator.CreateInput{
+		identityValidator := identityvalidator.Create(identityvalidator.CreateInput{
 			Creator:         kubeClient,
 			Config:          config,
 			Namespace:       ns.Name,
@@ -286,6 +289,67 @@ var _ = Describe("[PR] When managing identities from the underlying nodes", func
 		userAssignedIdentities = azureClient.ListUserAssignedIdentities(node.Spec.ProviderID)
 		Expect(len(userAssignedIdentities) == 1).To(BeTrue())
 		Expect(isUserAssignedIdentityExist(userAssignedIdentities, clusterIdentity)).To(BeTrue())
+	})
+
+	It("should not delete the Immutable Identity from VMSS when the deployment is deleted", func() {
+		var vmssNodes []corev1.Node
+		if vmssNodes = getVMSSNodes(nodes); len(vmssNodes) < 2 {
+			Skip("Skipping since there is no VMSS node")
+		}
+
+		// Schedule identity-validator to this node
+		node := vmssNodes[0]
+		defer func() {
+			err := azureClient.UnassignUserAssignedIdentity(node.Spec.ProviderID, immutableIdentity)
+			Expect(err).To(BeNil())
+		}()
+
+		azureIdentity = azureidentity.Update(azureidentity.UpdateInput{
+			Updater:             kubeClient,
+			Config:              config,
+			AzureClient:         azureClient,
+			AzureIdentity:       azureIdentity,
+			UpdatedIdentityName: immutableIdentity,
+		})
+
+		identityValidator := identityvalidator.Create(identityvalidator.CreateInput{
+			Creator:         kubeClient,
+			Config:          config,
+			Namespace:       ns.Name,
+			IdentityBinding: azureIdentityBinding.Spec.Selector,
+			NodeName:        node.Name,
+		})
+
+		azureassignedidentity.Wait(azureassignedidentity.WaitInput{
+			Getter:            kubeClient,
+			PodName:           identityValidator.Name,
+			Namespace:         ns.Name,
+			AzureIdentityName: azureIdentity.Name,
+			StateToWaitFor:    aadpodv1.AssignedIDAssigned,
+		})
+
+		identityvalidator.Validate(identityvalidator.ValidateInput{
+			Getter:           kubeClient,
+			Config:           config,
+			KubeconfigPath:   kubeconfigPath,
+			PodName:          identityValidator.Name,
+			Namespace:        ns.Name,
+			IdentityClientID: azureIdentity.Spec.ClientID,
+		})
+
+		identityvalidator.Delete(identityvalidator.DeleteInput{
+			Deleter:           kubeClient,
+			IdentityValidator: identityValidator,
+		})
+
+		azureassignedidentity.WaitForLen(azureassignedidentity.WaitForLenInput{
+			Lister: kubeClient,
+			Len:    0,
+		})
+
+		By(fmt.Sprintf("Ensuring %s is still assigned to %s", immutableIdentity, node.Name))
+		userAssignedIdentities := azureClient.ListUserAssignedIdentities(node.Spec.ProviderID)
+		Expect(isUserAssignedIdentityExist(userAssignedIdentities, immutableIdentity)).To(BeTrue())
 	})
 })
 
