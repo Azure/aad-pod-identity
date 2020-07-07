@@ -51,15 +51,21 @@ func Install(input InstallInput) {
 		args = append(args, fmt.Sprintf("--set=operationMode=%s", "managed"))
 	}
 
+	if input.Config.ImmutableUserMSIs != "" {
+		args = append(args, fmt.Sprintf("--set=mic.immutableUserMSIs=%s", input.Config.ImmutableUserMSIs))
+	}
+
 	helm(args)
 }
 
 // Uninstall uninstalls aad-pod-identity via Helm 3.
 func Uninstall() {
-	helm([]string{
+	args := []string{
 		"uninstall",
 		chartName,
-	})
+	}
+
+	helm(args)
 }
 
 func Upgrade(config *framework.Config) {
@@ -80,6 +86,10 @@ func Upgrade(config *framework.Config) {
 		fmt.Sprintf("--set=mic.tag=%s", config.MICVersion),
 		fmt.Sprintf("--set=nmi.tag=%s", config.NMIVersion),
 	})
+
+	if config.ImmutableUserMSIs != "" {
+		args = append(args, fmt.Sprintf("--set=mic.immutableUserMSIs=%s", config.ImmutableUserMSIs))
+	}
 
 	helm(args)
 }

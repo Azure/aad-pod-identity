@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/Azure/aad-pod-identity/test/e2e_new/framework"
 	"github.com/Azure/aad-pod-identity/test/e2e_new/framework/exec"
@@ -21,12 +20,6 @@ import (
 )
 
 const (
-	createTimeout = 10 * time.Second
-	createPolling = 1 * time.Second
-
-	waitTimeout = 1 * time.Minute
-	waitPolling = 10 * time.Second
-
 	busybox = "busybox"
 )
 
@@ -99,7 +92,7 @@ func WaitForRules(input WaitForRulesInput) {
 
 		Eventually(func() error {
 			return input.Creator.Create(context.TODO(), busybox)
-		}, createTimeout, createPolling).Should(Succeed())
+		}, framework.CreateTimeout, framework.CreatePolling).Should(Succeed())
 	}
 
 	Eventually(func() (bool, error) {
@@ -125,31 +118,35 @@ func WaitForRules(input WaitForRulesInput) {
 			}
 
 			for _, cmd := range []struct {
-				command string
-				noError bool
+				command          string
+				noError          bool
+				expectedErrorMsg string
 			}{
 				{
 					command: "apk add iptables",
 					noError: true,
 				},
 				{
-					command: "iptables -t nat --check PREROUTING -j aad-metadata",
-					noError: input.ShouldExist,
+					command:          "iptables -t nat --check PREROUTING -j aad-metadata",
+					noError:          input.ShouldExist,
+					expectedErrorMsg: "Couldn't load target `aad-metadata':No such file or directory",
 				},
 				{
-					command: "iptables -t nat -L aad-metadata",
-					noError: input.ShouldExist,
+					command:          "iptables -t nat -L aad-metadata",
+					noError:          input.ShouldExist,
+					expectedErrorMsg: "No chain/target/match by that name",
 				},
 			} {
-				_, err := exec.KubectlExec(input.KubeconfigPath, p.Name, input.Namespace, strings.Split(cmd.command, " "))
+				stderr, err := exec.KubectlExec(input.KubeconfigPath, p.Name, input.Namespace, strings.Split(cmd.command, " "))
 				if cmd.noError {
 					Expect(err).To(BeNil())
 				} else {
 					Expect(err).NotTo(BeNil())
+					Expect(strings.Contains(stderr, cmd.expectedErrorMsg)).To(BeTrue())
 				}
 			}
 		}
 
 		return true, nil
-	}, waitTimeout, waitPolling).Should(BeTrue())
+	}, framework.WaitTimeout, framework.WaitPolling).Should(BeTrue())
 }

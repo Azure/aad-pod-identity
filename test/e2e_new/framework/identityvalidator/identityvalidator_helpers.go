@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/test/e2e_new/framework"
@@ -20,17 +19,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const (
-	createTimeout = 10 * time.Second
-	createPolling = 1 * time.Second
-
-	deleteTimeout = 10 * time.Second
-	deletePolling = 1 * time.Second
-
-	waitTimeout = 5 * time.Minute
-	waitPolling = 5 * time.Second
-)
-
 // CreateInput is the input for Create.
 type CreateInput struct {
 	Creator         framework.Creator
@@ -39,6 +27,7 @@ type CreateInput struct {
 	IdentityBinding string
 	InitContainer   bool
 	NodeName        string
+	PodLabels       map[string]string
 }
 
 // Create creates an identity-validator pod.
@@ -46,9 +35,12 @@ func Create(input CreateInput) *corev1.Pod {
 	Expect(input.Creator).NotTo(BeNil(), "input.Creator is required for IdentityValidator.Create")
 	Expect(input.Config).NotTo(BeNil(), "input.Config is required for IdentityValidator.Create")
 	Expect(input.Namespace).NotTo(BeEmpty(), "input.Namespace is required for IdentityValidator.Create")
-	Expect(input.IdentityBinding).NotTo(BeEmpty(), "input.IdentityBinding is required for IdentityValidator.Create")
 
-	By(fmt.Sprintf("Creating an identity-validator pod with \"%s\" label", input.IdentityBinding))
+	if input.IdentityBinding == "" {
+		By("Creating an identity-validator pod with no label")
+	} else {
+		By(fmt.Sprintf("Creating an identity-validator pod with \"%s\" label", input.IdentityBinding))
+	}
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -117,9 +109,15 @@ func Create(input CreateInput) *corev1.Pod {
 		pod.Spec.NodeName = input.NodeName
 	}
 
+	if len(input.PodLabels) > 0 {
+		for k, v := range input.PodLabels {
+			pod.ObjectMeta.Labels[k] = v
+		}
+	}
+
 	Eventually(func() error {
 		return input.Creator.Create(context.TODO(), pod)
-	}, createTimeout, createPolling).Should(Succeed())
+	}, framework.CreateTimeout, framework.CreatePolling).Should(Succeed())
 
 	return pod
 }
@@ -173,7 +171,7 @@ func Delete(input DeleteInput) {
 
 	Eventually(func() error {
 		return input.Deleter.Delete(context.TODO(), input.IdentityValidator)
-	}, deleteTimeout, deletePolling).Should(Succeed())
+	}, framework.DeleteTimeout, framework.DeletePolling).Should(Succeed())
 }
 
 // ValidateInput is the input for Validate.
@@ -213,7 +211,7 @@ func Validate(input ValidateInput) {
 			return true, nil
 		}
 		return false, nil
-	}, waitTimeout, waitPolling).Should(BeTrue())
+	}, framework.WaitTimeout, framework.WaitPolling).Should(BeTrue())
 
 	args := []string{
 		"identityvalidator",

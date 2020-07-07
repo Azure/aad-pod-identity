@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
-	"time"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/test/e2e_new/framework"
@@ -20,16 +19,7 @@ import (
 )
 
 const (
-	createTimeout = 10 * time.Second
-	createPolling = 1 * time.Second
-
-	updateTimeout = 10 * time.Second
-	updatePolling = 1 * time.Second
-
-	deleteTimeout = 10 * time.Second
-	deletePolling = 1 * time.Second
-
-	resourceIDTemplate = "/subscriptions/%s/resourceGroups/%s/providers/Microsoft.ManagedIdentity/userAssignedIdentities/%s"
+	invalidResourceIDTemplate = "/subscriptions/%s/providers/Microsoft.ManagedIdentity/userAssignedIdentities/%s"
 
 	apiVersion = "aadpodidentity.k8s.io/v1"
 	kind       = "AzureIdentity"
@@ -37,13 +27,14 @@ const (
 
 // CreateInput is the input for Create and CreateOld.
 type CreateInput struct {
-	Creator      framework.Creator
-	Config       *framework.Config
-	AzureClient  azure.Client
-	Name         string
-	Namespace    string
-	IdentityName string
-	IdentityType aadpodv1.IdentityType
+	Creator           framework.Creator
+	Config            *framework.Config
+	AzureClient       azure.Client
+	Name              string
+	Namespace         string
+	IdentityName      string
+	IdentityType      aadpodv1.IdentityType
+	InvalidResourceID bool
 }
 
 // Create creates an AzureIdentity resource.
@@ -53,7 +44,7 @@ func Create(input CreateInput) *aadpodv1.AzureIdentity {
 	Expect(input.AzureClient).NotTo(BeNil(), "input.AzureClient is required for AzureIdentity.Create")
 	Expect(input.Name).NotTo(BeEmpty(), "input.Name is required for AzureIdentity.Create")
 	Expect(input.Namespace).NotTo(BeEmpty(), "input.Namespace is required for AzureIdentity.Create")
-	Expect(input.IdentityName).NotTo(BeNil(), "input.IdentityName is required for AzureIdentity.Create")
+	Expect(input.IdentityName).NotTo(BeEmpty(), "input.IdentityName is required for AzureIdentity.Create")
 	Expect(input.IdentityType).NotTo(BeNil(), "input.IdentityType is required for AzureIdentity.Create")
 
 	By(fmt.Sprintf("Creating AzureIdentity \"%s\"", input.Name))
@@ -67,14 +58,22 @@ func Create(input CreateInput) *aadpodv1.AzureIdentity {
 		// TODO: account for SP type
 		Spec: aadpodv1.AzureIdentitySpec{
 			Type:       input.IdentityType,
-			ResourceID: fmt.Sprintf(resourceIDTemplate, input.Config.SubscriptionID, input.Config.IdentityResourceGroup, input.IdentityName),
+			ResourceID: fmt.Sprintf(azure.ResourceIDTemplate, input.Config.SubscriptionID, input.Config.IdentityResourceGroup, input.IdentityName),
 			ClientID:   identityClientID,
 		},
 	}
 
-	Eventually(func() error {
-		return input.Creator.Create(context.TODO(), azureIdentity)
-	}, createTimeout, createPolling).Should(Succeed())
+	// For gatekeeper test case
+	if input.InvalidResourceID {
+		azureIdentity.Spec.ResourceID = fmt.Sprintf(invalidResourceIDTemplate, input.Config.SubscriptionID, input.IdentityName)
+		Eventually(func() error {
+			return input.Creator.Create(context.TODO(), azureIdentity)
+		}, framework.CreateTimeout, framework.CreatePolling).ShouldNot(Succeed())
+	} else {
+		Eventually(func() error {
+			return input.Creator.Create(context.TODO(), azureIdentity)
+		}, framework.CreateTimeout, framework.CreatePolling).Should(Succeed())
+	}
 
 	return azureIdentity
 }
@@ -93,7 +92,7 @@ func CreateOld(input CreateInput) (string, string) {
 	Expect(input.AzureClient).NotTo(BeNil(), "input.AzureClient is required for AzureIdentity.CreateOld")
 	Expect(input.Name).NotTo(BeEmpty(), "input.Name is required for AzureIdentity.CreateOld")
 	Expect(input.Namespace).NotTo(BeEmpty(), "input.Namespace is required for AzureIdentity.CreateOld")
-	Expect(input.IdentityName).NotTo(BeNil(), "input.IdentityName is required for AzureIdentity.CreateOld")
+	Expect(input.IdentityName).NotTo(BeEmpty(), "input.IdentityName is required for AzureIdentity.CreateOld")
 	Expect(input.IdentityType).NotTo(BeNil(), "input.IdentityType is required for AzureIdentity.CreateOld")
 
 	By(fmt.Sprintf("Creating old AzureIdentity \"%s\"", input.Name))
@@ -109,7 +108,7 @@ func CreateOld(input CreateInput) (string, string) {
 			},
 			Spec: aadpodv1.AzureIdentitySpec{
 				Type:       input.IdentityType,
-				ResourceID: fmt.Sprintf(resourceIDTemplate, input.Config.SubscriptionID, input.Config.IdentityResourceGroup, input.IdentityName),
+				ResourceID: fmt.Sprintf(azure.ResourceIDTemplate, input.Config.SubscriptionID, input.Config.IdentityResourceGroup, input.IdentityName),
 				ClientID:   identityClientID,
 			},
 		},
@@ -161,11 +160,11 @@ func Update(input UpdateInput) *aadpodv1.AzureIdentity {
 	Expect(identityClientID).NotTo(BeEmpty(), "identityClientID is required for AzureIdentity.Update")
 
 	input.AzureIdentity.Spec.ClientID = identityClientID
-	input.AzureIdentity.Spec.ResourceID = fmt.Sprintf(resourceIDTemplate, input.Config.SubscriptionID, input.Config.IdentityResourceGroup, input.UpdatedIdentityName)
+	input.AzureIdentity.Spec.ResourceID = fmt.Sprintf(azure.ResourceIDTemplate, input.Config.SubscriptionID, input.Config.IdentityResourceGroup, input.UpdatedIdentityName)
 
 	Eventually(func() error {
 		return input.Updater.Update(context.TODO(), input.AzureIdentity)
-	}, updateTimeout, updatePolling).Should(Succeed())
+	}, framework.UpdateTimeout, framework.UpdatePolling).Should(Succeed())
 
 	return input.AzureIdentity
 }
@@ -185,5 +184,5 @@ func Delete(input DeleteInput) {
 
 	Eventually(func() error {
 		return input.Deleter.Delete(context.TODO(), input.AzureIdentity)
-	}, deleteTimeout, deletePolling).Should(Succeed())
+	}, framework.DeleteTimeout, framework.DeletePolling).Should(Succeed())
 }
