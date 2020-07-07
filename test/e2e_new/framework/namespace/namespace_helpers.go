@@ -5,7 +5,6 @@ package namespace
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/Azure/aad-pod-identity/test/e2e_new/framework"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -14,14 +13,6 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-const (
-	createTimeout = 10 * time.Second
-	createPolling = 1 * time.Second
-
-	deleteTimeout = 5 * time.Minute
-	deletePolling = 5 * time.Second
 )
 
 // CreateInput is the input for Create.
@@ -43,7 +34,7 @@ func Create(input CreateInput) *corev1.Namespace {
 
 	Eventually(func() error {
 		return input.Creator.Create(context.TODO(), ns)
-	}, createTimeout, createPolling).Should(Succeed())
+	}, framework.CreateTimeout, framework.CreatePolling).Should(Succeed())
 
 	By(fmt.Sprintf("Creating namespace \"%s\"", ns.Name))
 
@@ -67,7 +58,7 @@ func Delete(input DeleteInput) {
 
 	Eventually(func() error {
 		return input.Deleter.Delete(context.TODO(), input.Namespace)
-	}, deleteTimeout, deletePolling).Should(Succeed())
+	}, framework.DeleteTimeout, framework.DeletePolling).Should(Succeed())
 
 	Eventually(func() (bool, error) {
 		ns := &corev1.Namespace{}
@@ -77,5 +68,5 @@ func Delete(input DeleteInput) {
 		} else {
 			return true, nil
 		}
-	}, deleteTimeout, deletePolling).Should(BeTrue())
+	}, framework.DeleteTimeout, framework.DeletePolling).Should(BeTrue())
 }

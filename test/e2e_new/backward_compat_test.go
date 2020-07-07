@@ -64,6 +64,7 @@ var _ = Describe("[PR] When upgrading AAD Pod Identity", func() {
 		configOldVersion.Registry = "mcr.microsoft.com/k8s/aad-pod-identity"
 		configOldVersion.MICVersion = "1.5"
 		configOldVersion.NMIVersion = "1.5"
+		configOldVersion.ImmutableUserMSIs = ""
 		helm.Install(helm.InstallInput{
 			Config: configOldVersion,
 		})

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
-	"time"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/test/e2e_new/framework"
@@ -19,12 +18,6 @@ import (
 )
 
 const (
-	createTimeout = 10 * time.Second
-	createPolling = 1 * time.Second
-
-	deleteTimeout = 10 * time.Second
-	deletePolling = 1 * time.Second
-
 	apiVersion = "aadpodidentity.k8s.io/v1"
 	kind       = "AzureIdentityBinding"
 )
@@ -61,7 +54,7 @@ func Create(input CreateInput) *aadpodv1.AzureIdentityBinding {
 
 	Eventually(func() error {
 		return input.Creator.Create(context.TODO(), azureIdentityBinding)
-	}, createTimeout, createPolling).Should(Succeed())
+	}, framework.CreateTimeout, framework.CreatePolling).Should(Succeed())
 
 	return azureIdentityBinding
 }
@@ -76,10 +69,10 @@ func CreateOld(input CreateInput) string {
 		*aadpodv1.AzureIdentityBinding
 	}
 
-	Expect(input.Name).NotTo(BeEmpty(), "input.Name is required for AzureIdentityBinding.Create")
-	Expect(input.Namespace).NotTo(BeEmpty(), "input.Namespace is required for AzureIdentityBinding.Create")
-	Expect(input.AzureIdentityName).NotTo(BeEmpty(), "input.AzureIdentityName is required for AzureIdentityBinding.Create")
-	Expect(input.Selector).NotTo(BeEmpty(), "input.Selector is required for AzureIdentityBinding.Create")
+	Expect(input.Name).NotTo(BeEmpty(), "input.Name is required for AzureIdentityBinding.CreateOld")
+	Expect(input.Namespace).NotTo(BeEmpty(), "input.Namespace is required for AzureIdentityBinding.CreateOld")
+	Expect(input.AzureIdentityName).NotTo(BeEmpty(), "input.AzureIdentityName is required for AzureIdentityBinding.CreateOld")
+	Expect(input.Selector).NotTo(BeEmpty(), "input.Selector is required for AzureIdentityBinding.CreateOld")
 
 	By(fmt.Sprintf("Creating old AzureIdentityBinding \"%s\"", input.Name))
 
@@ -136,5 +129,5 @@ func Delete(input DeleteInput) {
 
 	Eventually(func() error {
 		return input.Deleter.Delete(context.TODO(), input.AzureIdentityBinding)
-	}, deleteTimeout, deletePolling).Should(Succeed())
+	}, framework.DeleteTimeout, framework.DeletePolling).Should(Succeed())
 }

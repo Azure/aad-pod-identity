@@ -6,7 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/Azure/aad-pod-identity/test/e2e_new/framework"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -15,14 +14,6 @@ import (
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	rl "k8s.io/client-go/tools/leaderelection/resourcelock"
-)
-
-const (
-	getTimeout = 1 * time.Minute
-	getPolling = 5 * time.Second
-
-	deleteTimeout = 1 * time.Minute
-	deletePolling = 5 * time.Second
 )
 
 type GetLeaderInput struct {
@@ -53,7 +44,7 @@ func GetLeader(input GetLeaderInput) *corev1.Pod {
 		}
 
 		return true, nil
-	}, getTimeout, getPolling).Should(BeTrue())
+	}, framework.GetTimeout, framework.GetPolling).Should(BeTrue())
 
 	return leaderPod
 }
@@ -75,5 +66,5 @@ func DeleteLeader(input DeleteLeaderInput) {
 
 	Eventually(func() error {
 		return input.Deleter.Delete(context.TODO(), leader)
-	}, deleteTimeout, deletePolling).Should(Succeed())
+	}, framework.DeleteTimeout, framework.DeletePolling).Should(Succeed())
 }
