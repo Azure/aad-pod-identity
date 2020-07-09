@@ -168,7 +168,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(podName).NotTo(Equal(""))
 
-		_, err = validateUserAssignedIdentityOnPod(podName, identityClientID)
+		_, err = validateUserAssignedIdentityOnPod(podName, identityClientID, "")
 		Expect(err).To(HaveOccurred())
 	})
 
@@ -190,7 +190,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		Expect(err).NotTo(HaveOccurred())
 		Expect(podName).NotTo(Equal(""))
 
-		_, err = validateUserAssignedIdentityOnPod(podName, identityClientID)
+		_, err = validateUserAssignedIdentityOnPod(podName, identityClientID, "")
 		Expect(err).To(HaveOccurred())
 	})
 
@@ -290,7 +290,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 			Expect(ok).To(Equal(true))
 
 			// Make sure that the identity validator cannot access to the resource group anymore
-			_, err = validateUserAssignedIdentityOnPod(data.azureAssignedIdentity.Spec.Pod, data.identityClientID)
+			_, err = validateUserAssignedIdentityOnPod(data.azureAssignedIdentity.Spec.Pod, data.identityClientID, "")
 			Expect(err).To(HaveOccurred())
 			waitForDeployDeletion(data.identityValidatorName)
 
@@ -716,7 +716,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		identityClientID, err := azure.GetIdentityClientID(cfg.IdentityResourceGroup, fmt.Sprintf("%s-%d", keyvaultIdentity, 0))
 		Expect(err).NotTo(HaveOccurred())
 
-		cmdOutput, err := validateUserAssignedIdentityOnPod(podName0, identityClientID)
+		cmdOutput, err := validateUserAssignedIdentityOnPod(podName0, identityClientID, "")
 		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
 
 		// Pod1 and Pod2 have labels matching labels defined in exception crds. So NMI should proxy the request as is
@@ -728,7 +728,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		identityClientID, err = azure.GetIdentityClientID(cfg.IdentityResourceGroup, fmt.Sprintf("%s-%d", keyvaultIdentity, 1))
 		Expect(err).NotTo(HaveOccurred())
 
-		cmdOutput, err = validateUserAssignedIdentityOnPod(podName1, identityClientID)
+		cmdOutput, err = validateUserAssignedIdentityOnPod(podName1, identityClientID, "")
 		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
 
 		podName2, err := pod.GetNameByPrefix(fmt.Sprintf("%s-%d", identityValidator, 2))
@@ -738,7 +738,7 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		identityClientID, err = azure.GetIdentityClientID(cfg.IdentityResourceGroup, fmt.Sprintf("%s-%d", keyvaultIdentity, 2))
 		Expect(err).NotTo(HaveOccurred())
 
-		cmdOutput, err = validateUserAssignedIdentityOnPod(podName2, identityClientID)
+		cmdOutput, err = validateUserAssignedIdentityOnPod(podName2, identityClientID, "")
 		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
 
 		removeUserAssignedIdentityFromCluster(nodeList, fmt.Sprintf("%s-%d", keyvaultIdentity, 1))
@@ -774,13 +774,13 @@ var _ = Describe("Kubernetes cluster using aad-pod-identity", func() {
 		identityClientID, err := azure.GetIdentityClientID(cfg.IdentityResourceGroup, fmt.Sprintf("%s-%d", keyvaultIdentity, 5))
 		Expect(err).NotTo(HaveOccurred())
 
-		cmdOutput, err := validateUserAssignedIdentityOnPod(podName, identityClientID)
+		cmdOutput, err := validateUserAssignedIdentityOnPod(podName, identityClientID, "")
 		Expect(errors.Wrap(err, string(cmdOutput))).To(HaveOccurred())
 
 		identityClientID, err = azure.GetIdentityClientID(cfg.IdentityResourceGroup, keyvaultIdentity)
 		Expect(err).NotTo(HaveOccurred())
 
-		cmdOutput, err = validateUserAssignedIdentityOnPod(podName, identityClientID)
+		cmdOutput, err = validateUserAssignedIdentityOnPod(podName, identityClientID, "")
 		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
 	})
 
@@ -1323,6 +1323,7 @@ func setUpIdentityAndDeploymentInternal(azureIdentityName, suffix, replicas stri
 func validateAzureAssignedIdentity(azureAssignedIdentity aadpodid.AzureAssignedIdentity, identityName, identity string) {
 	identityClientID := azureAssignedIdentity.Spec.AzureIdentityRef.Spec.ClientID
 	Expect(identityClientID).NotTo(Equal(""))
+	identityResourceID := azureAssignedIdentity.Spec.AzureIdentityRef.Spec.ResourceID
 	podName := azureAssignedIdentity.Spec.Pod
 	Expect(podName).NotTo(Equal(""))
 
@@ -1343,8 +1344,13 @@ func validateAzureAssignedIdentity(azureAssignedIdentity aadpodid.AzureAssignedI
 		cmdOutput, err := validateClusterWideUserAssignedIdentity(podName, identityClientID)
 		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
 	} else {
+		// Validate both internal authentication by client id and resource id
 		// validates user assigned identity - this includes keyvault identities and immutable identities
-		cmdOutput, err := validateUserAssignedIdentityOnPod(podName, identityClientID)
+
+		cmdOutput, err := validateUserAssignedIdentityOnPod(podName, identityClientID, "")
+		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
+
+		cmdOutput, err = validateUserAssignedIdentityOnPod(podName, "", identityResourceID)
 		Expect(errors.Wrap(err, string(cmdOutput))).NotTo(HaveOccurred())
 	}
 
@@ -1373,13 +1379,14 @@ func deleteAllIdentityValidator() {
 }
 
 // validateUserAssignedIdentityOnPod will verify that pod identity is working properly
-func validateUserAssignedIdentityOnPod(podName, identityClientID string) ([]byte, error) {
+func validateUserAssignedIdentityOnPod(podName, identityClientID, identityResourceID string) ([]byte, error) {
 	cmd := exec.Command("kubectl",
 		"exec", podName, "--",
 		"identityvalidator",
 		"--subscription-id", cfg.SubscriptionID,
 		"--resource-group", cfg.IdentityResourceGroup,
 		"--identity-client-id", identityClientID,
+		"--identity-resource-id", identityResourceID,
 		"--keyvault-name", cfg.KeyvaultName,
 		"--keyvault-secret-name", cfg.KeyvaultSecretName,
 		"--keyvault-secret-version", cfg.KeyvaultSecretVersion)

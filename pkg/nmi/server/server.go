@@ -17,15 +17,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Azure/go-autorest/autorest/adal"
+	"k8s.io/klog"
+
 	auth "github.com/Azure/aad-pod-identity/pkg/auth"
 	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/nmi"
 	"github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
-
-	"github.com/Azure/go-autorest/autorest/adal"
-	"k8s.io/klog"
 )
 
 const (
@@ -189,14 +189,14 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	latency := time.Since(start)
 	klog.Infof("Status (%d) took %d ns for %s", rw.statusCode, latency.Nanoseconds(), tracker)
 
-	_, resource := parseRequestClientIDAndResource(r)
+	tokenRequest := parseTokenRequest(r)
 
 	if appHandlerReporter != nil {
 		err := appHandlerReporter.ReportOperationAndStatus(
 			r.URL.Path,
 			strconv.Itoa(rw.statusCode),
 			ns,
-			resource,
+			tokenRequest.Resource,
 			metrics.NMIOperationsDurationM.M(metrics.SinceInSeconds(start)))
 		if err != nil {
 			klog.Warningf("Metrics reporter error: %+v", err)
@@ -206,7 +206,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string) {
 	hostIP := parseRemoteAddr(r.RemoteAddr)
-	rqClientID, rqResource := parseRequestClientIDAndResource(r)
+	tokenRequest := parseTokenRequest(r)
 
 	podns, podname := parsePodInfo(r)
 	if podns == "" || podname == "" {
@@ -221,18 +221,19 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 		http.Error(w, "request remote address is not from a host", http.StatusInternalServerError)
 		return
 	}
-	if !validateResourceParamExists(rqResource) {
+	if !tokenRequest.ValidateResourceParamExists() {
 		klog.Warning("parameter resource cannot be empty")
 		http.Error(w, "parameter resource cannot be empty", http.StatusBadRequest)
 		return
 	}
-	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
+
+	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, tokenRequest.ClientID, tokenRequest.ResourceID)
 	if err != nil {
 		klog.Error(err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	token, err := s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, *podID)
+	token, err := s.TokenClient.GetToken(r.Context(), tokenRequest.ClientID, tokenRequest.Resource, *podID)
 	if err != nil {
 		klog.Errorf("failed to get service principal token for pod:%s/%s, err: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
@@ -324,18 +325,19 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	}
 
 	podIP := parseRemoteAddr(r.RemoteAddr)
-	rqClientID, rqResource := parseRequestClientIDAndResource(r)
+	tokenRequest := parseTokenRequest(r)
 
 	if podIP == "" {
 		klog.Error("request remote address is empty")
 		http.Error(w, "request remote address is empty", http.StatusInternalServerError)
 		return
 	}
-	if !validateResourceParamExists(rqResource) {
+	if !tokenRequest.ValidateResourceParamExists() {
 		klog.Warning("parameter resource cannot be empty")
 		http.Error(w, "parameter resource cannot be empty", http.StatusBadRequest)
 		return
 	}
+
 	podns, podname, rsName, selectors, err := s.KubeClient.GetPodInfo(podIP)
 	if err != nil {
 		klog.Errorf("missing podname for podip:%s, %+v", podIP, err)
@@ -354,7 +356,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	// If its mic, then just directly get the token and pass back.
 	if pod.IsPodExcepted(selectors.MatchLabels, *exceptionList) || s.isMIC(podns, rsName) {
 		klog.Infof("Exception pod %s/%s token handling", podns, podname)
-		response, errorCode, err := s.getTokenForExceptedPod(rqClientID, rqResource)
+		response, errorCode, err := s.getTokenForExceptedPod(tokenRequest.ClientID, tokenRequest.Resource)
 		if err != nil {
 			klog.Errorf("failed to get service principal token for pod:%s/%s.  Error code: %d. Error: %+v", podns, podname, errorCode, err)
 			http.Error(w, err.Error(), errorCode)
@@ -364,14 +366,14 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 		return
 	}
 
-	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, rqClientID)
+	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, tokenRequest.ClientID, tokenRequest.ResourceID)
 	if err != nil {
 		klog.Errorf("failed to get matching identities for pod: %s/%s, error: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
-	token, err := s.TokenClient.GetToken(r.Context(), rqClientID, rqResource, *podID)
+	token, err := s.TokenClient.GetToken(r.Context(), tokenRequest.ClientID, tokenRequest.Resource, *podID)
 	if err != nil {
 		klog.Errorf("failed to get service principal token for pod: %s/%s, error: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
@@ -430,13 +432,42 @@ func parseRemoteAddr(addr string) string {
 	return hostname
 }
 
-func parseRequestClientIDAndResource(r *http.Request) (clientID string, resource string) {
+type TokenRequest struct {
+	// ClientID identifies, by Azure AD client ID, a specific identity to use
+	// when authenticating to Azure AD. It is mutually exclusive with
+	// MsiResourceID.
+	// Example: 77788899-f67e-42e1-9a78-89985f6bff3e
+	ClientID string
+
+	// MsiResourceID identifies, by urlencoded ARM resource ID, a specific
+	// identity to use when authenticating to Azure AD. It is mutually exclusive
+	// with ClientID.
+	// Example: /subscriptions/<subid>/resourcegroups/<resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>
+	ResourceID string
+
+	// Resource is the urlencoded URI of the resource for the requested AD token.
+	// Example: https://vault.azure.net.
+	Resource string
+}
+
+func (r TokenRequest) ValidateResourceParamExists() bool {
+	// check if resource exists in the request
+	// if resource doesn't exist in the request, then adal libraries will return the same error
+	// IMDS also returns an error with 400 response code if resource parameter is empty
+	// this is done to emulate same behavior observed while requesting token from IMDS
+	return len(r.Resource) != 0
+}
+
+func parseTokenRequest(r *http.Request) (request TokenRequest) {
 	vals := r.URL.Query()
 	if vals != nil {
-		clientID = vals.Get("client_id")
-		resource = vals.Get("resource")
+		// These are mutually exclusive values (client_id, msi_resource_id)
+		request.ClientID = vals.Get("client_id")
+		request.ResourceID = vals.Get("msi_res_id")
+
+		request.Resource = vals.Get("resource")
 	}
-	return clientID, resource
+	return request
 }
 
 // defaultPathHandler creates a new request and returns the response body and code
@@ -510,12 +541,4 @@ func handleTermination() {
 
 	klog.Infof("Exiting with %v", exitCode)
 	os.Exit(exitCode)
-}
-
-func validateResourceParamExists(resource string) bool {
-	// check if resource exists in the request
-	// if resource doesn't exist in the request, then adal libraries will return the same error
-	// IMDS also returns an error with 400 response code if resource parameter is empty
-	// this is done to emulate same behavior observed while requesting token from IMDS
-	return len(resource) != 0
 }

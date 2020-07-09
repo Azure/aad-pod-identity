@@ -2,7 +2,11 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -21,6 +25,7 @@ import (
 var (
 	subscriptionID        = pflag.String("subscription-id", "", "subscription id for test")
 	identityClientID      = pflag.String("identity-client-id", "", "client id for the msi id")
+	identityResourceID    = pflag.String("identity-resource-id", "", "resource id for the msi id")
 	resourceGroup         = pflag.String("resource-group", "", "any resource group name with reader permission to the aad object")
 	keyvaultName          = pflag.String("keyvault-name", "", "the name of the keyvault to extract the secret from")
 	keyvaultSecretName    = pflag.String("keyvault-secret-name", "", "the name of the keyvault secret we are extracting with pod identity")
@@ -51,7 +56,7 @@ func main() {
 
 	if *keyvaultName != "" && *keyvaultSecretName != "" {
 		// Test if the pod identity is set up correctly
-		if err := testUserAssignedIdentityOnPod(ctx, msiEndpoint, *identityClientID, *keyvaultName, *keyvaultSecretName, *keyvaultSecretVersion); err != nil {
+		if err := testUserAssignedIdentityOnPod(ctx, msiEndpoint, *identityClientID, *identityResourceID, *keyvaultName, *keyvaultSecretName, *keyvaultSecretVersion); err != nil {
 			klog.Fatalf("testUserAssignedIdentityOnPod failed, %+v", err)
 		}
 	} else {
@@ -87,18 +92,67 @@ func testClusterWideUserAssignedIdentity(ctx context.Context, msiEndpoint, subsc
 	return nil
 }
 
-// testUserAssignedIdentityOnPod will verify whether a pod identity is working properly
-func testUserAssignedIdentityOnPod(ctx context.Context, msiEndpoint, identityClientID, keyvaultName, keyvaultSecretName, keyvaultSecretVersion string) error {
-	// When new authorizer is created, azure-sdk-for-go  tries to create dataplane authorizer using MSI. It checks the AZURE_CLIENT_ID to get the client id
-	// for the user assigned identity. If client id not found, then NewServicePrincipalTokenFromMSI is invoked instead of using the actual
-	// user assigned identity. Setting this env var ensures we validate GetSecret using the desired user assigned identity.
-	os.Setenv("AZURE_CLIENT_ID", identityClientID)
-	defer os.Unsetenv("AZURE_CLIENT_ID")
+func authenticateWithMsiResourceID(msiEndpoint, resourceID, resource string) (*adal.Token, error) {
+	// Create HTTP request for a managed services for Azure resources token to access Azure Resource Manager
+	msiURL, err := url.Parse(msiEndpoint)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing MSI endpoint %s: %s", msiEndpoint, err)
+	}
 
+	msiParameters := url.Values{}
+	msiParameters.Set("resource", resource)
+	msiParameters.Set("msi_res_id", resourceID)
+	msiURL.RawQuery = msiParameters.Encode()
+	req, err := http.NewRequest("GET", msiURL.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("error creating request to %s: %s", msiURL.String(), err)
+	}
+
+	req.Header.Add("Metadata", "true")
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error executing request to %s: %s", msiURL.String(), err)
+	}
+
+	responseBytes, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		return nil, fmt.Errorf("error parsing response body from %s: %s", msiURL.String(), err)
+	}
+
+	var token adal.Token
+	err = json.Unmarshal(responseBytes, &token)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling response from %s: %s", msiURL.String(), err)
+	}
+
+	return &token, nil
+}
+
+// testUserAssignedIdentityOnPod will verify whether a pod identity is working properly
+func testUserAssignedIdentityOnPod(ctx context.Context, msiEndpoint, identityClientID, identityResourceID, keyvaultName, keyvaultSecretName, keyvaultSecretVersion string) error {
 	keyClient := keyvault.New()
-	authorizer, err := auth.NewAuthorizerFromEnvironment()
-	if err == nil {
+
+	if identityClientID != "" {
+		// When new authorizer is created, azure-sdk-for-go  tries to create dataplane authorizer using MSI. It checks the AZURE_CLIENT_ID to get the client id
+		// for the user assigned identity. If client id not found, then NewServicePrincipalTokenFromMSI is invoked instead of using the actual
+		// user assigned identity. Setting this env var ensures we validate GetSecret using the desired user assigned identity.
+		os.Setenv("AZURE_CLIENT_ID", identityClientID)
+		defer os.Unsetenv("AZURE_CLIENT_ID")
+
+		authorizer, err := auth.NewAuthorizerFromEnvironment()
+		if err != nil {
+			return err
+		}
 		keyClient.Authorizer = authorizer
+	} else if identityResourceID != "" {
+		// The sdk doesn't support authenticating by the resource id, but we can get a token manually
+		token, err := authenticateWithMsiResourceID(msiEndpoint, identityResourceID, "https://vault.azure.net")
+		if err != nil {
+			return err
+		}
+		keyClient.Authorizer = autorest.NewBearerAuthorizer(token)
 	}
 
 	klog.Infof("%s %s %s\n", keyvaultName, keyvaultSecretName, keyvaultSecretVersion)

@@ -25,6 +25,7 @@ func TestGetIdentitiesManagedClient(t *testing.T) {
 		name                  string
 		azureIdentities       []aadpodid.AzureIdentity
 		clientID              string
+		resourceID            string
 		expectedErr           bool
 		expectedAzureIdentity *aadpodid.AzureIdentity
 		isNamespaced          bool
@@ -48,7 +49,8 @@ func TestGetIdentitiesManagedClient(t *testing.T) {
 						Namespace: "default",
 					},
 					Spec: aadpodid.AzureIdentitySpec{
-						ClientID: "clientid2",
+						ClientID:   "clientid2",
+						ResourceID: "clientid1", // ensure we are matching against ClientID, not ResourceID
 					},
 				},
 			},
@@ -57,6 +59,26 @@ func TestGetIdentitiesManagedClient(t *testing.T) {
 			podName:               "pod2",
 			podNamespace:          "default",
 			clientID:              "clientid1",
+		},
+		{
+			name: "resourceID in request, but no matching identity",
+			azureIdentities: []aadpodid.AzureIdentity{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "azid2",
+						Namespace: "default",
+					},
+					Spec: aadpodid.AzureIdentitySpec{
+						ClientID:   "clientid1", // ensure we are matching against ResourceID, not ClientID
+						ResourceID: "resourceid2",
+					},
+				},
+			},
+			expectedErr:           true,
+			expectedAzureIdentity: nil,
+			podName:               "pod2",
+			podNamespace:          "default",
+			clientID:              "resourceid1",
 		},
 		{
 			name: "clientID in request, found matching identity",
@@ -86,7 +108,34 @@ func TestGetIdentitiesManagedClient(t *testing.T) {
 			clientID:     "clientid3",
 		},
 		{
-			name: "no clientID in request, first matching identity in namespace returned",
+			name: "resourceID in request, found matching identity",
+			azureIdentities: []aadpodid.AzureIdentity{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "azid3",
+						Namespace: "default",
+					},
+					Spec: aadpodid.AzureIdentitySpec{
+						ResourceID: "resourceid3",
+					},
+				},
+			},
+			expectedErr: false,
+			expectedAzureIdentity: &aadpodid.AzureIdentity{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "azid3",
+					Namespace: "default",
+				},
+				Spec: aadpodid.AzureIdentitySpec{
+					ResourceID: "resourceid3",
+				},
+			},
+			podName:      "pod3",
+			podNamespace: "default",
+			resourceID:   "resourceid3",
+		},
+		{
+			name: "no identity in request, first matching identity in namespace returned",
 			azureIdentities: []aadpodid.AzureIdentity{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -94,7 +143,8 @@ func TestGetIdentitiesManagedClient(t *testing.T) {
 						Namespace: "default",
 					},
 					Spec: aadpodid.AzureIdentitySpec{
-						ClientID: "clientid2",
+						ClientID:   "clientid2",
+						ResourceID: "resourceid2",
 					},
 				},
 				{
@@ -103,7 +153,8 @@ func TestGetIdentitiesManagedClient(t *testing.T) {
 						Namespace: "default",
 					},
 					Spec: aadpodid.AzureIdentitySpec{
-						ClientID: "clientid3",
+						ClientID:   "clientid3",
+						ResourceID: "resourceid3",
 					},
 				},
 			},
@@ -114,7 +165,8 @@ func TestGetIdentitiesManagedClient(t *testing.T) {
 					Namespace: "default",
 				},
 				Spec: aadpodid.AzureIdentitySpec{
-					ClientID: "clientid2",
+					ClientID:   "clientid2",
+					ResourceID: "resourceid2",
 				},
 			},
 			podName:      "pod4",
@@ -122,19 +174,20 @@ func TestGetIdentitiesManagedClient(t *testing.T) {
 		},
 	}
 
-	for i, tc := range cases {
-		t.Log(i, tc.name)
-		tokenClient, err := NewManagedTokenClient(NewTestKubeClient(tc.azureIdentities), Config{Namespaced: true})
-		if err != nil {
-			t.Fatalf("expected err to be nil, got: %v", err)
-		}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			tokenClient, err := NewManagedTokenClient(NewTestKubeClient(tc.azureIdentities), Config{Namespaced: true})
+			if err != nil {
+				t.Fatalf("expected err to be nil, got: %v", err)
+			}
 
-		azIdentity, err := tokenClient.GetIdentities(context.Background(), tc.podNamespace, tc.podName, tc.clientID)
-		if tc.expectedErr != (err != nil) {
-			t.Fatalf("expected error: %v, got: %v", tc.expectedErr, err)
-		}
-		if !reflect.DeepEqual(tc.expectedAzureIdentity, azIdentity) {
-			t.Fatalf("expected the azure identity to be equal")
-		}
+			azIdentity, err := tokenClient.GetIdentities(context.Background(), tc.podNamespace, tc.podName, tc.clientID, tc.resourceID)
+			if tc.expectedErr != (err != nil) {
+				t.Fatalf("expected error: %v, got: %v", tc.expectedErr, err)
+			}
+			if !reflect.DeepEqual(tc.expectedAzureIdentity, azIdentity) {
+				t.Fatalf("expected the azure identity to be equal")
+			}
+		})
 	}
 }

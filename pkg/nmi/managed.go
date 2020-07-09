@@ -34,7 +34,7 @@ func NewManagedTokenClient(client k8s.Client, config Config) (*ManagedClient, er
 }
 
 // GetIdentities gets the azure identity that matches the podns/podname and client id
-func (mc *ManagedClient) GetIdentities(ctx context.Context, podns, podname, clientID string) (*aadpodid.AzureIdentity, error) {
+func (mc *ManagedClient) GetIdentities(ctx context.Context, podns, podname, clientID, resourceID string) (*aadpodid.AzureIdentity, error) {
 	// get pod object to retrieve labels
 	pod, err := mc.KubeClient.GetPod(podns, podname)
 	if err != nil {
@@ -45,16 +45,22 @@ func (mc *ManagedClient) GetIdentities(ctx context.Context, podns, podname, clie
 	if err != nil {
 		return nil, fmt.Errorf("failed to get azure identities %s/%s, err: %+v", podns, podname, err)
 	}
-
+	identityUnspecified := len(clientID) == 0 && len(resourceID) == 0
 	for _, id := range azureIdentities {
 		// if client id exists in the request, then send the first identity that matched the client id
 		if len(clientID) != 0 && id.Spec.ClientID == clientID {
 			klog.Infof("clientID in request: %s, %s/%s has been matched with azure identity %s/%s", utils.RedactClientID(clientID), podns, podname, id.Namespace, id.Name)
 			return &id, nil
 		}
+
+		// if resource id exists in the request, then send the first identity that matched the resource id
+		if len(resourceID) != 0 && id.Spec.ResourceID == resourceID {
+			return &id, nil
+		}
+
 		// if client doesn't exist in the request, then return the first identity in the same namespace as the pod
-		if len(clientID) == 0 && strings.EqualFold(id.Namespace, podns) {
-			klog.Infof("No clientID in request. %s/%s has been matched with azure identity %s/%s", podns, podname, id.Namespace, id.Name)
+		if identityUnspecified && strings.EqualFold(id.Namespace, podns) {
+			klog.Infof("No clientID or resourceID in request. %s/%s has been matched with azure identity %s/%s", podns, podname, id.Namespace, id.Name)
 			return &id, nil
 		}
 	}
