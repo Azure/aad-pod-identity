@@ -41,12 +41,12 @@ func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType) {
 	i.Informer().AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				klog.V(6).Infof("Pod Created")
+				klog.V(6).Infof("pod created")
 				eventCh <- aadpodid.PodCreated
 
 			},
 			DeleteFunc: func(obj interface{}) {
-				klog.V(6).Infof("Pod Deleted")
+				klog.V(6).Infof("pod deleted")
 				eventCh <- aadpodid.PodDeleted
 
 			},
@@ -65,19 +65,19 @@ func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType) {
 
 func (c *Client) syncCache(exit <-chan struct{}) {
 	cacheSyncStarted := time.Now()
-	klog.V(6).Infof("Wait for cache to sync")
+	klog.V(6).Infof("wait for cache to sync")
 	if !cache.WaitForCacheSync(exit, c.PodWatcher.Informer().HasSynced) {
-		klog.Error("Wait for pod cache sync failed")
+		klog.Error("wait for pod cache sync failed")
 		return
 	}
-	klog.Infof("Pod cache synchronized. Took %s", time.Since(cacheSyncStarted).String())
+	klog.Infof("pod cache synchronized. Took %s", time.Since(cacheSyncStarted).String())
 }
 
 // Start ...
 func (c *Client) Start(exit <-chan struct{}) {
 	go c.PodWatcher.Informer().Run(exit)
 	c.syncCache(exit)
-	klog.Info("Pod watcher started !!")
+	klog.Info("pod watcher started !!")
 }
 
 // GetPods returns list of all pods
@@ -85,7 +85,6 @@ func (c *Client) GetPods() (pods []*v1.Pod, err error) {
 	begin := time.Now()
 	crdReq, err := labels.NewRequirement(aadpodid.CRDLabelKey, selection.Exists, nil)
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 	crdSelector := labels.NewSelector().Add(*crdReq)

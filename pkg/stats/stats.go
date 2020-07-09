@@ -96,7 +96,7 @@ func UpdateCount(key Type, val int) {
 }
 
 func PrintSync() {
-	klog.Infof("** Stats collected **")
+	klog.Infof("** stats collected **")
 	if GlobalStats != nil {
 		//first we list the
 		Print(PodList)

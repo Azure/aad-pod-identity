@@ -38,12 +38,12 @@ func (mc *ManagedClient) GetIdentities(ctx context.Context, podns, podname, clie
 	// get pod object to retrieve labels
 	pod, err := mc.KubeClient.GetPod(podns, podname)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get pod %s/%s, err: %+v", podns, podname, err)
+		return nil, fmt.Errorf("failed to get pod %s/%s, error: %+v", podns, podname, err)
 	}
 	// get all the azure identities based on azure identity bindings
 	azureIdentities, err := mc.KubeClient.ListPodIdsWithBinding(podns, pod.Labels)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get azure identities %s/%s, err: %+v", podns, podname, err)
+		return nil, fmt.Errorf("failed to get AzureIdentities for pod %s/%s, error: %+v", podns, podname, err)
 	}
 	identityUnspecified := len(clientID) == 0 && len(resourceID) == 0
 	for _, id := range azureIdentities {
@@ -60,7 +60,7 @@ func (mc *ManagedClient) GetIdentities(ctx context.Context, podns, podname, clie
 
 		// if client doesn't exist in the request, then return the first identity in the same namespace as the pod
 		if identityUnspecified && strings.EqualFold(id.Namespace, podns) {
-			klog.Infof("No clientID or resourceID in request. %s/%s has been matched with azure identity %s/%s", podns, podname, id.Namespace, id.Name)
+			klog.Infof("no clientID or resourceID in request. %s/%s has been matched with azure identity %s/%s", podns, podname, id.Namespace, id.Name)
 			return &id, nil
 		}
 	}
@@ -76,7 +76,7 @@ func (mc *ManagedClient) GetToken(ctx context.Context, rqClientID, rqResource st
 	switch idType {
 	case aadpodid.UserAssignedMSI:
 		if rqHasClientID && !strings.EqualFold(rqClientID, clientID) {
-			klog.Warningf("clientid mismatch, requested:%s available:%s", rqClientID, clientID)
+			klog.Warningf("client ID mismatch, requested:%s available:%s", rqClientID, clientID)
 		}
 		klog.Infof("matched identityType:%v clientid:%s resource:%s", idType, utils.RedactClientID(clientID), rqResource)
 		token, err := auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, rqResource)

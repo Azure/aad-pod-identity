@@ -20,7 +20,7 @@ func redact(src, repl string) string {
 func ValidateResourceID(resourceID string) error {
 	isValid := regexp.MustCompile(`(?i)/subscriptions/(.+?)/resourcegroups/(.+?)/providers/Microsoft.ManagedIdentity/userAssignedIdentities/(.+)`).MatchString
 	if !isValid(resourceID) {
-		return fmt.Errorf("Invalid resource id: %q, must match /subscriptions/<subid>/resourcegroups/<resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>", resourceID)
+		return fmt.Errorf("invalid resource id: %q, must match /subscriptions/<subid>/resourcegroups/<resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>", resourceID)
 	}
 	return nil
 }

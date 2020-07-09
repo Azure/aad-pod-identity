@@ -57,17 +57,20 @@ func main() {
 		version.PrintVersionAndExit()
 	}
 
-	klog.Infof("Starting nmi process. Version: %v. Build date: %v.", version.NMIVersion, version.BuildDate)
+	klog.Infof("starting nmi process. Version: %v. Build date: %v.", version.NMIVersion, version.BuildDate)
 
 	if *enableProfile {
 		profilePort := "6060"
-		klog.Infof("Starting profiling on port %s", profilePort)
+		klog.Infof("starting profiling on port %s", profilePort)
 		go func() {
-			klog.Error(http.ListenAndServe("localhost:"+profilePort, nil))
+			addr := "localhost:" + profilePort
+			if err := http.ListenAndServe(addr, nil); err != nil {
+				klog.Errorf("failed to listen and serve %s, error: %+v", addr, err)
+			}
 		}()
 	}
 	if *enableScaleFeatures {
-		klog.Infof("Features for scale clusters enabled")
+		klog.Infof("features for scale clusters enabled")
 	}
 
 	// normalize operation mode
@@ -75,13 +78,13 @@ func main() {
 
 	client, err := nmi.GetKubeClient(*nodename, *operationMode, *enableScaleFeatures)
 	if err != nil {
-		klog.Fatalf("error creating kube client, err: %+v", err)
+		klog.Fatalf("failed to get kube client, error: %+v", err)
 	}
 
 	exit := make(<-chan struct{})
 	client.Start(exit)
 	*forceNamespaced = *forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
-	klog.Infof("Running NMI in namespaced mode: %v", *forceNamespaced)
+	klog.Infof("running NMI in namespaced mode: %v", *forceNamespaced)
 
 	s := server.NewServer(*micNamespace, *blockInstanceMetadata, *metadataHeaderRequired)
 	s.KubeClient = client
@@ -102,7 +105,7 @@ func main() {
 	// Create new token client based on the nmi mode
 	tokenClient, err := nmi.GetTokenClient(client, nmiConfig)
 	if err != nil {
-		klog.Fatalf("failed to initialize token client, err: %v", err)
+		klog.Fatalf("failed to initialize token client, error: %+v", err)
 	}
 	s.TokenClient = tokenClient
 
@@ -112,7 +115,7 @@ func main() {
 
 	// Register and expose metrics views
 	if err = metrics.RegisterAndExport(*prometheusPort); err != nil {
-		klog.Fatalf("Could not register and export metrics: %+v", err)
+		klog.Fatalf("failed to register and export metrics on port %s, error: %+v", *prometheusPort, err)
 	}
 	if err := s.Run(); err != nil {
 		klog.Fatalf("%s", err)

@@ -24,11 +24,10 @@ func InitHealthProbe(condition *bool) {
 func startAsync(port string) {
 	err := http.ListenAndServe(":"+port, nil)
 	if err != nil {
-		klog.Errorf("Http listen and serve error: %+v", err)
-		panic(err)
-	} else {
-		klog.Info("Http listen and serve started !")
+		klog.Fatalf("http listen and serve error: %+v", err)
 	}
+
+	klog.Info("http listen and serve started !")
 }
 
 //Start - Starts the required http server to start the probe to respond.
@@ -39,8 +38,8 @@ func Start(port string) {
 // InitAndStart - Initialize the default probes and starts the http listening port.
 func InitAndStart(port string, condition *bool) {
 	InitHealthProbe(condition)
-	klog.Infof("Initialized health probe on port %s", port)
+	klog.Infof("initialized health probe on port %s", port)
 	// start the probe.
 	Start(port)
-	klog.Info("Started health probe")
+	klog.Info("started health probe")
 }

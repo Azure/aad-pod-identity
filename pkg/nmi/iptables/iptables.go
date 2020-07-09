@@ -55,7 +55,7 @@ func LogCustomChain() error {
 	if err != nil {
 		return err
 	}
-	klog.V(5).Infof("Rules for table(%s) chain(%s) rules(%+v)", tablename, customchainname, strings.Join(rules, ", "))
+	klog.V(5).Infof("rules for table(%s) chain(%s) rules(%+v)", tablename, customchainname, strings.Join(rules, ", "))
 
 	return nil
 }
@@ -120,7 +120,7 @@ func ensureCustomChain(ipt *iptables.IPTables, destIP, destPort, targetip, targe
 }
 
 func flushCreateCustomChainrules(ipt *iptables.IPTables, destIP, destPort, targetip, targetport string) error {
-	klog.Warning("Flushing iptables to add aad-metadata custom chains")
+	klog.Warning("flushing iptables to add aad-metadata custom chains")
 	if err := ipt.ClearChain(tablename, customchainname); err != nil {
 		return err
 	}

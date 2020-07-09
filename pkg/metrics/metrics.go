@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -323,17 +324,15 @@ func (r *Reporter) ReportOperation(operationType string, measurement stats.Measu
 func RegisterAndExport(port string) error {
 	err := registerViews()
 	if err != nil {
-		klog.Errorf("Failed to register views for metrics. error:%v", err)
-		return err
+		return fmt.Errorf("failed to register views for metrics, error:%v", err)
 	}
-	klog.Infof("Registered views for metric")
+	klog.Infof("registered views for metric")
 	exporter, err := newPrometheusExporter(componentNamespace, port)
 	if err != nil {
-		klog.Errorf("Prometheus exporter error: %+v", err)
-		return err
+		return fmt.Errorf("failed to create Prometheus exporter, error: %+v", err)
 	}
 	view.RegisterExporter(exporter)
-	klog.Infof("Registered and exported metrics on port %s", port)
+	klog.Infof("registered and exported metrics on port %s", port)
 	return nil
 }
 

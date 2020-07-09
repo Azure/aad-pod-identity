@@ -15,7 +15,7 @@ type TestPodClient struct {
 }
 
 func (c TestPodClient) Start(exit <-chan struct{}) {
-	klog.Info("Start called from the test interface")
+	klog.Info("start called from the test interface")
 }
 
 func (c TestPodClient) GetPods() (pods []*corev1.Pod, err error) {
