@@ -48,7 +48,7 @@ func NewVirtualMachinesClient(config config.AzureConfig, spt *adal.ServicePrinci
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new failed to report metrics, error: %+v", err)
+		return nil, fmt.Errorf("failed to create reporter for metrics, error: %+v", err)
 	}
 
 	return &VMClient{
@@ -79,7 +79,7 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 
 	vm, err := c.client.Get(ctx, rgName, nodeName, "")
 	if err != nil {
-		return vm, fmt.Errorf("failed to get %s in %s, error: %+v", nodeName, rgName, err)
+		return vm, fmt.Errorf("failed to get vm %s in resource group %s, error: %+v", nodeName, rgName, err)
 	}
 	stats.UpdateCount(stats.TotalGetCalls, 1)
 	stats.Update(stats.CloudGet, time.Since(begin))
@@ -111,7 +111,7 @@ func (c *VMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachi
 		return fmt.Errorf("failed to update identities for %s in %s, error: %+v", nodeName, rg, err)
 	}
 	if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
-		return fmt.Errorf("failed to wait for identity update completion, error: %+v", err)
+		return fmt.Errorf("failed to wait for identity update completion for vm %s in resource group %s, error: %+v", nodeName, rg, err)
 	}
 	stats.UpdateCount(stats.TotalPutCalls, 1)
 	stats.Update(stats.CloudPut, time.Since(begin))

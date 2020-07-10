@@ -71,7 +71,7 @@ func (c *Client) Init() error {
 			return fmt.Errorf("failed to config file %s, error: %+v", c.configFile, err)
 		}
 		if err = yaml.Unmarshal(bytes, &c.Config); err != nil {
-			return fmt.Errorf("failed to marshal JSON, error: %+v", err)
+			return fmt.Errorf("failed to unmarshal JSON, error: %+v", err)
 		}
 	} else {
 		klog.V(6).Info("populating AzureConfig from secret/environment variables")
@@ -235,7 +235,7 @@ func (c *Client) getIdentityResource(name string, isvmss bool) (idH IdentityHold
 	if isvmss {
 		vmss, err := c.VMSSClient.Get(rg, name)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get %s in %s, error: %+v", name, rg, err)
+			return nil, nil, fmt.Errorf("failed to get vmss %s in resource group %s, error: %+v", name, rg, err)
 		}
 
 		update = func() error {
@@ -247,7 +247,7 @@ func (c *Client) getIdentityResource(name string, isvmss bool) (idH IdentityHold
 
 	vm, err := c.VMClient.Get(rg, name)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get %s in %s, error: %+v", name, rg, err)
+		return nil, nil, fmt.Errorf("failed to get vm %s in resource group %s, error: %+v", name, rg, err)
 	}
 	update = func() error {
 		return c.VMClient.UpdateIdentities(rg, name, vm)

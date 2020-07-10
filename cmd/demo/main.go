@@ -74,7 +74,7 @@ func doARMOperations(subscriptionID, resourceGroup string) {
 		return
 	}
 
-	klog.Infof("successfully count VM from ARM: %d", len(vmlist.Values()))
+	klog.Infof("successfully counted VM from ARM: %d", len(vmlist.Values()))
 }
 
 func testMSIEndpoint(msiEndpoint, resource string) *adal.Token {

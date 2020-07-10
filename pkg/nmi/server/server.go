@@ -65,7 +65,7 @@ type MetadataResponse struct {
 func NewServer(micNamespace string, blockInstanceMetadata bool, metadataHeaderRequired bool) *Server {
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		klog.Errorf("failed to create new failed to report metrics, error: %+v", err)
+		klog.Errorf("failed to create reporter for metrics, error: %+v", err)
 	} else {
 		// keeping this reference to be used in ServeHTTP, as server is not accessible in ServeHTTP
 		appHandlerReporter = reporter

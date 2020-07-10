@@ -98,7 +98,7 @@ func NewCRDClientLite(config *rest.Config, nodeName string, scale, isStandardMod
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new failed to report metrics, error: %+v", err)
+		return nil, fmt.Errorf("failed to create reporter for metrics, error: %+v", err)
 	}
 
 	return &Client{
@@ -138,7 +138,7 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new failed to report metrics, error: %+v", err)
+		return nil, fmt.Errorf("failed to create reporter for metrics, error: %+v", err)
 	}
 
 	return &Client{
@@ -471,7 +471,7 @@ func (c *Client) SyncCacheAll(exit <-chan struct{}, initial bool) {
 
 // RemoveAssignedIdentity removes the assigned identity
 func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
-	klog.V(6).Infof("deletion of assigned id named: %s", assignedIdentity.Name)
+	klog.V(6).Infof("deleting assigned id %s/%s", assignedIdentity.Namespace, assignedIdentity.Name)
 	begin := time.Now()
 
 	defer func() {
@@ -502,14 +502,14 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 		err = c.rest.Put().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Body(&res).Do().Error()
 	}
 
-	klog.V(5).Infof("deletion %s took: %v", assignedIdentity.Name, time.Since(begin))
+	klog.V(5).Infof("deleting %s took: %v", assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDDel, time.Since(begin))
 	return err
 }
 
 // CreateAssignedIdentity creates new assigned identity
 func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
-	klog.Infof("got assigned id %s to assign", assignedIdentity.Name)
+	klog.Infof("creating assigned id %s/%s", assignedIdentity.Namespace, assignedIdentity.Name)
 	begin := time.Now()
 
 	defer func() {
@@ -536,14 +536,14 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 		return err
 	}
 
-	klog.V(5).Infof("time take to create %s: %v", assignedIdentity.Name, time.Since(begin))
+	klog.V(5).Infof("time taken to create %s/%s: %v", assignedIdentity.Namespace, assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDAdd, time.Since(begin))
 	return nil
 }
 
 // UpdateAssignedIdentity updates an existing assigned identity
 func (c *Client) UpdateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
-	klog.Infof("got assigned id %s/%s to update", assignedIdentity.Namespace, assignedIdentity.Name)
+	klog.Infof("updating assigned id %s/%s", assignedIdentity.Namespace, assignedIdentity.Name)
 	begin := time.Now()
 
 	defer func() {
@@ -564,7 +564,7 @@ func (c *Client) UpdateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 		return fmt.Errorf("failed to update AzureAssignedIdentity, error: %+v", err)
 	}
 
-	klog.V(5).Infof("time take to update %s/%s: %v", assignedIdentity.Namespace, assignedIdentity.Name, time.Since(begin))
+	klog.V(5).Infof("time taken to update %s/%s: %v", assignedIdentity.Namespace, assignedIdentity.Name, time.Since(begin))
 	stats.Update(stats.AssignedIDAdd, time.Since(begin))
 	return nil
 }

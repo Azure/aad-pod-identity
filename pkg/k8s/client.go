@@ -73,7 +73,7 @@ func NewKubeClient(nodeName string, scale, isStandardMode bool) (Client, error) 
 	}
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new failed to report metrics, error: %+v", err)
+		return nil, fmt.Errorf("failed to create reporter for metrics, error: %+v", err)
 	}
 
 	podInformer := informersv1.NewFilteredPodInformer(clientset, v1.NamespaceAll, 10*time.Minute,

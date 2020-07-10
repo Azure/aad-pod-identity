@@ -48,7 +48,7 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new failed to report metrics, error: %+v", err)
+		return nil, fmt.Errorf("failed to create reporter for metrics, error: %+v", err)
 	}
 
 	return &VMSSClient{
@@ -82,7 +82,7 @@ func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmssIdentities comput
 		return fmt.Errorf("failed to update identities for %s in %s, error: %+v", vmssName, rg, err)
 	}
 	if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
-		return fmt.Errorf("failed to wait for identity update completion, error: %+v", err)
+		return fmt.Errorf("failed to wait for identity update completion for vmss %s in resource group %s, error: %+v", vmssName, rg, err)
 	}
 	stats.UpdateCount(stats.TotalPutCalls, 1)
 	stats.Update(stats.CloudPut, time.Since(begin))
@@ -109,7 +109,7 @@ func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMac
 	}()
 	vmss, err := c.client.Get(ctx, rgName, vmssName)
 	if err != nil {
-		return vmss, fmt.Errorf("failed to get %s in %s, error: %+v", vmssName, rgName, err)
+		return vmss, fmt.Errorf("failed to get vmss %s in resource group %s, error: %+v", vmssName, rgName, err)
 	}
 	stats.UpdateCount(stats.TotalGetCalls, 1)
 	stats.Update(stats.CloudGet, time.Since(begin))

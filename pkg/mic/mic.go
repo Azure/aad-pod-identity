@@ -225,7 +225,7 @@ func NewMICClient(cfg *Config) (*Client, error) {
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new failed to report metrics, error: %+v", err)
+		return nil, fmt.Errorf("failed to create reporter for metrics, error: %+v", err)
 	}
 	c.Reporter = reporter
 	return c, nil
@@ -1133,7 +1133,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 			}
 			inUse, checkErr := c.checkIfInUse(delID, newAssignedIDs, vmssGroups)
 			if checkErr != nil {
-				klog.Errorf("failed to check if identity is in used, error: %+v", getErr)
+				klog.Errorf("failed to check if identity is in use, error: %+v", getErr)
 				continue
 			}
 			// the identity still exists on node, which means removing the identity from the node failed

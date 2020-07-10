@@ -90,7 +90,7 @@ func initTest() (*Reporter, error) {
 	}
 	reporter, err := NewReporter()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new failed to report metrics, error: %+v", err)
+		return nil, fmt.Errorf("failed to create reporter for metrics, error: %+v", err)
 	}
 	return reporter, nil
 }
