@@ -2,6 +2,7 @@ package cloudprovider
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -35,22 +36,19 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 
 	azureEnv, err := azure.EnvironmentFromName(config.Cloud)
 	if err != nil {
-		klog.Errorf("Get cloud env error: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get cloud environment, error: %+v", err)
 	}
 	client.BaseURI = azureEnv.ResourceManagerEndpoint
 	client.Authorizer = autorest.NewBearerAuthorizer(spt)
 	client.PollingDelay = 5 * time.Second
 	err = client.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
 	if err != nil {
-		klog.Errorf("Error updating user agent: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to add MIC to user agent, error: %+v", err)
 	}
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		klog.Errorf("New reporter error: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create reporter for metrics, error: %+v", err)
 	}
 
 	return &VMSSClient{
@@ -70,24 +68,21 @@ func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmssIdentities comput
 		if err != nil {
 			err = c.reporter.ReportCloudProviderOperationError(metrics.PutVmssOperationName)
 			if err != nil {
-				klog.Warningf("Metrics reporter error: %+v", err)
+				klog.Warningf("failed to report metrics, error: %+v", err)
 			}
 			return
 		}
 		err = c.reporter.ReportCloudProviderOperationDuration(metrics.PutVmssOperationName, time.Since(begin))
 		if err != nil {
-			klog.Warningf("Metrics reporter error: %+v", err)
+			klog.Warningf("failed to report metrics, error: %+v", err)
 		}
 	}()
 
-	if future, err = c.client.Update(ctx, rg, vmssName, compute.VirtualMachineScaleSetUpdate{
-		Identity: vmssIdentities.Identity}); err != nil {
-		klog.Errorf("Failed to update VM with error %v", err)
-		return err
+	if future, err = c.client.Update(ctx, rg, vmssName, compute.VirtualMachineScaleSetUpdate{Identity: vmssIdentities.Identity}); err != nil {
+		return fmt.Errorf("failed to update identities for %s in %s, error: %+v", vmssName, rg, err)
 	}
 	if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
-		klog.Error(err)
-		return err
+		return fmt.Errorf("failed to wait for identity update completion for vmss %s in resource group %s, error: %+v", vmssName, rg, err)
 	}
 	stats.UpdateCount(stats.TotalPutCalls, 1)
 	stats.Update(stats.CloudPut, time.Since(begin))
@@ -103,23 +98,22 @@ func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMac
 		if err != nil {
 			err = c.reporter.ReportCloudProviderOperationError(metrics.GetVmssOperationName)
 			if err != nil {
-				klog.Warningf("Metrics reporter error: %+v", err)
+				klog.Warningf("failed to report metrics, error: %+v", err)
 			}
 			return
 		}
 		err = c.reporter.ReportCloudProviderOperationDuration(metrics.GetVmssOperationName, time.Since(begin))
 		if err != nil {
-			klog.Warningf("Metrics reporter error: %+v", err)
+			klog.Warningf("failed to report metrics, error: %+v", err)
 		}
 	}()
-	vm, err := c.client.Get(ctx, rgName, vmssName)
+	vmss, err := c.client.Get(ctx, rgName, vmssName)
 	if err != nil {
-		klog.Error(err)
-		return vm, err
+		return vmss, fmt.Errorf("failed to get vmss %s in resource group %s, error: %+v", vmssName, rgName, err)
 	}
 	stats.UpdateCount(stats.TotalGetCalls, 1)
 	stats.Update(stats.CloudGet, time.Since(begin))
-	return vm, nil
+	return vmss, nil
 }
 
 // vmssIdentityHolder implements `IdentityHolder` for vmss resources.

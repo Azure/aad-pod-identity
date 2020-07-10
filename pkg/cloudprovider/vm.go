@@ -2,6 +2,7 @@ package cloudprovider
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -35,22 +36,19 @@ func NewVirtualMachinesClient(config config.AzureConfig, spt *adal.ServicePrinci
 
 	azureEnv, err := azure.EnvironmentFromName(config.Cloud)
 	if err != nil {
-		klog.Errorf("Get cloud env error: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get cloud environment, error: %+v", err)
 	}
 	client.BaseURI = azureEnv.ResourceManagerEndpoint
 	client.Authorizer = autorest.NewBearerAuthorizer(spt)
 	client.PollingDelay = 5 * time.Second
 	err = client.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
 	if err != nil {
-		klog.Errorf("Error updating user agent: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to add MIC to user agent, error: %+v", err)
 	}
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		klog.Errorf("New reporter error: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create reporter for metrics, error: %+v", err)
 	}
 
 	return &VMClient{
@@ -69,20 +67,19 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 		if err != nil {
 			err = c.reporter.ReportCloudProviderOperationError(metrics.GetVMOperationName)
 			if err != nil {
-				klog.Warningf("Metrics reporter error: %+v", err)
+				klog.Warningf("failed to report metrics, error: %+v", err)
 			}
 			return
 		}
 		err = c.reporter.ReportCloudProviderOperationDuration(metrics.GetVMOperationName, time.Since(begin))
 		if err != nil {
-			klog.Warningf("Metrics reporter error: %+v", err)
+			klog.Warningf("failed to report metrics, error: %+v", err)
 		}
 	}()
 
 	vm, err := c.client.Get(ctx, rgName, nodeName, "")
 	if err != nil {
-		klog.Error(err)
-		return vm, err
+		return vm, fmt.Errorf("failed to get vm %s in resource group %s, error: %+v", nodeName, rgName, err)
 	}
 	stats.UpdateCount(stats.TotalGetCalls, 1)
 	stats.Update(stats.CloudGet, time.Since(begin))
@@ -100,24 +97,21 @@ func (c *VMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachi
 		if err != nil {
 			err = c.reporter.ReportCloudProviderOperationError(metrics.PutVMOperationName)
 			if err != nil {
-				klog.Warningf("Metrics reporter error: %+v", err)
+				klog.Warningf("failed to report metrics, error: %+v", err)
 			}
 			return
 		}
 		err = c.reporter.ReportCloudProviderOperationDuration(metrics.PutVMOperationName, time.Since(begin))
 		if err != nil {
-			klog.Warningf("Metrics reporter error: %+v", err)
+			klog.Warningf("failed to report metrics, error: %+v", err)
 		}
 	}()
 
-	if future, err = c.client.Update(ctx, rg, nodeName, compute.VirtualMachineUpdate{
-		Identity: vm.Identity}); err != nil {
-		klog.Errorf("Failed to update VM with error %v", err)
-		return err
+	if future, err = c.client.Update(ctx, rg, nodeName, compute.VirtualMachineUpdate{Identity: vm.Identity}); err != nil {
+		return fmt.Errorf("failed to update identities for %s in %s, error: %+v", nodeName, rg, err)
 	}
 	if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
-		klog.Error(err)
-		return err
+		return fmt.Errorf("failed to wait for identity update completion for vm %s in resource group %s, error: %+v", nodeName, rg, err)
 	}
 	stats.UpdateCount(stats.TotalPutCalls, 1)
 	stats.Update(stats.CloudPut, time.Since(begin))

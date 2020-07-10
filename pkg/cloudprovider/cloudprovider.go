@@ -53,7 +53,7 @@ func NewCloudProvider(configFile string, updateUserMSIMaxRetry int, updateUseMSI
 		configFile: configFile,
 	}
 	if err := client.Init(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to initialize cloud provider client, error: %+v", err)
 	}
 	client.RetryClient = retry.NewRetryClient(updateUserMSIMaxRetry, updateUseMSIRetryInterval)
 	client.RetryClient.RegisterRetriableErrors(linkedAuthorizationFailed, failedIdentityOperation)
@@ -65,18 +65,16 @@ func NewCloudProvider(configFile string, updateUserMSIMaxRetry int, updateUseMSI
 func (c *Client) Init() error {
 	c.Config = config.AzureConfig{}
 	if c.configFile != "" {
-		klog.V(6).Info("Populate AzureConfig from azure.json")
+		klog.V(6).Info("populating AzureConfig from azure.json")
 		bytes, err := ioutil.ReadFile(c.configFile)
 		if err != nil {
-			klog.Errorf("Read file (%s) error: %+v", c.configFile, err)
-			return err
+			return fmt.Errorf("failed to config file %s, error: %+v", c.configFile, err)
 		}
 		if err = yaml.Unmarshal(bytes, &c.Config); err != nil {
-			klog.Errorf("Unmarshall error: %v", err)
-			return err
+			return fmt.Errorf("failed to unmarshal JSON, error: %+v", err)
 		}
 	} else {
-		klog.V(6).Info("Populate AzureConfig from secret/environment variables")
+		klog.V(6).Info("populating AzureConfig from secret/environment variables")
 		c.Config.Cloud = os.Getenv("CLOUD")
 		c.Config.TenantID = os.Getenv("TENANT_ID")
 		c.Config.ClientID = os.Getenv("CLIENT_ID")
@@ -90,20 +88,17 @@ func (c *Client) Init() error {
 
 	azureEnv, err := azure.EnvironmentFromName(c.Config.Cloud)
 	if err != nil {
-		klog.Errorf("Get cloud env error: %+v", err)
-		return err
+		return fmt.Errorf("failed to get cloud environment, error: %+v", err)
 	}
 
 	err = adal.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
 	if err != nil {
-		klog.Errorf("add to user agent error: %+v", err)
-		return err
+		return fmt.Errorf("failed to add MIC to user agent, error: %+v", err)
 	}
 
 	oauthConfig, err := adal.NewOAuthConfig(azureEnv.ActiveDirectoryEndpoint, c.Config.TenantID)
 	if err != nil {
-		klog.Errorf("Create OAuth config error: %+v", err)
-		return err
+		return fmt.Errorf("failed to create OAuth config, error: %+v", err)
 	}
 
 	var spt *adal.ServicePrincipalToken
@@ -111,23 +106,20 @@ func (c *Client) Init() error {
 		// MSI endpoint is required for both types of MSI - system assigned and user assigned.
 		msiEndpoint, err := adal.GetMSIVMEndpoint()
 		if err != nil {
-			klog.Errorf("Failed to get MSI endpoint. Error: %+v", err)
-			return err
+			return fmt.Errorf("failed to get MSI endpoint, error: %+v", err)
 		}
 		// UserAssignedIdentityID is empty, so we are going to use system assigned MSI
 		if c.Config.UserAssignedIdentityID == "" {
 			klog.Infof("MIC using system assigned identity for authentication.")
 			spt, err = adal.NewServicePrincipalTokenFromMSI(msiEndpoint, azureEnv.ResourceManagerEndpoint)
 			if err != nil {
-				klog.Errorf("Get token from system assigned MSI error: %+v", err)
-				return err
+				return fmt.Errorf("failed to get token from system-assigned identity, error: %+v", err)
 			}
 		} else { // User assigned identity usage.
 			klog.Infof("MIC using user assigned identity: %s for authentication.", utils.RedactClientID(c.Config.UserAssignedIdentityID))
 			spt, err = adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(msiEndpoint, azureEnv.ResourceManagerEndpoint, c.Config.UserAssignedIdentityID)
 			if err != nil {
-				klog.Errorf("Get token from user assigned MSI error: %+v", err)
-				return err
+				return fmt.Errorf("failed to get token from user-assigned identity, error: %+v", err)
 			}
 		}
 	} else { // This is the default scenario - use service principal to get the token.
@@ -138,8 +130,7 @@ func (c *Client) Init() error {
 			azureEnv.ResourceManagerEndpoint,
 		)
 		if err != nil {
-			klog.Errorf("Get service principal token error: %+v", err)
-			return err
+			return fmt.Errorf("failed to get service principal token, error: %+v", err)
 		}
 	}
 
@@ -150,13 +141,11 @@ func (c *Client) Init() error {
 
 	c.VMSSClient, err = NewVMSSClient(c.Config, spt)
 	if err != nil {
-		klog.Errorf("Create VMSS Client error: %+v", err)
-		return err
+		return fmt.Errorf("failed to create VMSS client, error: %+v", err)
 	}
 	c.VMClient, err = NewVirtualMachinesClient(c.Config, spt)
 	if err != nil {
-		klog.Errorf("Create VM Client error: %+v", err)
-		return err
+		return fmt.Errorf("failed to create VM client, error: %+v", err)
 	}
 
 	return nil
@@ -166,8 +155,7 @@ func (c *Client) Init() error {
 func (c *Client) GetUserMSIs(name string, isvmss bool) ([]string, error) {
 	idH, _, err := c.getIdentityResource(name, isvmss)
 	if err != nil {
-		klog.Errorf("GetUserMSIs: get identity resource failed with error %v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get identity resource, error %v", err)
 	}
 	info := idH.IdentityInfo()
 	if info == nil {
@@ -181,7 +169,7 @@ func (c *Client) GetUserMSIs(name string, isvmss bool) ([]string, error) {
 func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs []string, name string, isvmss bool) error {
 	idH, updateFunc, err := c.getIdentityResource(name, isvmss)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get identity resource, error %v", err)
 	}
 
 	info := idH.IdentityInfo()
@@ -205,7 +193,7 @@ func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs [
 		return nil
 	}
 
-	klog.Infof("Updating user assigned MSIs on %s, assign [%d], unassign [%d]", name, len(addUserAssignedMSIIDs), len(removeUserAssignedMSIIDs))
+	klog.Infof("updating user-assigned identities on %s, assign [%d], unassign [%d]", name, len(addUserAssignedMSIIDs), len(removeUserAssignedMSIIDs))
 	timeStarted := time.Now()
 	shouldRetry := func(err error) bool {
 		if err == nil {
@@ -219,14 +207,14 @@ func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs [
 		for _, erroneousID := range erroneousIDs {
 			if removed := info.RemoveUserIdentity(erroneousID); removed {
 				removedAny = true
-				klog.Infof("Removing %s from ID list since it is erroneous", erroneousID)
+				klog.Infof("removing %s from ID list since it is erroneous", erroneousID)
 			}
 		}
 
 		// Only retry if there is at least one ID after deleting
 		remainingIDs := info.GetUserIdentityList()
 		if removedAny && len(remainingIDs) > 0 {
-			klog.Infof("Attempting to retry with ID list %v", remainingIDs)
+			klog.Infof("attempting to retry with ID list %v", remainingIDs)
 			return true
 		}
 
@@ -247,7 +235,7 @@ func (c *Client) getIdentityResource(name string, isvmss bool) (idH IdentityHold
 	if isvmss {
 		vmss, err := c.VMSSClient.Get(rg, name)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, fmt.Errorf("failed to get vmss %s in resource group %s, error: %+v", name, rg, err)
 		}
 
 		update = func() error {
@@ -259,7 +247,7 @@ func (c *Client) getIdentityResource(name string, isvmss bool) (idH IdentityHold
 
 	vm, err := c.VMClient.Get(rg, name)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to get vm %s in resource group %s, error: %+v", name, rg, err)
 	}
 	update = func() error {
 		return c.VMClient.UpdateIdentities(rg, name, vm)
@@ -292,7 +280,7 @@ func ParseResourceID(resourceID string) (azure.Resource, error) {
 	}
 
 	if len(match) < 6 {
-		return azure.Resource{}, fmt.Errorf("parsing failed for %s: invalid resource id format", resourceID)
+		return azure.Resource{}, fmt.Errorf("failed to parse %s: invalid resource ID format", resourceID)
 	}
 
 	result := azure.Resource{
@@ -333,7 +321,7 @@ func extractIdentitiesFromError(err error) []string {
 	for _, id := range strings.Split(match, ",") {
 		// Sanity check
 		if err := utils.ValidateResourceID(id); err != nil {
-			klog.Error(err)
+			klog.Errorf("failed to validate %s, error: %+v", id, err)
 			continue
 		}
 		extracted = append(extracted, id)

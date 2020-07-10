@@ -16,17 +16,16 @@ func newPrometheusExporter(namespace string, portNumber string) (*prometheus.Exp
 	})
 
 	if err != nil {
-		klog.Errorf("Failed to create the Prometheus exporter. error: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create the Prometheus exporter, error: %+v", err)
 	}
-	klog.Info("Starting Prometheus exporter")
+	klog.Info("starting Prometheus exporter")
 	// Run the Prometheus exporter as a scrape endpoint.
 	go func() {
 		mux := http.NewServeMux()
 		mux.Handle("/metrics", prometheusExporter)
 		address := fmt.Sprintf(":%v", portNumber)
 		if err := http.ListenAndServe(address, mux); err != nil {
-			klog.Errorf("Failed to run Prometheus scrape endpoint: %v", err)
+			klog.Errorf("failed to run Prometheus scrape endpoint, error: %+v", err)
 		}
 	}()
 	return prometheusExporter, nil

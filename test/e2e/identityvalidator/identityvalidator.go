@@ -43,13 +43,13 @@ func main() {
 	podnamespace := os.Getenv("E2E_TEST_POD_NAMESPACE")
 	podip := os.Getenv("E2E_TEST_POD_IP")
 
-	klog.Infof("Starting identity validator pod %s/%s %s", podnamespace, podname, podip)
+	klog.Infof("starting identity validator pod %s/%s with pod IP %s", podnamespace, podname, podip)
 
 	msiEndpoint, err := adal.GetMSIVMEndpoint()
 	if err != nil {
-		klog.Fatalf("Failed to get msiEndpoint: %+v", err)
+		klog.Fatalf("failed to get MSI endpoint, error: %+v", err)
 	}
-	klog.Infof("Successfully obtain MSIEndpoint: %s\n", msiEndpoint)
+	klog.Infof("successfully obtain MSI endpoint: %s\n", msiEndpoint)
 
 	ctx, ctxCancel := context.WithTimeout(context.Background(), contextTimeout)
 	defer ctxCancel()
@@ -88,7 +88,7 @@ func testClusterWideUserAssignedIdentity(ctx context.Context, msiEndpoint, subsc
 		return errors.Wrapf(err, "Failed to verify cluster-wide user assigned identity")
 	}
 
-	klog.Infof("Successfully verified cluster-wide user assigned identity. VM count: %d", len(vmlist.Values()))
+	klog.Infof("successfully verified cluster-wide user assigned identity. VM count: %d", len(vmlist.Values()))
 	return nil
 }
 
@@ -161,7 +161,7 @@ func testUserAssignedIdentityOnPod(ctx context.Context, msiEndpoint, identityCli
 		return errors.Wrapf(err, "Failed to verify user assigned identity on pod")
 	}
 
-	klog.Infof("Successfully verified user assigned identity on pod")
+	klog.Infof("successfully verified user-assigned identity on pod")
 	return nil
 }
 
@@ -181,6 +181,6 @@ func testSystemAssignedIdentity(msiEndpoint string) (*adal.Token, error) {
 		return nil, errors.Errorf("No token found, MSI VM extension, msiEndpoint(%s)", msiEndpoint)
 	}
 
-	klog.Infof("Successfully acquired a token using the MSI, msiEndpoint(%s)", msiEndpoint)
+	klog.Infof("successfully acquired a token using the MSI, msiEndpoint(%s)", msiEndpoint)
 	return &token, nil
 }

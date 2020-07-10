@@ -42,7 +42,7 @@ func main() {
 	defer klog.Flush()
 	hostName, err := os.Hostname()
 	if err != nil {
-		klog.Fatalf("Get hostname failure. Error: %+v", err)
+		klog.Fatalf("failed to get hostname, error: %+v", err)
 	}
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "Path to the kube config")
 	flag.StringVar(&cloudconfig, "cloudconfig", "", "Path to cloud config e.g. Azure.json file")
@@ -98,7 +98,7 @@ func main() {
 	if versionInfo {
 		version.PrintVersionAndExit()
 	}
-	klog.Infof("Starting mic process. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
+	klog.Infof("starting mic process. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
 	if cloudconfig == "" {
 		klog.Warningf("--cloudconfig not passed will use aadpodidentity-admin-secret")
 	}
@@ -107,29 +107,32 @@ func main() {
 	}
 	if enableProfile {
 		profilePort := "6060"
-		klog.Infof("Starting profiling on port %s", profilePort)
+		klog.Infof("starting profiling on port %s", profilePort)
 		go func() {
-			klog.Error(http.ListenAndServe("localhost:"+profilePort, nil))
+			addr := "localhost:" + profilePort
+			if err := http.ListenAndServe(addr, nil); err != nil {
+				klog.Errorf("failed to listen and serve %s, error: %+v", addr, err)
+			}
 		}()
 	}
 
 	if enableScaleFeatures {
-		klog.Infof("Enabling features for scale clusters")
+		klog.Infof("enabling features for scale clusters")
 	}
 
 	klog.Infof("kubeconfig (%s) cloudconfig (%s)", kubeconfig, cloudconfig)
 	config, err := buildConfig(kubeconfig)
 	if err != nil {
-		klog.Fatalf("Could not read config properly. Check the k8s config file, %+v", err)
+		klog.Fatalf("failed to build config from %s, error: %+v", kubeconfig, err)
 	}
 	config.UserAgent = version.GetUserAgent("MIC", version.MICVersion)
 
 	forceNamespaced = forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
-	klog.Infof("Running MIC in namespaced mode: %v", forceNamespaced)
+	klog.Infof("running MIC in namespaced mode: %v", forceNamespaced)
 
 	config.QPS = float32(clientQPS)
 	config.Burst = int(clientQPS)
-	klog.Infof("Client QPS set to: %v. Burst to: %v", config.QPS, config.Burst)
+	klog.Infof("client QPS set to: %v. Burst to: %v", config.QPS, config.Burst)
 
 	var immutableUserMSIsList []string
 	if immutableUserMSIs != "" {
@@ -152,7 +155,7 @@ func main() {
 
 	micClient, err := mic.NewMICClient(micConfig)
 	if err != nil {
-		klog.Fatalf("Could not get the MIC client: %+v", err)
+		klog.Fatalf("failed to create MIC client, error: %+v", err)
 	}
 
 	// Health probe will always report success once its started.
@@ -162,12 +165,12 @@ func main() {
 
 	// Register and expose metrics views
 	if err = metrics.RegisterAndExport(prometheusPort); err != nil {
-		klog.Fatalf("Could not register and export metrics: %+v", err)
+		klog.Fatalf("failed to register and export metrics on port %s, error: %+v", prometheusPort, err)
 	}
 
 	// Starts the leader election loop
 	micClient.Run()
-	klog.Info("AAD Pod identity controller initialized!!")
+	klog.Info("aad-pod-identity controller initialized!!")
 	//Infinite loop :-)
 	select {}
 }

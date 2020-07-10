@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"fmt"
 	"testing"
 
 	"go.opencensus.io/stats"
@@ -89,7 +90,7 @@ func initTest() (*Reporter, error) {
 	}
 	reporter, err := NewReporter()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create reporter for metrics, error: %+v", err)
 	}
 	return reporter, nil
 }

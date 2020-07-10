@@ -55,7 +55,7 @@ func (c *client) Start(exit <-chan struct{}) {
 			case <-exit:
 				return
 			case event := <-c.watcher.Events:
-				klog.Infof("Detect file modification: %s", event.String())
+				klog.Infof("detected file modification: %s", event.String())
 				if c.eventHandler != nil {
 					c.eventHandler(event)
 				}

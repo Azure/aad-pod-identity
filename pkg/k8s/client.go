@@ -73,7 +73,7 @@ func NewKubeClient(nodeName string, scale, isStandardMode bool) (Client, error) 
 	}
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create reporter for metrics, error: %+v", err)
 	}
 
 	podInformer := informersv1.NewFilteredPodInformer(clientset, v1.NamespaceAll, 10*time.Minute,
@@ -93,7 +93,7 @@ func NewKubeClient(nodeName string, scale, isStandardMode bool) (Client, error) 
 // Sync ...
 func (c *KubeClient) Sync(exit <-chan struct{}) {
 	if !cache.WaitForCacheSync(exit, c.PodInformer.HasSynced) {
-		klog.Errorf("Pod cache could not be synchronized")
+		klog.Error("pod cache could not be synchronized")
 	}
 }
 
@@ -129,14 +129,14 @@ func (c *KubeClient) GetPod(namespace, name string) (v1.Pod, error) {
 	// TODO (aramase) wrap this with retries
 	obj, exists, err := c.PodInformer.GetIndexer().GetByKey(namespace + "/" + name)
 	if err != nil {
-		return v1.Pod{}, fmt.Errorf("failed to get pod %s/%s, err: %+v", namespace, name, err)
+		return v1.Pod{}, fmt.Errorf("failed to get pod %s/%s, error: %+v", namespace, name, err)
 	}
 	if !exists {
-		return v1.Pod{}, fmt.Errorf("pod with key %s/%s doesn't exist", namespace, name)
+		return v1.Pod{}, fmt.Errorf("pod %s/%s doesn't exist", namespace, name)
 	}
 	pod, ok := obj.(*v1.Pod)
 	if !ok {
-		return v1.Pod{}, fmt.Errorf("could not cast %T to %s", pod, "v1.Pod")
+		return v1.Pod{}, fmt.Errorf("could not cast %T to v1.Pod", pod)
 	}
 	return *pod, nil
 }
@@ -144,7 +144,7 @@ func (c *KubeClient) GetPod(namespace, name string) (v1.Pod, error) {
 // GetPodInfo get pod ns,name from apiserver
 func (c *KubeClient) GetPodInfo(podip string) (podns, poddname, rsName string, labels *metav1.LabelSelector, err error) {
 	if podip == "" {
-		return "", "", "", nil, fmt.Errorf("podip is empty")
+		return "", "", "", nil, fmt.Errorf("pod IP is empty")
 	}
 
 	podList, err := c.getPodListRetry(podip, getPodListRetries, getPodListSleepTimeMilliseconds)
@@ -158,7 +158,7 @@ func (c *KubeClient) GetPodInfo(podip string) (podns, poddname, rsName string, l
 			MatchLabels: podList[0].Labels}, nil
 	}
 
-	return "", "", "", nil, fmt.Errorf("match failed, ip:%s matching pods:%v", podip, podList)
+	return "", "", "", nil, fmt.Errorf("failed to match pod IP %s with %v", podip, podList)
 }
 
 func isPhaseValid(p v1.PodPhase) bool {
@@ -171,8 +171,7 @@ func (c *KubeClient) getPodList(podip string) ([]*v1.Pod, error) {
 	for _, o := range list {
 		pod, ok := o.(*v1.Pod)
 		if !ok {
-			err := fmt.Errorf("could not cast %T to %s", pod, "v1.Pod")
-			klog.Error(err)
+			err := fmt.Errorf("could not cast %T to v1.Pod", pod)
 			return nil, err
 		}
 		if pod.Status.PodIP == podip && isPhaseValid(pod.Status.Phase) {
@@ -180,9 +179,7 @@ func (c *KubeClient) getPodList(podip string) ([]*v1.Pod, error) {
 		}
 	}
 	if len(podList) == 0 {
-		err := fmt.Errorf("pod list empty")
-		klog.Error(err)
-		return nil, err
+		return nil, fmt.Errorf("pod list is empty")
 	}
 	return podList, nil
 }
@@ -200,14 +197,14 @@ func (c *KubeClient) getPodListRetry(podip string, retries int, sleeptime time.D
 		}
 		err = c.reporter.ReportKubernetesAPIOperationError(metrics.GetPodListOperationName)
 		if err != nil {
-			klog.Warningf("Metrics reporter error: %+v", err)
+			klog.Warningf("failed to report metrics, error: %+v", err)
 		}
 
 		if i >= retries {
 			break
 		}
 		i++
-		klog.Warningf("List pod error: %+v. Retrying, attempt number: %d", err, i)
+		klog.Warningf("list pod error: %+v. Retrying, attempt number: %d", err, i)
 		time.Sleep(sleeptime * time.Millisecond)
 	}
 	// We reach here only if there is an error and we have exhausted all retries.
@@ -229,7 +226,7 @@ func GetLocalIP() (string, error) {
 			}
 		}
 	}
-	return "", fmt.Errorf("non loopback ip address not found")
+	return "", fmt.Errorf("non loopback IP address not found")
 }
 
 // ListPodIds lists matching ids for pod or error
@@ -253,7 +250,7 @@ func (c *KubeClient) GetSecret(secretRef *v1.SecretReference) (*v1.Secret, error
 	if err != nil {
 		merr := c.reporter.ReportKubernetesAPIOperationError(metrics.GetSecretOperationName)
 		if merr != nil {
-			klog.Warningf("Metrics reporter error: %+v", err)
+			klog.Warningf("failed to report metrics, error: %+v", err)
 		}
 		return nil, err
 	}

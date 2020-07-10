@@ -34,7 +34,7 @@ func main() {
 
 	msiEndpoint, err := adal.GetMSIVMEndpoint()
 	if err != nil {
-		klog.Fatalf("failed to get msiendpoint, %+v", err)
+		klog.Fatalf("failed to get MSI endpoint, error: %+v", err)
 	}
 
 	for {
@@ -42,18 +42,16 @@ func main() {
 
 		t1 := testMSIEndpoint(msiEndpoint, *resource)
 		if t1 == nil {
-			klog.Errorf("testMSIEndpoint failed, %+v", err)
 			continue
 		}
 
 		t2 := testMSIEndpointFromUserAssignedID(msiEndpoint, *clientID, *resource)
 		if t2 == nil {
-			klog.Errorf("testMSIEndpointFromUserAssignedID failed, %+v", err)
 			continue
 		}
 
 		if !strings.EqualFold(t1.AccessToken, t2.AccessToken) {
-			klog.Errorf("msi, emsi test failed %+v %+v", t1, t2)
+			klog.Errorf("msi, emsi test failed with t1(%+v) and t2(%+v)", t1, t2)
 		}
 
 		testInstanceMetadataRequests()
@@ -65,33 +63,33 @@ func main() {
 func doARMOperations(subscriptionID, resourceGroup string) {
 	authorizer, err := auth.NewAuthorizerFromEnvironment()
 	if err != nil {
-		klog.Errorf("failed NewAuthorizerFromEnvironment  %+v", err)
+		klog.Errorf("failed to get authorizer from environment, error: %+v", err)
 		return
 	}
 	vmClient := compute.NewVirtualMachinesClient(subscriptionID)
 	vmClient.Authorizer = authorizer
 	vmlist, err := vmClient.List(context.Background(), resourceGroup)
 	if err != nil {
-		klog.Errorf("failed list all vm %+v", err)
+		klog.Errorf("failed list all vm, error: %+v", err)
 		return
 	}
 
-	klog.Infof("successful doARMOperations vm count %d", len(vmlist.Values()))
+	klog.Infof("successfully counted VM from ARM: %d", len(vmlist.Values()))
 }
 
 func testMSIEndpoint(msiEndpoint, resource string) *adal.Token {
 	spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, resource)
 	if err != nil {
-		klog.Errorf("failed to acquire a token using the MSI VM extension, Error: %+v", err)
+		klog.Errorf("failed to acquire a token using the MSI VM extension, error: %+v", err)
 		return nil
 	}
 	if err := spt.Refresh(); err != nil {
-		klog.Errorf("failed to refresh ServicePrincipalTokenFromMSI using the MSI VM extension, msiEndpoint(%s)", msiEndpoint)
+		klog.Errorf("failed to refresh ServicePrincipalTokenFromMSI using the MSI endpoint (%s), error: %+v", msiEndpoint, err)
 		return nil
 	}
 	token := spt.Token()
 	if token.IsZero() {
-		klog.Errorf("zero token found, MSI VM extension, msiEndpoint(%s)", msiEndpoint)
+		klog.Errorf("zero token found using the MSI endpoint (%s)", msiEndpoint)
 		return nil
 	}
 	klog.Infof("successfully acquired a token using the MSI, msiEndpoint(%s)", msiEndpoint)
@@ -101,7 +99,7 @@ func testMSIEndpoint(msiEndpoint, resource string) *adal.Token {
 func testMSIEndpointFromUserAssignedID(msiEndpoint, userAssignedID, resource string) *adal.Token {
 	spt, err := adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(msiEndpoint, resource, userAssignedID)
 	if err != nil {
-		klog.Errorf("failed NewServicePrincipalTokenFromMSIWithUserAssignedID, clientID: %s Error: %+v", userAssignedID, err)
+		klog.Errorf("failed NewServicePrincipalTokenFromMSIWithUserAssignedID, clientID: %s, error: %+v", userAssignedID, err)
 		return nil
 	}
 	if err := spt.Refresh(); err != nil {
@@ -125,7 +123,7 @@ func testInstanceMetadataRequests() {
 	}
 	req, err := http.NewRequest("GET", "http://169.254.169.254/metadata/instance?api-version=2017-08-01", nil)
 	if err != nil {
-		klog.Error(err)
+		klog.Errorf("failed to create new http request, error: %+v", err)
 		return
 	}
 	req.Header.Add("Metadata", "true")
@@ -137,7 +135,7 @@ func testInstanceMetadataRequests() {
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		klog.Error(err)
+		klog.Errorf("failed to read response body, error: %+v", err)
 		return
 	}
 	klog.Infof("successfully made GET on instance metadata, %s", body)

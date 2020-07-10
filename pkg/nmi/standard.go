@@ -69,7 +69,7 @@ func (sc *StandardClient) GetIdentities(ctx context.Context, podns, podname, cli
 	// If the client did not request a specific identity, then return the first identity
 	if len(clientID) == 0 && len(resourceID) == 0 {
 		id := filterPodIdentities[0]
-		klog.Infof("No clientID or resourceID in request. %s/%s has been matched with azure identity %s/%s", podns, podname, id.Namespace, id.Name)
+		klog.Infof("no clientID or resourceID in request. %s/%s has been matched with azure identity %s/%s", podns, podname, id.Namespace, id.Name)
 		return &id, nil
 	}
 
@@ -119,7 +119,7 @@ func (sc *StandardClient) listPodIDsWithRetry(ctx context.Context, podns, podnam
 					return idStateMap[aadpodid.AssignedIDAssigned], true, nil
 				}
 				if len(idStateMap[aadpodid.AssignedIDCreated]) == 0 && attempt >= sc.ListPodIDsRetryAttemptsForCreated {
-					return nil, false, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts, retry duration [%d]s. Error: %v",
+					return nil, false, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts, retry duration [%d]s, error: %+v",
 						podns, podname, sc.ListPodIDsRetryAttemptsForCreated, sc.ListPodIDsRetryIntervalInSeconds, err)
 				}
 			} else {
@@ -145,7 +145,7 @@ func (sc *StandardClient) listPodIDsWithRetry(ctx context.Context, podns, podnam
 					}
 				}
 				if !foundMatch && attempt >= sc.ListPodIDsRetryAttemptsForCreated {
-					return nil, false, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts, retry duration [%d]s. Error: %v",
+					return nil, false, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts, retry duration [%d]s, error: %+v",
 						podns, podname, sc.ListPodIDsRetryAttemptsForCreated, sc.ListPodIDsRetryIntervalInSeconds, err)
 				}
 			}
@@ -160,7 +160,7 @@ func (sc *StandardClient) listPodIDsWithRetry(ctx context.Context, podns, podnam
 		}
 		klog.V(4).Infof("failed to get assigned ids for pod:%s/%s in ASSIGNED state, retrying attempt: %d", podns, podname, attempt)
 	}
-	return nil, true, fmt.Errorf("getting assigned identities for pod %s/%s in ASSIGNED state failed after %d attempts, retry duration [%d]s. Error: %v",
+	return nil, true, fmt.Errorf("getting assigned identities for pod %s/%s in ASSIGNED state failed after %d attempts, retry duration [%d]s, error: %+v",
 		podns, podname, sc.ListPodIDsRetryAttemptsForCreated+sc.ListPodIDsRetryAttemptsForAssigned, sc.ListPodIDsRetryIntervalInSeconds, err)
 }
 

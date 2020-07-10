@@ -65,7 +65,7 @@ type MetadataResponse struct {
 func NewServer(micNamespace string, blockInstanceMetadata bool, metadataHeaderRequired bool) *Server {
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		klog.Errorf("Error creating new reporter to emit metrics: %v", err)
+		klog.Errorf("failed to create reporter for metrics, error: %+v", err)
 	} else {
 		// keeping this reference to be used in ServeHTTP, as server is not accessible in ServeHTTP
 		appHandlerReporter = reporter
@@ -93,9 +93,9 @@ func (s *Server) Run() error {
 	}
 	mux.Handle("/", appHandler(s.defaultPathHandler))
 
-	klog.Infof("Listening on port %s", s.NMIPort)
+	klog.Infof("listening on port %s", s.NMIPort)
 	if err := http.ListenAndServe("localhost:"+s.NMIPort, mux); err != nil {
-		klog.Fatalf("Error creating http server: %+v", err)
+		klog.Fatalf("error creating http server: %+v", err)
 	}
 	return nil
 }
@@ -180,14 +180,14 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			default:
 				err = errors.New("Unknown error")
 			}
-			klog.Errorf("Panic processing request: %+v, file: %s, line: %d, stacktrace: '%s' %s res.status=%d", r, file, line, stack, tracker, http.StatusInternalServerError)
+			klog.Errorf("panic processing request: %+v, file: %s, line: %d, stacktrace: '%s' %s res.status=%d", r, file, line, stack, tracker, http.StatusInternalServerError)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}()
 	rw := newResponseWriter(w)
 	ns := fn(rw, r)
 	latency := time.Since(start)
-	klog.Infof("Status (%d) took %d ns for %s", rw.statusCode, latency.Nanoseconds(), tracker)
+	klog.Infof("status (%d) took %d ns for %s", rw.statusCode, latency.Nanoseconds(), tracker)
 
 	tokenRequest := parseTokenRequest(r)
 
@@ -199,7 +199,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			tokenRequest.Resource,
 			metrics.NMIOperationsDurationM.M(metrics.SinceInSeconds(start)))
 		if err != nil {
-			klog.Warningf("Metrics reporter error: %+v", err)
+			klog.Warningf("failed to report metrics, error: %+v", err)
 		}
 	}
 }
@@ -229,13 +229,13 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 
 	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, tokenRequest.ClientID, tokenRequest.ResourceID)
 	if err != nil {
-		klog.Error(err)
+		klog.Errorf("failed to get identities, error: %+v", err)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 	token, err := s.TokenClient.GetToken(r.Context(), tokenRequest.ClientID, tokenRequest.Resource, *podID)
 	if err != nil {
-		klog.Errorf("failed to get service principal token for pod:%s/%s, err: %+v", podns, podname, err)
+		klog.Errorf("failed to get service principal token for pod:%s/%s, error: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
@@ -245,7 +245,7 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 	}
 	response, err := json.Marshal(nmiResp)
 	if err != nil {
-		klog.Errorf("failed to marshal service principal token and clientid for pod:%s/%s, err: %+v", podns, podname, err)
+		klog.Errorf("failed to marshal service principal token and clientid for pod:%s/%s, error: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -293,21 +293,19 @@ func (s *Server) getTokenForExceptedPod(rqClientID, rqResource string) ([]byte, 
 	var err error
 	// ClientID is empty, so we are going to use System assigned MSI
 	if rqClientID == "" {
-		klog.Infof("Fetching token for system assigned MSI")
+		klog.Infof("fetching token for system assigned MSI")
 		token, err = auth.GetServicePrincipalTokenFromMSI(rqResource)
 	} else { // User assigned identity usage.
-		klog.Infof("Fetching token for user assigned MSI for resource: %s", rqResource)
+		klog.Infof("fetching token for user assigned MSI for resource: %s", rqResource)
 		token, err = auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(rqClientID, rqResource)
 	}
 	if err != nil {
-		klog.Errorf("Failed to get service principal token, err: %+v", err)
 		// TODO: return the right status code based on the error we got from adal.
-		return nil, http.StatusForbidden, err
+		return nil, http.StatusForbidden, fmt.Errorf("failed to get service principal token, error: %+v", err)
 	}
 	response, err := json.Marshal(newMSIResponse(*token))
 	if err != nil {
-		klog.Errorf("Failed to marshal service principal token, err: %+v", err)
-		return nil, http.StatusInternalServerError, err
+		return nil, http.StatusInternalServerError, fmt.Errorf("failed to marshal service principal token, error: %+v", err)
 	}
 	return response, http.StatusOK, nil
 }
@@ -340,7 +338,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 
 	podns, podname, rsName, selectors, err := s.KubeClient.GetPodInfo(podIP)
 	if err != nil {
-		klog.Errorf("missing podname for podip:%s, %+v", podIP, err)
+		klog.Errorf("failed to get pod info from pod IP: %s, error %+v", podIP, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -355,10 +353,10 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 
 	// If its mic, then just directly get the token and pass back.
 	if pod.IsPodExcepted(selectors.MatchLabels, *exceptionList) || s.isMIC(podns, rsName) {
-		klog.Infof("Exception pod %s/%s token handling", podns, podname)
+		klog.Infof("exception pod %s/%s token handling", podns, podname)
 		response, errorCode, err := s.getTokenForExceptedPod(tokenRequest.ClientID, tokenRequest.Resource)
 		if err != nil {
-			klog.Errorf("failed to get service principal token for pod:%s/%s.  Error code: %d. Error: %+v", podns, podname, errorCode, err)
+			klog.Errorf("failed to get service principal token for pod:%s/%s with error code %d, error: %+v", podns, podname, errorCode, err)
 			http.Error(w, err.Error(), errorCode)
 			return
 		}
@@ -481,7 +479,7 @@ func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) (ns 
 	client := &http.Client{}
 	req, err := http.NewRequest(r.Method, r.URL.String(), r.Body)
 	if err != nil || req == nil {
-		klog.Errorf("failed creating a new request for %s, err: %+v", r.URL.String(), err)
+		klog.Errorf("failed creating a new request for %s, error: %+v", r.URL.String(), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -494,7 +492,7 @@ func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) (ns 
 	}
 	resp, err := client.Do(req)
 	if err != nil {
-		klog.Errorf("failed executing request for %s, err: %+v", req.URL.String(), err)
+		klog.Errorf("failed executing request for %s, error: %+v", req.URL.String(), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -505,7 +503,7 @@ func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) (ns 
 	}()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		klog.Errorf("failed io operation of reading response body for %s, %+v", req.URL.String(), err)
+		klog.Errorf("failed to read response body for %s, error: %+v", req.URL.String(), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	_, _ = w.Write(body)
@@ -526,19 +524,19 @@ func copyHeader(dst, src http.Header) {
 }
 
 func handleTermination() {
-	klog.Info("Received SIGTERM, shutting down")
+	klog.Info("received SIGTERM, shutting down")
 
 	exitCode := 0
 	// clean up iptables
 	if err := iptables.DeleteCustomChain(); err != nil {
-		klog.Errorf("Error cleaning up during shutdown: %v", err)
+		klog.Errorf("failed to clean up during shutdown, error: %+v", err)
 		exitCode = 1
 	}
 
 	// wait for pod to delete
-	klog.Info("Handled termination, awaiting pod deletion")
+	klog.Info("handled termination, awaiting pod deletion")
 	time.Sleep(10 * time.Second)
 
-	klog.Infof("Exiting with %v", exitCode)
+	klog.Infof("exiting with %v", exitCode)
 	os.Exit(exitCode)
 }

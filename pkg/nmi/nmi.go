@@ -49,7 +49,7 @@ type TokenClient interface {
 
 // GetTokenClient returns a token client
 func GetTokenClient(client k8s.Client, config Config) (TokenClient, error) {
-	klog.Infof("Initializing in %s mode", config.Mode)
+	klog.Infof("initializing in %s mode", config.Mode)
 
 	switch getOperationMode(config.Mode) {
 	case StandardMode:

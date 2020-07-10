@@ -280,7 +280,7 @@ func (c *TestCloudClient) CompareMSI(nodeName string, userIDs []string) bool {
 
 func (c *TestCloudClient) PrintMSI() {
 	for key, val := range c.ListMSI() {
-		klog.Infof("\nNode name: %s", key)
+		klog.Infof("\nnode name: %s", key)
 		if val != nil {
 			for i, id := range *val {
 				klog.Infof("%d) %s", i, id)
@@ -363,7 +363,7 @@ func NewTestPodClient() *TestPodClient {
 }
 
 func (c *TestPodClient) Start(exit <-chan struct{}) {
-	klog.Info("Start called from the test interface")
+	klog.Info("start called from the test interface")
 }
 
 func (c *TestPodClient) GetPods() ([]*corev1.Pod, error) {
@@ -912,7 +912,7 @@ func TestSimpleMICClient(t *testing.T) {
 	}
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 
 	assignedID := (*listAssignedIDs)[0]
@@ -940,7 +940,7 @@ func TestSimpleMICClient(t *testing.T) {
 	}
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 	if (*listAssignedIDs)[0].Status.Status != aadpodid.AssignedIDCreated {
 		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDCreated, (*listAssignedIDs)[0].Status.Status)
@@ -974,7 +974,7 @@ func TestUpdateAssignedIdentities(t *testing.T) {
 	}
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 
 	assignedID := (*listAssignedIDs)[0]
@@ -999,7 +999,7 @@ func TestUpdateAssignedIdentities(t *testing.T) {
 	}
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 	// check updated assigned identity has the right resource id
 	if listAssignedIDs != nil {
@@ -1070,7 +1070,7 @@ func TestAddUpdateDel(t *testing.T) {
 	}
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("failed to list assigned ids, err: %v", err)
+		t.Fatalf("failed to list assigned ids, error: %+v", err)
 	}
 	// check the updated identity has the correct azureid ref
 	for _, assignedID := range *listAssignedIDs {
@@ -1263,7 +1263,7 @@ func TestMICStateFlow(t *testing.T) {
 	}
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 	if !((*listAssignedIDs)[0].Status.Status == aadpodid.AssignedIDAssigned) {
 		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (*listAssignedIDs)[0].Status.Status)
@@ -1285,7 +1285,7 @@ func TestMICStateFlow(t *testing.T) {
 	}
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 	if !((*listAssignedIDs)[0].Status.Status == aadpodid.AssignedIDAssigned) {
 		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (*listAssignedIDs)[0].Status.Status)
@@ -1310,7 +1310,7 @@ func TestMICStateFlow(t *testing.T) {
 	}
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 	for _, assignedID := range *listAssignedIDs {
 		if assignedID.Spec.Pod == "test-pod1" {
@@ -1363,7 +1363,7 @@ func TestForceNamespaced(t *testing.T) {
 	}
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 	if !((*listAssignedIDs)[0].Status.Status == aadpodid.AssignedIDAssigned) {
 		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (*listAssignedIDs)[0].Status.Status)
@@ -1385,7 +1385,7 @@ func TestForceNamespaced(t *testing.T) {
 	}
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 
 	for _, assignedID := range *listAssignedIDs {
@@ -1430,7 +1430,7 @@ func TestSyncRetryLoop(t *testing.T) {
 	}
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 	if !((*listAssignedIDs)[0].Status.Status == aadpodid.AssignedIDAssigned) {
 		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (*listAssignedIDs)[0].Status.Status)
@@ -1452,7 +1452,7 @@ func TestSyncRetryLoop(t *testing.T) {
 
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 	if !((*listAssignedIDs)[0].Status.Status == aadpodid.AssignedIDAssigned) {
 		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, (*listAssignedIDs)[0].Status.Status)
@@ -1496,7 +1496,7 @@ func TestSyncNodeNotFound(t *testing.T) {
 	}
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 	for i := range *listAssignedIDs {
 		if !((*listAssignedIDs)[i].Status.Status == aadpodid.AssignedIDAssigned) {
@@ -1523,7 +1523,7 @@ func TestSyncNodeNotFound(t *testing.T) {
 	}
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 	for i := range *listAssignedIDs {
 		if !((*listAssignedIDs)[i].Status.Status == aadpodid.AssignedIDAssigned) {
@@ -1562,7 +1562,7 @@ func TestProcessingTimeForScale(t *testing.T) {
 
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 20000) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 20000, len(*listAssignedIDs))
@@ -1578,7 +1578,7 @@ func TestProcessingTimeForScale(t *testing.T) {
 	}
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 	if !(len(*listAssignedIDs) == 10000) {
 		t.Fatalf("expected assigned identities len: %d, got: %d", 10000, len(*listAssignedIDs))
@@ -1718,7 +1718,7 @@ func TestCloudProviderRetryLoop(t *testing.T) {
 
 	listAssignedIDs, err := crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 
 	assignedID := findAssignedIDByName("test-pod-1-default-test-id-1", listAssignedIDs)
@@ -1746,7 +1746,7 @@ func TestCloudProviderRetryLoop(t *testing.T) {
 
 	listAssignedIDs, err = crdClient.ListAssignedIDs()
 	if err != nil {
-		t.Fatalf("list assigned ids failed with err: %v", err)
+		t.Fatalf("list assigned ids failed , error: %+v", err)
 	}
 
 	assignedID = findAssignedIDByName("test-pod-1-default-test-id-1", listAssignedIDs)
