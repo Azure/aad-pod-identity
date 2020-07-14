@@ -43,19 +43,18 @@ func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType) {
 			AddFunc: func(obj interface{}) {
 				klog.V(6).Infof("pod created")
 				eventCh <- aadpodid.PodCreated
-
 			},
 			DeleteFunc: func(obj interface{}) {
 				klog.V(6).Infof("pod deleted")
 				eventCh <- aadpodid.PodDeleted
-
 			},
-			UpdateFunc: func(OldObj, newObj interface{}) {
-				// We are only interested in updates to pod if the node changes.
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				// We are only interested in updates to pod if the node or label changes.
 				// Having this check will ensure that mic sync loop does not do extra work
 				// for every pod update.
-				if (OldObj.(*v1.Pod)).Spec.NodeName != (newObj.(*v1.Pod)).Spec.NodeName {
-					klog.V(6).Infof("Pod Updated")
+				oldPod, newPod := oldObj.(*v1.Pod), newObj.(*v1.Pod)
+				if oldPod.Spec.NodeName != newPod.Spec.NodeName || oldPod.ObjectMeta.Labels[aadpodid.CRDLabelKey] != newPod.ObjectMeta.Labels[aadpodid.CRDLabelKey] {
+					klog.V(6).Infof("pod updated")
 					eventCh <- aadpodid.PodUpdated
 				}
 			},

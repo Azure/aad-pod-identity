@@ -156,6 +156,42 @@ func CreateBatch(input CreateBatchInput) []*corev1.Pod {
 	return identityValidators
 }
 
+// UpdateInput is the input for Update.
+type UpdatePodLabelInput struct {
+	Getter          framework.Getter
+	Updater         framework.Updater
+	Namespace       string
+	PodName         string
+	UpdatedPodLabel string
+}
+
+// Update updates an identity-validator resource.
+func UpdatePodLabel(input UpdatePodLabelInput) *corev1.Pod {
+	Expect(input.Getter).NotTo(BeNil(), "input.Getter is required for IdentityValidator.Update")
+	Expect(input.Updater).NotTo(BeNil(), "input.Updater is required for IdentityValidator.Update")
+	Expect(input.Namespace).NotTo(BeEmpty(), "input.Namespace is required for IdentityValidator.Update")
+	Expect(input.PodName).NotTo(BeEmpty(), "input.PodName is required for IdentityValidator.Update")
+	Expect(input.UpdatedPodLabel).NotTo(BeEmpty(), "input.UpdatedPodLabel is required for IdentityValidator.Update")
+
+	identityValidator := &corev1.Pod{}
+	Eventually(func() (bool, error) {
+		if err := input.Getter.Get(context.TODO(), client.ObjectKey{Name: input.PodName, Namespace: input.Namespace}, identityValidator); err != nil {
+			return false, err
+		}
+
+		return true, nil
+	}, framework.GetTimeout, framework.GetPolling).Should(BeTrue())
+
+	By(fmt.Sprintf("Changing the pod label of %s from %s to %s", input.PodName, identityValidator.ObjectMeta.Labels[aadpodv1.CRDLabelKey], input.UpdatedPodLabel))
+	identityValidator.ObjectMeta.Labels[aadpodv1.CRDLabelKey] = input.UpdatedPodLabel
+
+	Eventually(func() error {
+		return input.Updater.Update(context.TODO(), identityValidator)
+	}, framework.UpdateTimeout, framework.UpdatePolling).Should(Succeed())
+
+	return identityValidator
+}
+
 // DeleteInput is the input for Delete.
 type DeleteInput struct {
 	Deleter           framework.Deleter
