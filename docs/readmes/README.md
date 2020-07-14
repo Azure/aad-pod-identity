@@ -13,3 +13,4 @@
 1. [Pod Security Policy (PSP)](README.pod-security-policy.md)
 2. [Troubleshooting](README.troubleshooting.md)
 3. [Role Assignment](README.role-assignment.md)
+4. [Known Issues](README.known-issues.md)
