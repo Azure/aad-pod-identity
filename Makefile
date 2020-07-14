@@ -109,7 +109,7 @@ bin/%:
 
 .PHONY: build-identity-validator
 build-identity-validator: clean-identity-validator
-	PKG_NAME=github.com/Azure/$(PROJECT_NAME)/test/e2e/$(IDENTITY_VALIDATOR_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(IDENTITY_VALIDATOR_BINARY_NAME)
+	PKG_NAME=github.com/Azure/$(PROJECT_NAME)/test/image/$(IDENTITY_VALIDATOR_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(IDENTITY_VALIDATOR_BINARY_NAME)
 
 .PHONY: build
 build: clean build-nmi build-mic build-demo build-identity-validator
@@ -165,7 +165,7 @@ push: push-nmi push-mic push-demo push-identity-validator
 
 .PHONY: e2e
 e2e:
-	make -C test/e2e_new/ run
+	make -C test/e2e/ run
 
 .PHONY: unit-test
 unit-test:
