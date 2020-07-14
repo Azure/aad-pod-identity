@@ -103,11 +103,40 @@ kubectl delete crd azureidentitybindings.aadpodidentity.k8s.io
 kubectl delete crd azurepodidentityexceptions.aadpodidentity.k8s.io
 ```
 
-## Upgrading to a New Major Chart Version
+## Upgrade guide
+
+### Upgrading from chart version 1.5.5
+
+1.5.5 helm chart had introduced 2 labels which could possibly change with chart upgrade:
+
+```yaml
+      app.kubernetes.io/managed-by: Helm
+      helm.sh/chart: aad-pod-identity-1.5.5
+```
+
+This has been fixed in chart version `1.5.6` to prevent any issues with future upgrades of helm chart. For upgrading from 1.5.5 to any new chart version, a suggested workaround is editing the nmi and mic manifests to remove those 2 labels from `selector.matchLabels`:
+
+```bash
+kubectl get ds aad-pod-identity-nmi -o jsonpath='{.spec.selector.matchLabels}'
+map[app.kubernetes.io/component:nmi app.kubernetes.io/instance:pod-identity app.kubernetes.io/managed-by:Helm app.kubernetes.io/name:aad-pod-identity helm.sh/chart:aad-pod-identity-1.5.5]
+
+kubectl edit ds aad-pod-identity-nmi
+(Remove `app.kubernetes.io/managed-by: Helm` and `helm.sh/chart: aad-pod-identity-1.5.5` from the spec.selector.matchLabels)
+
+kubectl get deploy aad-pod-identity-mic -o jsonpath='{.spec.selector.matchLabels}'
+map[app.kubernetes.io/component:mic app.kubernetes.io/instance:pod-identity app.kubernetes.io/managed-by:Helm app.kubernetes.io/name:aad-pod-identity helm.sh/chart:aad-pod-identity-1.5.5]
+
+kubectl edit deploy aad-pod-identity-mic
+(Remove `app.kubernetes.io/managed-by: Helm` and `helm.sh/chart: aad-pod-identity-1.5.5` from the spec.selector.matchLabels)
+```
+Once this is done, the helm upgrade command will succeed.
+
+
+### Upgrading to a New Major Chart Version
 
 A major chart version change (like v1.6.0 -> v2.0.0) indicates that there is a backward-incompatible (breaking) change needing manual actions.
 
-### 2.0.0
+#### 2.0.0
 
 This version removes the `azureIdentity` and `azureIdentityBinding` values in favor of `azureIdentities`, a list of identities and their respective bindings, to support the creation of multiple AzureIdentity and AzureIdentityBinding resources.
 

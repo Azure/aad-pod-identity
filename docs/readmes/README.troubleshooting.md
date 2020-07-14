@@ -53,3 +53,22 @@ It means that your cluster service principal / managed identity does not have th
 Past issues:
 
 - https://github.com/Azure/aad-pod-identity/issues/585
+
+### Unable to remove `AzureAssignedIdentity` after MIC pods are deleted
+
+With release `1.6.1`, finalizers have been added to `AzureAssignedIdentity` to ensure the identities are successfully cleaned up by MIC before they're deleted. However, in scenarios where the MIC deployment is force deleted before it has completed the clean up of identities from the underlying node, the `AzureAssignedIdentity` will be left behind as it contains a finalizer.
+
+To delete all `AzureAssignedIdentity`, run the following command:
+```bash
+kubectl get azureassignedidentity -A -o=json | jq '.items[].metadata.finalizers=null' | kubectl apply -f -
+kubectl delete azureassignedidentity --all
+```
+
+To delete only a specific `AzureAssignedIdentity`, run the following command:
+```bash
+kubectl get azureassignedidentity <name> -n <namespace> -o=json | jq '.items[].metadata.finalizers=null' | kubectl apply -f -
+kubectl delete azureassignedidentity <name> -n <namespace> 
+```
+
+Past issues:
+- https://github.com/Azure/aad-pod-identity/issues/644
