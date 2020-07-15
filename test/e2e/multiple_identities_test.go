@@ -176,4 +176,55 @@ var _ = Describe("[PR] When deploying multiple identities", func() {
 		}
 		Expect(time.Since(start) <= 150*time.Second).To(BeTrue(), "Creation and validation of 40 AzureAssignedIdentities took more than 150 seconds")
 	})
+
+	It("should create a new AzureAssignedIdentity when the pod label is changed", func() {
+		identityValidator := identityvalidator.Create(identityvalidator.CreateInput{
+			Creator:         kubeClient,
+			Config:          config,
+			Namespace:       ns.Name,
+			IdentityBinding: azureIdentityBindings[0].Spec.Selector,
+		})
+
+		azureassignedidentity.Wait(azureassignedidentity.WaitInput{
+			Getter:            kubeClient,
+			PodName:           identityValidator.Name,
+			Namespace:         ns.Name,
+			AzureIdentityName: azureIdentities[0].Name,
+			StateToWaitFor:    aadpodv1.AssignedIDAssigned,
+		})
+
+		identityvalidator.Validate(identityvalidator.ValidateInput{
+			Getter:           kubeClient,
+			Config:           config,
+			KubeconfigPath:   kubeconfigPath,
+			PodName:          identityValidator.Name,
+			Namespace:        ns.Name,
+			IdentityClientID: azureIdentities[0].Spec.ClientID,
+		})
+
+		identityvalidator.UpdatePodLabel(identityvalidator.UpdatePodLabelInput{
+			Getter:          kubeClient,
+			Updater:         kubeClient,
+			Namespace:       ns.Name,
+			PodName:         identityValidator.Name,
+			UpdatedPodLabel: azureIdentityBindings[1].Spec.Selector,
+		})
+
+		azureassignedidentity.Wait(azureassignedidentity.WaitInput{
+			Getter:            kubeClient,
+			PodName:           identityValidator.Name,
+			Namespace:         ns.Name,
+			AzureIdentityName: azureIdentities[1].Name,
+			StateToWaitFor:    aadpodv1.AssignedIDAssigned,
+		})
+
+		identityvalidator.Validate(identityvalidator.ValidateInput{
+			Getter:           kubeClient,
+			Config:           config,
+			KubeconfigPath:   kubeconfigPath,
+			PodName:          identityValidator.Name,
+			Namespace:        ns.Name,
+			IdentityClientID: azureIdentities[1].Spec.ClientID,
+		})
+	})
 })
