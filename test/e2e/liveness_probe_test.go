@@ -6,8 +6,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
+	"github.com/Azure/aad-pod-identity/test/e2e/framework"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/exec"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/mic"
 
@@ -26,7 +26,7 @@ var _ = Describe("[PR] When liveness probe is enabled", func() {
 			}
 
 			return true, nil
-		}, 10*time.Second, 1*time.Second).Should(BeTrue())
+		}, framework.ListTimeout, framework.ListPolling).Should(BeTrue())
 
 		var micPods, nmiPods []corev1.Pod
 		for _, pod := range pods.Items {
