@@ -52,8 +52,19 @@ func (m *vmssManager) AssignUserAssignedIdentity(vmssName, identityToAssign stri
 			UserAssignedIdentities: map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{},
 		}
 	}
+	if vmss.Identity.UserAssignedIdentities == nil {
+		vmss.Identity.UserAssignedIdentities = make(map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue)
+	}
 
-	vmss.Identity.UserAssignedIdentities[fmt.Sprintf(ResourceIDTemplate, m.config.SubscriptionID, m.config.IdentityResourceGroup, identityToAssign)] = &compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{}
+	identityAssignResourceID := fmt.Sprintf(ResourceIDTemplate, m.config.SubscriptionID, m.config.IdentityResourceGroup, identityToAssign)
+	for identity := range vmss.Identity.UserAssignedIdentities {
+		// identity already exists and doesn't need to be re-assigned
+		if strings.EqualFold(identity, identityAssignResourceID) {
+			return nil
+		}
+	}
+
+	vmss.Identity.UserAssignedIdentities[identityAssignResourceID] = &compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{}
 	switch vmss.Identity.Type {
 	case compute.ResourceIdentityTypeSystemAssigned:
 		vmss.Identity.Type = compute.ResourceIdentityTypeSystemAssignedUserAssigned
@@ -72,7 +83,7 @@ func (m *vmssManager) UnassignUserAssignedIdentity(vmssName, identityToUnassign 
 		return err
 	}
 
-	if vmss.Identity == nil {
+	if vmss.Identity == nil || len(vmss.Identity.UserAssignedIdentities) == 0 {
 		return nil
 	}
 
