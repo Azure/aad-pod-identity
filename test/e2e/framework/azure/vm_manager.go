@@ -52,6 +52,9 @@ func (m *vmManager) AssignUserAssignedIdentity(vmName, identityToAssign string) 
 			UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{},
 		}
 	}
+	if vm.Identity.UserAssignedIdentities == nil {
+		vm.Identity.UserAssignedIdentities = make(map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue)
+	}
 
 	identityAssignResourceID := fmt.Sprintf(ResourceIDTemplate, m.config.SubscriptionID, m.config.IdentityResourceGroup, identityToAssign)
 	for identity := range vm.Identity.UserAssignedIdentities {
@@ -80,7 +83,7 @@ func (m *vmManager) UnassignUserAssignedIdentity(vmName, identityToUnassign stri
 		return err
 	}
 
-	if vm.Identity == nil {
+	if vm.Identity == nil || len(vm.Identity.UserAssignedIdentities) == 0 {
 		return nil
 	}
 
