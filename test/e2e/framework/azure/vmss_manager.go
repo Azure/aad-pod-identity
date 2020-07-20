@@ -87,7 +87,7 @@ func (m *vmssManager) UnassignUserAssignedIdentity(vmssName, identityToUnassign 
 		return nil
 	}
 
-	var existingIdentitiesCount int
+	var hasOtherIdentitiesAssigned bool
 	for identity := range vmss.Identity.UserAssignedIdentities {
 		if s := strings.Split(identity, "/"); strings.EqualFold(s[len(s)-1], identityToUnassign) {
 			By(fmt.Sprintf("Un-assigning \"%s\" from \"%s\"", identityToUnassign, vmssName))
@@ -96,10 +96,10 @@ func (m *vmssManager) UnassignUserAssignedIdentity(vmssName, identityToUnassign 
 			vmss.Identity.UserAssignedIdentities[identity] = nil
 			continue
 		}
-		existingIdentitiesCount++
+		hasOtherIdentitiesAssigned = true
 	}
 
-	if existingIdentitiesCount == 0 {
+	if !hasOtherIdentitiesAssigned {
 		vmss.Identity.UserAssignedIdentities = nil
 		switch vmss.Identity.Type {
 		case compute.ResourceIdentityTypeSystemAssignedUserAssigned:

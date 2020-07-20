@@ -87,18 +87,19 @@ func (m *vmManager) UnassignUserAssignedIdentity(vmName, identityToUnassign stri
 		return nil
 	}
 
-	var existingIdentitiesCount int
+	var hasOtherIdentitiesAssigned bool
 	for identity := range vm.Identity.UserAssignedIdentities {
 		if s := strings.Split(identity, "/"); strings.EqualFold(s[len(s)-1], identityToUnassign) {
 			By(fmt.Sprintf("Un-assigning \"%s\" from \"%s\"", identityToUnassign, vmName))
 			// when using PATCH for deleting identities, the identities need to exist in the map
 			// with nil value to force the deletion
 			vm.Identity.UserAssignedIdentities[identity] = nil
-			break
+			continue
 		}
+		hasOtherIdentitiesAssigned = true
 	}
 
-	if existingIdentitiesCount == 0 {
+	if !hasOtherIdentitiesAssigned {
 		vm.Identity.UserAssignedIdentities = nil
 		switch vm.Identity.Type {
 		case compute.ResourceIdentityTypeSystemAssignedUserAssigned:
