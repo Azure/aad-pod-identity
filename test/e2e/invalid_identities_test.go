@@ -102,12 +102,13 @@ var _ = Describe("[PR] When deploying invalid identities", func() {
 
 			if tc.noError {
 				identityvalidator.Validate(identityvalidator.ValidateInput{
-					Getter:           kubeClient,
-					Config:           config,
-					KubeconfigPath:   kubeconfigPath,
-					PodName:          identityValidators[i].Name,
-					Namespace:        ns.Name,
-					IdentityClientID: azureIdentities[i].Spec.ClientID,
+					Getter:             kubeClient,
+					Config:             config,
+					KubeconfigPath:     kubeconfigPath,
+					PodName:            identityValidators[i].Name,
+					Namespace:          ns.Name,
+					IdentityClientID:   azureIdentities[i].Spec.ClientID,
+					IdentityResourceID: azureIdentities[i].Spec.ResourceID,
 				})
 			}
 		}
@@ -130,12 +131,13 @@ var _ = Describe("[PR] When deploying invalid identities", func() {
 		})
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
-			Getter:           kubeClient,
-			Config:           config,
-			KubeconfigPath:   kubeconfigPath,
-			PodName:          validIdentityValidator.Name,
-			Namespace:        ns.Name,
-			IdentityClientID: azureIdentities[0].Spec.ClientID,
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            validIdentityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentities[0].Spec.ClientID,
+			IdentityResourceID: azureIdentities[0].Spec.ResourceID,
 		})
 
 		invalidIdentityValidators := identityvalidator.CreateBatch(identityvalidator.CreateBatchInput{
@@ -156,12 +158,13 @@ var _ = Describe("[PR] When deploying invalid identities", func() {
 		}
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
-			Getter:           kubeClient,
-			Config:           config,
-			KubeconfigPath:   kubeconfigPath,
-			PodName:          validIdentityValidator.Name,
-			Namespace:        ns.Name,
-			IdentityClientID: azureIdentities[0].Spec.ClientID,
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            validIdentityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentities[0].Spec.ClientID,
+			IdentityResourceID: azureIdentities[0].Spec.ResourceID,
 		})
 	})
 })

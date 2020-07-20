@@ -79,13 +79,14 @@ var _ = Describe("[PR] When init containers are enabled", func() {
 
 	It("should assign identity with init container", func() {
 		identityvalidator.Validate(identityvalidator.ValidateInput{
-			Getter:           kubeClient,
-			Config:           config,
-			KubeconfigPath:   kubeconfigPath,
-			PodName:          identityValidator.Name,
-			Namespace:        ns.Name,
-			IdentityClientID: azureIdentity.Spec.ClientID,
-			InitContainer:    true,
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            identityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentity.Spec.ClientID,
+			IdentityResourceID: azureIdentity.Spec.ResourceID,
+			InitContainer:      true,
 		})
 	})
 })

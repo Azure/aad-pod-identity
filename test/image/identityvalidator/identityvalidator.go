@@ -132,10 +132,11 @@ func authenticateWithMsiResourceID(msiEndpoint, resourceID, resource string) (*a
 
 // testUserAssignedIdentityOnPod will verify whether a pod identity is working properly
 func testUserAssignedIdentityOnPod(ctx context.Context, msiEndpoint, identityClientID, identityResourceID, keyvaultName, keyvaultSecretName, keyvaultSecretVersion string) error {
+	var authorizers []autorest.Authorizer
 	keyClient := keyvault.New()
 
 	if identityClientID != "" {
-		// When new authorizer is created, azure-sdk-for-go  tries to create dataplane authorizer using MSI. It checks the AZURE_CLIENT_ID to get the client id
+		// When new authorizer is created, azure-sdk-for-go  tries to create data plane authorizer using MSI. It checks the AZURE_CLIENT_ID to get the client id
 		// for the user assigned identity. If client id not found, then NewServicePrincipalTokenFromMSI is invoked instead of using the actual
 		// user assigned identity. Setting this env var ensures we validate GetSecret using the desired user assigned identity.
 		os.Setenv("AZURE_CLIENT_ID", identityClientID)
@@ -145,23 +146,29 @@ func testUserAssignedIdentityOnPod(ctx context.Context, msiEndpoint, identityCli
 		if err != nil {
 			return err
 		}
-		keyClient.Authorizer = authorizer
-	} else if identityResourceID != "" {
+		authorizers = append(authorizers, authorizer)
+		klog.Infof("added authorizer with clientID: %s", identityClientID)
+	}
+	if identityResourceID != "" {
 		// The sdk doesn't support authenticating by the resource id, but we can get a token manually
 		token, err := authenticateWithMsiResourceID(msiEndpoint, identityResourceID, "https://vault.azure.net")
 		if err != nil {
 			return err
 		}
-		keyClient.Authorizer = autorest.NewBearerAuthorizer(token)
+		authorizers = append(authorizers, autorest.NewBearerAuthorizer(token))
+		klog.Infof("added authorizer with resourceID: %s", identityResourceID)
 	}
 
 	klog.Infof("%s %s %s\n", keyvaultName, keyvaultSecretName, keyvaultSecretVersion)
-	secret, err := keyClient.GetSecret(ctx, fmt.Sprintf("https://%s.vault.azure.net", keyvaultName), keyvaultSecretName, keyvaultSecretVersion)
-	if err != nil || *secret.Value == "" {
-		return errors.Wrapf(err, "Failed to verify user assigned identity on pod")
+	for _, authorizer := range authorizers {
+		keyClient.Authorizer = authorizer
+		secret, err := keyClient.GetSecret(ctx, fmt.Sprintf("https://%s.vault.azure.net", keyvaultName), keyvaultSecretName, keyvaultSecretVersion)
+		if err != nil || *secret.Value == "" {
+			return errors.Wrapf(err, "Failed to verify user assigned identity on pod")
+		}
 	}
-
 	klog.Infof("successfully verified user-assigned identity on pod")
+
 	return nil
 }
 

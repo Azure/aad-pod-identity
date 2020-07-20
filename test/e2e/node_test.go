@@ -159,12 +159,13 @@ var _ = Describe("[PR] When managing identities from the underlying nodes", func
 		})
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
-			Getter:           kubeClient,
-			Config:           config,
-			KubeconfigPath:   kubeconfigPath,
-			PodName:          identityValidator.Name,
-			Namespace:        ns.Name,
-			IdentityClientID: azureIdentity.Spec.ClientID,
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            identityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentity.Spec.ClientID,
+			IdentityResourceID: azureIdentity.Spec.ResourceID,
 		})
 
 		// Since we don't know where the identity-validator is scheduled to,
@@ -219,12 +220,13 @@ var _ = Describe("[PR] When managing identities from the underlying nodes", func
 		})
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
-			Getter:           kubeClient,
-			Config:           config,
-			KubeconfigPath:   kubeconfigPath,
-			PodName:          identityValidator.Name,
-			Namespace:        ns.Name,
-			IdentityClientID: azureIdentity.Spec.ClientID,
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            identityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentity.Spec.ClientID,
+			IdentityResourceID: azureIdentity.Spec.ResourceID,
 		})
 
 		By("Verifying that the Principal ID and Tenant ID of the system-assigned identity haven't been altered")
@@ -261,12 +263,13 @@ var _ = Describe("[PR] When managing identities from the underlying nodes", func
 		})
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
-			Getter:           kubeClient,
-			Config:           config,
-			KubeconfigPath:   kubeconfigPath,
-			PodName:          identityValidator.Name,
-			Namespace:        ns.Name,
-			IdentityClientID: azureIdentity.Spec.ClientID,
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            identityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentity.Spec.ClientID,
+			IdentityResourceID: azureIdentity.Spec.ResourceID,
 		})
 
 		By(fmt.Sprintf("Ensuring both keyvault-identity and cluster-identity are assigned to %s", node.Name))
@@ -329,12 +332,13 @@ var _ = Describe("[PR] When managing identities from the underlying nodes", func
 		})
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
-			Getter:           kubeClient,
-			Config:           config,
-			KubeconfigPath:   kubeconfigPath,
-			PodName:          identityValidator.Name,
-			Namespace:        ns.Name,
-			IdentityClientID: azureIdentity.Spec.ClientID,
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            identityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentity.Spec.ClientID,
+			IdentityResourceID: azureIdentity.Spec.ResourceID,
 		})
 
 		identityvalidator.Delete(identityvalidator.DeleteInput{
