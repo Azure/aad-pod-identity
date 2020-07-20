@@ -53,7 +53,15 @@ func (m *vmManager) AssignUserAssignedIdentity(vmName, identityToAssign string) 
 		}
 	}
 
-	vm.Identity.UserAssignedIdentities[fmt.Sprintf(ResourceIDTemplate, m.config.SubscriptionID, m.config.IdentityResourceGroup, identityToAssign)] = &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{}
+	identityAssignResourceID := fmt.Sprintf(ResourceIDTemplate, m.config.SubscriptionID, m.config.IdentityResourceGroup, identityToAssign)
+	for identity := range vm.Identity.UserAssignedIdentities {
+		// identity already exists and doesn't need to be re-assigned
+		if strings.EqualFold(identity, identityAssignResourceID) {
+			return nil
+		}
+	}
+
+	vm.Identity.UserAssignedIdentities[identityAssignResourceID] = &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{}
 	switch vm.Identity.Type {
 	case compute.ResourceIdentityTypeSystemAssigned:
 		vm.Identity.Type = compute.ResourceIdentityTypeSystemAssignedUserAssigned
