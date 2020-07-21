@@ -3,9 +3,7 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/Azure/aad-pod-identity/test/e2e/framework"
@@ -14,6 +12,7 @@ import (
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/helm"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/iptables"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/namespace"
+	"github.com/Azure/aad-pod-identity/test/e2e/framework/pod"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -107,27 +106,19 @@ func initScheme() *runtime.Scheme {
 }
 
 func dumpLogs() {
-	pods := &corev1.PodList{}
-	Eventually(func() (bool, error) {
-		if err := kubeClient.List(context.TODO(), pods, client.InNamespace(corev1.NamespaceDefault)); err != nil {
-			return false, err
+	for _, component := range []string{"mic", "nmi"} {
+		podList := pod.List(pod.ListInput{
+			Lister:    kubeClient,
+			Namespace: corev1.NamespaceDefault,
+			Labels: map[string]string{
+				"app.kubernetes.io/component": component,
+			},
+		})
+
+		for _, pod := range podList.Items {
+			By(fmt.Sprintf("Dumping logs for %s scheduled to %s", pod.Name, pod.Spec.NodeName))
+			_, err := exec.KubectlLogs(kubeconfigPath, pod.Name, corev1.NamespaceDefault)
+			Expect(err).To(BeNil())
 		}
-
-		return true, nil
-	}, framework.ListTimeout, framework.ListPolling).Should(BeTrue())
-
-	var micPods, nmiPods []corev1.Pod
-	for _, pod := range pods.Items {
-		if strings.HasPrefix(pod.Name, "aad-pod-identity-mic") {
-			micPods = append(micPods, pod)
-		} else if strings.HasPrefix(pod.Name, "aad-pod-identity-nmi") {
-			nmiPods = append(nmiPods, pod)
-		}
-	}
-
-	for _, pod := range append(micPods, nmiPods...) {
-		By(fmt.Sprintf("Dumping logs for %s scheduled to %s", pod.Name, pod.Spec.NodeName))
-		_, err := exec.KubectlLogs(kubeconfigPath, pod.Name, corev1.NamespaceDefault)
-		Expect(err).To(BeNil())
 	}
 }

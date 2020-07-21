@@ -16,10 +16,12 @@ import (
 	rl "k8s.io/client-go/tools/leaderelection/resourcelock"
 )
 
+// GetLeaderInput is the input for GetLeader.
 type GetLeaderInput struct {
 	Getter framework.Getter
 }
 
+// GetLeader returns the MIC pod which won the leader election.
 func GetLeader(input GetLeaderInput) *corev1.Pod {
 	Expect(input.Getter).NotTo(BeNil(), "input.Getter is required for MIC.GetLeader")
 
@@ -49,14 +51,16 @@ func GetLeader(input GetLeaderInput) *corev1.Pod {
 	return leaderPod
 }
 
+// DeleteLeaderInput is the input for DeleteLeader.
 type DeleteLeaderInput struct {
 	Getter  framework.Getter
 	Deleter framework.Deleter
 }
 
+// DeleteLeader deletes the MIC pod which won the leader election.
 func DeleteLeader(input DeleteLeaderInput) {
 	Expect(input.Getter).NotTo(BeNil(), "input.Getter is required for MIC.DeleteLeader")
-	Expect(input.Deleter).NotTo(BeNil(), "input.Getter is required for MIC.DeleteLeader")
+	Expect(input.Deleter).NotTo(BeNil(), "input.Deleter is required for MIC.DeleteLeader")
 
 	leader := GetLeader(GetLeaderInput{
 		Getter: input.Getter,
