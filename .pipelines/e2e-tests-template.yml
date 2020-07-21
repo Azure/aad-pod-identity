@@ -73,9 +73,10 @@ jobs:
             displayName: "aks-engine deploy"
 
           - script: |
-              export REGISTRY="$(REGISTRY_NAME).azurecr.io/k8s/aad-pod-identity"
+              export REGISTRY="${REGISTRY:-$(REGISTRY_NAME).azurecr.io/k8s/aad-pod-identity}"
               export CLUSTER_RESOURCE_GROUP="${RESOURCE_GROUP}"
               export IDENTITY_RESOURCE_GROUP="pi-vmss-e2e-daily"
+
               make e2e
             env:
               SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
