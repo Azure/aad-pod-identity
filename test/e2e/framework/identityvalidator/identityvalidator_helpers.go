@@ -212,14 +212,15 @@ func Delete(input DeleteInput) {
 
 // ValidateInput is the input for Validate.
 type ValidateInput struct {
-	Getter           framework.Getter
-	Config           *framework.Config
-	KubeconfigPath   string
-	PodName          string
-	Namespace        string
-	IdentityClientID string
-	ExpectError      bool
-	InitContainer    bool
+	Getter             framework.Getter
+	Config             *framework.Config
+	KubeconfigPath     string
+	PodName            string
+	Namespace          string
+	IdentityClientID   string
+	IdentityResourceID string
+	ExpectError        bool
+	InitContainer      bool
 }
 
 // Validate performs validation against an identity-validator pod.
@@ -263,6 +264,10 @@ func Validate(input ValidateInput) {
 		input.Config.KeyvaultSecretName,
 		"--keyvault-secret-version",
 		input.Config.KeyvaultSecretVersion,
+	}
+
+	if input.IdentityResourceID != "" {
+		args = append(args, "--identity-resource-id", input.IdentityResourceID)
 	}
 
 	_, err := exec.KubectlExec(input.KubeconfigPath, input.PodName, input.Namespace, args)

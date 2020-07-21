@@ -85,12 +85,13 @@ var _ = Describe("[PR] When deploying one identity", func() {
 
 	It("should pass the identity validation", func() {
 		identityvalidator.Validate(identityvalidator.ValidateInput{
-			Getter:           kubeClient,
-			Config:           config,
-			KubeconfigPath:   kubeconfigPath,
-			PodName:          identityValidator.Name,
-			Namespace:        ns.Name,
-			IdentityClientID: azureIdentity.Spec.ClientID,
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            identityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentity.Spec.ClientID,
+			IdentityResourceID: azureIdentity.Spec.ResourceID,
 		})
 	})
 
@@ -118,13 +119,14 @@ var _ = Describe("[PR] When deploying one identity", func() {
 		})
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
-			Getter:           kubeClient,
-			Config:           config,
-			KubeconfigPath:   kubeconfigPath,
-			PodName:          identityValidator.Name,
-			Namespace:        ns.Name,
-			IdentityClientID: azureIdentity.Spec.ClientID,
-			ExpectError:      true,
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            identityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentity.Spec.ClientID,
+			IdentityResourceID: azureIdentity.Spec.ResourceID,
+			ExpectError:        true,
 		})
 	})
 
@@ -140,13 +142,14 @@ var _ = Describe("[PR] When deploying one identity", func() {
 		})
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
-			Getter:           kubeClient,
-			Config:           config,
-			KubeconfigPath:   kubeconfigPath,
-			PodName:          identityValidator.Name,
-			Namespace:        ns.Name,
-			IdentityClientID: azureIdentity.Spec.ClientID,
-			ExpectError:      true,
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            identityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentity.Spec.ClientID,
+			IdentityResourceID: azureIdentity.Spec.ResourceID,
+			ExpectError:        true,
 		})
 	})
 
@@ -168,12 +171,13 @@ var _ = Describe("[PR] When deploying one identity", func() {
 		})
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
-			Getter:           kubeClient,
-			Config:           config,
-			KubeconfigPath:   kubeconfigPath,
-			PodName:          identityValidator.Name,
-			Namespace:        ns.Name,
-			IdentityClientID: azureIdentity.Spec.ClientID,
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            identityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentity.Spec.ClientID,
+			IdentityResourceID: azureIdentity.Spec.ResourceID,
 		})
 	})
 
@@ -210,22 +214,24 @@ var _ = Describe("[PR] When deploying one identity", func() {
 		})
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
-			Getter:           kubeClient,
-			Config:           config,
-			KubeconfigPath:   kubeconfigPath,
-			PodName:          identityValidator.Name,
-			Namespace:        ns.Name,
-			IdentityClientID: azureIdentity.Spec.ClientID,
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            identityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentity.Spec.ClientID,
+			IdentityResourceID: azureIdentity.Spec.ResourceID,
 		})
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
-			Getter:           kubeClient,
-			Config:           config,
-			KubeconfigPath:   kubeconfigPath,
-			PodName:          identityValidator.Name,
-			Namespace:        ns.Name,
-			IdentityClientID: azureIdentityWithoutGetPermission.Spec.ClientID,
-			ExpectError:      true,
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            identityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentityWithoutGetPermission.Spec.ClientID,
+			IdentityResourceID: azureIdentityWithoutGetPermission.Spec.ResourceID,
+			ExpectError:        true,
 		})
 	})
 })

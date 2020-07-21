@@ -1,0 +1,15 @@
+steps:
+  - script: |
+      if [[ -n "${IMAGE_VERSION:-}" ]]; then
+        echo "Not deleting custom images"
+        exit 0
+      fi
+
+      # Allow errors in case the images do not exist
+      set +e
+      az acr login -n $(REGISTRY_NAME)
+      az acr repository delete --name $(REGISTRY_NAME) --image k8s/aad-pod-identity/mic:${MIC_VERSION} --yes || true
+      az acr repository delete --name $(REGISTRY_NAME) --image k8s/aad-pod-identity/nmi:${NMI_VERSION} --yes || true
+      az acr repository delete --name $(REGISTRY_NAME) --image k8s/aad-pod-identity/identityvalidator:${IDENTITY_VALIDATOR_VERSION} --yes || true
+    condition: always()
+    displayName: "Cleanup"

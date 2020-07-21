@@ -2,6 +2,7 @@ trigger: none
 
 schedules:
   - cron: "0 0 * * *"
+    always: true
     displayName: "Nightly Build & Test"
     branches:
       include:
@@ -20,3 +21,8 @@ jobs:
         # File names in test/e2e/cluster_configs without file extension
         - "vmss"
         - "vmas"
+  - template: soak-tests-template.yml
+    parameters:
+      clusterConfigs:
+        - "pi-vmas-e2e-daily"
+        - "pi-vmss-e2e-daily"

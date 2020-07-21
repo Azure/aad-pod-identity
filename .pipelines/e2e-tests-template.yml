@@ -25,31 +25,7 @@ jobs:
             inputs:
               version: '1.14.1'
 
-          - script: |
-              az login \
-                --service-principal \
-                -u=$(AZURE_CLIENT_ID) \
-                -p=$(AZURE_CLIENT_SECRET) \
-                -t=$(AZURE_TENANT_ID) > /dev/null
-              az account set -s=$(SUBSCRIPTION_ID)
-            displayName: "az login"
-
-          - script: |
-              # Generate image version
-              IMAGE_VERSION="$(git describe --tags --always --dirty)-$(CLUSTER_CONFIG)"
-              echo "Image version: ${IMAGE_VERSION}"
-
-              export MIC_VERSION="${IMAGE_VERSION}"
-              echo "##vso[task.setvariable variable=MIC_VERSION]${MIC_VERSION}"
-              export NMI_VERSION="${IMAGE_VERSION}"
-              echo "##vso[task.setvariable variable=NMI_VERSION]${NMI_VERSION}"
-              export IDENTITY_VALIDATOR_VERSION="${IMAGE_VERSION}"
-              echo "##vso[task.setvariable variable=IDENTITY_VALIDATOR_VERSION]${IDENTITY_VALIDATOR_VERSION}"
-
-              az acr login -n $(REGISTRY_NAME)
-              make image-mic image-nmi image-identity-validator
-              make push-mic push-nmi push-identity-validator
-            displayName: "Build and push MIC, NMI and identity-validator"
+          - template: build-images.yml
 
           - script: |
               echo "Installing aks-engine..."
@@ -108,14 +84,7 @@ jobs:
               AZURE_TENANT_ID: $(AZURE_TENANT_ID)
             displayName: "Run E2E tests"
 
-          - script: |
-              az group delete -g ${RESOURCE_GROUP} -y --no-wait
+          - script: az group delete -g ${RESOURCE_GROUP} --yes --no-wait
+            displayName: "Delete resource group"
 
-              # Allow errors in case the images do not exist
-              set +e
-              az acr login -n $(REGISTRY_NAME)
-              az acr repository delete --name $(REGISTRY_NAME) --image k8s/aad-pod-identity/mic:${MIC_VERSION} --yes
-              az acr repository delete --name $(REGISTRY_NAME) --image k8s/aad-pod-identity/nmi:${NMI_VERSION} --yes
-              az acr repository delete --name $(REGISTRY_NAME) --image k8s/aad-pod-identity/identityvalidator:${IDENTITY_VALIDATOR_VERSION} --yes
-            condition: always()
-            displayName: "Cleanup"
+          - template: cleanup-images.yml

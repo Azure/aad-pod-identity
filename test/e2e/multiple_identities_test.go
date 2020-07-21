@@ -97,12 +97,13 @@ var _ = Describe("[PR] When deploying multiple identities", func() {
 			})
 
 			identityvalidator.Validate(identityvalidator.ValidateInput{
-				Getter:           kubeClient,
-				Config:           config,
-				KubeconfigPath:   kubeconfigPath,
-				PodName:          identityValidators[i].Name,
-				Namespace:        ns.Name,
-				IdentityClientID: azureIdentities[i].Spec.ClientID,
+				Getter:             kubeClient,
+				Config:             config,
+				KubeconfigPath:     kubeconfigPath,
+				PodName:            identityValidators[i].Name,
+				Namespace:          ns.Name,
+				IdentityClientID:   azureIdentities[i].Spec.ClientID,
+				IdentityResourceID: azureIdentities[i].Spec.ResourceID,
 			})
 
 			// Break when finish checking the entire list
@@ -126,12 +127,13 @@ var _ = Describe("[PR] When deploying multiple identities", func() {
 				})
 
 				identityvalidator.Validate(identityvalidator.ValidateInput{
-					Getter:           kubeClient,
-					Config:           config,
-					KubeconfigPath:   kubeconfigPath,
-					PodName:          identityValidators[j].Name,
-					Namespace:        ns.Name,
-					IdentityClientID: azureIdentities[j].Spec.ClientID,
+					Getter:             kubeClient,
+					Config:             config,
+					KubeconfigPath:     kubeconfigPath,
+					PodName:            identityValidators[j].Name,
+					Namespace:          ns.Name,
+					IdentityClientID:   azureIdentities[j].Spec.ClientID,
+					IdentityResourceID: azureIdentities[j].Spec.ResourceID,
 				})
 			}
 		}
@@ -166,12 +168,13 @@ var _ = Describe("[PR] When deploying multiple identities", func() {
 			})
 
 			identityvalidator.Validate(identityvalidator.ValidateInput{
-				Getter:           kubeClient,
-				Config:           config,
-				KubeconfigPath:   kubeconfigPath,
-				PodName:          identityValidators[i].Name,
-				Namespace:        ns.Name,
-				IdentityClientID: azureIdentities[i%size].Spec.ClientID,
+				Getter:             kubeClient,
+				Config:             config,
+				KubeconfigPath:     kubeconfigPath,
+				PodName:            identityValidators[i].Name,
+				Namespace:          ns.Name,
+				IdentityClientID:   azureIdentities[i%size].Spec.ClientID,
+				IdentityResourceID: azureIdentities[i%size].Spec.ResourceID,
 			})
 		}
 		Expect(time.Since(start) <= 150*time.Second).To(BeTrue(), "Creation and validation of 40 AzureAssignedIdentities took more than 150 seconds")
@@ -194,12 +197,13 @@ var _ = Describe("[PR] When deploying multiple identities", func() {
 		})
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
-			Getter:           kubeClient,
-			Config:           config,
-			KubeconfigPath:   kubeconfigPath,
-			PodName:          identityValidator.Name,
-			Namespace:        ns.Name,
-			IdentityClientID: azureIdentities[0].Spec.ClientID,
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            identityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentities[0].Spec.ClientID,
+			IdentityResourceID: azureIdentities[0].Spec.ResourceID,
 		})
 
 		identityvalidator.UpdatePodLabel(identityvalidator.UpdatePodLabelInput{
@@ -219,12 +223,13 @@ var _ = Describe("[PR] When deploying multiple identities", func() {
 		})
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
-			Getter:           kubeClient,
-			Config:           config,
-			KubeconfigPath:   kubeconfigPath,
-			PodName:          identityValidator.Name,
-			Namespace:        ns.Name,
-			IdentityClientID: azureIdentities[1].Spec.ClientID,
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            identityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentities[1].Spec.ClientID,
+			IdentityResourceID: azureIdentities[1].Spec.ResourceID,
 		})
 	})
 })
