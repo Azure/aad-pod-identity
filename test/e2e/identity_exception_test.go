@@ -50,8 +50,12 @@ var _ = Describe("[PR] When deploying AzurePodIdentityException", func() {
 
 		err := azureClient.AssignUserAssignedIdentity(node.Spec.ProviderID, keyvaultIdentity)
 		Expect(err).To(BeNil())
+		err = azureClient.EnableSystemAssignedIdentity(node.Spec.ProviderID)
+		Expect(err).To(BeNil())
 		defer func() {
 			err := azureClient.UnassignUserAssignedIdentity(node.Spec.ProviderID, keyvaultIdentity)
+			Expect(err).To(BeNil())
+			err = azureClient.DisableSystemAssignedIdentity(node.Spec.ProviderID)
 			Expect(err).To(BeNil())
 		}()
 

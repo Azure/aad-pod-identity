@@ -6,7 +6,7 @@ jobs:
   - ${{ each clusterConfig in parameters.clusterConfigs }}:
     - job:
       displayName: ${{ format('soak/{0}', clusterConfig) }}
-      # dependsOn: unit_tests
+      dependsOn: unit_tests
       timeoutInMinutes: 120
       cancelTimeoutInMinutes: 5
       workspace:
