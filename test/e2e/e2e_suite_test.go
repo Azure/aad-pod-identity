@@ -3,13 +3,16 @@
 package e2e
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/Azure/aad-pod-identity/test/e2e/framework"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/azure"
+	"github.com/Azure/aad-pod-identity/test/e2e/framework/exec"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/helm"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/iptables"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/namespace"
+	"github.com/Azure/aad-pod-identity/test/e2e/framework/pod"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -74,7 +77,7 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
-	By("Dumping logs")
+	dumpLogs()
 
 	By("Uninstalling AAD Pod Identity via Helm")
 	helm.Uninstall()
@@ -100,4 +103,22 @@ func initScheme() *runtime.Scheme {
 	scheme := runtime.NewScheme()
 	framework.TryAddDefaultSchemes(scheme)
 	return scheme
+}
+
+func dumpLogs() {
+	for _, component := range []string{"mic", "nmi"} {
+		podList := pod.List(pod.ListInput{
+			Lister:    kubeClient,
+			Namespace: corev1.NamespaceDefault,
+			Labels: map[string]string{
+				"app.kubernetes.io/component": component,
+			},
+		})
+
+		for _, pod := range podList.Items {
+			By(fmt.Sprintf("Dumping logs for %s scheduled to %s", pod.Name, pod.Spec.NodeName))
+			_, err := exec.KubectlLogs(kubeconfigPath, pod.Name, corev1.NamespaceDefault)
+			Expect(err).To(BeNil())
+		}
+	}
 }

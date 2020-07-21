@@ -47,6 +47,17 @@ func KubectlExec(kubeconfigPath, podName, namespace string, args []string) (stri
 	return kubectl(args)
 }
 
+func KubectlLogs(kubeconfigPath, podName, namespace string) (string, error) {
+	args := []string{
+		"logs",
+		fmt.Sprintf("--kubeconfig=%s", kubeconfigPath),
+		fmt.Sprintf("--namespace=%s", namespace),
+		podName,
+	}
+
+	return kubectl(args)
+}
+
 func kubectl(args []string) (string, error) {
 	By(fmt.Sprintf("kubectl %s", strings.Join(args, " ")))
 

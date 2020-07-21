@@ -6,10 +6,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
+	"github.com/Azure/aad-pod-identity/test/e2e/framework"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/exec"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/mic"
+	"github.com/Azure/aad-pod-identity/test/e2e/framework/pod"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -26,22 +27,21 @@ var _ = Describe("[PR] When liveness probe is enabled", func() {
 			}
 
 			return true, nil
-		}, 10*time.Second, 1*time.Second).Should(BeTrue())
+		}, framework.ListTimeout, framework.ListPolling).Should(BeTrue())
 
-		var micPods, nmiPods []corev1.Pod
-		for _, pod := range pods.Items {
-			if strings.HasPrefix(pod.Name, "aad-pod-identity-mic") {
-				micPods = append(micPods, pod)
-			} else if strings.HasPrefix(pod.Name, "aad-pod-identity-nmi") {
-				nmiPods = append(nmiPods, pod)
-			}
-		}
+		micPods := pod.List(pod.ListInput{
+			Lister:    kubeClient,
+			Namespace: corev1.NamespaceDefault,
+			Labels: map[string]string{
+				"app.kubernetes.io/component": "mic",
+			},
+		})
 
 		micLeader := mic.GetLeader(mic.GetLeaderInput{
 			Getter: kubeClient,
 		})
 
-		for _, micPod := range micPods {
+		for _, micPod := range micPods.Items {
 			cmd := "clean-install wget"
 			_, err := exec.KubectlExec(kubeconfigPath, micPod.Name, corev1.NamespaceDefault, strings.Split(cmd, " "))
 			Expect(err).To(BeNil())
@@ -58,7 +58,15 @@ var _ = Describe("[PR] When liveness probe is enabled", func() {
 			}
 		}
 
-		for _, nmiPod := range nmiPods {
+		nmiPods := pod.List(pod.ListInput{
+			Lister:    kubeClient,
+			Namespace: corev1.NamespaceDefault,
+			Labels: map[string]string{
+				"app.kubernetes.io/component": "nmi",
+			},
+		})
+
+		for _, nmiPod := range nmiPods.Items {
 			cmd := "clean-install wget"
 			_, err := exec.KubectlExec(kubeconfigPath, nmiPod.Name, corev1.NamespaceDefault, strings.Split(cmd, " "))
 			Expect(err).To(BeNil())
