@@ -87,20 +87,25 @@ func (m *vmssManager) UnassignUserAssignedIdentity(vmssName, identityToUnassign 
 		return nil
 	}
 
+	var hasOtherIdentitiesAssigned bool
 	for identity := range vmss.Identity.UserAssignedIdentities {
 		if s := strings.Split(identity, "/"); strings.EqualFold(s[len(s)-1], identityToUnassign) {
 			By(fmt.Sprintf("Un-assigning \"%s\" from \"%s\"", identityToUnassign, vmssName))
-			delete(vmss.Identity.UserAssignedIdentities, identity)
-			if len(vmss.Identity.UserAssignedIdentities) == 0 {
-				vmss.Identity.UserAssignedIdentities = nil
-				switch vmss.Identity.Type {
-				case compute.ResourceIdentityTypeSystemAssignedUserAssigned:
-					vmss.Identity.Type = compute.ResourceIdentityTypeSystemAssigned
-				default:
-					vmss.Identity.Type = compute.ResourceIdentityTypeNone
-				}
-			}
-			break
+			// when using PATCH for deleting identities, the identities need to exist in the map
+			// with nil value to force the deletion
+			vmss.Identity.UserAssignedIdentities[identity] = nil
+			continue
+		}
+		hasOtherIdentitiesAssigned = true
+	}
+
+	if !hasOtherIdentitiesAssigned {
+		vmss.Identity.UserAssignedIdentities = nil
+		switch vmss.Identity.Type {
+		case compute.ResourceIdentityTypeSystemAssignedUserAssigned:
+			vmss.Identity.Type = compute.ResourceIdentityTypeSystemAssigned
+		default:
+			vmss.Identity.Type = compute.ResourceIdentityTypeNone
 		}
 	}
 
