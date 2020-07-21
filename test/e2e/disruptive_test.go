@@ -86,12 +86,13 @@ var _ = Describe("[PR] When AAD Pod Identity operations are disrupted", func() {
 			})
 
 			identityvalidator.Validate(identityvalidator.ValidateInput{
-				Getter:           kubeClient,
-				Config:           config,
-				KubeconfigPath:   kubeconfigPath,
-				PodName:          identityValidator.Name,
-				Namespace:        ns.Name,
-				IdentityClientID: azureIdentity.Spec.ClientID,
+				Getter:             kubeClient,
+				Config:             config,
+				KubeconfigPath:     kubeconfigPath,
+				PodName:            identityValidator.Name,
+				Namespace:          ns.Name,
+				IdentityClientID:   azureIdentity.Spec.ClientID,
+				IdentityResourceID: azureIdentity.Spec.ResourceID,
 			})
 		}()
 
