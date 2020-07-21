@@ -10,7 +10,10 @@
                         "name": "aad-pod-identity",
                         "enabled": false
                     }
-                ]
+                ],
+                "kubeletConfig": {
+                    "--max-pods": "${MAX_PODS}"
+                }
             }
         },
         "masterProfile": {

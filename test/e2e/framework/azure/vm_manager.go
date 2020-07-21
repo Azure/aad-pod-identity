@@ -125,6 +125,8 @@ func (m *vmManager) EnableSystemAssignedIdentity(vmName string) error {
 		}
 	} else {
 		switch vm.Identity.Type {
+		case compute.ResourceIdentityTypeSystemAssigned, compute.ResourceIdentityTypeSystemAssignedUserAssigned:
+			return nil
 		case compute.ResourceIdentityTypeUserAssigned:
 			vm.Identity.Type = compute.ResourceIdentityTypeSystemAssignedUserAssigned
 		default:
@@ -148,9 +150,12 @@ func (m *vmManager) DisableSystemAssignedIdentity(vmName string) error {
 	}
 
 	switch vm.Identity.Type {
+	case compute.ResourceIdentityTypeNone, compute.ResourceIdentityTypeUserAssigned:
+		return nil
 	case compute.ResourceIdentityTypeSystemAssignedUserAssigned:
 		vm.Identity.Type = compute.ResourceIdentityTypeUserAssigned
 	default:
+		vm.Identity.UserAssignedIdentities = nil
 		vm.Identity.Type = compute.ResourceIdentityTypeNone
 	}
 

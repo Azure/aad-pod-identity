@@ -125,6 +125,8 @@ func (m *vmssManager) EnableSystemAssignedIdentity(vmssName string) error {
 		}
 	} else {
 		switch vmss.Identity.Type {
+		case compute.ResourceIdentityTypeSystemAssigned, compute.ResourceIdentityTypeSystemAssignedUserAssigned:
+			return nil
 		case compute.ResourceIdentityTypeUserAssigned:
 			vmss.Identity.Type = compute.ResourceIdentityTypeSystemAssignedUserAssigned
 		default:
@@ -148,9 +150,12 @@ func (m *vmssManager) DisableSystemAssignedIdentity(vmssName string) error {
 	}
 
 	switch vmss.Identity.Type {
+	case compute.ResourceIdentityTypeNone, compute.ResourceIdentityTypeUserAssigned:
+		return nil
 	case compute.ResourceIdentityTypeSystemAssignedUserAssigned:
 		vmss.Identity.Type = compute.ResourceIdentityTypeUserAssigned
 	default:
+		vmss.Identity.UserAssignedIdentities = nil
 		vmss.Identity.Type = compute.ResourceIdentityTypeNone
 	}
 
