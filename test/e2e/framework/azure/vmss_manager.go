@@ -129,6 +129,9 @@ func (m *vmssManager) EnableSystemAssignedIdentity(vmssName string) error {
 			return nil
 		case compute.ResourceIdentityTypeUserAssigned:
 			vmss.Identity.Type = compute.ResourceIdentityTypeSystemAssignedUserAssigned
+			for identity := range vmss.Identity.UserAssignedIdentities {
+				vmss.Identity.UserAssignedIdentities[identity] = &compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{}
+			}
 		default:
 			vmss.Identity.Type = compute.ResourceIdentityTypeSystemAssigned
 		}
@@ -154,6 +157,9 @@ func (m *vmssManager) DisableSystemAssignedIdentity(vmssName string) error {
 		return nil
 	case compute.ResourceIdentityTypeSystemAssignedUserAssigned:
 		vmss.Identity.Type = compute.ResourceIdentityTypeUserAssigned
+		for identity := range vmss.Identity.UserAssignedIdentities {
+			vmss.Identity.UserAssignedIdentities[identity] = &compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{}
+		}
 	default:
 		vmss.Identity.UserAssignedIdentities = nil
 		vmss.Identity.Type = compute.ResourceIdentityTypeNone
