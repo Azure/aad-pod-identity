@@ -82,6 +82,7 @@ spec:
         args:
           - "--host-ip=$(HOST_IP)"
           - "--node=$(NODE_NAME)"
+          - "--http-probe-port=8085"
         env:
           - name: HOST_IP
             valueFrom:
@@ -109,7 +110,7 @@ spec:
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8080
+            port: 8085
           initialDelaySeconds: 10
           periodSeconds: 5
       nodeSelector:

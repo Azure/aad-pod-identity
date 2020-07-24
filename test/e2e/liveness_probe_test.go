@@ -71,7 +71,7 @@ var _ = Describe("[PR] When liveness probe is enabled", func() {
 			_, err := exec.KubectlExec(kubeconfigPath, nmiPod.Name, corev1.NamespaceDefault, strings.Split(cmd, " "))
 			Expect(err).To(BeNil())
 
-			cmd = "wget http://127.0.0.1:8080/healthz -q -O -"
+			cmd = "wget http://127.0.0.1:8085/healthz -q -O -"
 			stdout, err := exec.KubectlExec(kubeconfigPath, nmiPod.Name, corev1.NamespaceDefault, strings.Split(cmd, " "))
 			Expect(err).To(BeNil())
 
