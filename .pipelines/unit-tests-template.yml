@@ -12,6 +12,10 @@ jobs:
         displayName: Build
       - script: make unit-test
         displayName: Run unit tests
+      - script: bash <(curl -s https://codecov.io/bash)
+        displayName: Upload coverage to codecov
+        env:
+          CODECOV_TOKEN: $(CODECOV_TOKEN)
       - script: make lint
         displayName: Run lint
       - script: make helm-lint
