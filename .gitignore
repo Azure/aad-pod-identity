@@ -323,3 +323,6 @@ __pycache__/
 
 # Go tools
 .tools/
+
+# cover profile
+coverage.txt
