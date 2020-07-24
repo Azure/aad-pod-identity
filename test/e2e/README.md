@@ -19,7 +19,7 @@ export KEYVAULT_SECRET_NAME="test-secret"
 The E2E test suite extracts runtime configurations through environment variables. Below is a list of environment variables to set before running the E2E test suite.
 
 | Variable                       | Description                                                                            |
-|--------------------------------|----------------------------------------------------------------------------------------|
+| ------------------------------ | -------------------------------------------------------------------------------------- |
 | `SUBSCRIPTION_ID`              | The Azure subscription ID.                                                             |
 | `RESOURCE_GROUP`               | The resource group of your Azure Kubernetes cluster.                                   |
 | `AZURE_CLIENT_ID`              | The client ID of your service principal.                                               |
@@ -68,7 +68,7 @@ spec:
   selector: keyvault-identity
 EOF
 
-kubectl run identityvalidator --image=mcr.microsoft.com/k8s/aad-pod-identity/identityvalidator:1.6.1 --labels=aadpodidbinding=keyvault-identity --command sleep -- 3600
+kubectl run identityvalidator --image=mcr.microsoft.com/k8s/aad-pod-identity/identityvalidator:1.6.2 --labels=aadpodidbinding=keyvault-identity --command sleep -- 3600
 
 kubectl exec identityvalidator -- identityvalidator \
                                   --subscription-id "$SUBSCRIPTION_ID" \

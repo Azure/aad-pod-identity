@@ -1,5 +1,49 @@
 :warning: v1.6.0+ contains breaking changes. Please carefully review this [doc](README.md#v160-breaking-change) before upgrade from 1.x.x versions of pod-identity.
 
+# v1.6.2
+
+### Features
+
+- Acquire an token with the certificate of service principal ([#517](https://github.com/Azure/aad-pod-identity/pull/517))
+- Handle MSI auth requests by ResourceID ([#540](https://github.com/Azure/aad-pod-identity/pull/540))
+- make NMI listen only on localhost ([#658](https://github.com/Azure/aad-pod-identity/pull/658))
+- trigger MIC sync when a pod label changes ([#682](https://github.com/Azure/aad-pod-identity/pull/682))
+
+### Bug Fixes
+
+- check iptable rules match expected ([#663](https://github.com/Azure/aad-pod-identity/pull/663))
+
+### Other Improvements
+
+- update base image with debian base ([#641](https://github.com/Azure/aad-pod-identity/pull/641))
+- update node selector label to kubernetes.io/os ([#652](https://github.com/Azure/aad-pod-identity/pull/652))
+- better error messages and handling ([#666](https://github.com/Azure/aad-pod-identity/pull/666))
+- add default known types to scheme ([#668](https://github.com/Azure/aad-pod-identity/pull/668))
+- Remove unused cert volumes from mic deployment ([#670](https://github.com/Azure/aad-pod-identity/pull/670))
+
+### Documentation
+
+- update typed namespacedname case for sp example ([#649](https://github.com/Azure/aad-pod-identity/pull/649))
+- list components prometheus enpoints ([#660](https://github.com/Azure/aad-pod-identity/pull/660))
+- add helm upgrade guide and known issues ([#683](https://github.com/Azure/aad-pod-identity/pull/683))
+- add requirements to PR template and test standard to CONTRIBUTING.md ([#706](https://github.com/Azure/aad-pod-identity/pull/706))
+
+### Helm
+
+- add aks add-on exception in kube-system ([#634](https://github.com/Azure/aad-pod-identity/pull/634))
+- disable crd-install when using Helm 3 ([#642](https://github.com/Azure/aad-pod-identity/pull/642))
+- update default http probe port at deploy to 8085 ([#708](https://github.com/Azure/aad-pod-identity/pull/708))
+
+### Test Improvements
+
+- new test framework for aad-pod-identity ([#640](https://github.com/Azure/aad-pod-identity/pull/640))
+- convert e2e test cases from old to new framework ([#650](https://github.com/Azure/aad-pod-identity/pull/650)), ([#656](https://github.com/Azure/aad-pod-identity/pull/656)), ([#662](https://github.com/Azure/aad-pod-identity/pull/662)), ([#664](https://github.com/Azure/aad-pod-identity/pull/664)), ([#667](https://github.com/Azure/aad-pod-identity/pull/667)), ([#680](https://github.com/Azure/aad-pod-identity/pull/680))
+- add soak testing as part of nightly build & test and remove Jenkinsfile ([#687](https://github.com/Azure/aad-pod-identity/pull/687))
+- update e2e suite to remove flakes ([#693](https://github.com/Azure/aad-pod-identity/pull/693)), ([#695](https://github.com/Azure/aad-pod-identity/pull/695)), ([#697](https://github.com/Azure/aad-pod-identity/pull/697)), ([#699](https://github.com/Azure/aad-pod-identity/pull/699)), ([#701](https://github.com/Azure/aad-pod-identity/pull/701))
+- add e2e tests with resource id ([#696](https://github.com/Azure/aad-pod-identity/pull/696))
+- add code coverage as part of CI ([#705](https://github.com/Azure/aad-pod-identity/pull/705))
+
+
 # v1.6.1
 
 ### Features

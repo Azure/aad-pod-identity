@@ -77,10 +77,9 @@ spec:
         name: iptableslock
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.6.1"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.6.2"
         imagePullPolicy: Always
         args:
-          - "--host-ip=$(HOST_IP)"
           - "--node=$(NODE_NAME)"
           - "--http-probe-port=8085"
         env:
@@ -135,7 +134,7 @@ spec:
     spec:
       containers:
       - name: mic
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.6.1"
+        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.6.2"
         imagePullPolicy: Always
         args:
           - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"
@@ -157,9 +156,6 @@ spec:
           - name: kubeconfig
             mountPath: /etc/kubernetes/kubeconfig
             readOnly: true
-          - name: certificates
-            mountPath: /etc/kubernetes/certs
-            readOnly: true
           - name: k8s-azure-file
             mountPath: /etc/kubernetes/azure.json
             readOnly: true
@@ -173,9 +169,6 @@ spec:
       - name: kubeconfig
         hostPath:
           path: /var/lib/kubelet
-      - name: certificates
-        hostPath:
-          path: /etc/kubernetes/certs
       - name: k8s-azure-file
         hostPath:
           path: /etc/kubernetes/azure.json
