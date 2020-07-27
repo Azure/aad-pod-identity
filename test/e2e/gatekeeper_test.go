@@ -60,7 +60,7 @@ spec:
         kinds: ["AzureIdentity"]`
 )
 
-var _ = Describe("[PR] When using AAD Pod Identity with Gatekeeper", func() {
+var _ = Describe("When using AAD Pod Identity with Gatekeeper", func() {
 	var (
 		specName                        = "gatekeeper"
 		ns                              *corev1.Namespace

@@ -16,7 +16,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-var _ = Describe("[PR] When deploying invalid identities", func() {
+var _ = Describe("When deploying invalid identities", func() {
 	var (
 		specName              = "invalid-identities"
 		ns                    *corev1.Namespace

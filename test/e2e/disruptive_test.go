@@ -17,7 +17,7 @@ import (
 	. "github.com/onsi/ginkgo"
 )
 
-var _ = Describe("[PR] When AAD Pod Identity operations are disrupted", func() {
+var _ = Describe("When AAD Pod Identity operations are disrupted", func() {
 	var (
 		specName = "disruptive"
 		ns       *corev1.Namespace

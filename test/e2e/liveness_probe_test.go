@@ -18,7 +18,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-var _ = Describe("[PR] When liveness probe is enabled", func() {
+var _ = Describe("When liveness probe is enabled", func() {
 	It("should pass liveness probe test", func() {
 		pods := &corev1.PodList{}
 		Eventually(func() (bool, error) {

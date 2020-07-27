@@ -21,7 +21,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("[PR] When upgrading AAD Pod Identity", func() {
+var _ = Describe("When upgrading AAD Pod Identity", func() {
 	var (
 		specName                 = "backward-compat"
 		ns                       *corev1.Namespace
@@ -50,8 +50,6 @@ var _ = Describe("[PR] When upgrading AAD Pod Identity", func() {
 	})
 
 	It("should be backward compatible with old and new version of MIC and NMI", func() {
-		helm.Uninstall()
-
 		By("Deleting the ConfigMap used to store upgrade information")
 		err := exec.KubectlDelete(kubeconfigPath, corev1.NamespaceDefault, []string{
 			"--ignore-not-found",
@@ -65,7 +63,7 @@ var _ = Describe("[PR] When upgrading AAD Pod Identity", func() {
 		configOldVersion.MICVersion = "1.5"
 		configOldVersion.NMIVersion = "1.5"
 		configOldVersion.ImmutableUserMSIs = ""
-		helm.Install(helm.InstallInput{
+		helm.Upgrade(helm.UpgradeInput{
 			Config: configOldVersion,
 		})
 
@@ -115,7 +113,9 @@ var _ = Describe("[PR] When upgrading AAD Pod Identity", func() {
 			IdentityClientID: identityClientID,
 		})
 
-		helm.Upgrade(config)
+		helm.Upgrade(helm.UpgradeInput{
+			Config: config,
+		})
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
 			Getter:           kubeClient,

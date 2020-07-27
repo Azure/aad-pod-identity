@@ -14,7 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-var _ = Describe("[PR] When deploying AzurePodIdentityException", func() {
+var _ = Describe("When deploying AzurePodIdentityException", func() {
 	var (
 		specName = "identity-exception"
 		ns       *corev1.Namespace

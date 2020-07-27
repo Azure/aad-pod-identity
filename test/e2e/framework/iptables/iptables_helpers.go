@@ -9,6 +9,7 @@ import (
 
 	"github.com/Azure/aad-pod-identity/test/e2e/framework"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/exec"
+	"github.com/Azure/aad-pod-identity/test/e2e/framework/pod"
 
 	"github.com/Azure/go-autorest/autorest/to"
 	. "github.com/onsi/ginkgo"
@@ -96,6 +97,21 @@ func WaitForRules(input WaitForRulesInput) {
 	}
 
 	Eventually(func() (bool, error) {
+		// ensure that there is no nmi before checking whether iptables rules are cleaned up
+		if !input.ShouldExist {
+			nmiPods := pod.List(pod.ListInput{
+				Lister:    input.Lister,
+				Namespace: corev1.NamespaceDefault,
+				Labels: map[string]string{
+					"app.kubernetes.io/component": "nmi",
+				},
+			})
+
+			if len(nmiPods.Items) > 0 {
+				return false, nil
+			}
+		}
+
 		ds := &appsv1.DaemonSet{}
 		if err := input.Getter.Get(context.TODO(), client.ObjectKey{Name: busybox, Namespace: input.Namespace}, ds); err != nil {
 			return false, err
