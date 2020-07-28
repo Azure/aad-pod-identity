@@ -24,7 +24,7 @@ const (
 	immutableIdentity = "immutable-identity"
 )
 
-var _ = Describe("[PR] When managing identities from the underlying nodes", func() {
+var _ = Describe("When managing identities from the underlying nodes", func() {
 	var (
 		specName             = "node"
 		nodes                *corev1.NodeList

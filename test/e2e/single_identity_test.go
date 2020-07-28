@@ -21,7 +21,7 @@ var (
 	keyvaultIdentitySelector = fmt.Sprintf("%s-selector", keyvaultIdentity)
 )
 
-var _ = Describe("[PR] When deploying one identity", func() {
+var _ = Describe("When deploying one identity", func() {
 	var (
 		specName             = "single-identity"
 		ns                   *corev1.Namespace

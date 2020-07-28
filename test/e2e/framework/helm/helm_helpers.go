@@ -20,9 +20,10 @@ const (
 
 // InstallInput is the input for Install.
 type InstallInput struct {
-	Config         *framework.Config
-	ManagedMode    bool
-	NamespacedMode bool
+	Config                *framework.Config
+	ManagedMode           bool
+	NamespacedMode        bool
+	BlockInstanceMetadata bool
 }
 
 // Install installs aad-pod-identity via Helm 3.
@@ -47,12 +48,16 @@ func Install(input InstallInput) {
 		fmt.Sprintf("--set=nmi.tag=%s", input.Config.NMIVersion),
 	})
 
+	if input.Config.ImmutableUserMSIs != "" {
+		args = append(args, fmt.Sprintf("--set=mic.immutableUserMSIs=%s", input.Config.ImmutableUserMSIs))
+	}
+
 	if input.ManagedMode {
 		args = append(args, fmt.Sprintf("--set=operationMode=%s", "managed"))
 	}
 
-	if input.Config.ImmutableUserMSIs != "" {
-		args = append(args, fmt.Sprintf("--set=mic.immutableUserMSIs=%s", input.Config.ImmutableUserMSIs))
+	if input.BlockInstanceMetadata {
+		args = append(args, fmt.Sprintf("--set=nmi.blockInstanceMetadata=%t", input.BlockInstanceMetadata))
 	}
 
 	helm(args)
@@ -68,7 +73,16 @@ func Uninstall() {
 	helm(args)
 }
 
-func Upgrade(config *framework.Config) {
+// UpgradeInput is the input for Upgrade.
+type UpgradeInput struct {
+	Config                *framework.Config
+	BlockInstanceMetadata bool
+}
+
+// Upgrade upgrades aad-pod-identity via Helm 3.
+func Upgrade(input UpgradeInput) {
+	Expect(input.Config).NotTo(BeNil(), "input.Config is required for Helm.Upgrade")
+
 	cwd, err := os.Getwd()
 	Expect(err).To(BeNil())
 
@@ -82,13 +96,17 @@ func Upgrade(config *framework.Config) {
 		chartName,
 		"charts/aad-pod-identity",
 		"--wait",
-		fmt.Sprintf("--set=image.repository=%s", config.Registry),
-		fmt.Sprintf("--set=mic.tag=%s", config.MICVersion),
-		fmt.Sprintf("--set=nmi.tag=%s", config.NMIVersion),
+		fmt.Sprintf("--set=image.repository=%s", input.Config.Registry),
+		fmt.Sprintf("--set=mic.tag=%s", input.Config.MICVersion),
+		fmt.Sprintf("--set=nmi.tag=%s", input.Config.NMIVersion),
 	})
 
-	if config.ImmutableUserMSIs != "" {
-		args = append(args, fmt.Sprintf("--set=mic.immutableUserMSIs=%s", config.ImmutableUserMSIs))
+	if input.Config.ImmutableUserMSIs != "" {
+		args = append(args, fmt.Sprintf("--set=mic.immutableUserMSIs=%s", input.Config.ImmutableUserMSIs))
+	}
+
+	if input.BlockInstanceMetadata {
+		args = append(args, fmt.Sprintf("--set=nmi.blockInstanceMetadata=%t", input.BlockInstanceMetadata))
 	}
 
 	helm(args)

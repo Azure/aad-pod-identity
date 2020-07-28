@@ -24,7 +24,7 @@ to the API server by MIC.
 
 ## Block Instance Metadata flag
 
-The Azure Metadata API includes endpoints under `/instance/metadata` which
+The Azure Metadata API includes endpoints under `/metadata/instance` which
 provide information about the virtual machine. You can see examples of this
 endpoint in [the Azure documentation](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service#retrieving-all-metadata-for-an-instance).
 
@@ -54,6 +54,6 @@ The list is comma separated. Example: 00000000-0000-0000-0000-000000000000,11111
 
 When you query the Instance Metadata Service, you must provide the header `Metadata: true` to ensure the request was not unintentionally redirected. You can see examples of this header in [the Azure documentation](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service#using-headers).
 
-This is critical especially when you [acquire an access token](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http) as a mitigation against Server Side Request Forgery (SSRF) attack. 
+This is critical especially when you [acquire an access token](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http) as a mitigation against Server Side Request Forgery (SSRF) attack.
 
 The `metadataHeaderRequired` flag for NMI will block all requests without Metadata header and return an HTTP 400 response. This flag is disabled by default for compatibility, but recommended for users to enable this feature.

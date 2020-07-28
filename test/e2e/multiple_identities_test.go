@@ -19,7 +19,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-var _ = Describe("[PR] When deploying multiple identities", func() {
+var _ = Describe("When deploying multiple identities", func() {
 	var (
 		ns                    *corev1.Namespace
 		specName              = "multiple-identities"

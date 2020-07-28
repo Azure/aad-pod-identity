@@ -14,7 +14,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-var _ = Describe("[PR] When init containers are enabled", func() {
+var _ = Describe("When init containers are enabled", func() {
 	var (
 		specName             = "init-container"
 		ns                   *corev1.Namespace
