@@ -32,6 +32,7 @@ az group create -l $LOCATION -n $ASSETSRESOURCEGROUPNAME -o tsv
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/deployment-rbac.yaml
 
 read MSINAME MSICLIENTID MSIRESOURCEID MSIPRINCIPALID < <(echo $(az identity create -g $ASSETSRESOURCEGROUPNAME -n $MSINAME -o json | jq -r '.name, .clientId, .id, .principalId'))
+sleep 30
 
 jq -r --arg MSINAME "$MSINAME" '.items[].metadata.name |= $MSINAME' aadpodidentity-template.json . > $PODIDENTITYJSONFILENAME
 
