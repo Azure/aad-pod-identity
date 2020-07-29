@@ -8,7 +8,7 @@ jobs:
   - ${{ each k8sRelease in parameters.k8sReleases }}:
     - ${{ each clusterConfig in parameters.clusterConfigs }}:
       - job:
-        displayName: ${{ format('v{0}/{1}', k8sRelease, clusterConfig) }}
+        displayName: ${{ format('{0}', clusterConfig) }}
         dependsOn: unit_tests
         timeoutInMinutes: 120
         cancelTimeoutInMinutes: 5
@@ -28,55 +28,31 @@ jobs:
           - template: build-images.yml
 
           - script: |
-              echo "Installing aks-engine..."
-              curl -LO https://github.com/Azure/aks-engine/releases/download/$(AKS_ENGINE_VERSION)/aks-engine-$(AKS_ENGINE_VERSION)-linux-amd64.tar.gz
-              tar -zxvf aks-engine-$(AKS_ENGINE_VERSION)-linux-amd64.tar.gz
-              sudo mv aks-engine-$(AKS_ENGINE_VERSION)-linux-amd64/aks-engine /usr/local/bin/
-              echo
-
               echo "Installing kubectl..."
               curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
               chmod +x kubectl
               sudo mv kubectl /usr/local/bin/
-            displayName: "Install tools"
+            displayName: "Install kubectl"
 
           - script: |
-              # Generate SSH keypair
-              echo -e 'y\n' | ssh-keygen -f id_rsa -t rsa -N '' > /dev/null
-              export SSH_PUBLIC_KEY="$(cat id_rsa.pub)"
-
-              # Generate resource group name
               export RESOURCE_GROUP="aad-pod-identity-e2e-$(openssl rand -hex 6)"
               echo "##vso[task.setvariable variable=RESOURCE_GROUP]${RESOURCE_GROUP}"
+            displayName: "Generate resource group name"
 
-              envsubst < test/e2e/cluster_configs/$(CLUSTER_CONFIG).json > kubernetes.json
-              cat kubernetes.json
-            displayName: "Generate API model"
+          - ${{ if eq(clusterConfig, 'aks') }}:
+            - template: deploy-aks-cluster.yml
+          - ${{ if not(eq(clusterConfig, 'aks')) }}:
+            - template: deploy-aks-engine-cluster.yml
 
           - script: |
-              aks-engine deploy \
-                --api-model kubernetes.json \
-                --location $(LOCATION) \
-                --subscription-id $(SUBSCRIPTION_ID) \
-                --client-id $(AZURE_CLIENT_ID) \
-                --client-secret $(AZURE_CLIENT_SECRET)
-
-              export KUBECONFIG="$(pwd)/_output/${RESOURCE_GROUP}/kubeconfig/kubeconfig.$(LOCATION).json"
-              echo "##vso[task.setvariable variable=KUBECONFIG]${KUBECONFIG}"
-
-              # Sleep for 120 seconds to wait for nodes and pods to become ready
-              sleep 120
               kubectl wait --for=condition=ready node --all
               kubectl wait pod -n kube-system --for=condition=Ready --all
               kubectl get nodes -owide
               kubectl cluster-info
-            displayName: "aks-engine deploy"
+            displayName: "Check cluster's health"
 
           - script: |
               export REGISTRY="${REGISTRY:-$(REGISTRY_NAME).azurecr.io/k8s/aad-pod-identity}"
-              export CLUSTER_RESOURCE_GROUP="${RESOURCE_GROUP}"
-              export IDENTITY_RESOURCE_GROUP="pi-vmss-e2e-daily"
-
               make e2e
             env:
               SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
