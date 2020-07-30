@@ -3,7 +3,7 @@
     "properties": {
         "orchestratorProfile": {
             "orchestratorType": "Kubernetes",
-            "orchestratorRelease": "${K8S_RELEASE}",
+            "orchestratorVersion": "${AKS_ENGINE_CLUSTER_VERSION}",
             "kubernetesConfig": {
                 "addons": [
                     {

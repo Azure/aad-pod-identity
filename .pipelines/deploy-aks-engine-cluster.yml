@@ -32,8 +32,11 @@ steps:
 
       # Sleep for 120 seconds to wait for nodes and pods to become ready
       sleep 120
-      kubectl wait --for=condition=ready node --all
-      kubectl wait pod -n kube-system --for=condition=Ready --all
-      kubectl get nodes -owide
-      kubectl cluster-info
-    displayName: "aks-engine deploy"
+    displayName: "Deploy an aks-engine cluster"
+
+  - script: |
+      echo "Installing kubectl..."
+      curl -LO https://storage.googleapis.com/kubernetes-release/release/v$(AKS_ENGINE_CLUSTER_VERSION)/bin/linux/amd64/kubectl
+      chmod +x kubectl
+      sudo mv kubectl /usr/local/bin/
+    displayName: "Install kubectl"
