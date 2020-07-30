@@ -63,6 +63,8 @@ var _ = Describe("When upgrading AAD Pod Identity", func() {
 		configOldVersion.MICVersion = "1.5"
 		configOldVersion.NMIVersion = "1.5"
 		configOldVersion.ImmutableUserMSIs = ""
+		configOldVersion.BlockInstanceMetadata = false
+
 		helm.Upgrade(helm.UpgradeInput{
 			Config: configOldVersion,
 		})

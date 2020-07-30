@@ -20,10 +20,8 @@ const (
 
 // InstallInput is the input for Install.
 type InstallInput struct {
-	Config                *framework.Config
-	ManagedMode           bool
-	NamespacedMode        bool
-	BlockInstanceMetadata bool
+	Config         *framework.Config
+	NamespacedMode bool
 }
 
 // Install installs aad-pod-identity via Helm 3.
@@ -43,22 +41,8 @@ func Install(input InstallInput) {
 		chartName,
 		"charts/aad-pod-identity",
 		"--wait",
-		fmt.Sprintf("--set=image.repository=%s", input.Config.Registry),
-		fmt.Sprintf("--set=mic.tag=%s", input.Config.MICVersion),
-		fmt.Sprintf("--set=nmi.tag=%s", input.Config.NMIVersion),
 	})
-
-	if input.Config.ImmutableUserMSIs != "" {
-		args = append(args, fmt.Sprintf("--set=mic.immutableUserMSIs=%s", input.Config.ImmutableUserMSIs))
-	}
-
-	if input.ManagedMode {
-		args = append(args, fmt.Sprintf("--set=operationMode=%s", "managed"))
-	}
-
-	if input.BlockInstanceMetadata {
-		args = append(args, fmt.Sprintf("--set=nmi.blockInstanceMetadata=%t", input.BlockInstanceMetadata))
-	}
+	args = append(args, generateValueArgs(input.Config)...)
 
 	helm(args)
 }
@@ -75,8 +59,7 @@ func Uninstall() {
 
 // UpgradeInput is the input for Upgrade.
 type UpgradeInput struct {
-	Config                *framework.Config
-	BlockInstanceMetadata bool
+	Config *framework.Config
 }
 
 // Upgrade upgrades aad-pod-identity via Helm 3.
@@ -96,20 +79,32 @@ func Upgrade(input UpgradeInput) {
 		chartName,
 		"charts/aad-pod-identity",
 		"--wait",
-		fmt.Sprintf("--set=image.repository=%s", input.Config.Registry),
-		fmt.Sprintf("--set=mic.tag=%s", input.Config.MICVersion),
-		fmt.Sprintf("--set=nmi.tag=%s", input.Config.NMIVersion),
 	})
-
-	if input.Config.ImmutableUserMSIs != "" {
-		args = append(args, fmt.Sprintf("--set=mic.immutableUserMSIs=%s", input.Config.ImmutableUserMSIs))
-	}
-
-	if input.BlockInstanceMetadata {
-		args = append(args, fmt.Sprintf("--set=nmi.blockInstanceMetadata=%t", input.BlockInstanceMetadata))
-	}
+	args = append(args, generateValueArgs(input.Config)...)
 
 	helm(args)
+}
+
+func generateValueArgs(config *framework.Config) []string {
+	args := []string{
+		fmt.Sprintf("--set=image.repository=%s", config.Registry),
+		fmt.Sprintf("--set=mic.tag=%s", config.MICVersion),
+		fmt.Sprintf("--set=nmi.tag=%s", config.NMIVersion),
+	}
+
+	if config.ImmutableUserMSIs != "" {
+		args = append(args, fmt.Sprintf("--set=mic.immutableUserMSIs=%s", config.ImmutableUserMSIs))
+	}
+
+	if config.NMIMode == "managed" {
+		args = append(args, fmt.Sprintf("--set=operationMode=%s", "managed"))
+	}
+
+	if config.BlockInstanceMetadata {
+		args = append(args, fmt.Sprintf("--set=nmi.blockInstanceMetadata=%t", config.BlockInstanceMetadata))
+	}
+
+	return args
 }
 
 func helm(args []string) {

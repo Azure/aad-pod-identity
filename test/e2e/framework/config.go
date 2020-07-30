@@ -27,7 +27,8 @@ type Config struct {
 	SystemMSICluster         bool   `envconfig:"SYSTEM_MSI_CLUSTER" default:"false"`
 	EnableScaleFeatures      bool   `envconfig:"ENABLE_SCALE_FEATURES" default:"false"`
 	ImmutableUserMSIs        string `envconfig:"IMMUTABLE_IDENTITY_CLIENT_ID"`
-	NmiMode                  string `envconfig:"NMI_MODE" default:"standard"`
+	NMIMode                  string `envconfig:"NMI_MODE" default:"standard"`
+	BlockInstanceMetadata    bool   `envconfig:"BLOCK_INSTANCE_METADATA" default:"true"`
 }
 
 func (c *Config) DeepCopy() *Config {
@@ -49,7 +50,8 @@ func (c *Config) DeepCopy() *Config {
 	copy.SystemMSICluster = c.SystemMSICluster
 	copy.EnableScaleFeatures = c.EnableScaleFeatures
 	copy.ImmutableUserMSIs = c.ImmutableUserMSIs
-	copy.NmiMode = c.NmiMode
+	copy.NMIMode = c.NMIMode
+	copy.BlockInstanceMetadata = c.BlockInstanceMetadata
 
 	return copy
 }

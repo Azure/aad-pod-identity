@@ -1,0 +1,21 @@
+steps:
+  - script: |
+      az group create --name ${RESOURCE_GROUP} --location $(LOCATION)
+
+      az aks create \
+        --resource-group ${RESOURCE_GROUP} \
+        --name ${RESOURCE_GROUP} \
+        --max-pods ${MAX_PODS} \
+        --service-principal $(AZURE_CLIENT_ID) \
+        --client-secret $(AZURE_CLIENT_SECRET) \
+        --generate-ssh-keys > /dev/null
+
+      # store kubeconfig to ~/.kube/config
+      az aks get-credentials \
+        --resource-group ${RESOURCE_GROUP} \
+        --name ${RESOURCE_GROUP}
+
+      # set CLUSTER_RESOURCE_GROUP for e2e test config
+      export CLUSTER_RESOURCE_GROUP="MC_${RESOURCE_GROUP}_${RESOURCE_GROUP}_$(LOCATION)"
+      echo "##vso[task.setvariable variable=CLUSTER_RESOURCE_GROUP]${CLUSTER_RESOURCE_GROUP}"
+    displayName: "Deploy an AKS cluster"
