@@ -17,12 +17,6 @@ jobs:
         - name: CLUSTER_CONFIG
           value: ${{ format('{0}', clusterConfig) }}
       steps:
-        - task: DownloadSecureFile@1
-          name: kubeconfig
-          inputs:
-            secureFile: ${{ format('{0}', clusterConfig) }}
-          displayName: "Download KUBECONFIG"
-
         - task: GoTool@0
           inputs:
             version: '1.14.1'
@@ -36,13 +30,20 @@ jobs:
             sudo mv kubectl /usr/local/bin/
           displayName: "Install tools"
 
-        - ${{ if eq(clusterConfig, "pi-aks-e2e-daily") }}:
+        - ${{ if eq(clusterConfig, 'pi-aks-e2e-daily') }}:
           - script: |
               az aks get-credentials \
                 --resource-group $(CLUSTER_CONFIG) \
                 --name $(CLUSTER_CONFIG)
             displayName: "Set KUBECONFIG"
-        - ${{ if not(eq(clusterConfig, "pi-aks-e2e-daily")) }}:
+
+        - ${{ if not(eq(clusterConfig, 'pi-aks-e2e-daily')) }}:
+          - task: DownloadSecureFile@1
+            name: kubeconfig
+            inputs:
+              secureFile: ${{ format('{0}', clusterConfig) }}
+            displayName: "Download KUBECONFIG"
+
           - script: |
               export KUBECONFIG=$(kubeconfig.secureFilePath)
               echo "##vso[task.setvariable variable=KUBECONFIG]${KUBECONFIG}"
