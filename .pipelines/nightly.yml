@@ -15,8 +15,6 @@ jobs:
   - template: unit-tests-template.yml
   - template: e2e-tests-template.yml
     parameters:
-      k8sReleases:
-        - "1.18"
       clusterConfigs:
         - "aks"
         # File names in test/e2e/cluster_configs without file extension
