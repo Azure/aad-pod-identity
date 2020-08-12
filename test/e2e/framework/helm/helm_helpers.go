@@ -39,7 +39,7 @@ func Install(input InstallInput) {
 	args := append([]string{
 		"install",
 		chartName,
-		"charts/aad-pod-identity",
+		"manifest_staging/charts/aad-pod-identity",
 		"--wait",
 	})
 	args = append(args, generateValueArgs(input.Config)...)
