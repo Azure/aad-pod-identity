@@ -192,4 +192,4 @@ helm-lint:
 	# Download and install Helm
 	curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 	# run lint on helm charts
-	helm lint --strict charts/aad-pod-identity
+	helm lint --strict manifest_staging/charts/aad-pod-identity
