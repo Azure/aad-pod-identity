@@ -30,31 +30,43 @@ const (
 	imdsOperationsErrorsCountName          = "imds_operations_errors_count"
 	imdsOperationsDurationName             = "imds_operations_duration_seconds"
 
-	// AdalTokenFromMSIOperationName ...
+	// AdalTokenFromMSIOperationName represents the duration of obtaining a token with MSI.
 	AdalTokenFromMSIOperationName = "adal_token_msi"
-	// AdalTokenFromMSIWithUserAssignedIDOperationName ...
+
+	// AdalTokenFromMSIWithUserAssignedIDOperationName represents the duration of obtaining a token with a user-assigned identity.
 	AdalTokenFromMSIWithUserAssignedIDOperationName = "adal_token_msi_userassignedid"
-	// AdalTokenOperationName ...
+
+	// AdalTokenOperationName represents the duration of obtaining a token.
 	AdalTokenOperationName = "adal_token"
-	// GetVmssOperationName ...
+
+	// GetVmssOperationName represents the duration of a GET request to a VMSS instance.
 	GetVmssOperationName = "vmss_get"
-	// PutVmssOperationName ...
-	PutVmssOperationName = "vmss_create_or_update"
-	// GetVMOperationName ...
+
+	// UpdateVMSSOperationName represents the duration of a PATCH request to a VMSS instance.
+	UpdateVMSSOperationName = "vmss_update"
+
+	// GetVMOperationName represents the duration of a GET request to a VM instance.
 	GetVMOperationName = "vm_get"
-	// PutVMOperationName ...
-	PutVMOperationName = "vm_create_or_update"
-	// AssignedIdentityDeletionOperationName ...
+
+	// UpdateVMOperationName represents the duration of a PATCH request to a VM instance.
+	UpdateVMOperationName = "vm_update"
+
+	// AssignedIdentityDeletionOperationName represents the duration of an AzureAssignedIdentity deletion.
 	AssignedIdentityDeletionOperationName = "assigned_identity_deletion"
-	// AssignedIdentityAdditionOperationName ...
+
+	// AssignedIdentityAdditionOperationName represents the duration of an AzureAssignedIdentity addition.
 	AssignedIdentityAdditionOperationName = "assigned_identity_addition"
-	// AssignedIdentityUpdateOperationName ...
+
+	// AssignedIdentityUpdateOperationName represents the duration of an AzureAssignedIdentity update.
 	AssignedIdentityUpdateOperationName = "assigned_identity_update"
-	// UpdateAzureAssignedIdentityStatusOperationName ...
+
+	// UpdateAzureAssignedIdentityStatusOperationName represents the status of an AzureAssignedIdentity update operation.
 	UpdateAzureAssignedIdentityStatusOperationName = "update_azure_assigned_identity_status"
-	// GetPodListOperationName
+
+	// GetPodListOperationName represents the status of a pod list operation.
 	GetPodListOperationName = "get_pod_list"
-	// GetSecretOperationName
+
+	// GetSecretOperationName represents the status of a secret get operation.
 	GetSecretOperationName = "get_secret"
 )
 

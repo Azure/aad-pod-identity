@@ -72,7 +72,7 @@ func (c *Client) syncCache(exit <-chan struct{}) {
 	klog.Infof("pod cache synchronized. Took %s", time.Since(cacheSyncStarted).String())
 }
 
-// Start ...
+// Start starts watching for any pod-related changes.
 func (c *Client) Start(exit <-chan struct{}) {
 	go c.PodWatcher.Informer().Run(exit)
 	c.syncCache(exit)

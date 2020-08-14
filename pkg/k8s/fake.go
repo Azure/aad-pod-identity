@@ -39,7 +39,7 @@ func (c *FakeClient) ListPodIdsWithBinding(podns string, labels map[string]strin
 	return nil, nil
 }
 
-// ListPodIdentityExceptions ...
+// ListPodIdentityExceptions for pod
 func (c *FakeClient) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodIdentityException, error) {
 	return nil, nil
 }

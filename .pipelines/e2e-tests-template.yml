@@ -50,7 +50,11 @@ jobs:
             AZURE_TENANT_ID: $(AZURE_TENANT_ID)
           displayName: "Run E2E tests"
 
-        - script: az group delete -g ${RESOURCE_GROUP} --yes --no-wait
+        - script: |
+            if [[ "${CLUSTER_CONFIG}" == "aks" ]]; then
+              az aks delete -g ${RESOURCE_GROUP} -n ${RESOURCE_GROUP} --yes --no-wait
+            fi
+            az group delete -g ${RESOURCE_GROUP} --yes --no-wait
           displayName: "Delete resource group"
 
         - template: cleanup-images.yml

@@ -90,7 +90,7 @@ func NewKubeClient(nodeName string, scale, isStandardMode bool) (Client, error) 
 	return kubeClient, nil
 }
 
-// Sync ...
+// Sync syncs the cache from the K8s client.
 func (c *KubeClient) Sync(exit <-chan struct{}) {
 	if !cache.WaitForCacheSync(exit, c.PodInformer.HasSynced) {
 		klog.Error("pod cache could not be synchronized")

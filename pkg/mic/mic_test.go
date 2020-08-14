@@ -367,7 +367,7 @@ func (c *TestPodClient) Start(exit <-chan struct{}) {
 }
 
 func (c *TestPodClient) GetPods() ([]*corev1.Pod, error) {
-	//TODO: Add label matching. For now we add only pods which we want to add.
+	// TODO: Add label matching. For now we add only pods which we want to add.
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -464,7 +464,7 @@ func (c *TestCrdClient) RemoveAssignedIdentity(assignedIdentity *internalaadpodi
 // This function is not used currently
 // TODO: consider remove
 func (c *TestCrdClient) CreateAssignedIdentity(assignedIdentity *internalaadpodid.AzureAssignedIdentity) error {
-	assignedIdentityToStore := *assignedIdentity //Make a copy to store in the map.
+	assignedIdentityToStore := *assignedIdentity // Make a copy to store in the map.
 	c.mu.Lock()
 	c.assignedIDMap[assignedIdentity.Name] = &assignedIdentityToStore
 	c.mu.Unlock()
@@ -472,7 +472,7 @@ func (c *TestCrdClient) CreateAssignedIdentity(assignedIdentity *internalaadpodi
 }
 
 func (c *TestCrdClient) UpdateAssignedIdentity(assignedIdentity *internalaadpodid.AzureAssignedIdentity) error {
-	assignedIdentityToStore := *assignedIdentity //Make a copy to store in the map.
+	assignedIdentityToStore := *assignedIdentity // Make a copy to store in the map.
 	c.mu.Lock()
 	c.assignedIDMap[assignedIdentity.Name] = &assignedIdentityToStore
 	c.mu.Unlock()
@@ -481,7 +481,7 @@ func (c *TestCrdClient) UpdateAssignedIdentity(assignedIdentity *internalaadpodi
 
 func (c *TestCrdClient) UpdateAzureAssignedIdentityStatus(assignedIdentity *internalaadpodid.AzureAssignedIdentity, status string) error {
 	assignedIdentity.Status.Status = status
-	assignedIdentityToStore := *assignedIdentity //Make a copy to store in the map.
+	assignedIdentityToStore := *assignedIdentity // Make a copy to store in the map.
 	c.mu.Lock()
 	c.assignedIDMap[assignedIdentity.Name] = &assignedIdentityToStore
 	c.mu.Unlock()
@@ -572,7 +572,6 @@ func (c *Client) ListPodIds(podns, podname string) (map[string][]internalaadpodi
 	return map[string][]internalaadpodid.AzureIdentity{}, nil
 }
 
-// ListPodIdentityExceptions ...
 func (c *Client) ListPodIdentityExceptions(ns string) (*[]internalaadpodid.AzurePodIdentityException, error) {
 	return nil, nil
 }
@@ -921,7 +920,7 @@ func TestSimpleMICClient(t *testing.T) {
 		t.Fatalf("assigned ID spec: %v mismatch", assignedID)
 	}
 
-	//Test2: Remove assigned id event test
+	// Test2: Remove assigned id event test
 	podClient.DeletePod("test-pod", "default")
 	eventCh <- internalaadpodid.PodDeleted
 	if !crdClient.waitForAssignedIDs(0) {
@@ -1127,7 +1126,7 @@ func TestAddDelMICClient(t *testing.T) {
 	podClient.DeletePod("test-pod2", "default")
 	podClient.DeletePod("test-pod4", "default")
 
-	//Add a new pod, with different id and binding on the same node.
+	// Add a new pod, with different id and binding on the same node.
 	crdClient.CreateID("test-id3", "default", aadpodid.UserAssignedMSI, testResourceID, "test-user-msi-clientid", nil, "", "", "", "")
 	crdClient.CreateBinding("testbinding3", "default", "test-id3", "test-select3", "")
 	podClient.AddPod("test-pod3", "default", "test-node2", "test-select3")

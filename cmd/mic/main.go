@@ -56,7 +56,7 @@ func main() {
 	flag.StringVar(&leaderElectionCfg.Name, "leader-election-name", "aad-pod-identity-mic", "leader election name")
 	flag.DurationVar(&leaderElectionCfg.Duration, "leader-election-duration", time.Second*15, "leader election duration")
 
-	//Probe port
+	// Probe port
 	flag.StringVar(&httpProbePort, "http-probe-port", "8080", "http liveliness probe port")
 
 	// Prometheus port
@@ -74,7 +74,7 @@ func main() {
 	// Client QPS is used to configure the client-go QPS throttling and bursting.
 	flag.Float64Var(&clientQPS, "clientQps", 5, "Client QPS used for throttling of calls to kube-api server")
 
-	//Identities that should be never removed from Azure AD (used defined managed identities)
+	// Identities that should be never removed from Azure AD (used defined managed identities)
 	flag.StringVar(&immutableUserMSIs, "immutable-user-msis", "", "prevent deletion of these IDs from the underlying VM/VMSS")
 
 	// Config map for aad-pod-identity
@@ -171,7 +171,6 @@ func main() {
 	// Starts the leader election loop
 	micClient.Run()
 	klog.Info("aad-pod-identity controller initialized!!")
-	//Infinite loop :-)
 	select {}
 }
 

@@ -30,12 +30,12 @@ func startAsync(port string) {
 	klog.Info("http listen and serve started !")
 }
 
-//Start - Starts the required http server to start the probe to respond.
+// Start starts the required http server to start the probe to respond.
 func Start(port string) {
 	go startAsync(port)
 }
 
-// InitAndStart - Initialize the default probes and starts the http listening port.
+// InitAndStart initializes the default probes and starts the http listening port.
 func InitAndStart(port string, condition *bool) {
 	InitHealthProbe(condition)
 	klog.Infof("initialized health probe on port %s", port)

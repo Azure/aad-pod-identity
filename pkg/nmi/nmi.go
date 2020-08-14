@@ -32,13 +32,14 @@ type Config struct {
 }
 
 const (
-	// StandardMode ...
+	// StandardMode is the name of NMI's standard mode.
 	StandardMode OperationMode = "standard"
-	// ManagedMode ...
+
+	// ManagedMode is the name of NMI's managed mode.
 	ManagedMode OperationMode = "managed"
 )
 
-// TokenClient ...
+// TokenClient is an abstraction used to retrieve pods' identities and ADAL tokens.
 type TokenClient interface {
 	// GetIdentities gets the list of identities which match the
 	// given pod in the form of AzureIdentity.

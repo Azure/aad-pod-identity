@@ -41,7 +41,7 @@ type Client struct {
 	reporter                     *metrics.Reporter
 }
 
-// ClientInt ...
+// ClientInt is an abstraction used to interact with CRDs.
 type ClientInt interface {
 	Start(exit <-chan struct{})
 	SyncCache(exit <-chan struct{}, initial bool, cacheSyncs ...cache.InformerSynced)
@@ -59,7 +59,7 @@ type ClientInt interface {
 	ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error)
 }
 
-// NewCRDClientLite ...
+// NewCRDClientLite returns a new CRD lite client and error if any.
 func NewCRDClientLite(config *rest.Config, nodeName string, scale, isStandardMode bool) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
@@ -111,7 +111,7 @@ func NewCRDClientLite(config *rest.Config, nodeName string, scale, isStandardMod
 	}, nil
 }
 
-// NewCRDClient returns a new crd client and error if any
+// NewCRDClient returns a new CRD client and error if any.
 func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
@@ -174,7 +174,7 @@ func newRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
 
 	crdconfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)}
 
-	//Client interacting with our CRDs
+	// Client interacting with our CRDs
 	restClient, err := rest.RESTClientFor(&crdconfig)
 	if err != nil {
 		return nil, err
@@ -292,7 +292,7 @@ func newPodIdentityExceptionListWatch(r *rest.RESTClient) *cache.ListWatch {
 	optionsModifier := func(options *v1.ListOptions) {}
 	return cache.NewFilteredListWatchFromClient(
 		r,
-		aadpodv1.AzureIdentityExceptionResource,
+		aadpodv1.AzurePodIdentityExceptionResource,
 		v1.NamespaceAll,
 		optionsModifier,
 	)
@@ -301,7 +301,7 @@ func newPodIdentityExceptionListWatch(r *rest.RESTClient) *cache.ListWatch {
 func newPodIdentityExceptionInformer(lw *cache.ListWatch) (cache.SharedInformer, error) {
 	azPodIDExceptionInformer := cache.NewSharedInformer(lw, &aadpodv1.AzurePodIdentityException{}, time.Minute*10)
 	if azPodIDExceptionInformer == nil {
-		return nil, fmt.Errorf("failed to create %s informer", aadpodv1.AzureIdentityExceptionResource)
+		return nil, fmt.Errorf("failed to create %s informer", aadpodv1.AzurePodIdentityExceptionResource)
 	}
 	return azPodIDExceptionInformer, nil
 }
@@ -328,6 +328,7 @@ func (c *Client) setObject(resource, ns, name string, i interface{}, obj runtime
 	return nil
 }
 
+// Upgrade performs type upgrade to a specific aad-pod-identity CRD.
 func (c *Client) Upgrade(resource string, i runtime.Object) (map[string]runtime.Object, error) {
 	m := make(map[string]runtime.Object)
 	i, err := c.getObjectList(resource, i)
@@ -370,6 +371,7 @@ func (c *Client) Upgrade(resource string, i runtime.Object) (map[string]runtime.
 	return m, nil
 }
 
+// UpgradeAll performs type upgrade to for all aad-pod-identity CRDs.
 func (c *Client) UpgradeAll() error {
 	updatedAzureIdentities, err := c.Upgrade(aadpodv1.AzureIDResource, &aadpodv1.AzureIdentityList{})
 	if err != nil {
@@ -379,7 +381,7 @@ func (c *Client) UpgradeAll() error {
 	if err != nil {
 		return err
 	}
-	_, err = c.Upgrade(aadpodv1.AzureIdentityExceptionResource, &aadpodv1.AzurePodIdentityExceptionList{})
+	_, err = c.Upgrade(aadpodv1.AzurePodIdentityExceptionResource, &aadpodv1.AzurePodIdentityExceptionList{})
 	if err != nil {
 		return err
 	}
@@ -444,7 +446,7 @@ func (c *Client) StartLite(exit <-chan struct{}) {
 	klog.Info("CRD lite informers started ")
 }
 
-// Start ...
+// Start starts all informer routines to watch for CRD-related changes.
 func (c *Client) Start(exit <-chan struct{}) {
 	go c.BindingInformer.Run(exit)
 	go c.IDInformer.Run(exit)
@@ -694,7 +696,7 @@ func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodI
 	for _, binding := range list {
 		o, ok := binding.(*aadpodv1.AzurePodIdentityException)
 		if !ok {
-			return nil, fmt.Errorf("failed to cast %T to %s", binding, aadpodid.AzureIdentityExceptionResource)
+			return nil, fmt.Errorf("failed to cast %T to %s", binding, aadpodid.AzurePodIdentityExceptionResource)
 		}
 		if o.Namespace == ns {
 			// Note: List items returned from cache have empty Kind and API version..

@@ -56,6 +56,8 @@ type NMIResponse struct {
 	ClientID string      `json:"clientid"`
 }
 
+// MetadataResponse represents the error returned
+// to caller when metadata header is not specified.
 type MetadataResponse struct {
 	Error            string `json:"error"`
 	ErrorDescription string `json:"error_description"`
@@ -430,6 +432,7 @@ func parseRemoteAddr(addr string) string {
 	return hostname
 }
 
+// TokenRequest contains the client and resource ID token, as well as what resource the client is trying to access.
 type TokenRequest struct {
 	// ClientID identifies, by Azure AD client ID, a specific identity to use
 	// when authenticating to Azure AD. It is mutually exclusive with
@@ -448,6 +451,7 @@ type TokenRequest struct {
 	Resource string
 }
 
+// ValidateResourceParamExists returns true if there exists a resource parameter from the request.
 func (r TokenRequest) ValidateResourceParamExists() bool {
 	// check if resource exists in the request
 	// if resource doesn't exist in the request, then adal libraries will return the same error
