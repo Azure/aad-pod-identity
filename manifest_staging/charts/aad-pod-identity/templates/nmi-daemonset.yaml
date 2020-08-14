@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: {{ template "aad-pod-identity.nmi.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "aad-pod-identity.labels" . | nindent 4 }}
     app.kubernetes.io/component: nmi
