@@ -134,7 +134,7 @@ var _ = Describe("When using AAD Pod Identity with Gatekeeper", func() {
 		// constraint takes time to init
 		time.Sleep(60 * time.Second)
 
-		By("Creating an AzureIdentity with invalid ResourceID and ensuring an error has occured")
+		By("Creating an AzureIdentity with invalid ResourceID and ensuring an error has occurred")
 		azureidentity.Create(azureidentity.CreateInput{
 			Creator:           kubeClient,
 			Config:            config,
@@ -146,7 +146,7 @@ var _ = Describe("When using AAD Pod Identity with Gatekeeper", func() {
 			InvalidResourceID: true,
 		})
 
-		By("Creating an AzureIdentity with valid ResourceID and ensuring no error has occured")
+		By("Creating an AzureIdentity with valid ResourceID and ensuring no error has occurred")
 		azureidentity.Create(azureidentity.CreateInput{
 			Creator:      kubeClient,
 			Config:       config,

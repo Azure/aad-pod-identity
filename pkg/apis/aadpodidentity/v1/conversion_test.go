@@ -9,16 +9,18 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var objectMetaName string = "objectMetaName"
-var identityName string = "identityName"
-var selectorName string = "selectorName"
-var idTypeInternal aadpodid.IdentityType = aadpodid.UserAssignedMSI
-var idTypeV1 IdentityType = UserAssignedMSI
-var rID string = "resourceId"
-var assignedIDPod string = "assignedIDPod"
-var replicas int32 = 3
-var weight int = 1
-var podLabels = map[string]string{"testkey1": "testval1", "testkey2": "testval2"}
+var (
+	objectMetaName = "objectMetaName"
+	identityName   = "identityName"
+	selectorName   = "selectorName"
+	idTypeInternal = aadpodid.UserAssignedMSI
+	idTypeV1       = UserAssignedMSI
+	rID            = "resourceId"
+	assignedIDPod  = "assignedIDPod"
+	replicas       = int32(3)
+	weight         = 1
+	podLabels      = map[string]string{"testkey1": "testval1", "testkey2": "testval2"}
+)
 
 func CreateV1Binding() (retV1Binding AzureIdentityBinding) {
 	return AzureIdentityBinding{

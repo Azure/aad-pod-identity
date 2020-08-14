@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+// ConvertV1BindingToInternalBinding converts v1.AzureIdentityBinding to an internal AzureIdentityBinding type.
 func ConvertV1BindingToInternalBinding(identityBinding AzureIdentityBinding) (resIdentityBinding aadpodid.AzureIdentityBinding) {
 	return aadpodid.AzureIdentityBinding{
 		TypeMeta:   identityBinding.TypeMeta,
@@ -22,6 +23,7 @@ func ConvertV1BindingToInternalBinding(identityBinding AzureIdentityBinding) (re
 	}
 }
 
+// ConvertV1IdentityToInternalIdentity converts v1.AzureIdentity to an internal AzureIdentity type.
 func ConvertV1IdentityToInternalIdentity(identity AzureIdentity) (resIdentity aadpodid.AzureIdentity) {
 	return aadpodid.AzureIdentity{
 		TypeMeta:   identity.TypeMeta,
@@ -41,6 +43,7 @@ func ConvertV1IdentityToInternalIdentity(identity AzureIdentity) (resIdentity aa
 	}
 }
 
+// ConvertV1AssignedIdentityToInternalAssignedIdentity converts v1.AzureAssignedIdentity to an internal AzureAssignedIdentity type.
 func ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIdentity AzureAssignedIdentity) (resAssignedIdentity aadpodid.AzureAssignedIdentity) {
 	var retIdentity aadpodid.AzureIdentity
 	var retBinding aadpodid.AzureIdentityBinding
@@ -67,6 +70,7 @@ func ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIdentity AzureA
 	}
 }
 
+// ConvertV1PodIdentityExceptionToInternalPodIdentityException converts v1.AzurePodIdentityException to an internal AzurePodIdentityException type.
 func ConvertV1PodIdentityExceptionToInternalPodIdentityException(idException AzurePodIdentityException) (residException aadpodid.AzurePodIdentityException) {
 	return aadpodid.AzurePodIdentityException{
 		TypeMeta:   idException.TypeMeta,
@@ -79,6 +83,7 @@ func ConvertV1PodIdentityExceptionToInternalPodIdentityException(idException Azu
 	}
 }
 
+// ConvertInternalBindingToV1Binding converts an internal AzureIdentityBinding type to v1.AzureIdentityBinding.
 func ConvertInternalBindingToV1Binding(identityBinding aadpodid.AzureIdentityBinding) (resIdentityBinding AzureIdentityBinding) {
 	out := AzureIdentityBinding{
 		TypeMeta:   identityBinding.TypeMeta,
@@ -100,6 +105,7 @@ func ConvertInternalBindingToV1Binding(identityBinding aadpodid.AzureIdentityBin
 	return out
 }
 
+// ConvertInternalIdentityToV1Identity converts an internal AzureIdentity type to v1.AzureIdentity.
 func ConvertInternalIdentityToV1Identity(identity aadpodid.AzureIdentity) (resIdentity AzureIdentity) {
 	out := AzureIdentity{
 		TypeMeta:   identity.TypeMeta,
@@ -126,6 +132,7 @@ func ConvertInternalIdentityToV1Identity(identity aadpodid.AzureIdentity) (resId
 	return out
 }
 
+// ConvertInternalAssignedIdentityToV1AssignedIdentity converts an internal AzureAssignedIdentity type to v1.AzureAssignedIdentity.
 func ConvertInternalAssignedIdentityToV1AssignedIdentity(assignedIdentity aadpodid.AzureAssignedIdentity) (resAssignedIdentity AzureAssignedIdentity) {
 	retIdentity := ConvertInternalIdentityToV1Identity(*assignedIdentity.Spec.AzureIdentityRef)
 	retBinding := ConvertInternalBindingToV1Binding(*assignedIdentity.Spec.AzureBindingRef)

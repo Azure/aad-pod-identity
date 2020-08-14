@@ -41,7 +41,7 @@ const (
 	running = int32(1)
 )
 
-// NodeGetter ...
+// NodeGetter is an abstraction used to get Kubernetes node info.
 type NodeGetter interface {
 	Get(name string) (*corev1.Node, error)
 	Start(<-chan struct{})
@@ -116,7 +116,7 @@ type Config struct {
 	UpdateUserMSICfg      *UpdateUserMSIConfig
 }
 
-// ClientInt ...
+// ClientInt is an abstraction used to perform an MIC sync cycle.
 type ClientInt interface {
 	Start(exit <-chan struct{})
 	Sync(exit <-chan struct{})
@@ -277,6 +277,7 @@ func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder reco
 	return leaderElector, nil
 }
 
+// UpgradeTypeIfRequired performs type upgrade for all aad-pod-identity CRDs if required.
 func (c *Client) UpgradeTypeIfRequired() error {
 	if c.TypeUpgradeCfg.EnableTypeUpgrade {
 		cm, err := c.CMClient.Get(c.CMCfg.Name, v1.GetOptions{})
@@ -326,7 +327,7 @@ func (c *Client) UpgradeTypeIfRequired() error {
 	return nil
 }
 
-// Start ...
+// Start starts various go routines to watch for any relevant changes that would trigger a MIC sync.
 func (c *Client) Start(exit <-chan struct{}) {
 	klog.V(6).Infof("MIC client starting..")
 
@@ -377,7 +378,7 @@ func (c *Client) setStopped() {
 	atomic.StoreInt32(&c.syncing, stopped)
 }
 
-// Sync ...
+// Sync perform a sync cycle.
 func (c *Client) Sync(exit <-chan struct{}) {
 	if !c.canSync() {
 		panic("concurrent syncs")
@@ -559,24 +560,24 @@ func (c *Client) convertAssignedIDListToMap(addList, deleteList, updateList map[
 
 func (c *Client) createDesiredAssignedIdentityList(
 	listPods []*corev1.Pod, listBindings *[]aadpodid.AzureIdentityBinding, idMap map[string]aadpodid.AzureIdentity) (map[string]aadpodid.AzureAssignedIdentity, map[string]bool, error) {
-	//For each pod, check what bindings are matching. For each binding create volatile azure assigned identity.
-	//Compare this list with the current list of azure assigned identities.
-	//For any new assigned identities found in this volatile list, create assigned identity and assign user assigned msis.
-	//For any assigned ids not present the volatile list, proceed with the deletion.
+	// For each pod, check what bindings are matching. For each binding create volatile azure assigned identity.
+	// Compare this list with the current list of azure assigned identities.
+	// For any new assigned identities found in this volatile list, create assigned identity and assign user assigned msis.
+	// For any assigned ids not present the volatile list, proceed with the deletion.
 	nodeRefs := make(map[string]bool)
 	newAssignedIDs := make(map[string]aadpodid.AzureAssignedIdentity)
 
 	for _, pod := range listPods {
 		klog.V(6).Infof("checking pod %s/%s", pod.Namespace, pod.Name)
 		if pod.Spec.NodeName == "" {
-			//Node is not yet allocated. In that case skip the pod
+			// Node is not yet allocated. In that case skip the pod
 			klog.V(2).Infof("pod %s/%s has no assigned node yet. it will be ignored", pod.Namespace, pod.Name)
 			continue
 		}
 		crdPodLabelVal := pod.Labels[aadpodid.CRDLabelKey]
 		klog.V(6).Infof("pod: %s/%s. Label value: %v", pod.Namespace, pod.Name, crdPodLabelVal)
 		if crdPodLabelVal == "" {
-			//No binding mentioned in the label. Just continue to the next pod
+			// No binding mentioned in the label. Just continue to the next pod
 			klog.V(2).Infof("pod %s/%s has correct %s label but with no value. it will be ignored", pod.Namespace, pod.Name, aadpodid.CRDLabelKey)
 			continue
 		}

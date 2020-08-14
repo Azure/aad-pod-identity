@@ -36,7 +36,7 @@ func NewStandardTokenClient(client k8s.Client, config Config) (*StandardClient, 
 	}, nil
 }
 
-// GetIdentities ...
+// GetIdentities gets the azure identity that matches the podns/podname and client id
 func (sc *StandardClient) GetIdentities(ctx context.Context, podns, podname, clientID, resourceID string) (*aadpodid.AzureIdentity, error) {
 	podIDs, identityInCreatedStateFound, err := sc.listPodIDsWithRetry(ctx, podns, podname, clientID, resourceID)
 	if err != nil {
@@ -164,7 +164,7 @@ func (sc *StandardClient) listPodIDsWithRetry(ctx context.Context, podns, podnam
 		podns, podname, sc.ListPodIDsRetryAttemptsForCreated+sc.ListPodIDsRetryAttemptsForAssigned, sc.ListPodIDsRetryIntervalInSeconds, err)
 }
 
-// GetToken ...
+// GetToken returns an ADAL token based on the request and its pod identity.
 func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource string, azureID aadpodid.AzureIdentity) (token *adal.Token, err error) {
 	rqHasClientID := len(rqClientID) != 0
 	clientID := azureID.Spec.ClientID

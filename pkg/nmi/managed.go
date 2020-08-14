@@ -67,7 +67,7 @@ func (mc *ManagedClient) GetIdentities(ctx context.Context, podns, podname, clie
 	return nil, fmt.Errorf("no azure identity found for request clientID %s", utils.RedactClientID(clientID))
 }
 
-// GetToken ...
+// GetToken returns an ADAL token based on the request and its pod identity.
 func (mc *ManagedClient) GetToken(ctx context.Context, rqClientID, rqResource string, azureID aadpodid.AzureIdentity) (token *adal.Token, err error) {
 	rqHasClientID := len(rqClientID) != 0
 	clientID := azureID.Spec.ClientID

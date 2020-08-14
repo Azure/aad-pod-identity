@@ -66,13 +66,13 @@ func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmssIdentities comput
 
 	defer func() {
 		if err != nil {
-			err = c.reporter.ReportCloudProviderOperationError(metrics.PutVmssOperationName)
+			err = c.reporter.ReportCloudProviderOperationError(metrics.UpdateVMSSOperationName)
 			if err != nil {
 				klog.Warningf("failed to report metrics, error: %+v", err)
 			}
 			return
 		}
-		err = c.reporter.ReportCloudProviderOperationDuration(metrics.PutVmssOperationName, time.Since(begin))
+		err = c.reporter.ReportCloudProviderOperationDuration(metrics.UpdateVMSSOperationName, time.Since(begin))
 		if err != nil {
 			klog.Warningf("failed to report metrics, error: %+v", err)
 		}
@@ -84,8 +84,8 @@ func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmssIdentities comput
 	if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
 		return fmt.Errorf("failed to wait for identity update completion for vmss %s in resource group %s, error: %+v", vmssName, rg, err)
 	}
-	stats.UpdateCount(stats.TotalPutCalls, 1)
-	stats.Update(stats.CloudPut, time.Since(begin))
+	stats.UpdateCount(stats.TotalUpdateCalls, 1)
+	stats.Update(stats.CloudUpdate, time.Since(begin))
 	return nil
 }
 

@@ -15,9 +15,6 @@ func TestBasics(t *testing.T) {
 	stats.Put(stats.Total, time.Second*20)
 	validateMap[stats.Total] = time.Second * 20
 
-	stats.Put(stats.K8sPut, time.Second*30)
-	validateMap[stats.K8sPut] = time.Second * 30
-
 	stats.Update(stats.AssignedIDDel, time.Second*40)
 	validateMap[stats.AssignedIDDel] = time.Second * 40
 
@@ -45,14 +42,12 @@ func TestConcurrency(t *testing.T) {
 		go func(c int) {
 			defer wg.Done()
 			startWg.Wait()
-			//fmt.Printf("Updating %d \n", c)
 			stats.Update(stats.AssignedIDList, duration)
 		}(i)
 		wg.Add(1)
 		go func(c int) {
 			defer wg.Done()
 			startWg.Wait()
-			//fmt.Printf("Getting %d\n", c)
 			stats.Get(stats.AssignedIDList)
 		}(i)
 	}

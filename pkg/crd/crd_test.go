@@ -58,10 +58,9 @@ func (c *TestCrdClient) CreateID(idName string, t aadpodid.IdentityType, rID str
 			Name: idName,
 		},
 		Spec: aadpodid.AzureIdentitySpec{
-			Type:       t,
-			ResourceID: rID,
-			ClientID:   cID,
-			//ClientPassword: *cp,
+			Type:         t,
+			ResourceID:   rID,
+			ClientID:     cID,
 			TenantID:     tID,
 			ADResourceID: adRID,
 			ADEndpoint:   adEpt,

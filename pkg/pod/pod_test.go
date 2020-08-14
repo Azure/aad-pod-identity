@@ -19,7 +19,7 @@ func (c TestPodClient) Start(exit <-chan struct{}) {
 }
 
 func (c TestPodClient) GetPods() (pods []*corev1.Pod, err error) {
-	//TODO: Add label matching. For now we add only pods which we want to add.
+	// TODO: Add label matching. For now we add only pods which we want to add.
 	return c.pods, nil
 }
 

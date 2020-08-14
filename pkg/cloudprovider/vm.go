@@ -95,13 +95,13 @@ func (c *VMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachi
 
 	defer func() {
 		if err != nil {
-			err = c.reporter.ReportCloudProviderOperationError(metrics.PutVMOperationName)
+			err = c.reporter.ReportCloudProviderOperationError(metrics.UpdateVMOperationName)
 			if err != nil {
 				klog.Warningf("failed to report metrics, error: %+v", err)
 			}
 			return
 		}
-		err = c.reporter.ReportCloudProviderOperationDuration(metrics.PutVMOperationName, time.Since(begin))
+		err = c.reporter.ReportCloudProviderOperationDuration(metrics.UpdateVMOperationName, time.Since(begin))
 		if err != nil {
 			klog.Warningf("failed to report metrics, error: %+v", err)
 		}
@@ -113,8 +113,8 @@ func (c *VMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachi
 	if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
 		return fmt.Errorf("failed to wait for identity update completion for vm %s in resource group %s, error: %+v", nodeName, rg, err)
 	}
-	stats.UpdateCount(stats.TotalPutCalls, 1)
-	stats.Update(stats.CloudPut, time.Since(begin))
+	stats.UpdateCount(stats.TotalUpdateCalls, 1)
+	stats.Update(stats.CloudUpdate, time.Since(begin))
 	return nil
 }
 
