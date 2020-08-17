@@ -74,7 +74,6 @@ func WaitForRules(input WaitForRulesInput) {
 									"3600",
 								},
 								SecurityContext: &corev1.SecurityContext{
-									Privileged: to.BoolPtr(true),
 									Capabilities: &corev1.Capabilities{
 										Add: []corev1.Capability{
 											"NET_ADMIN",
