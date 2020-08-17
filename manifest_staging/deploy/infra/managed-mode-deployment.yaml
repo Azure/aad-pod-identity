@@ -130,7 +130,6 @@ spec:
             cpu: 100m
             memory: 256Mi
         securityContext:
-          privileged: true
           capabilities:
             add:
             - NET_ADMIN

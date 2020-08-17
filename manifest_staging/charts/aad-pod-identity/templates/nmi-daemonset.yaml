@@ -98,7 +98,6 @@ spec:
             value: "{{ .Values.forceNameSpaced }}"
           {{- end }}
         securityContext:
-          privileged: true
           capabilities:
             add:
             - NET_ADMIN
