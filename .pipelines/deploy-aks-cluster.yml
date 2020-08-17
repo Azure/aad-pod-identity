@@ -2,14 +2,39 @@ steps:
   - script: |
       az group create --name ${RESOURCE_GROUP} --location $(LOCATION)
 
-      az aks create \
-        --resource-group ${RESOURCE_GROUP} \
-        --name ${RESOURCE_GROUP} \
-        --kubernetes-version $(AKS_CLUSTER_VERSION) \
-        --max-pods ${MAX_PODS} \
-        --service-principal $(AZURE_CLIENT_ID) \
-        --client-secret $(AZURE_CLIENT_SECRET) \
-        --generate-ssh-keys > /dev/null
+      if [[ ${LARGE_CLUSTER:-} == "true" ]]; then
+        az aks create \
+          -g ${RESOURCE_GROUP} \
+          -n ${RESOURCE_GROUP} \
+          --node-count $(AGENT_COUNT) \
+          --nodepool-name nodepool1 \
+          --kubernetes-version $(AKS_CLUSTER_VERSION) \
+          --node-vm-size Standard_DS2_v2 \
+          --location ${LOCATION} \
+          --service-principal $(AZURE_CLIENT_ID) \
+          --client-secret $(AZURE_CLIENT_SECRET) \
+          --no-ssh-key \
+          --load-balancer-sku standard \
+          --network-plugin azure \
+          --max-pods ${MAX_PODS} \
+          --load-balancer-managed-outbound-ip-count 6
+
+          MASTERIP=$(az aks show \
+            -g ${RESOURCE_GROUP} \
+            -n ${RESOURCE_GROUP} \
+            --query 'fqdn' -o tsv)
+          echo "##vso[task.setvariable variable=MASTERIP]${MASTERIP}"
+          echo "##vso[task.setvariable variable=MASTERINTERNALIP]${MASTERIP}"
+      else
+        az aks create \
+          --resource-group ${RESOURCE_GROUP} \
+          --name ${RESOURCE_GROUP} \
+          --kubernetes-version $(AKS_CLUSTER_VERSION) \
+          --max-pods ${MAX_PODS} \
+          --service-principal $(AZURE_CLIENT_ID) \
+          --client-secret $(AZURE_CLIENT_SECRET) \
+          --generate-ssh-keys > /dev/null
+      fi
 
       # store kubeconfig to ~/.kube/config
       az aks get-credentials \
