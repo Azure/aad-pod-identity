@@ -22,6 +22,9 @@ import (
 type VMSSClient struct {
 	client   compute.VirtualMachineScaleSetsClient
 	reporter *metrics.Reporter
+	// ARM throttling configures.
+	retryAfterReader time.Time
+	retryAfterWriter time.Time
 }
 
 // VMSSClientInt is the interface used by "cloudprovider" for interacting with Azure vmss
@@ -78,7 +81,18 @@ func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmssIdentities comput
 		}
 	}()
 
+	// Report errors if the client is throttled.
+	if c.retryAfterWriter.After(time.Now()) {
+		return fmt.Errorf("VMSSUpdate client throttled, retry after: %v", c.retryAfterWriter)
+	}
+
 	if future, err = c.client.Update(ctx, rg, vmssName, compute.VirtualMachineScaleSetUpdate{Identity: vmssIdentities.Identity}); err != nil {
+		resp := future.Response()
+		retryAfterDuration := getRetryAfter(resp)
+		if isThrottled(resp) || retryAfterDuration != 0 {
+			// Update RetryAfterWriter so that no more requests would be sent until RetryAfter expires.
+			c.retryAfterWriter = now().Add(retryAfterDuration)
+		}
 		return fmt.Errorf("failed to update identities for %s in %s, error: %+v", vmssName, rg, err)
 	}
 	if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
@@ -107,8 +121,20 @@ func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMac
 			klog.Warningf("failed to report metrics, error: %+v", err)
 		}
 	}()
+
+	// Report errors if the client is throttled.
+	if c.retryAfterReader.After(time.Now()) {
+		return compute.VirtualMachineScaleSet{}, fmt.Errorf("VMSSGet client throttled, retry after: %v", c.retryAfterReader)
+	}
+
 	vmss, err := c.client.Get(ctx, rgName, vmssName)
 	if err != nil {
+		resp := vmss.Response.Response
+		retryAfterDuration := getRetryAfter(resp)
+		if isThrottled(resp) || retryAfterDuration != 0 {
+			// Update RetryAfterReader so that no more requests would be sent until RetryAfter expires.
+			c.retryAfterReader = now().Add(retryAfterDuration)
+		}
 		return vmss, fmt.Errorf("failed to get vmss %s in resource group %s, error: %+v", vmssName, rgName, err)
 	}
 	stats.Increment(stats.TotalGetCalls, 1)
