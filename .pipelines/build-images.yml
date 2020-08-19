@@ -18,7 +18,11 @@ steps:
       fi
 
       # Generate image version
-      IMAGE_VERSION="$(git describe --tags --always --dirty)-$(CLUSTER_CONFIG)"
+      if [[ -n "${OPERATION_MODE:-}" ]]; then
+        IMAGE_VERSION="$(git describe --tags --always --dirty)-$(OPERATION_MODE)"
+      else
+        IMAGE_VERSION="$(git describe --tags --always --dirty)-$(CLUSTER_CONFIG)"
+      fi
       echo "Image version: ${IMAGE_VERSION}"
 
       export MIC_VERSION="${IMAGE_VERSION}"

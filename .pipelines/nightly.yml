@@ -26,3 +26,8 @@ jobs:
         - "pi-vmas-e2e-daily"
         - "pi-vmss-e2e-daily"
         - "pi-aks-e2e-daily"
+  - template: load-tests-template.yml
+    parameters:
+      operationModes:
+        - "managed"
+        - "standard"
