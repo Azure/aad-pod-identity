@@ -41,6 +41,7 @@ func Install(input InstallInput) {
 		chartName,
 		"manifest_staging/charts/aad-pod-identity",
 		"--wait",
+		fmt.Sprintf("--namespace=%s", framework.NamespaceKubeSystem),
 	})
 	args = append(args, generateValueArgs(input.Config)...)
 
@@ -52,6 +53,7 @@ func Uninstall() {
 	args := []string{
 		"uninstall",
 		chartName,
+		fmt.Sprintf("--namespace=%s", framework.NamespaceKubeSystem),
 	}
 
 	helm(args)
@@ -77,8 +79,9 @@ func Upgrade(input UpgradeInput) {
 	args := append([]string{
 		"upgrade",
 		chartName,
-		"charts/aad-pod-identity",
+		"manifest_staging/charts/aad-pod-identity",
 		"--wait",
+		fmt.Sprintf("--namespace=%s", framework.NamespaceKubeSystem),
 	})
 	args = append(args, generateValueArgs(input.Config)...)
 

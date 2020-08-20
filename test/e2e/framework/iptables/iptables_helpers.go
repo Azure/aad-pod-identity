@@ -100,7 +100,7 @@ func WaitForRules(input WaitForRulesInput) {
 		if !input.ShouldExist {
 			nmiPods := pod.List(pod.ListInput{
 				Lister:    input.Lister,
-				Namespace: corev1.NamespaceDefault,
+				Namespace: framework.NamespaceKubeSystem,
 				Labels: map[string]string{
 					"app.kubernetes.io/component": "nmi",
 				},

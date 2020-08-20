@@ -8,6 +8,7 @@ import (
 	"time"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	"github.com/Azure/aad-pod-identity/test/e2e/framework"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/azureassignedidentity"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/azureidentity"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/azureidentitybinding"
@@ -51,10 +52,11 @@ var _ = Describe("When upgrading AAD Pod Identity", func() {
 
 	It("should be backward compatible with old and new version of MIC and NMI", func() {
 		By("Deleting the ConfigMap used to store upgrade information")
-		err := exec.KubectlDelete(kubeconfigPath, corev1.NamespaceDefault, []string{
+		err := exec.KubectlDelete(kubeconfigPath, framework.NamespaceKubeSystem, []string{
 			"--ignore-not-found",
 			"cm",
 			"aad-pod-identity-config",
+			fmt.Sprintf("--namespace=%s", framework.NamespaceKubeSystem),
 		})
 		Expect(err).To(BeNil())
 
