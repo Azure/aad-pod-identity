@@ -8,12 +8,12 @@ import (
 	"fmt"
 
 	"github.com/Azure/aad-pod-identity/test/e2e/framework"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	rl "k8s.io/client-go/tools/leaderelection/resourcelock"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // GetLeaderInput is the input for GetLeader.
@@ -41,7 +41,7 @@ func GetLeader(input GetLeaderInput) *corev1.Pod {
 		}
 
 		leaderName := leRecord.HolderIdentity
-		if err := input.Getter.Get(context.TODO(), client.ObjectKey{Name: leaderName, Namespace: corev1.NamespaceDefault}, leaderPod); err != nil {
+		if err := input.Getter.Get(context.TODO(), client.ObjectKey{Name: leaderName, Namespace: framework.NamespaceKubeSystem}, leaderPod); err != nil {
 			return false, err
 		}
 

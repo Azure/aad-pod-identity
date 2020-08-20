@@ -15,6 +15,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+const (
+	// NamespaceKubeSystem is the name of kube-system namespace.
+	NamespaceKubeSystem = "kube-system"
+)
+
 // TryAddDefaultSchemes tries to add various schemes.
 func TryAddDefaultSchemes(scheme *runtime.Scheme) {
 	// Add the core schemes.

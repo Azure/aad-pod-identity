@@ -22,7 +22,7 @@ var _ = Describe("When liveness probe is enabled", func() {
 	It("should pass liveness probe test", func() {
 		pods := &corev1.PodList{}
 		Eventually(func() (bool, error) {
-			if err := kubeClient.List(context.TODO(), pods, client.InNamespace(corev1.NamespaceDefault)); err != nil {
+			if err := kubeClient.List(context.TODO(), pods, client.InNamespace(framework.NamespaceKubeSystem)); err != nil {
 				return false, err
 			}
 
@@ -31,7 +31,7 @@ var _ = Describe("When liveness probe is enabled", func() {
 
 		micPods := pod.List(pod.ListInput{
 			Lister:    kubeClient,
-			Namespace: corev1.NamespaceDefault,
+			Namespace: framework.NamespaceKubeSystem,
 			Labels: map[string]string{
 				"app.kubernetes.io/component": "mic",
 			},
@@ -43,11 +43,11 @@ var _ = Describe("When liveness probe is enabled", func() {
 
 		for _, micPod := range micPods.Items {
 			cmd := "clean-install wget"
-			_, err := exec.KubectlExec(kubeconfigPath, micPod.Name, corev1.NamespaceDefault, strings.Split(cmd, " "))
+			_, err := exec.KubectlExec(kubeconfigPath, micPod.Name, framework.NamespaceKubeSystem, strings.Split(cmd, " "))
 			Expect(err).To(BeNil())
 
 			cmd = "wget http://127.0.0.1:8080/healthz -q -O -"
-			stdout, err := exec.KubectlExec(kubeconfigPath, micPod.Name, corev1.NamespaceDefault, strings.Split(cmd, " "))
+			stdout, err := exec.KubectlExec(kubeconfigPath, micPod.Name, framework.NamespaceKubeSystem, strings.Split(cmd, " "))
 			Expect(err).To(BeNil())
 			if micPod.Name == micLeader.Name {
 				By(fmt.Sprintf("Ensuring that %s's health probe is active", micPod.Name))
@@ -60,7 +60,7 @@ var _ = Describe("When liveness probe is enabled", func() {
 
 		nmiPods := pod.List(pod.ListInput{
 			Lister:    kubeClient,
-			Namespace: corev1.NamespaceDefault,
+			Namespace: framework.NamespaceKubeSystem,
 			Labels: map[string]string{
 				"app.kubernetes.io/component": "nmi",
 			},
@@ -68,11 +68,11 @@ var _ = Describe("When liveness probe is enabled", func() {
 
 		for _, nmiPod := range nmiPods.Items {
 			cmd := "clean-install wget"
-			_, err := exec.KubectlExec(kubeconfigPath, nmiPod.Name, corev1.NamespaceDefault, strings.Split(cmd, " "))
+			_, err := exec.KubectlExec(kubeconfigPath, nmiPod.Name, framework.NamespaceKubeSystem, strings.Split(cmd, " "))
 			Expect(err).To(BeNil())
 
 			cmd = "wget http://127.0.0.1:8085/healthz -q -O -"
-			stdout, err := exec.KubectlExec(kubeconfigPath, nmiPod.Name, corev1.NamespaceDefault, strings.Split(cmd, " "))
+			stdout, err := exec.KubectlExec(kubeconfigPath, nmiPod.Name, framework.NamespaceKubeSystem, strings.Split(cmd, " "))
 			Expect(err).To(BeNil())
 
 			By(fmt.Sprintf("Ensuring that %s's health probe is active", nmiPod.Name))

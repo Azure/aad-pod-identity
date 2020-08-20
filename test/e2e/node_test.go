@@ -274,7 +274,6 @@ var _ = Describe("When managing identities from the underlying nodes", func() {
 
 		By(fmt.Sprintf("Ensuring both keyvault-identity and cluster-identity are assigned to %s", node.Name))
 		userAssignedIdentities := azureClient.ListUserAssignedIdentities(node.Spec.ProviderID)
-		Expect(len(userAssignedIdentities) == 2).To(BeTrue())
 		Expect(isUserAssignedIdentityExist(userAssignedIdentities, keyvaultIdentity)).To(BeTrue())
 		Expect(isUserAssignedIdentityExist(userAssignedIdentities, clusterIdentity)).To(BeTrue())
 
@@ -290,7 +289,6 @@ var _ = Describe("When managing identities from the underlying nodes", func() {
 
 		By(fmt.Sprintf("Ensuring cluster-identity is still assigned to %s after deleting identity-validator", node.Name))
 		userAssignedIdentities = azureClient.ListUserAssignedIdentities(node.Spec.ProviderID)
-		Expect(len(userAssignedIdentities) == 1).To(BeTrue())
 		Expect(isUserAssignedIdentityExist(userAssignedIdentities, clusterIdentity)).To(BeTrue())
 	})
 

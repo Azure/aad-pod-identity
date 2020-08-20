@@ -77,6 +77,12 @@ var _ = BeforeSuite(func() {
 })
 
 var _ = AfterSuite(func() {
+	defer namespace.Delete(namespace.DeleteInput{
+		Deleter:   kubeClient,
+		Getter:    kubeClient,
+		Namespace: iptablesNamespace,
+	})
+
 	dumpLogs()
 
 	By("Uninstalling AAD Pod Identity via Helm")
@@ -91,12 +97,6 @@ var _ = AfterSuite(func() {
 		CreateDaemonSet: false,
 		ShouldExist:     false,
 	})
-
-	namespace.Delete(namespace.DeleteInput{
-		Deleter:   kubeClient,
-		Getter:    kubeClient,
-		Namespace: iptablesNamespace,
-	})
 })
 
 func initScheme() *runtime.Scheme {
@@ -109,7 +109,7 @@ func dumpLogs() {
 	for _, component := range []string{"mic", "nmi"} {
 		podList := pod.List(pod.ListInput{
 			Lister:    kubeClient,
-			Namespace: corev1.NamespaceDefault,
+			Namespace: framework.NamespaceKubeSystem,
 			Labels: map[string]string{
 				"app.kubernetes.io/component": component,
 			},
@@ -117,8 +117,7 @@ func dumpLogs() {
 
 		for _, pod := range podList.Items {
 			By(fmt.Sprintf("Dumping logs for %s scheduled to %s", pod.Name, pod.Spec.NodeName))
-			_, err := exec.KubectlLogs(kubeconfigPath, pod.Name, corev1.NamespaceDefault)
-			Expect(err).To(BeNil())
+			_, _ = exec.KubectlLogs(kubeconfigPath, pod.Name, framework.NamespaceKubeSystem)
 		}
 	}
 }
