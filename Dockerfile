@@ -1,6 +1,6 @@
 ARG BASEIMAGE=us.gcr.io/k8s-artifacts-prod/build-image/debian-base-amd64:v2.1.0
 
-FROM golang:1.14 AS build
+FROM golang:1.15 AS build
 WORKDIR /go/src/github.com/Azure/aad-pod-identity
 ADD . .
 RUN go mod download
