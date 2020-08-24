@@ -28,7 +28,7 @@ jobs:
       steps:
         - task: GoTool@0
           inputs:
-            version: '1.14.1'
+            version: '1.15.0'
 
         - bash: |
             git clone -b $(checkout.branch) $(checkout.repo) $(perf-tests.repo.path)

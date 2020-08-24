@@ -7,7 +7,7 @@ jobs:
     steps:
       - task: GoTool@0
         inputs:
-          version: 1.14.2
+          version: 1.15.0
       - script: make build
         displayName: Build
       - script: make unit-test
