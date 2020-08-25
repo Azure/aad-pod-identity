@@ -159,7 +159,7 @@ func (c *Client) GetUserMSIs(name string, isvmss bool) ([]string, error) {
 	}
 	info := idH.IdentityInfo()
 	if info == nil {
-		return nil, fmt.Errorf("identity info is nil")
+		return []string{}, nil
 	}
 	idList := info.GetUserIdentityList()
 	return idList, nil

@@ -85,22 +85,24 @@ var _ = AfterSuite(func() {
 		Namespace: iptablesNamespace,
 	})
 
+	defer func() {
+		if !config.IsSoakTest {
+			By("Uninstalling AAD Pod Identity via Helm")
+			helm.Uninstall()
+
+			iptables.WaitForRules(iptables.WaitForRulesInput{
+				Creator:         kubeClient,
+				Getter:          kubeClient,
+				Lister:          kubeClient,
+				Namespace:       iptablesNamespace.Name,
+				KubeconfigPath:  clusterProxy.GetKubeconfigPath(),
+				CreateDaemonSet: false,
+				ShouldExist:     false,
+			})
+		}
+	}()
+
 	dumpLogs()
-
-	if !config.IsSoakTest {
-		By("Uninstalling AAD Pod Identity via Helm")
-		helm.Uninstall()
-
-		iptables.WaitForRules(iptables.WaitForRulesInput{
-			Creator:         kubeClient,
-			Getter:          kubeClient,
-			Lister:          kubeClient,
-			Namespace:       iptablesNamespace.Name,
-			KubeconfigPath:  clusterProxy.GetKubeconfigPath(),
-			CreateDaemonSet: false,
-			ShouldExist:     false,
-		})
-	}
 })
 
 func initScheme() *runtime.Scheme {
@@ -121,7 +123,8 @@ func dumpLogs() {
 
 		for _, pod := range podList.Items {
 			By(fmt.Sprintf("Dumping logs for %s scheduled to %s", pod.Name, pod.Spec.NodeName))
-			_, _ = exec.KubectlLogs(kubeconfigPath, pod.Name, framework.NamespaceKubeSystem)
+			_, err := exec.KubectlLogs(kubeconfigPath, pod.Name, framework.NamespaceKubeSystem)
+			Expect(err).To(BeNil())
 		}
 	}
 }

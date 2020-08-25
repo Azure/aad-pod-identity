@@ -12,10 +12,10 @@ const (
 	CreatePolling = 1 * time.Second
 
 	// DeleteTimeout represents the duration it waits until a delete operation times out.
-	DeleteTimeout = 10 * time.Second
+	DeleteTimeout = 1 * time.Minute
 
 	// DeletePolling represents the polling interval for a delete operation.
-	DeletePolling = 1 * time.Second
+	DeletePolling = 5 * time.Second
 
 	// ListTimeout represents the duration it waits until a list operation times out.
 	ListTimeout = 10 * time.Second
