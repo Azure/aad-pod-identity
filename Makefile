@@ -59,7 +59,7 @@ $(TOOLS_DIR)/misspell: $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_M
 
 .PHONY: lint
 lint: $(TOOLS_DIR)/golangci-lint $(TOOLS_DIR)/misspell
-	$(TOOLS_DIR)/golangci-lint run
+	$(TOOLS_DIR)/golangci-lint run --timeout=5m
 	$(TOOLS_DIR)/misspell -w $(ALL_DOCS) && \
 	go mod tidy
 
