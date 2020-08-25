@@ -30,7 +30,7 @@ The relationship between kubernetes and AAD is covered in three main areas:
 
     > Example: a front end application can have access to centralized data store between midnight and 1 AM during business days only.
 
-## Guiding Principals
+## Guiding Principles
 
 1. Favor little to no change to how users currently write applications against various editions of [ADAL](https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-authentication-libraries). Favor committing changes to SDKs and don't ask users to change applications that are written for Kubernetes.
 
