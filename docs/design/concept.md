@@ -67,11 +67,11 @@ At later phases, the binding will use:
 > for reference please read [Azure VM Managed Service Identity (MSI)](https://docs.microsoft.com/en-us/azure/active-directory/managed-service-identity/how-to-use-vm-token) and [Assign a Managed Service Identity](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/howto-assign-access-portal)
 
 1. Kubernetes applications (pods) will default to use MSI endpoint.
-2. All traffic to MSI endpoint is routed via `iptables` to a daemon-set that will use `sourceIp` to identify pod, then find an appropriate `crd:azureIdnetityBinding`. The daemon-set mimics all the REST api offered by MSI endpoint. All tokens are presented to pods on MSI endpoint irrespective of the identity used to back this request (EMSI or service principal).
+2. All traffic to MSI endpoint is routed via `iptables` to a daemon-set that will use `sourceIp` to identify pod, then find an appropriate `crd:azureIdentityBinding`. The daemon-set mimics all the REST api offered by MSI endpoint. All tokens are presented to pods on MSI endpoint irrespective of the identity used to back this request (EMSI or service principal).
 
     > As SPIFFE becomes more mature pod identity assertion is expected to use SPIFFE pod identity.
 
-3. All token issuance will be logged as events attached to `crd:azureIdnetityBinding` for audit purposes.
+3. All token issuance will be logged as events attached to `crd:azureIdentityBinding` for audit purposes.
 
 ## Controllers
 
