@@ -52,10 +52,12 @@ var _ = BeforeSuite(func() {
 	By("Creating an Azure Client")
 	azureClient = azure.NewClient(config)
 
-	By("Installing AAD Pod Identity via Helm")
-	helm.Install(helm.InstallInput{
-		Config: config,
-	})
+	if !config.IsSoakTest {
+		By("Installing AAD Pod Identity via Helm")
+		helm.Install(helm.InstallInput{
+			Config: config,
+		})
+	}
 
 	kubeClient = clusterProxy.GetClient()
 	kubeconfigPath = clusterProxy.GetKubeconfigPath()
@@ -85,18 +87,20 @@ var _ = AfterSuite(func() {
 
 	dumpLogs()
 
-	By("Uninstalling AAD Pod Identity via Helm")
-	helm.Uninstall()
+	if !config.IsSoakTest {
+		By("Uninstalling AAD Pod Identity via Helm")
+		helm.Uninstall()
 
-	iptables.WaitForRules(iptables.WaitForRulesInput{
-		Creator:         kubeClient,
-		Getter:          kubeClient,
-		Lister:          kubeClient,
-		Namespace:       iptablesNamespace.Name,
-		KubeconfigPath:  clusterProxy.GetKubeconfigPath(),
-		CreateDaemonSet: false,
-		ShouldExist:     false,
-	})
+		iptables.WaitForRules(iptables.WaitForRulesInput{
+			Creator:         kubeClient,
+			Getter:          kubeClient,
+			Lister:          kubeClient,
+			Namespace:       iptablesNamespace.Name,
+			KubeconfigPath:  clusterProxy.GetKubeconfigPath(),
+			CreateDaemonSet: false,
+			ShouldExist:     false,
+		})
+	}
 })
 
 func initScheme() *runtime.Scheme {

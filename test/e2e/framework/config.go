@@ -29,6 +29,7 @@ type Config struct {
 	ImmutableUserMSIs        string `envconfig:"IMMUTABLE_IDENTITY_CLIENT_ID"`
 	NMIMode                  string `envconfig:"NMI_MODE" default:"standard"`
 	BlockInstanceMetadata    bool   `envconfig:"BLOCK_INSTANCE_METADATA" default:"true"`
+	IsSoakTest               bool   `envconfig:"IS_SOAK_TEST" default:"false"`
 }
 
 func (c *Config) DeepCopy() *Config {
