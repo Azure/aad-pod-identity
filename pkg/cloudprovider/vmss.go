@@ -85,7 +85,7 @@ func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmssIdentities comput
 		return fmt.Errorf("failed to wait for identity update completion for vmss %s in resource group %s, error: %+v", vmssName, rg, err)
 	}
 	stats.Increment(stats.TotalPatchCalls, 1)
-	stats.Aggregate(stats.CloudPatch, time.Since(begin))
+	stats.AggregateConcurrent(stats.CloudPatch, begin, time.Now())
 	return nil
 }
 
@@ -112,7 +112,7 @@ func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMac
 		return vmss, fmt.Errorf("failed to get vmss %s in resource group %s, error: %+v", vmssName, rgName, err)
 	}
 	stats.Increment(stats.TotalGetCalls, 1)
-	stats.Aggregate(stats.CloudGet, time.Since(begin))
+	stats.AggregateConcurrent(stats.CloudGet, begin, time.Now())
 	return vmss, nil
 }
 

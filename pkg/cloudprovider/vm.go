@@ -82,7 +82,7 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 		return vm, fmt.Errorf("failed to get vm %s in resource group %s, error: %+v", nodeName, rgName, err)
 	}
 	stats.Increment(stats.TotalGetCalls, 1)
-	stats.Aggregate(stats.CloudGet, time.Since(begin))
+	stats.AggregateConcurrent(stats.CloudGet, begin, time.Now())
 	return vm, nil
 }
 
@@ -114,7 +114,7 @@ func (c *VMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachi
 		return fmt.Errorf("failed to wait for identity update completion for vm %s in resource group %s, error: %+v", nodeName, rg, err)
 	}
 	stats.Increment(stats.TotalPatchCalls, 1)
-	stats.Aggregate(stats.CloudPatch, time.Since(begin))
+	stats.AggregateConcurrent(stats.CloudPatch, begin, time.Now())
 	return nil
 }
 
