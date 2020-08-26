@@ -195,9 +195,9 @@ func (c *KubeClient) getPodListRetry(podip string, retries int, sleeptime time.D
 		if err == nil {
 			return podList, nil
 		}
-		err = c.reporter.ReportKubernetesAPIOperationError(metrics.GetPodListOperationName)
-		if err != nil {
-			klog.Warningf("failed to report metrics, error: %+v", err)
+		metricErr := c.reporter.ReportKubernetesAPIOperationError(metrics.GetPodListOperationName)
+		if metricErr != nil {
+			klog.Warningf("failed to report metrics, error: %+v", metricErr)
 		}
 
 		if i >= retries {
