@@ -14,4 +14,9 @@
 **Issue Fixed**:
 <!-- If this PR fixes GitHub issue 1234, add "Fixes #1234" to the next line. -->
 
+**Please answer the following questions with yes/no**:
+
+Does this change contain code from or inspired by another project? If so, did you notify the maintainers and provide attribution?
+
+
 **Notes for Reviewers**:
