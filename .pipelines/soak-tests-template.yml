@@ -16,12 +16,12 @@ jobs:
         - group: ${{ format('{0}', clusterConfig) }}
         - name: CLUSTER_CONFIG
           value: ${{ format('{0}', clusterConfig) }}
+        - name: IS_SOAK_TEST
+          value: "true"
       steps:
         - task: GoTool@0
           inputs:
             version: '1.15.0'
-
-        - template: build-images.yml
 
         - script: |
             echo "Installing kubectl..."
@@ -32,6 +32,13 @@ jobs:
 
         - ${{ if eq(clusterConfig, 'pi-aks-e2e-daily') }}:
           - script: |
+              az login \
+                --service-principal \
+                -u=$(AZURE_CLIENT_ID) \
+                -p=$(AZURE_CLIENT_SECRET) \
+                -t=$(AZURE_TENANT_ID) > /dev/null
+              az account set -s=$(SUBSCRIPTION_ID)
+
               az aks get-credentials \
                 --resource-group $(CLUSTER_CONFIG) \
                 --name $(CLUSTER_CONFIG)
