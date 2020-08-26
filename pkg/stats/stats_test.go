@@ -1,62 +1,58 @@
-package stats_test
+package stats
 
 import (
-	"reflect"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/Azure/aad-pod-identity/pkg/stats"
 )
 
 func TestBasics(t *testing.T) {
-	validateMap := make(map[stats.Type]time.Duration)
-	stats.Init()
-	stats.Put(stats.Total, time.Second*20)
-	validateMap[stats.Total] = time.Second * 20
+	Init()
+	Put(Total, time.Second*20)
+	Aggregate(DeleteAzureAssignedIdentity, time.Second*40)
+	Aggregate(DeleteAzureAssignedIdentity, time.Second*40)
+	Increment(TotalPatchCalls, 100)
+	Increment(TotalPatchCalls, 200)
+	PrintSync()
 
-	stats.Update(stats.AssignedIDDel, time.Second*40)
-	validateMap[stats.AssignedIDDel] = time.Second * 40
+	expectedDuration := time.Second * 20
+	if globalStats[Total] != expectedDuration {
+		t.Fatalf("Expected '%s' statistic to have a value of %s, but got %s", Total, expectedDuration, globalStats[Total])
+	}
 
-	stats.Update(stats.AssignedIDDel, time.Second*40)
-	validateMap[stats.AssignedIDDel] = time.Second * 80
+	expectedDuration = time.Second * 80
+	if globalStats[DeleteAzureAssignedIdentity] != expectedDuration {
+		t.Fatalf("Expected '%s' statistic to have a value of %s, but got %s", DeleteAzureAssignedIdentity, expectedDuration, globalStats[DeleteAzureAssignedIdentity])
+	}
 
-	stats.PrintSync()
-	getAllStats := stats.GetAll()
-	if reflect.DeepEqual(getAllStats, validateMap) != true {
-		panic("Stats added did not come back")
+	expectedCount := 300
+	if countStats[TotalPatchCalls] != expectedCount {
+		t.Fatalf("Expected '%s' statistic to have a value of %d, but got %d", TotalPatchCalls, expectedCount, globalStats[TotalPatchCalls])
 	}
 }
 
-func TestConcurrency(t *testing.T) {
-	stats.Init()
-	var wg sync.WaitGroup
-	var startWg sync.WaitGroup
+func TestAggregateConcurrent(t *testing.T) {
+	Init()
 
-	// Make sure all of them start at the same time so that there are more chances of sync issues.
-	startWg.Add(1)
+	begin := time.Now()
 	count := 100
-	duration := time.Second * 10
+
+	var wg sync.WaitGroup
+	wg.Add(count)
+
 	for i := 0; i < count; i++ {
-		wg.Add(1)
-		go func(c int) {
+		go func() {
 			defer wg.Done()
-			startWg.Wait()
-			stats.Update(stats.AssignedIDList, duration)
-		}(i)
-		wg.Add(1)
-		go func(c int) {
-			defer wg.Done()
-			startWg.Wait()
-			stats.Get(stats.AssignedIDList)
-		}(i)
+			begin := time.Now()
+			time.Sleep(time.Millisecond * 10)
+			AggregateConcurrent(CreateAzureAssignedIdentiy, begin, time.Now())
+		}()
 	}
-
-	// All of them should start together.
-	startWg.Done()
 	wg.Wait()
+	PrintSync()
 
-	if stats.Get(stats.AssignedIDList) != duration*time.Duration(count) {
-		panic("Stats did not get incremented.")
+	totalDuration := time.Since(begin)
+	if totalDuration < globalStats[CreateAzureAssignedIdentiy] {
+		t.Fatalf("Expected the total duration to be shorter than %s, but got %s", totalDuration, globalStats[CreateAzureAssignedIdentiy])
 	}
 }

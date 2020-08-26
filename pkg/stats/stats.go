@@ -7,12 +7,21 @@ import (
 	"k8s.io/klog"
 )
 
-var (
-	// GlobalStats is a map that stores the duration of each stats.
-	GlobalStats map[Type]time.Duration
+type minMaxTime struct {
+	min time.Time
+	max time.Time
+}
 
-	// CountStats is a map that stores the count of each stats.
-	CountStats map[Type]int
+var (
+	// globalStats is a map that stores the duration of each statistic.
+	globalStats map[Type]time.Duration
+
+	// minMaxTimeStats is a map that stores the earliest start time and
+	// latest end time of statistics that are being collected concurrently.
+	minMaxTimeStats map[Type]minMaxTime
+
+	// countStats is a map that stores the count of each statistic.
+	countStats map[Type]int
 
 	mutex *sync.RWMutex
 )
@@ -36,149 +45,169 @@ const (
 	// PodList represents the duration it takes to list pods.
 	PodList Type = "Pod listing"
 
-	// BindingList represents the duration it takes to list AzureIdentityBindings.
-	BindingList Type = "Binding listing"
+	// AzureIdentityBindingList represents the duration it takes to list AzureIdentityBindings.
+	AzureIdentityBindingList Type = "AzureIdentityBinding listing"
 
-	// IDList represents the duration it takes to list AzureIdentities.
-	IDList Type = "ID listing"
+	// AzureIdentityList represents the duration it takes to list AzureIdentities.
+	AzureIdentityList Type = "AzureIdentity listing"
 
-	// ExceptionList represents the duration it takes to list AzurePodIdentityExceptions.
-	ExceptionList Type = "Pod Identity Exception listing"
+	// AzurePodIdentityExceptionList represents the duration it takes to list AzurePodIdentityExceptions.
+	AzurePodIdentityExceptionList Type = "AzurePodIdentityException listing"
 
-	// AssignedIDList represents the duration it takes to list AzureAssignedIdentities.
-	AssignedIDList Type = "Assigned ID listing"
+	// AzureAssignedIdentityList represents the duration it takes to list AzureAssignedIdentities.
+	AzureAssignedIdentityList Type = "AzureAssignedIdentity listing"
 
 	// CloudGet represents the duration it takes to complete a GET request to ARM in a given sync cycle.
-	CloudGet Type = "Cloud provider get"
+	CloudGet Type = "Cloud provider GET"
 
-	// CloudUpdate represents the duration it takes to complete a PATCH request to ARM in a given sync cycle.
-	CloudUpdate Type = "Cloud provider update"
+	// CloudPatch represents the duration it takes to complete a PATCH request to ARM in a given sync cycle.
+	CloudPatch Type = "Cloud provider PATCH"
 
-	// TotalUpdateCalls represents the number of PATCH requests to ARM in a given sync cycle.
-	TotalUpdateCalls Type = "Number of cloud provider PATCH"
+	// TotalPatchCalls represents the number of PATCH requests to ARM in a given sync cycle.
+	TotalPatchCalls Type = "Number of cloud provider PATCH"
 
 	// TotalGetCalls represents the number of GET requests to ARM in a given sync cycle.
 	TotalGetCalls Type = "Number of cloud provider GET"
 
-	// TotalAssignedIDsCreated represents the number of AzureAssignedIdentities created in a given sync cycle.
-	TotalAssignedIDsCreated Type = "Number of assigned ids created in this sync cycle"
+	// TotalAzureAssignedIdentitiesCreated represents the number of AzureAssignedIdentities created in a given sync cycle.
+	TotalAzureAssignedIdentitiesCreated Type = "Number of AzureAssignedIdentities created in this sync cycle"
 
-	// TotalAssignedIDsUpdated represents the number of AzureAssignedIdentities updated in a given sync cycle.
-	TotalAssignedIDsUpdated Type = "Number of assigned ids updated in this sync cycle"
+	// TotalAzureAssignedIdentitiesUpdated represents the number of AzureAssignedIdentities updated in a given sync cycle.
+	TotalAzureAssignedIdentitiesUpdated Type = "Number of AzureAssignedIdentities updated in this sync cycle"
 
-	// TotalAssignedIDsDeleted represents the number of AzureAssignedIdentities deleted in a given sync cycle.
-	TotalAssignedIDsDeleted Type = "Number of assigned ids deleted in this sync cycle"
+	// TotalAzureAssignedIdentitiesDeleted represents the number of AzureAssignedIdentities deleted in a given sync cycle.
+	TotalAzureAssignedIdentitiesDeleted Type = "Number of AzureAssignedIdentities deleted in this sync cycle"
 
-	// FindAssignedIDDel represents the duration it takes to generate a list of AzureAssignedIdentities to be deleted.
-	FindAssignedIDDel Type = "Find assigned ids to delete"
+	// FindAzureAssignedIdentitiesToDelete represents the duration it takes to generate a list of AzureAssignedIdentities to be deleted.
+	FindAzureAssignedIdentitiesToDelete Type = "Find AzureAssignedIdentities to delete"
 
-	// FindAssignedIDCreate represents the duration it takes to generate a list of AzureAssignedIdentities to be created.
-	FindAssignedIDCreate Type = "Find assigned ids to create"
+	// FindAzureAssignedIdentitiesToCreate represents the duration it takes to generate a list of AzureAssignedIdentities to be created.
+	FindAzureAssignedIdentitiesToCreate Type = "Find AzureAssignedIdentities to create"
 
-	// AssignedIDDel represents the duration it takes to delete an AzureAssignedIdentity.
-	AssignedIDDel Type = "Assigned ID deletion"
+	// DeleteAzureAssignedIdentity represents the duration it takes to delete an AzureAssignedIdentity.
+	DeleteAzureAssignedIdentity Type = "AzureAssignedIdentity deletion"
 
-	// AssignedIDAdd represents the duration it takes to create an AzureAssignedIdentity.
-	AssignedIDAdd Type = "Assigned ID addition"
+	// CreateAzureAssignedIdentiy represents the duration it takes to create an AzureAssignedIdentity.
+	CreateAzureAssignedIdentiy Type = "AzureAssignedIdentity creation"
 
-	// TotalCreateOrUpdate represents the duration it takes to create or update a given list of AzureAssignedIdentities.
-	TotalCreateOrUpdate Type = "Total time to assign or update IDs"
+	// UpdateAzureAssignedIdentity represents the duration it takes to update an AzureAssignedIdentity.
+	UpdateAzureAssignedIdentity Type = "AzureAssignedIdentity update"
+
+	// TotalAzureAssignedIdentitiesCreateOrUpdate represents the duration it takes to create or update a given list of AzureAssignedIdentities.
+	TotalAzureAssignedIdentitiesCreateOrUpdate Type = "Total time to assign or update AzureAssignedIdentities"
 )
 
-// Init initializes the maps uesd to store the stats.
+// Init initializes the maps uesd to store the
 func Init() {
-	GlobalStats = make(map[Type]time.Duration)
-	CountStats = make(map[Type]int)
+	globalStats = make(map[Type]time.Duration)
+	minMaxTimeStats = make(map[Type]minMaxTime)
+	countStats = make(map[Type]int)
 	mutex = &sync.RWMutex{}
 }
 
-// Put puts a value to a specific stat.
+// Put puts a value to a specific statistic.
 func Put(key Type, val time.Duration) {
-	if GlobalStats != nil {
+	if globalStats != nil {
 		mutex.Lock()
 		defer mutex.Unlock()
-		GlobalStats[key] = val
+		globalStats[key] = val
 	}
 }
 
-// Get returns the stat value of a given key.
-func Get(key Type) time.Duration {
-	if GlobalStats != nil {
-		mutex.RLock()
-		defer mutex.RUnlock()
-		return GlobalStats[key]
-	}
-	return 0
-}
-
-// Update updates the value of a specific stat.
-func Update(key Type, val time.Duration) {
-	if GlobalStats != nil {
+// Aggregate aggregates the value of a specific statistic.
+func Aggregate(key Type, val time.Duration) {
+	if globalStats != nil {
 		mutex.Lock()
 		defer mutex.Unlock()
-		GlobalStats[key] = GlobalStats[key] + val
+
+		globalStats[key] = globalStats[key] + val
 	}
 }
 
-// Print prints the value of a specific stat.
+// AggregateConcurrent aggregates the value of a specific statistic that is being collected concurrently.
+func AggregateConcurrent(key Type, begin, end time.Time) {
+	if globalStats != nil && minMaxTimeStats != nil {
+		mutex.Lock()
+		defer mutex.Unlock()
+
+		// we only need the earliest begin time and the latest end
+		// time to calculate the total duration of a statistic
+		var min, max time.Time
+		if _, ok := minMaxTimeStats[key]; !ok {
+			min, max = begin, end
+		} else {
+			min, max = minMaxTimeStats[key].min, minMaxTimeStats[key].max
+		}
+
+		if begin.Before(min) {
+			min = begin
+		}
+		if end.After(max) {
+			max = end
+		}
+
+		minMaxTimeStats[key] = minMaxTime{
+			min: min,
+			max: max,
+		}
+		globalStats[key] = minMaxTimeStats[key].max.Sub(minMaxTimeStats[key].min)
+	}
+}
+
+// Print prints the value of a specific statistic.
 func Print(key Type) {
 	mutex.RLock()
 	defer mutex.RUnlock()
 
-	klog.Infof("%s: %s", key, GlobalStats[key])
+	klog.Infof("%s: %s", key, globalStats[key])
 }
 
-// PrintCount prints the count of a specific stat.
+// PrintCount prints the count of a specific statistic.
 func PrintCount(key Type) {
 	mutex.RLock()
 	defer mutex.RUnlock()
 
-	klog.Infof("%s: %d", key, CountStats[key])
+	klog.Infof("%s: %d", key, countStats[key])
 }
 
-// UpdateCount updates the count of a specific stat.
-func UpdateCount(key Type, val int) {
+// Increment Increments the count of a specific statistic.
+func Increment(key Type, count int) {
 	mutex.Lock()
 	defer mutex.Unlock()
-	CountStats[key] = CountStats[key] + val
+
+	countStats[key] = countStats[key] + count
 }
 
 // PrintSync prints all relevant statistics in a sync cycle.
 func PrintSync() {
 	klog.Infof("** stats collected **")
-	if GlobalStats != nil {
+	if globalStats != nil {
 		Print(PodList)
-		Print(IDList)
-		Print(BindingList)
-		Print(AssignedIDList)
+		Print(AzureIdentityList)
+		Print(AzureIdentityBindingList)
+		Print(AzureAssignedIdentityList)
 		Print(System)
 		Print(CacheSync)
 
 		Print(CloudGet)
-		Print(CloudUpdate)
-		Print(AssignedIDAdd)
-		Print(AssignedIDDel)
+		Print(CloudPatch)
+		Print(CreateAzureAssignedIdentiy)
+		Print(UpdateAzureAssignedIdentity)
+		Print(DeleteAzureAssignedIdentity)
 
-		PrintCount(TotalUpdateCalls)
+		PrintCount(TotalPatchCalls)
 		PrintCount(TotalGetCalls)
 
-		PrintCount(TotalAssignedIDsCreated)
-		PrintCount(TotalAssignedIDsUpdated)
-		PrintCount(TotalAssignedIDsDeleted)
+		PrintCount(TotalAzureAssignedIdentitiesCreated)
+		PrintCount(TotalAzureAssignedIdentitiesUpdated)
+		PrintCount(TotalAzureAssignedIdentitiesDeleted)
 
-		Print(FindAssignedIDCreate)
-		Print(FindAssignedIDDel)
+		Print(FindAzureAssignedIdentitiesToCreate)
+		Print(FindAzureAssignedIdentitiesToDelete)
 
-		Print(TotalCreateOrUpdate)
+		Print(TotalAzureAssignedIdentitiesCreateOrUpdate)
 
 		Print(Total)
 	}
 	klog.Infof("*********************")
-}
-
-// GetAll returns the global statistics it is currently collecting
-func GetAll() map[Type]time.Duration {
-	mutex.RLock()
-	defer mutex.RUnlock()
-	return GlobalStats
 }

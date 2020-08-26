@@ -758,7 +758,7 @@ func (c *Client) getAzureAssignedIDsToCreate(old, new map[string]aadpodid.AzureA
 			create[assignedIDName] = newAssignedID
 		}
 	}
-	stats.Put(stats.FindAssignedIDCreate, time.Since(begin))
+	stats.Put(stats.FindAzureAssignedIdentitiesToCreate, time.Since(begin))
 	return create, nil
 }
 
@@ -789,7 +789,7 @@ func (c *Client) getAzureAssignedIDsToDelete(old, new map[string]aadpodid.AzureA
 		// list. So we will add it to the delete list.
 		delete[assignedIDName] = oldAssignedID
 	}
-	stats.Put(stats.FindAssignedIDDel, time.Since(begin))
+	stats.Put(stats.FindAzureAssignedIdentitiesToDelete, time.Since(begin))
 	return delete, nil
 }
 
@@ -1116,9 +1116,9 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 				}
 			}
 			if isCreateOperation {
-				stats.UpdateCount(stats.TotalAssignedIDsCreated, 1)
+				stats.Increment(stats.TotalAzureAssignedIdentitiesCreated, 1)
 			} else {
-				stats.UpdateCount(stats.TotalAssignedIDsUpdated, 1)
+				stats.Increment(stats.TotalAzureAssignedIdentitiesUpdated, 1)
 			}
 		}
 
@@ -1152,9 +1152,9 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 				continue
 			}
 			klog.Infof("deleted assigned identity %s/%s", delID.Namespace, delID.Name)
-			stats.UpdateCount(stats.TotalAssignedIDsDeleted, 1)
+			stats.Increment(stats.TotalAzureAssignedIdentitiesDeleted, 1)
 		}
-		stats.Put(stats.TotalCreateOrUpdate, time.Since(beginAdding))
+		stats.Put(stats.TotalAzureAssignedIdentitiesCreateOrUpdate, time.Since(beginAdding))
 		return
 	}
 
@@ -1221,10 +1221,10 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 		return
 	}
 
-	stats.UpdateCount(stats.TotalAssignedIDsCreated, len(nodeTrackList.assignedIDsToCreate))
-	stats.UpdateCount(stats.TotalAssignedIDsUpdated, len(nodeTrackList.assignedIDsToUpdate))
-	stats.UpdateCount(stats.TotalAssignedIDsDeleted, len(nodeTrackList.assignedIDsToDelete))
-	stats.Put(stats.TotalCreateOrUpdate, time.Since(beginAdding))
+	stats.Increment(stats.TotalAzureAssignedIdentitiesCreated, len(nodeTrackList.assignedIDsToCreate))
+	stats.Increment(stats.TotalAzureAssignedIdentitiesUpdated, len(nodeTrackList.assignedIDsToUpdate))
+	stats.Increment(stats.TotalAzureAssignedIdentitiesDeleted, len(nodeTrackList.assignedIDsToDelete))
+	stats.Put(stats.TotalAzureAssignedIdentitiesCreateOrUpdate, time.Since(beginAdding))
 }
 
 // cleanUpAllAssignedIdentitiesOnNode deletes all assigned identities associated with a the node
