@@ -58,7 +58,7 @@ jobs:
 
               # Assign user assigned identity to the VMSS
               az vmss identity assign -g MC_${RESOURCE_GROUP}_${RESOURCE_GROUP}_$(LOCATION) -n $VMSS_NAME \
-               --identities /subscriptions/$(LOAD_TEST_SUBSCRIPTION_ID)/resourcegroups/MC_${RESOURCE_GROUP}_${RESOURCE_GROUP}_$(LOCATION)/providers/Microsoft.ManagedIdentity/userAssignedIdentities/${POD_IDENTITY_ID_NAME} >> /dev/null
+                --identities /subscriptions/$(LOAD_TEST_SUBSCRIPTION_ID)/resourcegroups/MC_${RESOURCE_GROUP}_${RESOURCE_GROUP}_$(LOCATION)/providers/Microsoft.ManagedIdentity/userAssignedIdentities/${POD_IDENTITY_ID_NAME} >> /dev/null
             fi
           displayName: "Create and assign identity to AKS cluster"
           workingDirectory: "$(System.DefaultWorkingDirectory)"
@@ -66,7 +66,7 @@ jobs:
         - script: |
             echo "Installing helm..."
             curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
-          displayName: "Install helm"        
+          displayName: "Install helm"
 
         - script: |
             kubectl wait --for=condition=ready node --all

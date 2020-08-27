@@ -63,14 +63,10 @@ jobs:
             kubectl cluster-info
           displayName: "Check cluster's health"
 
-        - script: |
-            export REGISTRY="${REGISTRY:-$(REGISTRY_NAME).azurecr.io/k8s/aad-pod-identity}"
-            make e2e
+        - script: make e2e
           env:
             SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
             AZURE_CLIENT_ID: $(AZURE_CLIENT_ID)
             AZURE_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
             AZURE_TENANT_ID: $(AZURE_TENANT_ID)
           displayName: "Run E2E tests"
-
-        - template: cleanup-images.yml
