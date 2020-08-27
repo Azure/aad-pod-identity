@@ -505,7 +505,7 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	}
 
 	klog.V(5).Infof("deleting %s took: %v", assignedIdentity.Name, time.Since(begin))
-	stats.Update(stats.AssignedIDDel, time.Since(begin))
+	stats.AggregateConcurrent(stats.DeleteAzureAssignedIdentity, begin, time.Now())
 	return err
 }
 
@@ -539,7 +539,7 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	}
 
 	klog.V(5).Infof("time taken to create %s/%s: %v", assignedIdentity.Namespace, assignedIdentity.Name, time.Since(begin))
-	stats.Update(stats.AssignedIDAdd, time.Since(begin))
+	stats.AggregateConcurrent(stats.CreateAzureAssignedIdentiy, begin, time.Now())
 	return nil
 }
 
@@ -567,7 +567,7 @@ func (c *Client) UpdateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	}
 
 	klog.V(5).Infof("time taken to update %s/%s: %v", assignedIdentity.Namespace, assignedIdentity.Name, time.Since(begin))
-	stats.Update(stats.AssignedIDAdd, time.Since(begin))
+	stats.AggregateConcurrent(stats.UpdateAzureAssignedIdentity, begin, time.Now())
 	return nil
 }
 
@@ -596,7 +596,7 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 		klog.V(6).Infof("appending binding: %s/%s to list.", o.Namespace, o.Name)
 	}
 
-	stats.Update(stats.BindingList, time.Since(begin))
+	stats.Aggregate(stats.AzureIdentityBindingList, time.Since(begin))
 	return &resList, nil
 }
 
@@ -623,7 +623,7 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 		klog.V(6).Infof("appending AzureAssignedIdentity: %s/%s to list.", o.Namespace, o.Name)
 	}
 
-	stats.Update(stats.AssignedIDList, time.Since(begin))
+	stats.Aggregate(stats.AzureAssignedIdentityList, time.Since(begin))
 	return &resList, nil
 }
 
@@ -653,7 +653,7 @@ func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdenti
 		klog.V(6).Infof("added to map with key: %s", o.Name)
 	}
 
-	stats.Update(stats.AssignedIDList, time.Since(begin))
+	stats.Aggregate(stats.AzureAssignedIdentityList, time.Since(begin))
 	return result, nil
 }
 
@@ -682,7 +682,7 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 		klog.V(6).Infof("appending AzureIdentity %s/%s to list.", o.Namespace, o.Name)
 	}
 
-	stats.Update(stats.IDList, time.Since(begin))
+	stats.Aggregate(stats.AzureIdentityList, time.Since(begin))
 	return &resList, nil
 }
 
@@ -712,7 +712,7 @@ func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodI
 		}
 	}
 
-	stats.Update(stats.ExceptionList, time.Since(begin))
+	stats.Aggregate(stats.AzurePodIdentityExceptionList, time.Since(begin))
 	return &resList, nil
 }
 
