@@ -3,9 +3,11 @@ package cloudprovider
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -45,6 +47,8 @@ const (
 	linkedAuthorizationFailed retry.RetriableError = "LinkedAuthorizationFailed"
 	// Occurs when the user-assigned identity does not exist.
 	failedIdentityOperation retry.RetriableError = "FailedIdentityOperation"
+	// retryAfterHeaderKey is the retry-after header key in ARM responses.
+	retryAfterHeaderKey = "Retry-After"
 )
 
 // NewCloudProvider returns a azure cloud provider client
@@ -147,6 +151,16 @@ func (c *Client) Init() error {
 	if err != nil {
 		return fmt.Errorf("failed to create VM client, error: %+v", err)
 	}
+
+	// We explicitly removes http.StatusTooManyRequests from autorest.StatusCodesForRetry.
+	// Refer https://github.com/Azure/go-autorest/issues/398.
+	statusCodesForRetry := make([]int, 0)
+	for _, code := range autorest.StatusCodesForRetry {
+		if code != http.StatusTooManyRequests {
+			statusCodesForRetry = append(statusCodesForRetry, code)
+		}
+	}
+	autorest.StatusCodesForRetry = statusCodesForRetry
 
 	return nil
 }
@@ -328,4 +342,25 @@ func extractIdentitiesFromError(err error) []string {
 	}
 
 	return extracted
+}
+
+// getRetryAfter gets the retryAfter from http response.
+// The value of Retry-After can be either the number of seconds or a date in RFC1123 format.
+func getRetryAfter(resp *http.Response) time.Duration {
+	if resp == nil {
+		return 0
+	}
+
+	ra := resp.Header.Get(retryAfterHeaderKey)
+	if ra == "" {
+		return 0
+	}
+
+	var dur time.Duration
+	if retryAfter, _ := strconv.Atoi(ra); retryAfter > 0 {
+		dur = time.Duration(retryAfter) * time.Second
+	} else if t, err := time.Parse(time.RFC1123, ra); err == nil {
+		dur = time.Until(t)
+	}
+	return dur
 }

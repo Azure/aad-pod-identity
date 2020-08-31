@@ -2,10 +2,12 @@ package cloudprovider
 
 import (
 	"errors"
+	"net/http"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/config"
 	"github.com/Azure/aad-pod-identity/pkg/retry"
@@ -534,4 +536,46 @@ func isSliceEqual(s1, s2 []string) bool {
 		}
 	}
 	return true
+}
+
+func TestGetRetryAfter(t *testing.T) {
+	cases := []struct {
+		desc               string
+		resp               *http.Response
+		expectedRetryAfter time.Duration
+	}{
+		{
+			desc:               "response is nil",
+			expectedRetryAfter: 0,
+		},
+		{
+			desc:               "no Retry-After header in the response",
+			resp:               &http.Response{},
+			expectedRetryAfter: 0,
+		},
+		{
+			desc:               "Retry-After in response is unknown format",
+			resp:               &http.Response{Header: http.Header{"Retry-After": []string{time.Now().Add(180 * time.Second).Format(time.RFC822)}}},
+			expectedRetryAfter: 0,
+		},
+		{
+			desc:               "Retry-After in response is 180",
+			resp:               &http.Response{Header: http.Header{"Retry-After": []string{"180"}}},
+			expectedRetryAfter: 3 * time.Minute,
+		},
+		{
+			desc:               "Retry-After in response is in RFC1123 format",
+			resp:               &http.Response{Header: http.Header{"Retry-After": []string{time.Now().Add(180 * time.Second).Format(time.RFC1123)}}},
+			expectedRetryAfter: 3 * time.Minute,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			retryAfterDuration := getRetryAfter(tc.resp)
+			if tc.expectedRetryAfter != retryAfterDuration.Round(time.Minute) {
+				t.Fatalf("expected retry after to be: %v, got: %v", tc.expectedRetryAfter, retryAfterDuration)
+			}
+		})
+	}
 }
