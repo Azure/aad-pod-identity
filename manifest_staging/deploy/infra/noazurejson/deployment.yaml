@@ -48,7 +48,7 @@ spec:
     plural: azurepodidentityexceptions
   scope: Namespaced
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
@@ -68,6 +68,7 @@ spec:
         tier: node
     spec:
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       volumes:
       - hostPath:
           path: /run/xtables.lock
@@ -126,7 +127,7 @@ metadata:
   name: aadpodidentity-admin-secret
   namespace: default
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
