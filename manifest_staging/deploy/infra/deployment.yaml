@@ -70,6 +70,7 @@ spec:
         tier: node
     spec:
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       volumes:
       - hostPath:
           path: /run/xtables.lock

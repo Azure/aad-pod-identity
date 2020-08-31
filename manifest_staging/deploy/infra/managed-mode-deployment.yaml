@@ -99,6 +99,7 @@ spec:
     spec:
       serviceAccountName: aad-pod-id-nmi-service-account
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       volumes:
       - hostPath:
           path: /run/xtables.lock

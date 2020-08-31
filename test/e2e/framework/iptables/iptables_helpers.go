@@ -63,6 +63,7 @@ func WaitForRules(input WaitForRulesInput) {
 					},
 					Spec: corev1.PodSpec{
 						HostNetwork:                   true,
+						DNSPolicy:                     corev1.DNSClusterFirstWithHostNet,
 						TerminationGracePeriodSeconds: to.Int64Ptr(int64(0)),
 						Containers: []corev1.Container{
 							{
