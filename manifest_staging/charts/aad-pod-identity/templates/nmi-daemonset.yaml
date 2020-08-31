@@ -27,8 +27,7 @@ spec:
     spec:
       {{- if .Values.imagePullSecrets }}
       imagePullSecrets:
-        {{- range .Values.imagePullSecrets }}
-        - name: {{ . }}
+{{ toYaml .Values.imagePullSecrets | indent 8 }}
         {{- end }}
       {{- end }}
       {{- if .Values.rbac.enabled }}

@@ -10,8 +10,8 @@ image:
   imagePullPolicy: Always
 
 # One or more secrets to be used when pulling images
-imagePullSecrets: []
-# - registrySecretName
+# imagePullSecrets:
+#   - name: myRegistryKeySecretName
 
 # https://github.com/Azure/aad-pod-identity#4-optional-match-pods-in-the-namespace
 # By default, AAD Pod Identity matches pods to identities across namespaces.
