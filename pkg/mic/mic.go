@@ -1064,7 +1064,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 				assignedID.Status.Status = aadpodid.AssignedIDCreated
 				err := c.updateAssignedIdentity(&assignedID)
 				if err != nil {
-					message := fmt.Sprintf("failed to update AzureAssignedIdentity %s/%s for pod %s/%s, error %+v", assignedID.Namespace, assignedID.Name, assignedID.Spec.Pod, assignedID.Spec.PodNamespace, err)
+					message := fmt.Sprintf("failed to update AzureAssignedIdentity %s/%s for pod %s/%s, error: %+v", assignedID.Namespace, assignedID.Name, assignedID.Spec.Pod, assignedID.Spec.PodNamespace, err)
 					c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error", message)
 					klog.Error(message)
 				}
@@ -1246,7 +1246,7 @@ func (c *Client) cleanUpAllAssignedIdentitiesOnNode(node string, nodeTrackList t
 
 		err := c.removeAssignedIdentity(&deleteID)
 		if err != nil {
-			message := fmt.Sprintf("failed to remove AzureIdentityBinding %s/%s from node %s for pod %s/%s, error %v", binding.Namespace, binding.Name, deleteID.Spec.NodeName, deleteID.Spec.PodNamespace, deleteID.Spec.Pod, err)
+			message := fmt.Sprintf("failed to remove AzureIdentityBinding %s/%s from node %s for pod %s/%s, error: %v", binding.Namespace, binding.Name, deleteID.Spec.NodeName, deleteID.Spec.PodNamespace, deleteID.Spec.Pod, err)
 			c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding remove error", message)
 			klog.Error(message)
 			continue
@@ -1265,7 +1265,7 @@ func (c *Client) consolidateVMSSNodes(nodeMap map[string]trackUserAssignedMSIIds
 	for nodeName, nodeTrackList := range nodeMap {
 		node, err := c.NodeClient.Get(nodeName)
 		if err != nil && !strings.Contains(err.Error(), "not found") {
-			klog.Errorf("failed to get node %s, error %+v", nodeName, err)
+			klog.Errorf("failed to get node %s, error: %+v", nodeName, err)
 			continue
 		}
 		if err != nil && strings.Contains(err.Error(), "not found") {
@@ -1330,10 +1330,10 @@ func (c *Client) checkIfIdentityImmutable(id string) bool {
 
 // generateIdentityAssignmentState generates the current and desired state of each node's identity
 // assignments based on an existing list of AzureAssignedIdentity as the source of truth.
-func (c *Client) generateIdentityAssignmentState() (currentState map[string]map[string]bool, desiredState map[string][]string, isVMSSMap map[string]bool, err error) {
+func (c *Client) generateIdentityAssignmentState() (currentState map[string]map[string]bool, desiredState map[string]map[string]bool, isVMSSMap map[string]bool, err error) {
 	type nodeMetadata struct {
-		nodeNameOnAzure string
-		isVMSS          bool
+		nodeName string
+		isVMSS   bool
 	}
 
 	assignedIDs, err := c.CRDClient.ListAssignedIDs()
@@ -1344,52 +1344,55 @@ func (c *Client) generateIdentityAssignmentState() (currentState map[string]map[
 	nodeMetadataCache := make(map[string]nodeMetadata)
 	isVMSSMap = make(map[string]bool)
 	currentState = make(map[string]map[string]bool)
-	desiredState = make(map[string][]string)
+	desiredState = make(map[string]map[string]bool)
 	for _, assignedID := range *assignedIDs {
 		if _, ok := nodeMetadataCache[assignedID.Spec.NodeName]; !ok {
 			node, err := c.NodeClient.Get(assignedID.Spec.NodeName)
 			if err != nil {
-				return nil, nil, nil, fmt.Errorf("failed to get node %s, error %+v", assignedID.Spec.NodeName, err)
+				return nil, nil, nil, fmt.Errorf("failed to get node %s, error: %+v", assignedID.Spec.NodeName, err)
 			}
 
-			nodeNameOnAzure, isVMSS, err := isVMSS(node)
+			nodeName, isVMSS, err := isVMSS(node)
 			if err != nil {
 				return nil, nil, nil, fmt.Errorf("failed to check if node %s is VMSS, error: %+v", assignedID.Spec.NodeName, err)
 			} else if isVMSS {
-				nodeNameOnAzure = getVMSSName(nodeNameOnAzure)
+				nodeName = getVMSSName(nodeName)
 			} else {
 				// VM node name does not require conversion
-				nodeNameOnAzure = assignedID.Spec.NodeName
+				nodeName = assignedID.Spec.NodeName
 			}
 
 			// cache node metadata to avoid excessive GET calls
 			nodeMetadataCache[assignedID.Spec.NodeName] = nodeMetadata{
-				nodeNameOnAzure: nodeNameOnAzure,
-				isVMSS:          isVMSS,
+				nodeName: nodeName,
+				isVMSS:   isVMSS,
 			}
 		}
 
-		nodeNameOnAzure := nodeMetadataCache[assignedID.Spec.NodeName].nodeNameOnAzure
+		nodeName := nodeMetadataCache[assignedID.Spec.NodeName].nodeName
 		isVMSS := nodeMetadataCache[assignedID.Spec.NodeName].isVMSS
-		isVMSSMap[nodeNameOnAzure] = isVMSS
+		isVMSSMap[nodeName] = isVMSS
 
 		// only consider AzureAssignedIdentities in ASSIGNED state
 		// do not consider AzureAssignedIdentities in CREATED state because they are either:
 		// 1. in the process of assigning the identities on Azure or
 		// 2. encountering errors when assigning identities on Azure
-		if assignedID.Status.Status == aadpodid.AssignedIDAssigned {
-			desiredState[nodeNameOnAzure] = append(desiredState[nodeNameOnAzure], assignedID.Spec.AzureIdentityRef.Spec.ResourceID)
+		if assignedID.Status.Status == aadpodid.AssignedIDAssigned && assignedID.Spec.AzureIdentityRef.Spec.Type == aadpodid.UserAssignedMSI {
+			if _, ok := desiredState[nodeName]; !ok {
+				desiredState[nodeName] = make(map[string]bool)
+			}
+			desiredState[nodeName][assignedID.Spec.AzureIdentityRef.Spec.ResourceID] = true
 		}
 
-		if _, ok := currentState[nodeNameOnAzure]; !ok {
-			currentState[nodeNameOnAzure] = make(map[string]bool)
-			idList, err := c.getUserMSIListForNode(nodeNameOnAzure, isVMSS)
+		if _, ok := currentState[nodeName]; !ok {
+			currentState[nodeName] = make(map[string]bool)
+			idList, err := c.getUserMSIListForNode(nodeName, isVMSS)
 			if err != nil {
-				return nil, nil, nil, fmt.Errorf("failed to get a list of user-assigned identites from node %s, error: %+v", nodeNameOnAzure, err)
+				return nil, nil, nil, fmt.Errorf("failed to get a list of user-assigned identites from node %s, error: %+v", nodeName, err)
 			}
 
 			for _, identityResourceID := range idList {
-				currentState[nodeNameOnAzure][identityResourceID] = true
+				currentState[nodeName][identityResourceID] = true
 			}
 		}
 	}
@@ -1401,15 +1404,14 @@ func (c *Client) generateIdentityAssignmentState() (currentState map[string]map[
 // and desired state of identity assignment on Azure and returns
 // a map with the node name as the key and a list of user-assigned
 // identities we should assign to the node as the value.
-func generateIdentityAssignmentDiff(currentState map[string]map[string]bool, desiredState map[string][]string) map[string][]string {
+func generateIdentityAssignmentDiff(currentState map[string]map[string]bool, desiredState map[string]map[string]bool) map[string][]string {
 	diff := make(map[string][]string)
 	for nodeName, identityResourceIDs := range desiredState {
 		var identitiesToAssign []string
-		for _, identityResourceID := range identityResourceIDs {
+		for identityResourceID := range identityResourceIDs {
 			if _, ok := currentState[nodeName]; ok && currentState[nodeName][identityResourceID] {
 				continue
 			}
-
 			identitiesToAssign = append(identitiesToAssign, identityResourceID)
 		}
 
@@ -1422,7 +1424,7 @@ func generateIdentityAssignmentDiff(currentState map[string]map[string]bool, des
 }
 
 // reconcileIdentityAssignment uses the existing list of AzureAssignedIdentities
-// as the single source of truth and reconciles identity assignement on Azure.
+// as the single source of truth and reconciles identity assignment on Azure.
 func (c *Client) reconcileIdentityAssignment() {
 	currentState, desiredState, isVMSSMap, err := c.generateIdentityAssignmentState()
 	if err != nil {
@@ -1434,10 +1436,10 @@ func (c *Client) reconcileIdentityAssignment() {
 	klog.V(6).Infof("desired state of identity assignment on Azure: %+v", desiredState)
 
 	diff := generateIdentityAssignmentDiff(currentState, desiredState)
-	for nodeName, identitiesToAssign := range diff {
-		klog.Infof("reconciling identity assignment for %v on node %s", identitiesToAssign, nodeName)
-		if err := c.CloudClient.UpdateUserMSI(identitiesToAssign, nil, nodeName, isVMSSMap[nodeName]); err != nil {
-			klog.Errorf("failed to update user-assigned identities on node %s, error: %+v", nodeName, err)
+	for nodeNameOnAzure, identitiesToAssign := range diff {
+		klog.Infof("reconciling identity assignment for %v on node %s", identitiesToAssign, nodeNameOnAzure)
+		if err := c.CloudClient.UpdateUserMSI(identitiesToAssign, nil, nodeNameOnAzure, isVMSSMap[nodeNameOnAzure]); err != nil {
+			klog.Errorf("failed to update user-assigned identities on node %s, error: %+v", nodeNameOnAzure, err)
 		}
 	}
 }

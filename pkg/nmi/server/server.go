@@ -340,7 +340,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 
 	podns, podname, rsName, selectors, err := s.KubeClient.GetPodInfo(podIP)
 	if err != nil {
-		klog.Errorf("failed to get pod info from pod IP: %s, error %+v", podIP, err)
+		klog.Errorf("failed to get pod info from pod IP: %s, error: %+v", podIP, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

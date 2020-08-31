@@ -1820,9 +1820,9 @@ func TestGenerateIdentityAssignmentStateVM(t *testing.T) {
 	assert.Equal(t, currentState, map[string]map[string]bool{
 		"node-0": {},
 	})
-	assert.Equal(t, desiredState, map[string][]string{
+	assert.Equal(t, desiredState, map[string]map[string]bool{
 		"node-0": {
-			testResourceID,
+			testResourceID: true,
 		},
 	})
 	assert.Equal(t, isVMSSMap, map[string]bool{
@@ -1845,9 +1845,9 @@ func TestGenerateIdentityAssignmentStateVM(t *testing.T) {
 			testResourceID: true,
 		},
 	})
-	assert.Equal(t, desiredState, map[string][]string{
+	assert.Equal(t, desiredState, map[string]map[string]bool{
 		"node-0": {
-			testResourceID,
+			testResourceID: true,
 		},
 	})
 	assert.Equal(t, isVMSSMap, map[string]bool{
@@ -1882,6 +1882,7 @@ func TestGenerateIdentityAssignmentStateVMSS(t *testing.T) {
 			NodeName: "node-0",
 			AzureIdentityRef: &internalaadpodid.AzureIdentity{
 				Spec: internalaadpodid.AzureIdentitySpec{
+					Type:       internalaadpodid.UserAssignedMSI,
 					ResourceID: testResourceID,
 				},
 			},
@@ -1896,9 +1897,9 @@ func TestGenerateIdentityAssignmentStateVMSS(t *testing.T) {
 	assert.Equal(t, currentState, map[string]map[string]bool{
 		"node-0": {},
 	})
-	assert.Equal(t, desiredState, map[string][]string{
+	assert.Equal(t, desiredState, map[string]map[string]bool{
 		"node-0": {
-			testResourceID,
+			testResourceID: true,
 		},
 	})
 	assert.Equal(t, isVMSSMap, map[string]bool{
@@ -1921,9 +1922,9 @@ func TestGenerateIdentityAssignmentStateVMSS(t *testing.T) {
 			testResourceID: true,
 		},
 	})
-	assert.Equal(t, desiredState, map[string][]string{
+	assert.Equal(t, desiredState, map[string]map[string]bool{
 		"node-0": {
-			testResourceID,
+			testResourceID: true,
 		},
 	})
 	assert.Equal(t, isVMSSMap, map[string]bool{
@@ -1935,7 +1936,7 @@ func TestGenerateIdentityAssignmentStateVMSS(t *testing.T) {
 func TestGenerateIdentityAssignmentDiff(t *testing.T) {
 	testCases := []struct {
 		currentState map[string]map[string]bool
-		desiredState map[string][]string
+		desiredState map[string]map[string]bool
 		expectedDiff map[string][]string
 	}{
 		{
@@ -1944,9 +1945,9 @@ func TestGenerateIdentityAssignmentDiff(t *testing.T) {
 					"id-0": true,
 				},
 			},
-			desiredState: map[string][]string{
+			desiredState: map[string]map[string]bool{
 				"node-0": {
-					"id-0",
+					"id-0": true,
 				},
 			},
 			expectedDiff: map[string][]string{},
@@ -1957,13 +1958,13 @@ func TestGenerateIdentityAssignmentDiff(t *testing.T) {
 					"id-1": true,
 				},
 			},
-			desiredState: map[string][]string{
+			desiredState: map[string]map[string]bool{
 				"node-0": {
-					"id-0",
+					"id-0": true,
 				},
 				"node-1": {
-					"id-0",
-					"id-1",
+					"id-0": true,
+					"id-1": true,
 				},
 			},
 			expectedDiff: map[string][]string{
@@ -1977,9 +1978,9 @@ func TestGenerateIdentityAssignmentDiff(t *testing.T) {
 		},
 		{
 			currentState: nil,
-			desiredState: map[string][]string{
+			desiredState: map[string]map[string]bool{
 				"node-0": {
-					"id-0",
+					"id-0": true,
 				},
 			},
 			expectedDiff: map[string][]string{
