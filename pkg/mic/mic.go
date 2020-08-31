@@ -77,19 +77,20 @@ type UpdateUserMSIConfig struct {
 // Client has the required pointers to talk to the api server
 // and interact with the CRD related datastructure.
 type Client struct {
-	CRDClient            crd.ClientInt
-	CloudClient          cloudprovider.ClientInt
-	PodClient            pod.ClientInt
-	CloudConfigWatcher   filewatcher.ClientInt
-	EventRecorder        record.EventRecorder
-	EventChannel         chan aadpodid.EventType
-	NodeClient           NodeGetter
-	IsNamespaced         bool
-	SyncLoopStarted      bool
-	syncRetryInterval    time.Duration
-	enableScaleFeatures  bool
-	createDeleteBatch    int64
-	ImmutableUserMSIsMap map[string]bool
+	CRDClient                           crd.ClientInt
+	CloudClient                         cloudprovider.ClientInt
+	PodClient                           pod.ClientInt
+	CloudConfigWatcher                  filewatcher.ClientInt
+	EventRecorder                       record.EventRecorder
+	EventChannel                        chan aadpodid.EventType
+	NodeClient                          NodeGetter
+	IsNamespaced                        bool
+	SyncLoopStarted                     bool
+	syncRetryInterval                   time.Duration
+	enableScaleFeatures                 bool
+	createDeleteBatch                   int64
+	ImmutableUserMSIsMap                map[string]bool
+	identityAssignmentReconcileInterval time.Duration
 
 	syncing int32 // protect against conucrrent sync's
 
@@ -103,17 +104,18 @@ type Client struct {
 
 // Config - MIC Config
 type Config struct {
-	CloudCfgPath          string
-	RestConfig            *rest.Config
-	IsNamespaced          bool
-	SyncRetryInterval     time.Duration
-	LeaderElectionCfg     *LeaderElectionConfig
-	EnableScaleFeatures   bool
-	CreateDeleteBatch     int64
-	ImmutableUserMSIsList []string
-	CMcfg                 *CMConfig
-	TypeUpgradeCfg        *TypeUpgradeConfig
-	UpdateUserMSICfg      *UpdateUserMSIConfig
+	CloudCfgPath                        string
+	RestConfig                          *rest.Config
+	IsNamespaced                        bool
+	SyncRetryInterval                   time.Duration
+	LeaderElectionCfg                   *LeaderElectionConfig
+	EnableScaleFeatures                 bool
+	CreateDeleteBatch                   int64
+	ImmutableUserMSIsList               []string
+	CMcfg                               *CMConfig
+	TypeUpgradeCfg                      *TypeUpgradeConfig
+	UpdateUserMSICfg                    *UpdateUserMSIConfig
+	IdentityAssignmentReconcileInterval time.Duration
 }
 
 // ClientInt is an abstraction used to perform an MIC sync cycle.
@@ -200,21 +202,22 @@ func NewMICClient(cfg *Config) (*Client, error) {
 	}
 
 	c := &Client{
-		CRDClient:            crdClient,
-		CloudClient:          cloudClient,
-		PodClient:            podClient,
-		CloudConfigWatcher:   cloudConfigWatcher,
-		EventRecorder:        recorder,
-		EventChannel:         eventCh,
-		NodeClient:           &NodeClient{informer.Core().V1().Nodes()},
-		IsNamespaced:         cfg.IsNamespaced,
-		syncRetryInterval:    cfg.SyncRetryInterval,
-		enableScaleFeatures:  cfg.EnableScaleFeatures,
-		createDeleteBatch:    cfg.CreateDeleteBatch,
-		ImmutableUserMSIsMap: immutableUserMSIsMap,
-		TypeUpgradeCfg:       cfg.TypeUpgradeCfg,
-		CMCfg:                cfg.CMcfg,
-		CMClient:             cmClient,
+		CRDClient:                           crdClient,
+		CloudClient:                         cloudClient,
+		PodClient:                           podClient,
+		CloudConfigWatcher:                  cloudConfigWatcher,
+		EventRecorder:                       recorder,
+		EventChannel:                        eventCh,
+		NodeClient:                          &NodeClient{informer.Core().V1().Nodes()},
+		IsNamespaced:                        cfg.IsNamespaced,
+		syncRetryInterval:                   cfg.SyncRetryInterval,
+		enableScaleFeatures:                 cfg.EnableScaleFeatures,
+		createDeleteBatch:                   cfg.CreateDeleteBatch,
+		ImmutableUserMSIsMap:                immutableUserMSIsMap,
+		TypeUpgradeCfg:                      cfg.TypeUpgradeCfg,
+		CMCfg:                               cfg.CMcfg,
+		CMClient:                            cmClient,
+		identityAssignmentReconcileInterval: cfg.IdentityAssignmentReconcileInterval,
 	}
 
 	leaderElector, err := c.NewLeaderElector(clientSet, recorder, cfg.LeaderElectionCfg)
@@ -388,6 +391,9 @@ func (c *Client) Sync(exit <-chan struct{}) {
 	ticker := time.NewTicker(c.syncRetryInterval)
 	defer ticker.Stop()
 
+	identityAssignmentReconcileTicker := time.NewTicker(c.identityAssignmentReconcileInterval)
+	defer identityAssignmentReconcileTicker.Stop()
+
 	klog.Info("sync thread started.")
 	c.SyncLoopStarted = true
 	var event aadpodid.EventType
@@ -402,6 +408,10 @@ func (c *Client) Sync(exit <-chan struct{}) {
 			klog.V(6).Infof("received event: %v", event)
 		case <-ticker.C:
 			klog.V(6).Infof("running periodic sync loop")
+		case <-identityAssignmentReconcileTicker.C:
+			klog.V(6).Infof("reconciling identity assignment on Azure")
+			c.reconcileIdentityAssignment()
+			continue
 		}
 		totalSyncCycles++
 		stats.Init()
@@ -1054,7 +1064,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 				assignedID.Status.Status = aadpodid.AssignedIDCreated
 				err := c.updateAssignedIdentity(&assignedID)
 				if err != nil {
-					message := fmt.Sprintf("failed to update AzureAssignedIdentity %s/%s for pod %s/%s, error %+v", assignedID.Namespace, assignedID.Name, assignedID.Spec.Pod, assignedID.Spec.PodNamespace, err)
+					message := fmt.Sprintf("failed to update AzureAssignedIdentity %s/%s for pod %s/%s, error: %+v", assignedID.Namespace, assignedID.Name, assignedID.Spec.Pod, assignedID.Spec.PodNamespace, err)
 					c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding apply error", message)
 					klog.Error(message)
 				}
@@ -1236,7 +1246,7 @@ func (c *Client) cleanUpAllAssignedIdentitiesOnNode(node string, nodeTrackList t
 
 		err := c.removeAssignedIdentity(&deleteID)
 		if err != nil {
-			message := fmt.Sprintf("failed to remove AzureIdentityBinding %s/%s from node %s for pod %s/%s, error %v", binding.Namespace, binding.Name, deleteID.Spec.NodeName, deleteID.Spec.PodNamespace, deleteID.Spec.Pod, err)
+			message := fmt.Sprintf("failed to remove AzureIdentityBinding %s/%s from node %s for pod %s/%s, error: %v", binding.Namespace, binding.Name, deleteID.Spec.NodeName, deleteID.Spec.PodNamespace, deleteID.Spec.Pod, err)
 			c.EventRecorder.Event(binding, corev1.EventTypeWarning, "binding remove error", message)
 			klog.Error(message)
 			continue
@@ -1255,7 +1265,7 @@ func (c *Client) consolidateVMSSNodes(nodeMap map[string]trackUserAssignedMSIIds
 	for nodeName, nodeTrackList := range nodeMap {
 		node, err := c.NodeClient.Get(nodeName)
 		if err != nil && !strings.Contains(err.Error(), "not found") {
-			klog.Errorf("failed to get node %s, error %+v", nodeName, err)
+			klog.Errorf("failed to get node %s, error: %+v", nodeName, err)
 			continue
 		}
 		if err != nil && strings.Contains(err.Error(), "not found") {
@@ -1316,4 +1326,120 @@ func (c *Client) checkIfIdentityImmutable(id string) bool {
 		return true
 	}
 	return false
+}
+
+// generateIdentityAssignmentState generates the current and desired state of each node's identity
+// assignments based on an existing list of AzureAssignedIdentity as the source of truth.
+func (c *Client) generateIdentityAssignmentState() (currentState map[string]map[string]bool, desiredState map[string]map[string]bool, isVMSSMap map[string]bool, err error) {
+	type nodeMetadata struct {
+		nodeName string
+		isVMSS   bool
+	}
+
+	assignedIDs, err := c.CRDClient.ListAssignedIDs()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to list AzureAssignedIdentities, error: %+v", err)
+	}
+
+	nodeMetadataCache := make(map[string]nodeMetadata)
+	isVMSSMap = make(map[string]bool)
+	currentState = make(map[string]map[string]bool)
+	desiredState = make(map[string]map[string]bool)
+	for _, assignedID := range *assignedIDs {
+		if _, ok := nodeMetadataCache[assignedID.Spec.NodeName]; !ok {
+			node, err := c.NodeClient.Get(assignedID.Spec.NodeName)
+			if err != nil {
+				return nil, nil, nil, fmt.Errorf("failed to get node %s, error: %+v", assignedID.Spec.NodeName, err)
+			}
+
+			nodeName, isVMSS, err := isVMSS(node)
+			if err != nil {
+				return nil, nil, nil, fmt.Errorf("failed to check if node %s is VMSS, error: %+v", assignedID.Spec.NodeName, err)
+			} else if isVMSS {
+				nodeName = getVMSSName(nodeName)
+			} else {
+				// VM node name does not require conversion
+				nodeName = assignedID.Spec.NodeName
+			}
+
+			// cache node metadata to avoid excessive GET calls
+			nodeMetadataCache[assignedID.Spec.NodeName] = nodeMetadata{
+				nodeName: nodeName,
+				isVMSS:   isVMSS,
+			}
+		}
+
+		nodeName := nodeMetadataCache[assignedID.Spec.NodeName].nodeName
+		isVMSS := nodeMetadataCache[assignedID.Spec.NodeName].isVMSS
+		isVMSSMap[nodeName] = isVMSS
+
+		// only consider AzureAssignedIdentities in ASSIGNED state
+		// do not consider AzureAssignedIdentities in CREATED state because they are either:
+		// 1. in the process of assigning the identities on Azure or
+		// 2. encountering errors when assigning identities on Azure
+		if assignedID.Status.Status == aadpodid.AssignedIDAssigned && assignedID.Spec.AzureIdentityRef.Spec.Type == aadpodid.UserAssignedMSI {
+			if _, ok := desiredState[nodeName]; !ok {
+				desiredState[nodeName] = make(map[string]bool)
+			}
+			desiredState[nodeName][assignedID.Spec.AzureIdentityRef.Spec.ResourceID] = true
+		}
+
+		if _, ok := currentState[nodeName]; !ok {
+			currentState[nodeName] = make(map[string]bool)
+			idList, err := c.getUserMSIListForNode(nodeName, isVMSS)
+			if err != nil {
+				return nil, nil, nil, fmt.Errorf("failed to get a list of user-assigned identites from node %s, error: %+v", nodeName, err)
+			}
+
+			for _, identityResourceID := range idList {
+				currentState[nodeName][identityResourceID] = true
+			}
+		}
+	}
+
+	return currentState, desiredState, isVMSSMap, nil
+}
+
+// generateIdentityAssignmentDiff perform a diff between current
+// and desired state of identity assignment on Azure and returns
+// a map with the node name as the key and a list of user-assigned
+// identities we should assign to the node as the value.
+func generateIdentityAssignmentDiff(currentState map[string]map[string]bool, desiredState map[string]map[string]bool) map[string][]string {
+	diff := make(map[string][]string)
+	for nodeName, identityResourceIDs := range desiredState {
+		var identitiesToAssign []string
+		for identityResourceID := range identityResourceIDs {
+			if _, ok := currentState[nodeName]; ok && currentState[nodeName][identityResourceID] {
+				continue
+			}
+			identitiesToAssign = append(identitiesToAssign, identityResourceID)
+		}
+
+		if len(identitiesToAssign) > 0 {
+			diff[nodeName] = identitiesToAssign
+		}
+	}
+
+	return diff
+}
+
+// reconcileIdentityAssignment uses the existing list of AzureAssignedIdentities
+// as the single source of truth and reconciles identity assignment on Azure.
+func (c *Client) reconcileIdentityAssignment() {
+	currentState, desiredState, isVMSSMap, err := c.generateIdentityAssignmentState()
+	if err != nil {
+		klog.Errorf("failed to generate identity assignment state, error: %+v", err)
+		return
+	}
+
+	klog.V(6).Infof("current state of identity assignment on Azure: %+v", currentState)
+	klog.V(6).Infof("desired state of identity assignment on Azure: %+v", desiredState)
+
+	diff := generateIdentityAssignmentDiff(currentState, desiredState)
+	for nodeNameOnAzure, identitiesToAssign := range diff {
+		klog.Infof("reconciling identity assignment for %v on node %s", identitiesToAssign, nodeNameOnAzure)
+		if err := c.CloudClient.UpdateUserMSI(identitiesToAssign, nil, nodeNameOnAzure, isVMSSMap[nodeNameOnAzure]); err != nil {
+			klog.Errorf("failed to update user-assigned identities on node %s, error: %+v", nodeNameOnAzure, err)
+		}
+	}
 }

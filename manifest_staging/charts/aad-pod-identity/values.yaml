@@ -111,6 +111,10 @@ mic:
   # Default value is 1s
   updateUserMSIRetryInterval: ""
 
+  # The interval between reconciling identity assignment on Azure based on an existing list of AzureAssignedIdentities
+  # Default value is 3m
+  identityAssignmentReconcileInterval: ""
+
 nmi:
   image: nmi
   tag: 1.6.2

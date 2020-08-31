@@ -41,12 +41,14 @@ func Install(input InstallInput) {
 		chartName,
 		"manifest_staging/charts/aad-pod-identity",
 		"--wait",
+		"--debug",
 		fmt.Sprintf("--namespace=%s", framework.NamespaceKubeSystem),
 		"--debug",
 	})
 	args = append(args, generateValueArgs(input.Config)...)
 
-	helm(args)
+	err = helm(args)
+	Expect(err).To(BeNil())
 }
 
 // Uninstall uninstalls aad-pod-identity via Helm 3.
@@ -58,7 +60,8 @@ func Uninstall() {
 		"--debug",
 	}
 
-	helm(args)
+	// ignore error to allow cleanup completion
+	_ = helm(args)
 }
 
 // UpgradeInput is the input for Upgrade.
@@ -83,12 +86,14 @@ func Upgrade(input UpgradeInput) {
 		chartName,
 		"manifest_staging/charts/aad-pod-identity",
 		"--wait",
+		"--debug",
 		fmt.Sprintf("--namespace=%s", framework.NamespaceKubeSystem),
 		"--debug",
 	})
 	args = append(args, generateValueArgs(input.Config)...)
 
-	helm(args)
+	err = helm(args)
+	Expect(err).To(BeNil())
 }
 
 func generateValueArgs(config *framework.Config) []string {
@@ -113,12 +118,12 @@ func generateValueArgs(config *framework.Config) []string {
 	return args
 }
 
-func helm(args []string) {
+func helm(args []string) error {
 	By(fmt.Sprintf("helm %s", strings.Join(args, " ")))
 
 	cmd := exec.Command("helm", args...)
 	stdoutStderr, err := cmd.CombinedOutput()
 	fmt.Printf("%s", stdoutStderr)
 
-	Expect(err).To(BeNil())
+	return err
 }

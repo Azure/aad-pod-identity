@@ -76,6 +76,9 @@ spec:
           {{- if .Values.mic.updateUserMSIRetryInterval }}
           - --update-user-msi-retry-interval={{ .Values.mic.updateUserMSIRetryInterval }}
           {{- end }}
+          {{- if .Values.mic.identityAssignmentReconcileInterval }}
+          - --identity-assignment-reconcile-interval={{ .Values.mic.identityAssignmentReconcileInterval }}
+          {{- end }}
         env:
           - name: MIC_POD_NAMESPACE
             valueFrom:

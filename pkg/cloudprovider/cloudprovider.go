@@ -169,11 +169,11 @@ func (c *Client) Init() error {
 func (c *Client) GetUserMSIs(name string, isvmss bool) ([]string, error) {
 	idH, _, err := c.getIdentityResource(name, isvmss)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get identity resource, error %v", err)
+		return nil, fmt.Errorf("failed to get identity resource, error: %v", err)
 	}
 	info := idH.IdentityInfo()
 	if info == nil {
-		return nil, fmt.Errorf("identity info is nil")
+		return []string{}, nil
 	}
 	idList := info.GetUserIdentityList()
 	return idList, nil
@@ -183,7 +183,7 @@ func (c *Client) GetUserMSIs(name string, isvmss bool) ([]string, error) {
 func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs []string, name string, isvmss bool) error {
 	idH, updateFunc, err := c.getIdentityResource(name, isvmss)
 	if err != nil {
-		return fmt.Errorf("failed to get identity resource, error %v", err)
+		return fmt.Errorf("failed to get identity resource, error: %v", err)
 	}
 
 	info := idH.IdentityInfo()

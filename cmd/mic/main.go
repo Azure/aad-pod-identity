@@ -19,22 +19,23 @@ import (
 )
 
 var (
-	kubeconfig          string
-	cloudconfig         string
-	forceNamespaced     bool
-	versionInfo         bool
-	syncRetryDuration   time.Duration
-	leaderElectionCfg   mic.LeaderElectionConfig
-	httpProbePort       string
-	enableProfile       bool
-	enableScaleFeatures bool
-	createDeleteBatch   int64
-	clientQPS           float64
-	prometheusPort      string
-	immutableUserMSIs   string
-	cmConfig            mic.CMConfig
-	typeUpgradeConfig   mic.TypeUpgradeConfig
-	updateUserMSIConfig mic.UpdateUserMSIConfig
+	kubeconfig                          string
+	cloudconfig                         string
+	forceNamespaced                     bool
+	versionInfo                         bool
+	syncRetryDuration                   time.Duration
+	leaderElectionCfg                   mic.LeaderElectionConfig
+	httpProbePort                       string
+	enableProfile                       bool
+	enableScaleFeatures                 bool
+	createDeleteBatch                   int64
+	clientQPS                           float64
+	prometheusPort                      string
+	immutableUserMSIs                   string
+	cmConfig                            mic.CMConfig
+	typeUpgradeConfig                   mic.TypeUpgradeConfig
+	updateUserMSIConfig                 mic.UpdateUserMSIConfig
+	identityAssignmentReconcileInterval time.Duration
 )
 
 func main() {
@@ -86,6 +87,9 @@ func main() {
 	// Parameters for retrying cloudprovider's UpdateUserMSI function
 	flag.IntVar(&updateUserMSIConfig.MaxRetry, "update-user-msi-max-retry", 2, "The maximum retry of UpdateUserMSI call")
 	flag.DurationVar(&updateUserMSIConfig.RetryInterval, "update-user-msi-retry-interval", 1*time.Second, "The duration to wait before retrying UpdateUserMSI")
+
+	// Parameters for reconciling identity assignment on Azure
+	flag.DurationVar(&identityAssignmentReconcileInterval, "identity-assignment-reconcile-interval", 3*time.Minute, "The interval between reconciling identity assignment on Azure based on an existing list of AzureAssignedIdentities")
 
 	flag.Parse()
 
@@ -140,17 +144,18 @@ func main() {
 	}
 
 	micConfig := &mic.Config{
-		CloudCfgPath:          cloudconfig,
-		RestConfig:            config,
-		IsNamespaced:          forceNamespaced,
-		SyncRetryInterval:     syncRetryDuration,
-		LeaderElectionCfg:     &leaderElectionCfg,
-		EnableScaleFeatures:   enableScaleFeatures,
-		CreateDeleteBatch:     createDeleteBatch,
-		ImmutableUserMSIsList: immutableUserMSIsList,
-		CMcfg:                 &cmConfig,
-		TypeUpgradeCfg:        &typeUpgradeConfig,
-		UpdateUserMSICfg:      &updateUserMSIConfig,
+		CloudCfgPath:                        cloudconfig,
+		RestConfig:                          config,
+		IsNamespaced:                        forceNamespaced,
+		SyncRetryInterval:                   syncRetryDuration,
+		LeaderElectionCfg:                   &leaderElectionCfg,
+		EnableScaleFeatures:                 enableScaleFeatures,
+		CreateDeleteBatch:                   createDeleteBatch,
+		ImmutableUserMSIsList:               immutableUserMSIsList,
+		CMcfg:                               &cmConfig,
+		TypeUpgradeCfg:                      &typeUpgradeConfig,
+		UpdateUserMSICfg:                    &updateUserMSIConfig,
+		IdentityAssignmentReconcileInterval: identityAssignmentReconcileInterval,
 	}
 
 	micClient, err := mic.NewMICClient(micConfig)

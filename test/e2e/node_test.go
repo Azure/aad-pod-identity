@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
+	"github.com/Azure/aad-pod-identity/test/e2e/framework"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/azure"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/azureassignedidentity"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/azureidentity"
@@ -352,6 +353,56 @@ var _ = Describe("When managing identities from the underlying nodes", func() {
 		By(fmt.Sprintf("Ensuring %s is still assigned to %s", immutableIdentity, node.Name))
 		userAssignedIdentities := azureClient.ListUserAssignedIdentities(node.Spec.ProviderID)
 		Expect(isUserAssignedIdentityExist(userAssignedIdentities, immutableIdentity)).To(BeTrue())
+	})
+
+	It("should reconcile identity assignment on Azure if the user-assigned identity is manually unassigned from the underlying node", func() {
+		// Schedule identity-validator to this node
+		node := nodes.Items[0]
+
+		identityValidator := identityvalidator.Create(identityvalidator.CreateInput{
+			Creator:         kubeClient,
+			Config:          config,
+			Namespace:       ns.Name,
+			IdentityBinding: azureIdentityBinding.Spec.Selector,
+			NodeName:        node.Name,
+		})
+
+		azureassignedidentity.Wait(azureassignedidentity.WaitInput{
+			Getter:            kubeClient,
+			PodName:           identityValidator.Name,
+			Namespace:         ns.Name,
+			AzureIdentityName: azureIdentity.Name,
+			StateToWaitFor:    aadpodv1.AssignedIDAssigned,
+		})
+
+		identityvalidator.Validate(identityvalidator.ValidateInput{
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            identityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentity.Spec.ClientID,
+			IdentityResourceID: azureIdentity.Spec.ResourceID,
+		})
+
+		err := azureClient.UnassignUserAssignedIdentity(node.Spec.ProviderID, keyvaultIdentity)
+		Expect(err).To(BeNil())
+
+		By("Waiting for identity assignment to be reconciled")
+		Eventually(func() (bool, error) {
+			userAssignedIdentities := azureClient.ListUserAssignedIdentities(node.Spec.ProviderID)
+			return isUserAssignedIdentityExist(userAssignedIdentities, keyvaultIdentity), nil
+		}, framework.WaitTimeout, framework.WaitPolling).Should(BeTrue())
+
+		identityvalidator.Validate(identityvalidator.ValidateInput{
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            identityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentity.Spec.ClientID,
+			IdentityResourceID: azureIdentity.Spec.ResourceID,
+		})
 	})
 })
 
