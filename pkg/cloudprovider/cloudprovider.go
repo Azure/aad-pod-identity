@@ -51,10 +51,6 @@ const (
 	retryAfterHeaderKey = "Retry-After"
 )
 
-var (
-	now = time.Now
-)
-
 // NewCloudProvider returns a azure cloud provider client
 func NewCloudProvider(configFile string, updateUserMSIMaxRetry int, updateUseMSIRetryInterval time.Duration) (c *Client, e error) {
 	client := &Client{
@@ -348,14 +344,6 @@ func extractIdentitiesFromError(err error) []string {
 	return extracted
 }
 
-// IsThrottled returns true the if the request is being throttled.
-func isThrottled(resp *http.Response) bool {
-	if resp == nil {
-		return false
-	}
-	return resp.StatusCode == http.StatusTooManyRequests
-}
-
 // getRetryAfter gets the retryAfter from http response.
 // The value of Retry-After can be either the number of seconds or a date in RFC1123 format.
 func getRetryAfter(resp *http.Response) time.Duration {
@@ -372,7 +360,7 @@ func getRetryAfter(resp *http.Response) time.Duration {
 	if retryAfter, _ := strconv.Atoi(ra); retryAfter > 0 {
 		dur = time.Duration(retryAfter) * time.Second
 	} else if t, err := time.Parse(time.RFC1123, ra); err == nil {
-		dur = t.Sub(now())
+		dur = time.Until(t)
 	}
 	return dur
 }

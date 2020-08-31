@@ -88,11 +88,8 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 	vm, err := c.client.Get(ctx, rgName, nodeName, "")
 	if err != nil {
 		resp := vm.Response.Response
-		retryAfterDuration := getRetryAfter(resp)
-		if isThrottled(resp) || retryAfterDuration != 0 {
-			// Update RetryAfterReader so that no more requests would be sent until RetryAfter expires.
-			c.retryAfterReader = now().Add(retryAfterDuration)
-		}
+		// Update RetryAfterReader so that no more requests would be sent until RetryAfter expires.
+		c.retryAfterReader = time.Now().Add(getRetryAfter(resp))
 		return vm, fmt.Errorf("failed to get vm %s in resource group %s, error: %+v", nodeName, rgName, err)
 	}
 	stats.Increment(stats.TotalGetCalls, 1)
@@ -128,11 +125,8 @@ func (c *VMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachi
 
 	if future, err = c.client.Update(ctx, rg, nodeName, compute.VirtualMachineUpdate{Identity: vm.Identity}); err != nil {
 		resp := future.Response()
-		retryAfterDuration := getRetryAfter(resp)
-		if isThrottled(resp) || retryAfterDuration != 0 {
-			// Update RetryAfterWriter so that no more requests would be sent until RetryAfter expires.
-			c.retryAfterWriter = now().Add(retryAfterDuration)
-		}
+		// Update RetryAfterWriter so that no more requests would be sent until RetryAfter expires.
+		c.retryAfterWriter = time.Now().Add(getRetryAfter(resp))
 		return fmt.Errorf("failed to update identities for %s in %s, error: %+v", nodeName, rg, err)
 	}
 	if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {

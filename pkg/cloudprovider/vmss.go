@@ -88,11 +88,8 @@ func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmssIdentities comput
 
 	if future, err = c.client.Update(ctx, rg, vmssName, compute.VirtualMachineScaleSetUpdate{Identity: vmssIdentities.Identity}); err != nil {
 		resp := future.Response()
-		retryAfterDuration := getRetryAfter(resp)
-		if isThrottled(resp) || retryAfterDuration != 0 {
-			// Update RetryAfterWriter so that no more requests would be sent until RetryAfter expires.
-			c.retryAfterWriter = now().Add(retryAfterDuration)
-		}
+		// Update RetryAfterWriter so that no more requests would be sent until RetryAfter expires.
+		c.retryAfterWriter = time.Now().Add(getRetryAfter(resp))
 		return fmt.Errorf("failed to update identities for %s in %s, error: %+v", vmssName, rg, err)
 	}
 	if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
@@ -130,11 +127,8 @@ func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMac
 	vmss, err := c.client.Get(ctx, rgName, vmssName)
 	if err != nil {
 		resp := vmss.Response.Response
-		retryAfterDuration := getRetryAfter(resp)
-		if isThrottled(resp) || retryAfterDuration != 0 {
-			// Update RetryAfterReader so that no more requests would be sent until RetryAfter expires.
-			c.retryAfterReader = now().Add(retryAfterDuration)
-		}
+		// Update RetryAfterReader so that no more requests would be sent until RetryAfter expires.
+		c.retryAfterReader = time.Now().Add(getRetryAfter(resp))
 		return vmss, fmt.Errorf("failed to get vmss %s in resource group %s, error: %+v", vmssName, rgName, err)
 	}
 	stats.Increment(stats.TotalGetCalls, 1)
