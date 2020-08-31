@@ -37,7 +37,7 @@ The expected output should be:
 You could run the following commands to validate your identity setup (assuming you have the proper `AzureIdentity` and `AzureIdentityBinding` deployed):
 
 ```bash
-kubectl run azure-cli -it --image=mcr.microsoft.com/azure-cli --labels=aadpodidbinding=<your identity binding> /bin/bash
+kubectl run azure-cli -it --image=mcr.microsoft.com/azure-cli --labels=aadpodidbinding=<selector defined in AzureIdentityBinding> /bin/bash
 
 # within the azure-cli shell
 az login -i --debug

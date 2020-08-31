@@ -97,7 +97,7 @@ For more information, please refer to the [design documentation](./docs/design/c
 
 ## Role Assignment
 
-Your cluster will need the correct role assignment configuration to perform Azure-related operations such as assigning and un-assigning the identity on the underlying VM/VMSS. You can run the following commands to help you set up the apprioapate role assignments for your cluster identity before deploying aad-pod-identity (assuming you are running an AKS cluster):
+Your cluster will need the correct role assignment configuration to perform Azure-related operations such as assigning and un-assigning the identity on the underlying VM/VMSS. You can run the following commands to help you set up the appropriate role assignments for your cluster identity before deploying aad-pod-identity (assuming you are running an AKS cluster):
 
 ```bash
 export SUBSCRIPTION_ID="<SubscriptionID>"
@@ -110,6 +110,8 @@ export IDENTITY_RESOURCE_GROUP="<IdentityResourceGroup>"
 
 ./hack/role-assignment.sh
 ```
+
+> Note: `<AKSResourceGroup>` is where your AKS cluster is deployed to.
 
 For more details, please refer to the [role assignment](./docs/readmes/README.role-assignment.md) documentation.
 
@@ -133,7 +135,7 @@ az login
 az account set -s "${SUBSCRIPTION_ID}"
 ```
 
-> For AKS clusters, there are two resource groups that you need to be aware of - the resource group that contains the AKS cluster itself, and the cluster resource group (`MC_<AKSResourceGroup>_<AKSClusterName>_<AKSClusterLocation>`). The latter contains all of the infrastructure resources associated with the cluster like VM/VMSS and VNet. Depending on where you deploy your user-assigned identities, you might need additional role assignments. Please refer to [Role Assignment](#role-assignment) for more information. For this demo, it is recommended to use the cluster resource group (the one with `MC_` prefix) as the `RESOURCE_GROUP` environment variable.
+> For AKS clusters, there are two resource groups that you need to be aware of - the resource group where you deploy your AKS cluster to (denoted by the environment variable `RESOURCE_GROUP`), and the cluster resource group (`MC_<AKSResourceGroup>_<AKSClusterName>_<AKSClusterLocation>`). The latter contains all of the infrastructure resources associated with the cluster like VM/VMSS and VNet. Depending on where you deploy your user-assigned identities, you might need additional role assignments. Please refer to [Role Assignment](#role-assignment) for more information. For this demo, it is recommended to deploy the demo identity to your cluster resource group (the one with `MC_` prefix).
 
 ### 1. Deploy aad-pod-identity
 

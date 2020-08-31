@@ -4,7 +4,7 @@ AKS and aks-engine clusters require an identity to communicate with Azure. This 
 
 ## TL;DR
 
-Run the following commands to help you set up the apprioapate role assignments for your cluster identity before deploying aad-pod-identity (assuming you are running an AKS cluster):
+Run the following commands to help you set up the appropriate role assignments for your cluster identity before deploying aad-pod-identity (assuming you are running an AKS cluster):
 
 ```bash
 export SUBSCRIPTION_ID="<SubscriptionID>"
@@ -17,6 +17,8 @@ export IDENTITY_RESOURCE_GROUP="<IdentityResourceGroup>"
 
 ./hack/role-assignment.sh
 ```
+
+> Note: `<AKSResourceGroup>` is where your AKS cluster is deployed to.
 
 ## Introduction
 

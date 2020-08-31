@@ -10,7 +10,7 @@ assignees: ''
 
 - [ ] Read [Troubleshooting Guide](../../docs/readmes/README.troubleshooting.md)
 - [ ] Read [Known Issues](../../docs/readmes/README.known-issues.md)
-- [ ] Search on [GitHub issues](https://github.com/Azure/aad-pod-identity/issues)
+- [ ] Searched on [GitHub issues](https://github.com/Azure/aad-pod-identity/issues)
 
 **Describe the bug**
 
