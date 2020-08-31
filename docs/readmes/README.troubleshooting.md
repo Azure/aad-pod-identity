@@ -32,6 +32,66 @@ The expected output should be:
 -A aad-metadata -j RETURN
 ```
 
+### Run a pod to validate your identity setup
+
+You could run the following commands to validate your identity setup (assuming you have the proper `AzureIdentity` and `AzureIdentityBinding` deployed):
+
+```bash
+kubectl run azure-cli -it --image=mcr.microsoft.com/azure-cli --labels=aadpodidbinding=<selector defined in AzureIdentityBinding> /bin/bash
+
+# within the azure-cli shell
+az login -i --debug
+```
+
+`az login -i` will use the Azure identity bound to the `azure-cli` pod and perform a login to Azure via Azure CLI. If succeeded, you would have an output as below:
+
+```log
+urllib3.connectionpool : Starting new HTTP connection (1): 169.254.169.254:80
+urllib3.connectionpool : http://169.254.169.254:80 "GET /metadata/identity/oauth2/token?resource=https%3A%2F%2Fmanagement.core.windows.net%2F&api-version=2018-02-01 HTTP/1.1" 200 1667
+msrestazure.azure_active_directory : MSI: Retrieving a token from http://169.254.169.254/metadata/identity/oauth2/token, with payload {'resource': 'https://management.core.windows.net/', 'api-version': '2018-02-01'}
+msrestazure.azure_active_directory : MSI: Token retrieved
+MSI: token was retrieved. Now trying to initialize local accounts...
+...
+[
+  {
+    "environmentName": "AzureCloud",
+    "homeTenantId": "<REDACTED>",
+    "id": "<REDACTED>",
+    "isDefault": true,
+    "managedByTenants": [],
+    "name": "<REDACTED>",
+    "state": "Enabled",
+    "tenantId": "<REDACTED>",
+    "user": {
+      "assignedIdentityInfo": "MSI",
+      "name": "systemAssignedIdentity",
+      "type": "servicePrincipal"
+    }
+  }
+]
+```
+
+Based on the logs above, Azure CLI was able to retrieve a token from `http://169.254.169.254:80/metadata/identity/oauth2/token`. Its request is routed to the NMI pod that is running within the same node. Identify which node the Azure CLI pod is scheduled to by running the following command:
+
+```bash
+kubectl get pods -owide
+
+NAME                                    READY   STATUS    RESTARTS   AGE   IP             NODE                                 NOMINATED NODE   READINESS GATES
+azure-cli                               1/1     Running   1          12s   10.240.0.117   k8s-agentpool1-95854893-vmss000002   <none>           <none>
+```
+
+Take a note at the node the pod is scheduled to and its IP address. Check the logs of the NMI pod that is scheduled to the same node. You should be able to see a token requested by the azure-cli pod, identified by its pod IP address `10.240.0.117`:
+
+```bash
+kubectl logs <nmi pod name>
+
+...
+I0821 18:22:50.810806       1 standard.go:72] no clientID or resourceID in request. default/azure-cli has been matched with azure identity default/demo
+I0821 18:22:50.810895       1 standard.go:178] matched identityType:0 clientid:7eb6##### REDACTED #####a6a9 resource:https://management.core.windows.net/
+I0821 18:22:51.348117       1 server.go:190] status (200) took 537597287 ns for req.method=GET reg.path=/metadata/identity/oauth2/token req.remote=10.240.0.117
+...
+```
+
 ## Common Issues
 
 Common issues or questions that users have run into when using pod identity are detailed below.
@@ -67,7 +127,7 @@ kubectl delete azureassignedidentity --all
 To delete only a specific `AzureAssignedIdentity`, run the following command:
 ```bash
 kubectl get azureassignedidentity <name> -n <namespace> -o=json | jq '.items[].metadata.finalizers=null' | kubectl apply -f -
-kubectl delete azureassignedidentity <name> -n <namespace> 
+kubectl delete azureassignedidentity <name> -n <namespace>
 ```
 
 Past issues:

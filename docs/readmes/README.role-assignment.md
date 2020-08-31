@@ -2,6 +2,24 @@
 
 AKS and aks-engine clusters require an identity to communicate with Azure. This identity can be either a **managed identity** (in the form of system-assigned identity or user-assigned identity) or a **service principal**. This section explains various role assignments that need to be performed before using AAD Pod Identity. Without the proper role assignments, your Azure cluster will not have the correct permission to assign and un-assign identities from the underlying virtual machines (VM) or virtual machine scale sets (VMSS).
 
+## TL;DR
+
+Run the following commands to help you set up the appropriate role assignments for your cluster identity before deploying aad-pod-identity (assuming you are running an AKS cluster):
+
+```bash
+export SUBSCRIPTION_ID="<SubscriptionID>"
+export RESOURCE_GROUP="<AKSResourceGroup>"
+export CLUSTER_NAME="<AKSClusterName>"
+export CLUSTER_LOCATION="<AKSClusterLocation>"
+
+# if you are planning to deploy your user-assigned identities in a separate resource group
+export IDENTITY_RESOURCE_GROUP="<IdentityResourceGroup>"
+
+./hack/role-assignment.sh
+```
+
+> Note: `<AKSResourceGroup>` is where your AKS cluster is deployed to.
+
 ## Introduction
 
 Currently, [MIC](../../README.md#managed-identity-controller) uses one of the following two ways to authenticate with Azure:
@@ -18,7 +36,7 @@ Currently, [MIC](../../README.md#managed-identity-controller) uses one of the fo
 | Authentication method                  | `/etc/kubernetes/azure.json` fields used                                                     |
 |----------------------------------------|---------------------------------------------------------------------------------------------|
 | System-assigned managed identity       | `useManagedIdentityExtension: true` and `userAssignedIdentityID:""`                         |
-| User-assigned managed identity cluster | `useManagedIdentityExtension: true` and `userAssignedIdentityID:"<UserAssignedIdentityID>"` |
+| User-assigned managed identity         | `useManagedIdentityExtension: true` and `userAssignedIdentityID:"<UserAssignedIdentityID>"` |
 | Service principal (default)            | `aadClientID: "<AADClientID>"` and `aadClientSecret: "<AADClientSecret>"`                   |
 
 ## Obtaining the ID of the managed identity / service principal
@@ -43,6 +61,8 @@ The roles [**Managed Identity Operator**](https://docs.microsoft.com/en-us/azure
 az role assignment create --role "Managed Identity Operator" --assignee <ID> --scope /subscriptions/<SubscriptionID>/resourcegroups/<ClusterResourceGroup>
 az role assignment create --role "Virtual Machine Contributor" --assignee <ID> --scope /subscriptions/<SubscriptionID>/resourcegroups/<ClusterResourceGroup>
 ```
+
+> RBAC and non-RBAC clusters require the same role assignments.
 
 ## User-assigned identities that are not within the cluster resource group
 

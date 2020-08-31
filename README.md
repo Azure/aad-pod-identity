@@ -97,21 +97,45 @@ For more information, please refer to the [design documentation](./docs/design/c
 
 ## Role Assignment
 
-Your cluster will need the correct role assignment configuration to perform Azure-related operations such as assigning and un-assigning the identity on the underlying VM/VMSS. Please refer to the [role assignment](./docs/readmes/README.role-assignment.md) documentation to review and set required role assignments.
+Your cluster will need the correct role assignment configuration to perform Azure-related operations such as assigning and un-assigning the identity on the underlying VM/VMSS. You can run the following commands to help you set up the appropriate role assignments for your cluster identity before deploying aad-pod-identity (assuming you are running an AKS cluster):
+
+```bash
+export SUBSCRIPTION_ID="<SubscriptionID>"
+export RESOURCE_GROUP="<AKSResourceGroup>"
+export CLUSTER_NAME="<AKSClusterName>"
+export CLUSTER_LOCATION="<AKSClusterLocation>"
+
+# if you are planning to deploy your user-assigned identities in a separate resource group
+export IDENTITY_RESOURCE_GROUP="<IdentityResourceGroup>"
+
+./hack/role-assignment.sh
+```
+
+> Note: `<AKSResourceGroup>` is where your AKS cluster is deployed to.
+
+For more details, please refer to the [role assignment](./docs/readmes/README.role-assignment.md) documentation.
 
 ## Demo
 
 You will need [Azure CLI] installed and a Kubernetes cluster running on Azure, either managed by [AKS] or provisioned with [AKS Engine].
 
-Set the following Azure-related environment variables before getting started:
+Run the following commands to set Azure-related environment variables and login to Azure via `az login`:
 
 ```bash
-export SUBSCRIPTION_ID="<SubscriptionId>"
-export RESOURCE_GROUP="<ResourceGroup>"
+export SUBSCRIPTION_ID="<SubscriptionID>"
+export RESOURCE_GROUP="<AKSResourceGroup>"
+export CLUSTER_NAME="<AKSClusterName>"
+export CLUSTER_LOCATION="<AKSClusterLocation>"
+
+export IDENTITY_RESOURCE_GROUP="MC_${RESOURCE_GROUP}_${CLUSTER_NAME}_${CLUSTER_LOCATION}"
 export IDENTITY_NAME="demo"
+
+# login as a user and set the appropriate subscription ID
+az login
+az account set -s "${SUBSCRIPTION_ID}"
 ```
 
-> For AKS cluster, there are two resource groups that you need to be aware of - the resource group that contains the AKS cluster itself, and the cluster resource group (`MC_<AKSClusterName>_<AKSResourceGroup>_<Location>`). The latter contains all of the infrastructure resources associated with the cluster like VM/VMSS and VNet. Depending on where you deploy your user-assigned identities, you might need additional role assignments. Please refer to [Role Assignment](#role-assignment) for more information. For this demo, it is recommended to use the cluster resource group (the one with `MC_` prefix) as the `RESOURCE_GROUP` environment variable.
+> For AKS clusters, there are two resource groups that you need to be aware of - the resource group where you deploy your AKS cluster to (denoted by the environment variable `RESOURCE_GROUP`), and the cluster resource group (`MC_<AKSResourceGroup>_<AKSClusterName>_<AKSClusterLocation>`). The latter contains all of the infrastructure resources associated with the cluster like VM/VMSS and VNet. Depending on where you deploy your user-assigned identities, you might need additional role assignments. Please refer to [Role Assignment](#role-assignment) for more information. For this demo, it is recommended to deploy the demo identity to your cluster resource group (the one with `MC_` prefix).
 
 ### 1. Deploy aad-pod-identity
 
@@ -144,20 +168,24 @@ For a list of overwritable values when installing with Helm, please refer to [th
 
 > Important: For AKS clusters with limited [egress-traffic], Please install pod-identity in `kube-system` namespace using the [helm charts].
 
+```bash
+helm install aad-pod-identity aad-pod-identity/aad-pod-identity --namespace=kube-system
+```
+
 ### 2. Create an identity on Azure
 
 Create an identity on Azure and store the client ID and resource ID of the identity as environment variables:
 
 ```bash
-az identity create -g $RESOURCE_GROUP -n $IDENTITY_NAME --subscription $SUBSCRIPTION_ID
-export IDENTITY_CLIENT_ID="$(az identity show -g $RESOURCE_GROUP -n $IDENTITY_NAME --subscription $SUBSCRIPTION_ID --query clientId -otsv)"
-export IDENTITY_RESOURCE_ID="$(az identity show -g $RESOURCE_GROUP -n $IDENTITY_NAME --subscription $SUBSCRIPTION_ID --query id -otsv)"
+az identity create -g ${IDENTITY_RESOURCE_GROUP} -n ${IDENTITY_NAME}
+export IDENTITY_CLIENT_ID="$(az identity show -g ${IDENTITY_RESOURCE_GROUP} -n ${IDENTITY_NAME} --query clientId -otsv)"
+export IDENTITY_RESOURCE_ID="$(az identity show -g ${IDENTITY_RESOURCE_GROUP} -n ${IDENTITY_NAME} --query id -otsv)"
 ```
 
 Assign the role "Reader" to the identity so it has read access to the resource group. At the same time, store the identity assignment ID as an environment variable.
 
 ```bash
-export IDENTITY_ASSIGNMENT_ID="$(az role assignment create --role Reader --assignee $IDENTITY_CLIENT_ID --scope /subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP --query id -otsv)"
+export IDENTITY_ASSIGNMENT_ID="$(az role assignment create --role Reader --assignee ${IDENTITY_CLIENT_ID} --scope /subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${IDENTITY_RESOURCE_GROUP} --query id -otsv)"
 ```
 
 ### 3. Deploy `AzureIdentity`
@@ -169,11 +197,11 @@ cat <<EOF | kubectl apply -f -
 apiVersion: "aadpodidentity.k8s.io/v1"
 kind: AzureIdentity
 metadata:
-  name: $IDENTITY_NAME
+  name: ${IDENTITY_NAME}
 spec:
   type: 0
-  resourceID: $IDENTITY_RESOURCE_ID
-  clientID: $IDENTITY_CLIENT_ID
+  resourceID: ${IDENTITY_RESOURCE_ID}
+  clientID: ${IDENTITY_CLIENT_ID}
 EOF
 ```
 
@@ -181,7 +209,7 @@ EOF
 
 ### 4. (Optional) Match pods in the namespace
 
-For matching pods in the namespace, please refer to namespaced [README](docs/readmes/README.namespaced.md).
+For matching pods in the namespace, please refer to the [namespaced documentation](docs/readmes/README.namespaced.md).
 
 ### 5. Deploy `AzureIdentityBinding`
 
@@ -192,10 +220,10 @@ cat <<EOF | kubectl apply -f -
 apiVersion: "aadpodidentity.k8s.io/v1"
 kind: AzureIdentityBinding
 metadata:
-  name: $IDENTITY_NAME-binding
+  name: ${IDENTITY_NAME}-binding
 spec:
-  azureIdentity: $IDENTITY_NAME
-  selector: $IDENTITY_NAME
+  azureIdentity: ${IDENTITY_NAME}
+  selector: ${IDENTITY_NAME}
 EOF
 ```
 
@@ -216,9 +244,9 @@ spec:
   - name: demo
     image: mcr.microsoft.com/k8s/aad-pod-identity/demo:1.2
     args:
-      - --subscriptionid=$SUBSCRIPTION_ID
-      - --clientid=$IDENTITY_CLIENT_ID
-      - --resourcegroup=$RESOURCE_GROUP
+      - --subscriptionid=${SUBSCRIPTION_ID}
+      - --clientid=${IDENTITY_CLIENT_ID}
+      - --resourcegroup=${IDENTITY_RESOURCE_GROUP}
     env:
       - name: MY_POD_NAME
         valueFrom:
@@ -246,7 +274,8 @@ kubectl logs demo
 ```
 
 If successful, the log output would be similar to the following output:
-```
+
+```log
 ...
 successfully doARMOperations vm count 1
 successfully acquired a token using the MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token)
@@ -259,10 +288,10 @@ Once you are done with the demo, clean up your resources:
 
 ```bash
 kubectl delete pod demo
-kubectl delete azureidentity $IDENTITY_NAME
-kubectl delete azureidentitybinding $IDENTITY_NAME-binding
-az role assignment delete --id $IDENTITY_ASSIGNMENT_ID
-az identity delete -g $RESOURCE_GROUP -n $IDENTITY_NAME
+kubectl delete azureidentity ${IDENTITY_NAME}
+kubectl delete azureidentitybinding ${IDENTITY_NAME}-binding
+az role assignment delete --id ${IDENTITY_ASSIGNMENT_ID}
+az identity delete -g ${IDENTITY_RESOURCE_GROUP} -n ${IDENTITY_NAME}
 ```
 
 ## Uninstall Notes
