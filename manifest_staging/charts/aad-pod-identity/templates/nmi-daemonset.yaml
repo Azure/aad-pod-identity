@@ -28,7 +28,6 @@ spec:
       {{- if .Values.imagePullSecrets }}
       imagePullSecrets:
 {{ toYaml .Values.imagePullSecrets | indent 8 }}
-        {{- end }}
       {{- end }}
       {{- if .Values.rbac.enabled }}
       serviceAccountName: {{ template "aad-pod-identity.nmi.fullname" . }}
