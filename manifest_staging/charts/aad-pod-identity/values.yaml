@@ -9,6 +9,10 @@ image:
   repository: mcr.microsoft.com/k8s/aad-pod-identity
   imagePullPolicy: Always
 
+# One or more secrets to be used when pulling images
+# imagePullSecrets:
+#   - name: myRegistryKeySecretName
+
 # https://github.com/Azure/aad-pod-identity#4-optional-match-pods-in-the-namespace
 # By default, AAD Pod Identity matches pods to identities across namespaces.
 # To match only pods in the namespace containing AzureIdentity set this to true.
