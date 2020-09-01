@@ -22,6 +22,9 @@ import (
 type VMClient struct {
 	client   compute.VirtualMachinesClient
 	reporter *metrics.Reporter
+	// ARM throttling configures.
+	retryAfterReader time.Time
+	retryAfterWriter time.Time
 }
 
 // VMClientInt is the interface used by "cloudprovider" for interacting with Azure vmas
@@ -77,8 +80,16 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 		}
 	}()
 
+	// Report errors if the client is throttled.
+	if c.retryAfterReader.After(time.Now()) {
+		return compute.VirtualMachine{}, fmt.Errorf("VMGet client throttled, retry after: %v", c.retryAfterReader)
+	}
+
 	vm, err := c.client.Get(ctx, rgName, nodeName, "")
 	if err != nil {
+		resp := vm.Response.Response
+		// Update RetryAfterReader so that no more requests would be sent until RetryAfter expires.
+		c.retryAfterReader = time.Now().Add(getRetryAfter(resp))
 		return vm, fmt.Errorf("failed to get vm %s in resource group %s, error: %+v", nodeName, rgName, err)
 	}
 	stats.Increment(stats.TotalGetCalls, 1)
@@ -107,7 +118,15 @@ func (c *VMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachi
 		}
 	}()
 
+	// Report errors if the client is throttled.
+	if c.retryAfterWriter.After(time.Now()) {
+		return fmt.Errorf("VMUpdate client throttled, retry after: %v", c.retryAfterWriter)
+	}
+
 	if future, err = c.client.Update(ctx, rg, nodeName, compute.VirtualMachineUpdate{Identity: vm.Identity}); err != nil {
+		resp := future.Response()
+		// Update RetryAfterWriter so that no more requests would be sent until RetryAfter expires.
+		c.retryAfterWriter = time.Now().Add(getRetryAfter(resp))
 		return fmt.Errorf("failed to update identities for %s in %s, error: %+v", nodeName, rg, err)
 	}
 	if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {

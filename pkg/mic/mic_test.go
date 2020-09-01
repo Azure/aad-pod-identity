@@ -18,6 +18,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/retry"
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
+	"github.com/stretchr/testify/assert"
 	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -262,6 +263,23 @@ func (c *TestVMSSClient) CompareMSI(nodeName string, expectedUserIDs []string) b
 	}
 
 	return true
+}
+
+func (c *TestCloudClient) GetUserMSIs(name string, isvmss bool) ([]string, error) {
+	var ret []string
+	if isvmss {
+		vmss, _ := c.testVMSSClient.Get("", name)
+		for id := range vmss.Identity.UserAssignedIdentities {
+			ret = append(ret, id)
+		}
+	} else {
+		vm, _ := c.testVMClient.Get("", name)
+		for id := range vm.Identity.UserAssignedIdentities {
+			ret = append(ret, id)
+		}
+	}
+
+	return ret, nil
 }
 
 func (c *TestCloudClient) ListMSI() (ret map[string]*[]string) {
@@ -726,17 +744,18 @@ func NewMICTestClient(eventCh chan internalaadpodid.EventType,
 	reporter, _ := metrics.NewReporter()
 
 	realMICClient := &Client{
-		CloudClient:          cpClient,
-		CRDClient:            crdClient,
-		EventRecorder:        eventRecorder,
-		PodClient:            podClient,
-		EventChannel:         eventCh,
-		NodeClient:           nodeClient,
-		syncRetryInterval:    120 * time.Second,
-		IsNamespaced:         isNamespaced,
-		createDeleteBatch:    createDeleteBatch,
-		ImmutableUserMSIsMap: immutableUserMSIs,
-		Reporter:             reporter,
+		CloudClient:                         cpClient,
+		CRDClient:                           crdClient,
+		EventRecorder:                       eventRecorder,
+		PodClient:                           podClient,
+		EventChannel:                        eventCh,
+		NodeClient:                          nodeClient,
+		syncRetryInterval:                   120 * time.Second,
+		IsNamespaced:                        isNamespaced,
+		createDeleteBatch:                   createDeleteBatch,
+		ImmutableUserMSIsMap:                immutableUserMSIs,
+		Reporter:                            reporter,
+		identityAssignmentReconcileInterval: 3 * time.Minute,
 	}
 
 	return &TestMICClient{
@@ -1758,6 +1777,231 @@ func TestCloudProviderRetryLoop(t *testing.T) {
 	// when unassigning the identity from the underlying node
 	if assignedID.Status.Status != aadpodid.AssignedIDAssigned {
 		t.Fatalf("expected status to be %s, got: %s", aadpodid.AssignedIDAssigned, assignedID.Status.Status)
+	}
+}
+
+func TestGenerateIdentityAssignmentStateVM(t *testing.T) {
+	eventCh := make(chan internalaadpodid.EventType)
+	cloudClient := NewTestCloudClient(config.AzureConfig{VMType: "vmss"})
+	crdClient := NewTestCrdClient(nil)
+	podClient := NewTestPodClient()
+	nodeClient := NewTestNodeClient()
+	var evtRecorder TestEventRecorder
+	evtRecorder.lastEvent = new(LastEvent)
+	evtRecorder.eventChannel = make(chan bool)
+
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, nil)
+	currentState, desiredState, isVMSSMap, err := micClient.generateIdentityAssignmentState()
+	assert.Empty(t, currentState)
+	assert.Empty(t, desiredState)
+	assert.Empty(t, isVMSSMap)
+	assert.NoError(t, err)
+
+	nodeClient.AddNode("node-0", func(n *corev1.Node) {
+		n.Spec.ProviderID = "azure:///subscriptions/xxx/resourceGroups/xxx/providers/Microsoft.Compute/virtualMachines/node-0"
+	})
+
+	_ = crdClient.CreateAssignedIdentity(&internalaadpodid.AzureAssignedIdentity{
+		Spec: internalaadpodid.AzureAssignedIdentitySpec{
+			NodeName: "node-0",
+			AzureIdentityRef: &internalaadpodid.AzureIdentity{
+				Spec: internalaadpodid.AzureIdentitySpec{
+					ResourceID: testResourceID,
+				},
+			},
+		},
+		Status: internalaadpodid.AzureAssignedIdentityStatus{
+			Status: aadpodid.AssignedIDAssigned,
+		},
+	})
+
+	// the user-assigned identity isn't assigned to a VMSS instance on Azure
+	currentState, desiredState, isVMSSMap, err = micClient.generateIdentityAssignmentState()
+	assert.Equal(t, currentState, map[string]map[string]bool{
+		"node-0": {},
+	})
+	assert.Equal(t, desiredState, map[string]map[string]bool{
+		"node-0": {
+			testResourceID: true,
+		},
+	})
+	assert.Equal(t, isVMSSMap, map[string]bool{
+		"node-0": false,
+	})
+	assert.NoError(t, err)
+
+	// the user-assigned identity is now assigned to a VM instance on Azure
+	vm, _ := cloudClient.testVMClient.Get("", "node-0")
+	vm.Identity = &compute.VirtualMachineIdentity{
+		UserAssignedIdentities: map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
+			testResourceID: {},
+		},
+	}
+	_ = cloudClient.testVMClient.UpdateIdentities("", "node-0", vm)
+
+	currentState, desiredState, isVMSSMap, err = micClient.generateIdentityAssignmentState()
+	assert.Equal(t, currentState, map[string]map[string]bool{
+		"node-0": {
+			testResourceID: true,
+		},
+	})
+	assert.Equal(t, desiredState, map[string]map[string]bool{
+		"node-0": {
+			testResourceID: true,
+		},
+	})
+	assert.Equal(t, isVMSSMap, map[string]bool{
+		"node-0": false,
+	})
+	assert.NoError(t, err)
+}
+
+func TestGenerateIdentityAssignmentStateVMSS(t *testing.T) {
+	eventCh := make(chan internalaadpodid.EventType)
+	cloudClient := NewTestCloudClient(config.AzureConfig{VMType: "vmss"})
+	crdClient := NewTestCrdClient(nil)
+	podClient := NewTestPodClient()
+	nodeClient := NewTestNodeClient()
+	var evtRecorder TestEventRecorder
+	evtRecorder.lastEvent = new(LastEvent)
+	evtRecorder.eventChannel = make(chan bool)
+
+	micClient := NewMICTestClient(eventCh, cloudClient, crdClient, podClient, nodeClient, &evtRecorder, false, 4, nil)
+	currentState, desiredState, isVMSSMap, err := micClient.generateIdentityAssignmentState()
+	assert.Empty(t, currentState)
+	assert.Empty(t, desiredState)
+	assert.Empty(t, isVMSSMap)
+	assert.NoError(t, err)
+
+	nodeClient.AddNode("node-0", func(n *corev1.Node) {
+		n.Spec.ProviderID = "azure:///subscriptions/xxx/resourceGroups/xxx/providers/Microsoft.Compute/virtualMachineScaleSets/node-0/virtualMachines/0"
+	})
+
+	_ = crdClient.CreateAssignedIdentity(&internalaadpodid.AzureAssignedIdentity{
+		Spec: internalaadpodid.AzureAssignedIdentitySpec{
+			NodeName: "node-0",
+			AzureIdentityRef: &internalaadpodid.AzureIdentity{
+				Spec: internalaadpodid.AzureIdentitySpec{
+					Type:       internalaadpodid.UserAssignedMSI,
+					ResourceID: testResourceID,
+				},
+			},
+		},
+		Status: internalaadpodid.AzureAssignedIdentityStatus{
+			Status: aadpodid.AssignedIDAssigned,
+		},
+	})
+
+	// the user-assigned identity isn't assigned to a VMSS instance on Azure
+	currentState, desiredState, isVMSSMap, err = micClient.generateIdentityAssignmentState()
+	assert.Equal(t, currentState, map[string]map[string]bool{
+		"node-0": {},
+	})
+	assert.Equal(t, desiredState, map[string]map[string]bool{
+		"node-0": {
+			testResourceID: true,
+		},
+	})
+	assert.Equal(t, isVMSSMap, map[string]bool{
+		"node-0": true,
+	})
+	assert.NoError(t, err)
+
+	// the user-assigned identity is now assigned to a VMSS instance on Azure
+	vmss, _ := cloudClient.testVMSSClient.Get("", "node-0")
+	vmss.Identity = &compute.VirtualMachineScaleSetIdentity{
+		UserAssignedIdentities: map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{
+			testResourceID: {},
+		},
+	}
+	_ = cloudClient.testVMSSClient.UpdateIdentities("", "node-0", vmss)
+
+	currentState, desiredState, isVMSSMap, err = micClient.generateIdentityAssignmentState()
+	assert.Equal(t, currentState, map[string]map[string]bool{
+		"node-0": {
+			testResourceID: true,
+		},
+	})
+	assert.Equal(t, desiredState, map[string]map[string]bool{
+		"node-0": {
+			testResourceID: true,
+		},
+	})
+	assert.Equal(t, isVMSSMap, map[string]bool{
+		"node-0": true,
+	})
+	assert.NoError(t, err)
+}
+
+func TestGenerateIdentityAssignmentDiff(t *testing.T) {
+	testCases := []struct {
+		currentState map[string]map[string]bool
+		desiredState map[string]map[string]bool
+		expectedDiff map[string][]string
+	}{
+		{
+			currentState: map[string]map[string]bool{
+				"node-0": {
+					"id-0": true,
+				},
+			},
+			desiredState: map[string]map[string]bool{
+				"node-0": {
+					"id-0": true,
+				},
+			},
+			expectedDiff: map[string][]string{},
+		},
+		{
+			currentState: map[string]map[string]bool{
+				"node-1": {
+					"id-1": true,
+				},
+			},
+			desiredState: map[string]map[string]bool{
+				"node-0": {
+					"id-0": true,
+				},
+				"node-1": {
+					"id-0": true,
+					"id-1": true,
+				},
+			},
+			expectedDiff: map[string][]string{
+				"node-0": {
+					"id-0",
+				},
+				"node-1": {
+					"id-0",
+				},
+			},
+		},
+		{
+			currentState: nil,
+			desiredState: map[string]map[string]bool{
+				"node-0": {
+					"id-0": true,
+				},
+			},
+			expectedDiff: map[string][]string{
+				"node-0": {
+					"id-0",
+				},
+			},
+		},
+		{
+			currentState: map[string]map[string]bool{
+				"node-0": {
+					"id-0": true,
+				},
+			},
+			desiredState: nil,
+			expectedDiff: map[string][]string{},
+		},
+	}
+
+	for _, tc := range testCases {
+		assert.Equal(t, tc.expectedDiff, generateIdentityAssignmentDiff(tc.currentState, tc.desiredState))
 	}
 }
 

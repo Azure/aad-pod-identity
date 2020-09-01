@@ -36,6 +36,7 @@ spec:
       priorityClassName: {{ .Values.nmi.priorityClassName | quote }}
       {{- end }}
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       volumes:
       - hostPath:
           path: /run/xtables.lock
