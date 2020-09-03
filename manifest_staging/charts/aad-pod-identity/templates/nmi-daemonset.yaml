@@ -102,6 +102,12 @@ spec:
           - name: FORCENAMESPACED
             value: "{{ .Values.forceNameSpaced }}"
           {{- end }}
+        {{- if .Values.nmi.prometheusPort }}
+        ports:
+          - containerPort: {{ .Values.nmi.prometheusPort }}
+            name: metrics
+            protocol: TCP
+        {{- end }}
         securityContext:
           capabilities:
             add:

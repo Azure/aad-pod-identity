@@ -127,6 +127,12 @@ spec:
                 key: ClientSecret
                 name: {{ template "aad-pod-identity.mic.fullname" . }}
           {{- end }}
+        {{- if .Values.mic.prometheusPort }}
+        ports:
+          - containerPort: {{ .Values.mic.prometheusPort }}
+            name: metrics
+            protocol: TCP
+        {{- end }}
         {{- if not .Values.adminsecret }}
         volumeMounts:
           - name: k8s-azure-file
