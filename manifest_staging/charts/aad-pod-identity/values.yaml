@@ -33,9 +33,10 @@ adminsecret: {}
 #   resourceGroup: <cluster resource group>
 #   vmType: <`standard` for normal virtual machine nodes, and `vmss` for cluster deployed with a virtual machine scale set>
 #   tenantID: <service principal tenant id>
-#   clientID: <service principal client id>
-#   clientSecret: <service principal client secret>
-
+#   clientID: <service principal client id. Set to `msi` when using a User Managed Identity>
+#   clientSecret: <service principal client secret. Set to `msi` when using a User Managed Identity>
+#   useMSI: <set to true when using a User Managed Identity>
+#   userAssignedMSIClientID: <client id for the User Managed Identity>
 # Operation mode for pod-identity. Default is standard mode that has MIC doing identity assignment
 # Allowed values: "standard", "managed"
 operationMode: "standard"

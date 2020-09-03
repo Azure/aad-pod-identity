@@ -126,6 +126,18 @@ spec:
               secretKeyRef:
                 key: ClientSecret
                 name: {{ template "aad-pod-identity.mic.fullname" . }}
+          {{- if .Values.adminsecret.useMSI }}
+          - name: USE_MSI
+            valueFrom:
+              secretKeyRef:
+                key: UseMSI
+                name: {{ template "aad-pod-identity.mic.fullname" . }}
+          - name: USER_ASSIGNED_MSI_CLIENT_ID
+            valueFrom:
+              secretKeyRef:
+                key: UserAssignedMSIClientID
+                name: {{ template "aad-pod-identity.mic.fullname" . }}
+          {{- end }}
           {{- end }}
         {{- if .Values.mic.prometheusPort }}
         ports:
