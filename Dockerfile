@@ -1,4 +1,4 @@
-ARG BASEIMAGE=us.gcr.io/k8s-artifacts-prod/build-image/debian-base-amd64:v2.1.0
+ARG BASEIMAGE=us.gcr.io/k8s-artifacts-prod/build-image/debian-base-amd64:v2.1.3
 
 FROM golang:1.15 AS build
 WORKDIR /go/src/github.com/Azure/aad-pod-identity
