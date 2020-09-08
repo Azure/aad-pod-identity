@@ -10,9 +10,9 @@ import (
 	"k8s.io/klog"
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
-	auth "github.com/Azure/aad-pod-identity/pkg/auth"
-	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
-	utils "github.com/Azure/aad-pod-identity/pkg/utils"
+	"github.com/Azure/aad-pod-identity/pkg/auth"
+	"github.com/Azure/aad-pod-identity/pkg/k8s"
+	"github.com/Azure/aad-pod-identity/pkg/utils"
 )
 
 // StandardClient implements the TokenClient interface
@@ -49,7 +49,7 @@ func (sc *StandardClient) GetIdentities(ctx context.Context, podns, podname, cli
 	}
 
 	// filter out if we are in namespaced mode
-	filterPodIdentities := []aadpodid.AzureIdentity{}
+	var filterPodIdentities []aadpodid.AzureIdentity
 	for _, val := range podIDs {
 		if sc.IsNamespaced || aadpodid.IsNamespacedIdentity(&val) {
 			// namespaced mode
@@ -119,7 +119,7 @@ func (sc *StandardClient) listPodIDsWithRetry(ctx context.Context, podns, podnam
 					return idStateMap[aadpodid.AssignedIDAssigned], true, nil
 				}
 				if len(idStateMap[aadpodid.AssignedIDCreated]) == 0 && attempt >= sc.ListPodIDsRetryAttemptsForCreated {
-					return nil, false, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts, retry duration [%d]s, error: %+v",
+					return nil, false, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts, retry duration [%d]s, error: %+v. Check MIC pod logs for identity assignment errors",
 						podns, podname, sc.ListPodIDsRetryAttemptsForCreated, sc.ListPodIDsRetryIntervalInSeconds, err)
 				}
 			} else {
@@ -145,7 +145,7 @@ func (sc *StandardClient) listPodIDsWithRetry(ctx context.Context, podns, podnam
 					}
 				}
 				if !foundMatch && attempt >= sc.ListPodIDsRetryAttemptsForCreated {
-					return nil, false, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts, retry duration [%d]s, error: %+v",
+					return nil, false, fmt.Errorf("getting assigned identities for pod %s/%s in CREATED state failed after %d attempts, retry duration [%d]s, error: %+v. Check MIC pod logs for identity assignment errors",
 						podns, podname, sc.ListPodIDsRetryAttemptsForCreated, sc.ListPodIDsRetryIntervalInSeconds, err)
 				}
 			}
@@ -160,7 +160,7 @@ func (sc *StandardClient) listPodIDsWithRetry(ctx context.Context, podns, podnam
 		}
 		klog.V(4).Infof("failed to get assigned ids for pod:%s/%s in ASSIGNED state, retrying attempt: %d", podns, podname, attempt)
 	}
-	return nil, true, fmt.Errorf("getting assigned identities for pod %s/%s in ASSIGNED state failed after %d attempts, retry duration [%d]s, error: %+v",
+	return nil, true, fmt.Errorf("getting assigned identities for pod %s/%s in ASSIGNED state failed after %d attempts, retry duration [%d]s, error: %+v. Check MIC pod logs for identity assignment errors",
 		podns, podname, sc.ListPodIDsRetryAttemptsForCreated+sc.ListPodIDsRetryAttemptsForAssigned, sc.ListPodIDsRetryIntervalInSeconds, err)
 }
 
@@ -181,11 +181,12 @@ func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource s
 	case aadpodid.ServicePrincipal:
 		tenantID := azureID.Spec.TenantID
 		adEndpoint := azureID.Spec.ADEndpoint
+		secretRef := &azureID.Spec.ClientPassword
 		klog.Infof("matched identityType:%v adendpoint:%s tenantid:%s clientid:%s resource:%s",
 			idType, adEndpoint, tenantID, utils.RedactClientID(clientID), rqResource)
-		secret, err := sc.KubeClient.GetSecret(&azureID.Spec.ClientPassword)
+		secret, err := sc.KubeClient.GetSecret(secretRef)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get Kubernetes secret %s/%s, err: %v", secretRef.Namespace, secretRef.Name, err)
 		}
 		clientSecret := ""
 		for _, v := range secret.Data {
@@ -197,11 +198,12 @@ func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource s
 	case aadpodid.ServicePrincipalCertificate:
 		tenantID := azureID.Spec.TenantID
 		adEndpoint := azureID.Spec.ADEndpoint
+		secretRef := &azureID.Spec.ClientPassword
 		klog.Infof("matched identityType:%v adendpoint:%s tenantid:%s clientid:%s resource:%s",
 			idType, adEndpoint, tenantID, utils.RedactClientID(clientID), rqResource)
-		secret, err := sc.KubeClient.GetSecret(&azureID.Spec.ClientPassword)
+		secret, err := sc.KubeClient.GetSecret(secretRef)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get Kubernetes secret %s/%s, err: %v", secretRef.Namespace, secretRef.Name, err)
 		}
 		certificate, password := secret.Data["certificate"], secret.Data["password"]
 		token, err := auth.GetServicePrincipalTokenWithCertificate(adEndpoint, tenantID, clientID,

@@ -20,8 +20,8 @@ import (
 	"github.com/Azure/go-autorest/autorest/adal"
 	"k8s.io/klog"
 
-	auth "github.com/Azure/aad-pod-identity/pkg/auth"
-	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
+	"github.com/Azure/aad-pod-identity/pkg/auth"
+	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/nmi"
 	"github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
@@ -103,7 +103,7 @@ func (s *Server) Run() error {
 }
 
 func (s *Server) updateIPTableRulesInternal() {
-	klog.V(5).Infof("node(%s) ip(%s) metadataaddress(%s:%s) nmiport(%s)", s.NodeName, localhost, s.MetadataIP, s.MetadataPort, s.NMIPort)
+	klog.V(5).Infof("node(%s) ip(%s) metadata address(%s:%s) nmi port(%s)", s.NodeName, localhost, s.MetadataIP, s.MetadataPort, s.NMIPort)
 
 	if err := iptables.AddCustomChain(s.MetadataIP, s.MetadataPort, localhost, s.NMIPort); err != nil {
 		klog.Fatalf("%s", err)
@@ -180,7 +180,7 @@ func (fn appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			case error:
 				err = t
 			default:
-				err = errors.New("Unknown error")
+				err = errors.New("unknown error")
 			}
 			klog.Errorf("panic processing request: %+v, file: %s, line: %d, stacktrace: '%s' %s res.status=%d", r, file, line, stack, tracker, http.StatusInternalServerError)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -348,7 +348,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	ns = podns
 	exceptionList, err := s.KubeClient.ListPodIdentityExceptions(podns)
 	if err != nil {
-		klog.Errorf("getting list of azurepodidentityexceptions in %s namespace failed with error: %+v", podns, err)
+		klog.Errorf("getting list of AzurePodIdentityException in %s namespace failed with error: %+v", podns, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

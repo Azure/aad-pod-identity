@@ -84,11 +84,12 @@ func (mc *ManagedClient) GetToken(ctx context.Context, rqClientID, rqResource st
 	case aadpodid.ServicePrincipal:
 		tenantID := azureID.Spec.TenantID
 		adEndpoint := azureID.Spec.ADEndpoint
+		secretRef := &azureID.Spec.ClientPassword
 		klog.Infof("matched identityType:%v adendpoint:%s tenantid:%s clientid:%s resource:%s",
 			idType, adEndpoint, tenantID, utils.RedactClientID(clientID), rqResource)
-		secret, err := mc.KubeClient.GetSecret(&azureID.Spec.ClientPassword)
+		secret, err := mc.KubeClient.GetSecret(secretRef)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get Kubernetes secret %s/%s, err: %v", secretRef.Namespace, secretRef.Name, err)
 		}
 		clientSecret := ""
 		for _, v := range secret.Data {
@@ -100,11 +101,12 @@ func (mc *ManagedClient) GetToken(ctx context.Context, rqClientID, rqResource st
 	case aadpodid.ServicePrincipalCertificate:
 		tenantID := azureID.Spec.TenantID
 		adEndpoint := azureID.Spec.ADEndpoint
+		secretRef := &azureID.Spec.ClientPassword
 		klog.Infof("matched identityType:%v adendpoint:%s tenantid:%s clientid:%s resource:%s",
 			idType, adEndpoint, tenantID, utils.RedactClientID(clientID), rqResource)
-		secret, err := mc.KubeClient.GetSecret(&azureID.Spec.ClientPassword)
+		secret, err := mc.KubeClient.GetSecret(secretRef)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get Kubernetes secret %s/%s, err: %v", secretRef.Namespace, secretRef.Name, err)
 		}
 		certificate, password := secret.Data["certificate"], secret.Data["password"]
 		token, err := auth.GetServicePrincipalTokenWithCertificate(adEndpoint, tenantID, clientID,
