@@ -3,7 +3,7 @@
 This section lists the major known issues with aad-pod-identity. For a complete list of issues, please check our [GitHub issues page](https://github.com/Azure/aad-pod-identity/issues) or [file a new issue](https://github.com/Azure/aad-pod-identity/issues/new?assignees=&labels=bug&template=bug_report.md&title=) if your issue is not listed.
 
 - NMI pods not yet running during a cluster autoscaling event
-- User Managed Identity deleted and recreated with the same name in Azure
+- User-assigned managed identity deleted and recreated with the same name in Azure
 
 ## NMI pods not yet running during a cluster autoscaling event
 
@@ -11,9 +11,9 @@ NMI redirects Instance Metadata Service (IMDS) requests to itself by setting up 
 
 There is currently no solution in Kubernetes where a node can be set to `NoSchedule` until critical addons have been deployed to the cluster. There was a KEP for this particular enhancement - [kubernetes/enhancements#1003](https://github.com/kubernetes/enhancements/pull/1003) which is now closed.
 
-## User Managed Identity deleted and recreated with the same name in Azure
+## User-assigned managed identity deleted and recreated with the same name in Azure
 
-When the User Managed Identities have been deleted and re-created in Azure with the same name, the changes aren't automatically reflected in the identities on the underlying VM/VMSS. `az vmss identity show -g <resource group> -n <VMSS Name>` command output  will show the identity with `null` principalID and clientID. Token request for this identity will fail with "identity not found" error.
+When the user-assigned managed identities have been deleted and re-created in Azure with the same name, the changes aren't automatically reflected in the identities on the underlying VM/VMSS. `az <vm|vmss> identity show -g <resource group> -n <VM/VMSS name>` command output will show the identity with `null` principalID and clientID. Token request for this identity will fail with "identity not found" error.
 
 ```json
 {
@@ -32,7 +32,7 @@ When the User Managed Identities have been deleted and re-created in Azure with 
 
 Steps to take if the identity was deleted and re-created with same name -
 
-1. Remove identity manually from the VM/VMSS by running `az vmss identity remove -g <rg> -n <VM/VMSS name> --identities <identity resource id>`
+1. Remove identity manually from the VM/VMSS by running `az <vm|vmss> identity remove -g <rg> -n <VM/VMSS name> --identities <identity resource id>`
 2. Update the `AzureIdentity` with the new clientID for the recreated identity
 
-MIC will detect the change in `AzureIdentity` and re-assign the identity. This reassignment will ensure the identity with correct clientID exists on the underlying VM/VMSS.
+MIC will detect the change in `AzureIdentity` and reassign the identity. This reassignment will ensure the identity with correct clientID exists on the underlying VM/VMSS.
