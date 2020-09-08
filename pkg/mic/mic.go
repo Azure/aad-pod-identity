@@ -581,14 +581,14 @@ func (c *Client) createDesiredAssignedIdentityList(
 		klog.V(6).Infof("checking pod %s/%s", pod.Namespace, pod.Name)
 		if pod.Spec.NodeName == "" {
 			// Node is not yet allocated. In that case skip the pod
-			klog.V(2).Infof("pod %s/%s has no assigned node yet. it will be ignored", pod.Namespace, pod.Name)
+			klog.Infof("pod %s/%s has no assigned node yet. it will be ignored", pod.Namespace, pod.Name)
 			continue
 		}
 		crdPodLabelVal := pod.Labels[aadpodid.CRDLabelKey]
 		klog.V(6).Infof("pod: %s/%s. Label value: %v", pod.Namespace, pod.Name, crdPodLabelVal)
 		if crdPodLabelVal == "" {
 			// No binding mentioned in the label. Just continue to the next pod
-			klog.V(2).Infof("pod %s/%s has correct %s label but with no value. it will be ignored", pod.Namespace, pod.Name, aadpodid.CRDLabelKey)
+			klog.Infof("pod %s/%s doesn't contain %s label field. it will be ignored", pod.Namespace, pod.Name, aadpodid.CRDLabelKey)
 			continue
 		}
 		var matchedBindings []aadpodid.AzureIdentityBinding
@@ -599,6 +599,11 @@ func (c *Client) createDesiredAssignedIdentityList(
 				matchedBindings = append(matchedBindings, allBinding)
 				nodeRefs[pod.Spec.NodeName] = true
 			}
+		}
+
+		if len(matchedBindings) == 0 {
+			klog.Infof("No AzureIdentityBinding found for pod %s/%s that matches selector: %s. it will be ignored", pod.Namespace, pod.Name, crdPodLabelVal)
+			continue
 		}
 
 		for _, binding := range matchedBindings {
@@ -626,7 +631,7 @@ func (c *Client) createDesiredAssignedIdentityList(
 				// In such a case, we will skip it from matching binding.
 				// This will ensure that the new assigned ids created will not have the
 				// one associated with this azure identity.
-				klog.V(5).Infof("%s identity not found when using %s/%s binding", binding.Spec.AzureIdentity, binding.Namespace, binding.Name)
+				klog.Infof("%s identity not found when using %s/%s binding", binding.Spec.AzureIdentity, binding.Namespace, binding.Name)
 			}
 		}
 	}

@@ -84,11 +84,12 @@ func (mc *ManagedClient) GetToken(ctx context.Context, rqClientID, rqResource st
 	case aadpodid.ServicePrincipal:
 		tenantID := azureID.Spec.TenantID
 		adEndpoint := azureID.Spec.ADEndpoint
+		secretName := &azureID.Spec.ClientPassword
 		klog.Infof("matched identityType:%v adendpoint:%s tenantid:%s clientid:%s resource:%s",
 			idType, adEndpoint, tenantID, utils.RedactClientID(clientID), rqResource)
-		secret, err := mc.KubeClient.GetSecret(&azureID.Spec.ClientPassword)
+		secret, err := mc.KubeClient.GetSecret(secretName)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get Kubernetes secret %s, err: %v", secretName, err)
 		}
 		clientSecret := ""
 		for _, v := range secret.Data {
