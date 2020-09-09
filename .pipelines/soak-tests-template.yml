@@ -63,7 +63,15 @@ jobs:
             kubectl cluster-info
           displayName: "Check cluster's health"
 
-        - script: make e2e
+        - script: |
+            if [[ -n "${IMAGE_VERSION:-}" ]]; then
+              echo "Image version: ${IMAGE_VERSION}"
+              export MIC_VERSION="${IMAGE_VERSION}"
+              export NMI_VERSION="${IMAGE_VERSION}"
+              export IDENTITY_VALIDATOR_VERSION="${IMAGE_VERSION}"
+            fi
+            export REGISTRY="${REGISTRY:-$(REGISTRY_NAME).azurecr.io/k8s/aad-pod-identity}"
+            make e2e
           env:
             SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
             AZURE_CLIENT_ID: $(AZURE_CLIENT_ID)
