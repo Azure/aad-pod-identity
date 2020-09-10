@@ -14,3 +14,4 @@
 2. [Troubleshooting](README.troubleshooting.md)
 3. [Role Assignment](README.role-assignment.md)
 4. [Known Issues](README.known-issues.md)
+5. [Best Practices](README.best-practices.md)

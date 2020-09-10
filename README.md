@@ -13,23 +13,28 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 
 ## Contents
 
-* [v1.6.0 Breaking Change](#v160-breaking-change)
-* [Getting Started](#getting-started)
-* [Components](#components)
-  + [Managed Identity Controller](#managed-identity-controller)
-  + [Node Managed Identity](#node-managed-identity)
-* [Role Assignment](#role-assignment)
-* [Demo](#demo)
-  + [1. Deploy aad-pod-identity](#1-deploy-aad-pod-identity)
-  + [2. Create an identity on Azure](#2-create-an-identity-on-azure)
-  + [3. Deploy AzureIdentity](#3-deploy-azureidentity)
-  + [4. (Optional) Match pods in the namespace](#4--optional--match-pods-in-the-namespace)
-  + [5. Deploy AzureIdentityBinding](#5-deploy-azureidentitybinding)
-  + [6. Deployment and Validation](#6-deployment-and-validation)
-* [Uninstall Notes](#uninstall-notes)
-* [What To Do Next?](#what-to-do-next)
-* [Code of Conduct](#code-of-conduct)
-* [Support](#support)
+- [AAD Pod Identity](#aad-pod-identity)
+  * [Contents](#contents)
+  * [v1.6.0 Breaking Change](#v160-breaking-change)
+    + [`AzureIdentity`](#azureidentity)
+    + [`AzureIdentityBinding`](#azureidentitybinding)
+    + [`AzurePodIdentityException`](#azurepodidentityexception)
+  * [Getting Started](#getting-started)
+  * [Components](#components)
+    + [Managed Identity Controller](#managed-identity-controller)
+    + [Node Managed Identity](#node-managed-identity)
+  * [Role Assignment](#role-assignment)
+  * [Demo](#demo)
+    + [1. Deploy aad-pod-identity](#1-deploy-aad-pod-identity)
+    + [2. Create an identity on Azure](#2-create-an-identity-on-azure)
+    + [3. Deploy `AzureIdentity`](#3-deploy-azureidentity)
+    + [4. (Optional) Match pods in the namespace](#4-optional-match-pods-in-the-namespace)
+    + [5. Deploy `AzureIdentityBinding`](#5-deploy--azureidentitybinding-)
+    + [6. Deployment and Validation](#6-deployment-and-validation)
+  * [Uninstall Notes](#uninstall-notes)
+  * [What To Do Next?](#what-to-do-next)
+  * [Code of Conduct](#code-of-conduct)
+  * [Support](#support)
 
 ## v1.6.0 Breaking Change
 
@@ -313,6 +318,7 @@ iptables -t nat -X aad-metadata
 
 ## What To Do Next?
 
+* [Additional readings](docs/readmes/README.md)
 * Dive deeper into AAD Pod Identity by following the detailed [Tutorial].
 * Learn more about the design of AAD Pod Identity:
   - [Concept]
