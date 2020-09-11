@@ -32,10 +32,7 @@ func Create(input CreateInput) *corev1.Namespace {
 		},
 	}
 
-	Eventually(func() error {
-		return input.Creator.Create(context.TODO(), ns)
-	}, framework.CreateTimeout, framework.CreatePolling).Should(Succeed())
-
+	Expect(input.Creator.Create(context.TODO(), ns)).Should(Succeed())
 	By(fmt.Sprintf("Creating namespace \"%s\"", ns.Name))
 
 	return ns
@@ -55,18 +52,9 @@ func Delete(input DeleteInput) {
 	Expect(input.Namespace).NotTo(BeNil(), "input.Namespace is required for Namespace.Delete")
 
 	By(fmt.Sprintf("Deleting namespace \"%s\"", input.Namespace.Name))
+	Expect(input.Deleter.Delete(context.TODO(), input.Namespace)).Should(Succeed())
 
-	Eventually(func() error {
-		return input.Deleter.Delete(context.TODO(), input.Namespace)
-	}, framework.DeleteTimeout, framework.DeletePolling).Should(Succeed())
-
-	Eventually(func() (bool, error) {
-		ns := &corev1.Namespace{}
-
-		if err := input.Getter.Get(context.TODO(), client.ObjectKey{Name: input.Namespace.Name}, ns); err == nil {
-			return false, nil
-		} else {
-			return true, nil
-		}
-	}, framework.DeleteTimeout, framework.DeletePolling).Should(BeTrue())
+	Eventually(func() bool {
+		return input.Getter.Get(context.TODO(), client.ObjectKey{Name: input.Namespace.Name}, &corev1.Namespace{}) != nil
+	}, framework.Timeout, framework.Polling).Should(BeTrue())
 }

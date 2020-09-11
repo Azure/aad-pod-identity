@@ -28,25 +28,14 @@ func GetLeader(input GetLeaderInput) *corev1.Pod {
 	By("Getting MIC Leader")
 
 	leaderPod := &corev1.Pod{}
-	Eventually(func() (bool, error) {
-		endpoints := &corev1.Endpoints{}
-		if err := input.Getter.Get(context.TODO(), client.ObjectKey{Name: "aad-pod-identity-mic", Namespace: corev1.NamespaceDefault}, endpoints); err != nil {
-			return false, err
-		}
+	endpoints := &corev1.Endpoints{}
+	Expect(input.Getter.Get(context.TODO(), client.ObjectKey{Name: "aad-pod-identity-mic", Namespace: corev1.NamespaceDefault}, endpoints)).Should(Succeed())
 
-		leRecord := &rl.LeaderElectionRecord{}
-		err := json.Unmarshal([]byte(endpoints.ObjectMeta.Annotations["control-plane.alpha.kubernetes.io/leader"]), leRecord)
-		if err != nil {
-			return false, err
-		}
+	leRecord := &rl.LeaderElectionRecord{}
+	Expect(json.Unmarshal([]byte(endpoints.ObjectMeta.Annotations["control-plane.alpha.kubernetes.io/leader"]), leRecord)).Should(Succeed())
 
-		leaderName := leRecord.HolderIdentity
-		if err := input.Getter.Get(context.TODO(), client.ObjectKey{Name: leaderName, Namespace: framework.NamespaceKubeSystem}, leaderPod); err != nil {
-			return false, err
-		}
-
-		return true, nil
-	}, framework.GetTimeout, framework.GetPolling).Should(BeTrue())
+	leaderName := leRecord.HolderIdentity
+	Expect(input.Getter.Get(context.TODO(), client.ObjectKey{Name: leaderName, Namespace: framework.NamespaceKubeSystem}, leaderPod)).Should(Succeed())
 
 	return leaderPod
 }
@@ -67,8 +56,5 @@ func DeleteLeader(input DeleteLeaderInput) {
 	})
 
 	By(fmt.Sprintf("Deleting MIC Leader \"%s\"", leader.Name))
-
-	Eventually(func() error {
-		return input.Deleter.Delete(context.TODO(), leader)
-	}, framework.DeleteTimeout, framework.DeletePolling).Should(Succeed())
+	Expect(input.Deleter.Delete(context.TODO(), leader)).Should(Succeed())
 }

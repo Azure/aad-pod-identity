@@ -21,9 +21,7 @@ func List(input ListInput) *corev1.NodeList {
 	Expect(input.Lister).NotTo(BeNil(), "input.Lister is required for Node.List")
 
 	nodes := &corev1.NodeList{}
-	Eventually(func() error {
-		return input.Lister.List(context.TODO(), nodes)
-	}, framework.ListTimeout, framework.ListPolling).Should(Succeed())
+	Expect(input.Lister.List(context.TODO(), nodes)).Should(Succeed())
 
 	return nodes
 }

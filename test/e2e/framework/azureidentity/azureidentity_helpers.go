@@ -66,13 +66,9 @@ func Create(input CreateInput) *aadpodv1.AzureIdentity {
 	// For gatekeeper test case
 	if input.InvalidResourceID {
 		azureIdentity.Spec.ResourceID = fmt.Sprintf(invalidResourceIDTemplate, input.Config.SubscriptionID, input.IdentityName)
-		Eventually(func() error {
-			return input.Creator.Create(context.TODO(), azureIdentity)
-		}, framework.CreateTimeout, framework.CreatePolling).ShouldNot(Succeed())
+		Expect(input.Creator.Create(context.TODO(), azureIdentity)).ShouldNot(Succeed())
 	} else {
-		Eventually(func() error {
-			return input.Creator.Create(context.TODO(), azureIdentity)
-		}, framework.CreateTimeout, framework.CreatePolling).Should(Succeed())
+		Expect(input.Creator.Create(context.TODO(), azureIdentity)).Should(Succeed())
 	}
 
 	return azureIdentity
@@ -162,9 +158,7 @@ func Update(input UpdateInput) *aadpodv1.AzureIdentity {
 	input.AzureIdentity.Spec.ClientID = identityClientID
 	input.AzureIdentity.Spec.ResourceID = fmt.Sprintf(azure.ResourceIDTemplate, input.Config.SubscriptionID, input.Config.IdentityResourceGroup, input.UpdatedIdentityName)
 
-	Eventually(func() error {
-		return input.Updater.Update(context.TODO(), input.AzureIdentity)
-	}, framework.UpdateTimeout, framework.UpdatePolling).Should(Succeed())
+	Expect(input.Updater.Update(context.TODO(), input.AzureIdentity)).Should(Succeed())
 
 	return input.AzureIdentity
 }
@@ -181,8 +175,5 @@ func Delete(input DeleteInput) {
 	Expect(input.AzureIdentity).NotTo(BeNil(), "input.AzureIdentity is required for AzureIdentity.Delete")
 
 	By(fmt.Sprintf("Deleting AzureIdentity \"%s\"", input.AzureIdentity.Name))
-
-	Eventually(func() error {
-		return input.Deleter.Delete(context.TODO(), input.AzureIdentity)
-	}, framework.DeleteTimeout, framework.DeletePolling).Should(Succeed())
+	Expect(input.Deleter.Delete(context.TODO(), input.AzureIdentity)).Should(Succeed())
 }

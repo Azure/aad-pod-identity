@@ -9,7 +9,6 @@ import (
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework"
-	"github.com/Azure/aad-pod-identity/test/e2e/framework/azureassignedidentity"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/azureidentity"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/azureidentitybinding"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/exec"
@@ -38,15 +37,11 @@ var _ = Describe("When upgrading AAD Pod Identity", func() {
 	})
 
 	AfterEach(func() {
-		namespace.Delete(namespace.DeleteInput{
-			Deleter:   kubeClient,
-			Getter:    kubeClient,
+		Cleanup(CleanupInput{
 			Namespace: ns,
-		})
-
-		azureassignedidentity.WaitForLen(azureassignedidentity.WaitForLenInput{
-			Lister: kubeClient,
-			Len:    0,
+			Getter:    kubeClient,
+			Lister:    kubeClient,
+			Deleter:   kubeClient,
 		})
 	})
 
@@ -65,6 +60,7 @@ var _ = Describe("When upgrading AAD Pod Identity", func() {
 		configOldVersion.MICVersion = "1.5"
 		configOldVersion.NMIVersion = "1.5"
 		configOldVersion.ImmutableUserMSIs = ""
+		configOldVersion.IdentityReconcileInterval = 0
 		configOldVersion.BlockInstanceMetadata = false
 
 		helm.Upgrade(helm.UpgradeInput{
