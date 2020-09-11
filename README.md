@@ -14,27 +14,27 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 ## Contents
 
 - [AAD Pod Identity](#aad-pod-identity)
-  * [Contents](#contents)
-  * [v1.6.0 Breaking Change](#v160-breaking-change)
-    + [`AzureIdentity`](#azureidentity)
-    + [`AzureIdentityBinding`](#azureidentitybinding)
-    + [`AzurePodIdentityException`](#azurepodidentityexception)
-  * [Getting Started](#getting-started)
-  * [Components](#components)
-    + [Managed Identity Controller](#managed-identity-controller)
-    + [Node Managed Identity](#node-managed-identity)
-  * [Role Assignment](#role-assignment)
-  * [Demo](#demo)
-    + [1. Deploy aad-pod-identity](#1-deploy-aad-pod-identity)
-    + [2. Create an identity on Azure](#2-create-an-identity-on-azure)
-    + [3. Deploy `AzureIdentity`](#3-deploy-azureidentity)
-    + [4. (Optional) Match pods in the namespace](#4-optional-match-pods-in-the-namespace)
-    + [5. Deploy `AzureIdentityBinding`](#5-deploy--azureidentitybinding-)
-    + [6. Deployment and Validation](#6-deployment-and-validation)
-  * [Uninstall Notes](#uninstall-notes)
-  * [What To Do Next?](#what-to-do-next)
-  * [Code of Conduct](#code-of-conduct)
-  * [Support](#support)
+  - [Contents](#contents)
+  - [v1.6.0 Breaking Change](#v160-breaking-change)
+    - [`AzureIdentity`](#azureidentity)
+    - [`AzureIdentityBinding`](#azureidentitybinding)
+    - [`AzurePodIdentityException`](#azurepodidentityexception)
+  - [Getting Started](#getting-started)
+  - [Components](#components)
+    - [Managed Identity Controller](#managed-identity-controller)
+    - [Node Managed Identity](#node-managed-identity)
+  - [Role Assignment](#role-assignment)
+  - [Demo](#demo)
+    - [1. Deploy aad-pod-identity](#1-deploy-aad-pod-identity)
+    - [2. Create an identity on Azure](#2-create-an-identity-on-azure)
+    - [3. Deploy `AzureIdentity`](#3-deploy-azureidentity)
+    - [4. (Optional) Match pods in the namespace](#4-optional-match-pods-in-the-namespace)
+    - [5. Deploy `AzureIdentityBinding`](#5-deploy-azureidentitybinding)
+    - [6. Deployment and Validation](#6-deployment-and-validation)
+  - [Uninstall Notes](#uninstall-notes)
+  - [What To Do Next?](#what-to-do-next)
+  - [Code of Conduct](#code-of-conduct)
+  - [Support](#support)
 
 ## v1.6.0 Breaking Change
 
@@ -45,7 +45,7 @@ However, for future `AzureIdentity` and `AzureIdentityBinding` created using v1.
 ### `AzureIdentity`
 
 | < 1.6.0          | >= 1.6.0         |
-|------------------|------------------|
+| ---------------- | ---------------- |
 | `ClientID`       | `clientID`       |
 | `ClientPassword` | `clientPassword` |
 | `ResourceID`     | `resourceID`     |
@@ -54,15 +54,15 @@ However, for future `AzureIdentity` and `AzureIdentityBinding` created using v1.
 ### `AzureIdentityBinding`
 
 | < 1.6.0         | >= 1.6.0        |
-|-----------------|-----------------|
+| --------------- | --------------- |
 | `AzureIdentity` | `azureIdentity` |
 | `Selector`      | `selector`      |
 
 ### `AzurePodIdentityException`
 
-| < 1.6.0         | >= 1.6.0        |
-|-----------------|-----------------|
-| `PodLabels`     | `podLabels`     |
+| < 1.6.0     | >= 1.6.0    |
+| ----------- | ----------- |
+| `PodLabels` | `podLabels` |
 
 ## Getting Started
 
@@ -80,7 +80,7 @@ Specifically, when a pod is scheduled, the MIC assigns the identity on Azure to 
 
 ### Node Managed Identity
 
-The authorization request to fetch a Service Principal Token from an MSI endpoint is sent to Azure Instance Metadata Service (IMDS) endpoint (169.254.169.254), which is redirected to the NMI pod. The redirection is accomplished by adding rules to redirect POD CIDR traffic with IMDS endpoint on port 80 to the NMI endpoint. The NMI server identifies the pod based on the remote address of the request and then queries Kubernetes (through MIC) for a matching Azure identity. NMI then makes an Azure Active Directory Authentication Library ([ADAL]) request to get the token for the client ID and returns it as a response. If the request had client ID as part of the query, it is validated against the admin-configured client ID.
+The authorization request to fetch a Service Principal Token from an MSI endpoint is sent to Azure Instance Metadata Service (IMDS) endpoint (169.254.169.254), which is redirected to the NMI pod. The redirection is accomplished by adding iptable rules to redirect all non-host traffic with IMDS endpoint on port 80 as destination to the NMI endpoint. The NMI server identifies the pod based on the remote address of the request and then queries Kubernetes (through MIC) for a matching Azure identity. NMI then makes an Azure Active Directory Authentication Library ([ADAL]) request to get the token for the client ID and returns it as a response. If the request had client ID as part of the query, it is validated against the admin-configured client ID.
 
 Here is an example cURL command that will fetch an access token to access ARM within a pod identified by an AAD-Pod-Identity selector:
 
