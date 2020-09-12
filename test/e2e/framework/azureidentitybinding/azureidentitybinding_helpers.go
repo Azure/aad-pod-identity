@@ -52,9 +52,7 @@ func Create(input CreateInput) *aadpodv1.AzureIdentityBinding {
 		},
 	}
 
-	Eventually(func() error {
-		return input.Creator.Create(context.TODO(), azureIdentityBinding)
-	}, framework.CreateTimeout, framework.CreatePolling).Should(Succeed())
+	Expect(input.Creator.Create(context.TODO(), azureIdentityBinding)).Should(Succeed())
 
 	return azureIdentityBinding
 }
@@ -126,8 +124,5 @@ func Delete(input DeleteInput) {
 	Expect(input.AzureIdentityBinding).NotTo(BeNil(), "input.AzureIdentityBinding is required for AzureIdentityBinding.Delete")
 
 	By(fmt.Sprintf("Deleting AzureIdentityBinding \"%s\"", input.AzureIdentityBinding.Name))
-
-	Eventually(func() error {
-		return input.Deleter.Delete(context.TODO(), input.AzureIdentityBinding)
-	}, framework.DeleteTimeout, framework.DeletePolling).Should(Succeed())
+	Expect(input.Deleter.Delete(context.TODO(), input.AzureIdentityBinding)).Should(Succeed())
 }

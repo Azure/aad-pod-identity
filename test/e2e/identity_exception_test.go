@@ -3,7 +3,6 @@
 package e2e
 
 import (
-	"github.com/Azure/aad-pod-identity/test/e2e/framework/azureassignedidentity"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/azurepodidentityexception"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/identityvalidator"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/namespace"
@@ -28,15 +27,11 @@ var _ = Describe("When deploying AzurePodIdentityException", func() {
 	})
 
 	AfterEach(func() {
-		namespace.Delete(namespace.DeleteInput{
-			Deleter:   kubeClient,
-			Getter:    kubeClient,
+		Cleanup(CleanupInput{
 			Namespace: ns,
-		})
-
-		azureassignedidentity.WaitForLen(azureassignedidentity.WaitForLenInput{
-			Lister: kubeClient,
-			Len:    0,
+			Getter:    kubeClient,
+			Lister:    kubeClient,
+			Deleter:   kubeClient,
 		})
 	})
 

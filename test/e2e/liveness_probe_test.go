@@ -21,13 +21,7 @@ import (
 var _ = Describe("When liveness probe is enabled", func() {
 	It("should pass liveness probe test", func() {
 		pods := &corev1.PodList{}
-		Eventually(func() (bool, error) {
-			if err := kubeClient.List(context.TODO(), pods, client.InNamespace(framework.NamespaceKubeSystem)); err != nil {
-				return false, err
-			}
-
-			return true, nil
-		}, framework.ListTimeout, framework.ListPolling).Should(BeTrue())
+		Expect(kubeClient.List(context.TODO(), pods, client.InNamespace(framework.NamespaceKubeSystem))).Should(Succeed())
 
 		micPods := pod.List(pod.ListInput{
 			Lister:    kubeClient,

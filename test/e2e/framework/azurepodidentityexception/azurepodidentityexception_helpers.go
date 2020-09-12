@@ -41,9 +41,7 @@ func Create(input CreateInput) *aadpodv1.AzurePodIdentityException {
 		},
 	}
 
-	Eventually(func() error {
-		return input.Creator.Create(context.TODO(), azurePodIdentityException)
-	}, framework.CreateTimeout, framework.CreatePolling).Should(Succeed())
+	Expect(input.Creator.Create(context.TODO(), azurePodIdentityException)).Should(Succeed())
 
 	return azurePodIdentityException
 }

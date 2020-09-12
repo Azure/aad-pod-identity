@@ -28,13 +28,7 @@ func List(input ListInput) *corev1.PodList {
 	By(fmt.Sprintf("Listing pods with labels %v in %s namespace", input.Labels, input.Namespace))
 
 	pods := &corev1.PodList{}
-	Eventually(func() (bool, error) {
-		if err := input.Lister.List(context.TODO(), pods, client.InNamespace(input.Namespace), client.MatchingLabels(input.Labels)); err != nil {
-			return false, err
-		}
-
-		return true, nil
-	}, framework.ListTimeout, framework.ListPolling).Should(BeTrue())
+	Expect(input.Lister.List(context.TODO(), pods, client.InNamespace(input.Namespace), client.MatchingLabels(input.Labels))).Should(Succeed())
 
 	return pods
 }

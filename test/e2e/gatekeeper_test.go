@@ -8,7 +8,6 @@ import (
 	"time"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
-	"github.com/Azure/aad-pod-identity/test/e2e/framework/azureassignedidentity"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/azureidentity"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/exec"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/namespace"
@@ -76,15 +75,11 @@ var _ = Describe("When using AAD Pod Identity with Gatekeeper", func() {
 	})
 
 	AfterEach(func() {
-		namespace.Delete(namespace.DeleteInput{
-			Deleter:   kubeClient,
-			Getter:    kubeClient,
+		Cleanup(CleanupInput{
 			Namespace: ns,
-		})
-
-		azureassignedidentity.WaitForLen(azureassignedidentity.WaitForLenInput{
-			Lister: kubeClient,
-			Len:    0,
+			Getter:    kubeClient,
+			Lister:    kubeClient,
+			Deleter:   kubeClient,
 		})
 	})
 

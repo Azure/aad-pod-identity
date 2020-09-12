@@ -64,15 +64,11 @@ var _ = Describe("When managing identities from the underlying nodes", func() {
 	})
 
 	AfterEach(func() {
-		namespace.Delete(namespace.DeleteInput{
-			Deleter:   kubeClient,
-			Getter:    kubeClient,
+		Cleanup(CleanupInput{
 			Namespace: ns,
-		})
-
-		azureassignedidentity.WaitForLen(azureassignedidentity.WaitForLenInput{
-			Lister: kubeClient,
-			Len:    0,
+			Getter:    kubeClient,
+			Lister:    kubeClient,
+			Deleter:   kubeClient,
 		})
 	})
 
@@ -389,10 +385,10 @@ var _ = Describe("When managing identities from the underlying nodes", func() {
 		Expect(err).To(BeNil())
 
 		By("Waiting for identity assignment to be reconciled")
-		Eventually(func() (bool, error) {
+		Eventually(func() bool {
 			userAssignedIdentities := azureClient.ListUserAssignedIdentities(node.Spec.ProviderID)
-			return isUserAssignedIdentityExist(userAssignedIdentities, keyvaultIdentity), nil
-		}, framework.WaitTimeout, framework.WaitPolling).Should(BeTrue())
+			return isUserAssignedIdentityExist(userAssignedIdentities, keyvaultIdentity)
+		}, framework.Timeout, framework.Polling).Should(BeTrue())
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
 			Getter:             kubeClient,

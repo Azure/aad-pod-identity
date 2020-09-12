@@ -115,9 +115,7 @@ func Create(input CreateInput) *corev1.Pod {
 		}
 	}
 
-	Eventually(func() error {
-		return input.Creator.Create(context.TODO(), pod)
-	}, framework.CreateTimeout, framework.CreatePolling).Should(Succeed())
+	Expect(input.Creator.Create(context.TODO(), pod)).Should(Succeed())
 
 	return pod
 }
@@ -174,20 +172,11 @@ func UpdatePodLabel(input UpdatePodLabelInput) *corev1.Pod {
 	Expect(input.UpdatedPodLabel).NotTo(BeEmpty(), "input.UpdatedPodLabel is required for IdentityValidator.Update")
 
 	identityValidator := &corev1.Pod{}
-	Eventually(func() (bool, error) {
-		if err := input.Getter.Get(context.TODO(), client.ObjectKey{Name: input.PodName, Namespace: input.Namespace}, identityValidator); err != nil {
-			return false, err
-		}
-
-		return true, nil
-	}, framework.GetTimeout, framework.GetPolling).Should(BeTrue())
+	Expect(input.Getter.Get(context.TODO(), client.ObjectKey{Name: input.PodName, Namespace: input.Namespace}, identityValidator)).Should(Succeed())
 
 	By(fmt.Sprintf("Changing the pod label of %s from %s to %s", input.PodName, identityValidator.ObjectMeta.Labels[aadpodv1.CRDLabelKey], input.UpdatedPodLabel))
 	identityValidator.ObjectMeta.Labels[aadpodv1.CRDLabelKey] = input.UpdatedPodLabel
-
-	Eventually(func() error {
-		return input.Updater.Update(context.TODO(), identityValidator)
-	}, framework.UpdateTimeout, framework.UpdatePolling).Should(Succeed())
+	Expect(input.Updater.Update(context.TODO(), identityValidator)).Should(Succeed())
 
 	return identityValidator
 }
@@ -204,10 +193,7 @@ func Delete(input DeleteInput) {
 	Expect(input.IdentityValidator).NotTo(BeNil(), "input.IdentityValidator is required for IdentityValidator.Delete")
 
 	By(fmt.Sprintf("Deleting pod \"%s\"", input.IdentityValidator.Name))
-
-	Eventually(func() error {
-		return input.Deleter.Delete(context.TODO(), input.IdentityValidator)
-	}, framework.DeleteTimeout, framework.DeletePolling).Should(Succeed())
+	Expect(input.Deleter.Delete(context.TODO(), input.IdentityValidator)).Should(Succeed())
 }
 
 // ValidateInput is the input for Validate.
@@ -233,11 +219,10 @@ func Validate(input ValidateInput) {
 	Expect(input.IdentityClientID).NotTo(BeEmpty(), "input.IdentityClientID is required for IdentityValidator.Validate")
 
 	By(fmt.Sprintf("Ensuring Pod \"%s\" is Running", input.PodName))
-	Eventually(func() (bool, error) {
+	Eventually(func() bool {
 		pod := &corev1.Pod{}
-		if err := input.Getter.Get(context.TODO(), client.ObjectKey{Name: input.PodName, Namespace: input.Namespace}, pod); err != nil {
-			return false, err
-		}
+		Expect(input.Getter.Get(context.TODO(), client.ObjectKey{Name: input.PodName, Namespace: input.Namespace}, pod)).Should(Succeed())
+
 		if pod.Status.Phase == corev1.PodRunning {
 			if input.InitContainer {
 				By("Ensuring the exit code of init container is 0")
@@ -245,10 +230,10 @@ func Validate(input ValidateInput) {
 				Expect(pod.Status.InitContainerStatuses[0].State.Terminated.ExitCode == 0).To(BeTrue())
 				Expect(pod.Status.InitContainerStatuses[0].State.Terminated.Reason == "Completed").To(BeTrue())
 			}
-			return true, nil
+			return true
 		}
-		return false, nil
-	}, framework.WaitTimeout, framework.WaitPolling).Should(BeTrue())
+		return false
+	}, framework.Timeout, framework.Polling).Should(BeTrue())
 
 	args := []string{
 		"identityvalidator",

@@ -41,7 +41,6 @@ func Install(input InstallInput) {
 		chartName,
 		"manifest_staging/charts/aad-pod-identity",
 		"--wait",
-		"--debug",
 		fmt.Sprintf("--namespace=%s", framework.NamespaceKubeSystem),
 		"--debug",
 	})
@@ -86,7 +85,6 @@ func Upgrade(input UpgradeInput) {
 		chartName,
 		"manifest_staging/charts/aad-pod-identity",
 		"--wait",
-		"--debug",
 		fmt.Sprintf("--namespace=%s", framework.NamespaceKubeSystem),
 		"--debug",
 	})
@@ -113,6 +111,10 @@ func generateValueArgs(config *framework.Config) []string {
 
 	if config.BlockInstanceMetadata {
 		args = append(args, fmt.Sprintf("--set=nmi.blockInstanceMetadata=%t", config.BlockInstanceMetadata))
+	}
+
+	if config.IdentityReconcileInterval != 0 {
+		args = append(args, fmt.Sprintf("--set=mic.identityAssignmentReconcileInterval=%s", config.IdentityReconcileInterval))
 	}
 
 	return args

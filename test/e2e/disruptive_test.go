@@ -31,10 +31,11 @@ var _ = Describe("When AAD Pod Identity operations are disrupted", func() {
 	})
 
 	AfterEach(func() {
-		namespace.Delete(namespace.DeleteInput{
-			Deleter:   kubeClient,
-			Getter:    kubeClient,
+		Cleanup(CleanupInput{
 			Namespace: ns,
+			Getter:    kubeClient,
+			Lister:    kubeClient,
+			Deleter:   kubeClient,
 		})
 	})
 

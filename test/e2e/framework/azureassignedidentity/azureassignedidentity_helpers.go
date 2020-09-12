@@ -36,18 +36,18 @@ func Wait(input WaitInput) {
 
 	By(fmt.Sprintf("Ensuring that AzureAssignedIdentity \"%s\" is in %s state", name, input.StateToWaitFor))
 
-	Eventually(func() (bool, error) {
+	Eventually(func() bool {
 		azureAssignedIdentity := &aadpodv1.AzureAssignedIdentity{}
 
 		// AzureAssignedIdentity is always in default namespace unless MIC is in namespaced mode
 		if err := input.Getter.Get(context.TODO(), client.ObjectKey{Name: name, Namespace: corev1.NamespaceDefault}, azureAssignedIdentity); err != nil {
-			return false, err
+			return false
 		}
 		if azureAssignedIdentity.Status.Status == input.StateToWaitFor {
-			return true, nil
+			return true
 		}
-		return false, nil
-	}, framework.WaitTimeout, framework.WaitPolling).Should(BeTrue())
+		return false
+	}, framework.Timeout, framework.Polling).Should(BeTrue())
 }
 
 // WaitForLenInput is the input for WaitForLen.
@@ -63,16 +63,11 @@ func WaitForLen(input WaitForLenInput) {
 
 	By(fmt.Sprintf("Ensuring that there exists %d AzureAssignedIdentity", input.Len))
 
-	Eventually(func() (bool, error) {
+	Eventually(func() bool {
 		azureAssignedIdentityList := &aadpodv1.AzureAssignedIdentityList{}
 
 		// AzureAssignedIdentity is always in default namespace unless MIC is in namespaced mode
-		if err := input.Lister.List(context.TODO(), azureAssignedIdentityList, client.InNamespace(corev1.NamespaceDefault)); err != nil {
-			return false, err
-		}
-		if len(azureAssignedIdentityList.Items) == input.Len {
-			return true, nil
-		}
-		return false, nil
-	}, framework.WaitTimeout, framework.WaitPolling).Should(BeTrue())
+		Expect(input.Lister.List(context.TODO(), azureAssignedIdentityList, client.InNamespace(corev1.NamespaceDefault))).Should(Succeed())
+		return len(azureAssignedIdentityList.Items) == input.Len
+	}, framework.Timeout, framework.Polling).Should(BeTrue())
 }

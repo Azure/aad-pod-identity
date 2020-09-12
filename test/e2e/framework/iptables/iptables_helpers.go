@@ -91,12 +91,10 @@ func WaitForRules(input WaitForRulesInput) {
 			},
 		}
 
-		Eventually(func() error {
-			return input.Creator.Create(context.TODO(), busybox)
-		}, framework.CreateTimeout, framework.CreatePolling).Should(Succeed())
+		Expect(input.Creator.Create(context.TODO(), busybox)).Should(Succeed())
 	}
 
-	Eventually(func() (bool, error) {
+	Eventually(func() bool {
 		// ensure that there is no nmi before checking whether iptables rules are cleaned up
 		if !input.ShouldExist {
 			nmiPods := pod.List(pod.ListInput{
@@ -108,23 +106,19 @@ func WaitForRules(input WaitForRulesInput) {
 			})
 
 			if len(nmiPods.Items) > 0 {
-				return false, nil
+				return false
 			}
 		}
 
 		ds := &appsv1.DaemonSet{}
-		if err := input.Getter.Get(context.TODO(), client.ObjectKey{Name: busybox, Namespace: input.Namespace}, ds); err != nil {
-			return false, err
-		}
+		Expect(input.Getter.Get(context.TODO(), client.ObjectKey{Name: busybox, Namespace: input.Namespace}, ds)).Should(Succeed())
 
 		if ds.Status.NumberReady == 0 || ds.Status.NumberReady != ds.Status.DesiredNumberScheduled {
-			return false, nil
+			return false
 		}
 
 		pods := &corev1.PodList{}
-		if err := input.Lister.List(context.TODO(), pods, client.InNamespace(input.Namespace)); err != nil {
-			return false, err
-		}
+		Expect(input.Lister.List(context.TODO(), pods, client.InNamespace(input.Namespace))).Should(Succeed())
 
 		for _, p := range pods.Items {
 			if input.ShouldExist {
@@ -163,6 +157,6 @@ func WaitForRules(input WaitForRulesInput) {
 			}
 		}
 
-		return true, nil
-	}, framework.WaitTimeout, framework.WaitPolling).Should(BeTrue())
+		return true
+	}, framework.Timeout, framework.Polling).Should(BeTrue())
 }
