@@ -6,8 +6,12 @@ nameOverride: ""
 fullnameOverride: ""
 
 image:
-  repository: mcr.microsoft.com/k8s/aad-pod-identity
+  repository: mcr.microsoft.com/oss/azure/aad-pod-identity
   imagePullPolicy: Always
+
+# One or more secrets to be used when pulling images
+# imagePullSecrets:
+#   - name: myRegistryKeySecretName
 
 # https://github.com/Azure/aad-pod-identity#4-optional-match-pods-in-the-namespace
 # By default, AAD Pod Identity matches pods to identities across namespaces.
@@ -29,16 +33,17 @@ adminsecret: {}
 #   resourceGroup: <cluster resource group>
 #   vmType: <`standard` for normal virtual machine nodes, and `vmss` for cluster deployed with a virtual machine scale set>
 #   tenantID: <service principal tenant id>
-#   clientID: <service principal client id>
-#   clientSecret: <service principal client secret>
-
+#   clientID: <service principal client id. Set to `msi` when using a User Managed Identity>
+#   clientSecret: <service principal client secret. Set to `msi` when using a User Managed Identity>
+#   useMSI: <set to true when using a User Managed Identity>
+#   userAssignedMSIClientID: <client id for the User Managed Identity>
 # Operation mode for pod-identity. Default is standard mode that has MIC doing identity assignment
 # Allowed values: "standard", "managed"
 operationMode: "standard"
 
 mic:
   image: mic
-  tag: 1.6.2
+  tag: v1.6.3
 
   priorityClassName: ""
 
@@ -111,9 +116,13 @@ mic:
   # Default value is 1s
   updateUserMSIRetryInterval: ""
 
+  # The interval between reconciling identity assignment on Azure based on an existing list of AzureAssignedIdentities
+  # Default value is 3m
+  identityAssignmentReconcileInterval: ""
+
 nmi:
   image: nmi
-  tag: 1.6.2
+  tag: v1.6.3
 
   priorityClassName: ""
 

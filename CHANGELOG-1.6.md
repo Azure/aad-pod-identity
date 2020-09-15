@@ -1,5 +1,54 @@
 :warning: v1.6.0+ contains breaking changes. Please carefully review this [doc](README.md#v160-breaking-change) before upgrade from 1.x.x versions of pod-identity.
 
+# v1.6.3
+
+### Features
+
+- throttling - honor retry after header ([#742](https://github.com/Azure/aad-pod-identity/pull/742))
+- reconcile identity assignment on Azure ([#734](https://github.com/Azure/aad-pod-identity/pull/734))
+
+### Bug Fixes
+
+- add certs volume for non-rbac manifests ([#713](https://github.com/Azure/aad-pod-identity/pull/713))
+- Report original error from getPodListRetry ([#762](https://github.com/Azure/aad-pod-identity/pull/762))
+- initialize klog flags for NMI ([#767](https://github.com/Azure/aad-pod-identity/pull/767))
+- ensure stats collector doesn't aggregate stats from multiple runs ([#750](https://github.com/Azure/aad-pod-identity/pull/750))
+
+### Other Improvements
+
+- add deploy manifests and helm charts to staging dir ([#736](https://github.com/Azure/aad-pod-identity/pull/736))
+- fix miscellaneous linting problem in the codebase ([#733](https://github.com/Azure/aad-pod-identity/pull/733))
+- remove privileged: true for NMI daemonset ([#745](https://github.com/Azure/aad-pod-identity/pull/745)) 
+- Update to go1.15 ([#751](https://github.com/Azure/aad-pod-identity/pull/751))
+- automate role assignments and improve troubleshooting guide ([#754](https://github.com/Azure/aad-pod-identity/pull/754))
+- set dnspolicy to clusterfirstwithhostnet for NMI ([#776](https://github.com/Azure/aad-pod-identity/pull/776))
+- bump debian-base to v2.1.3 and debian-iptables to v12.1.2 ([#783](https://github.com/Azure/aad-pod-identity/pull/783))
+- add logs for ignored pods ([#785](https://github.com/Azure/aad-pod-identity/pull/785))
+
+### Documentation
+
+- docs: fix broken test standard link in GitHub Pull Request template ([#710](https://github.com/Azure/aad-pod-identity/pull/710))
+- Fixed typo ([#757](https://github.com/Azure/aad-pod-identity/pull/757))
+- Fixed Grammar ([#758](https://github.com/Azure/aad-pod-identity/pull/758))
+- add doc for deleting/recreating identity with same name ([#786](https://github.com/Azure/aad-pod-identity/pull/786))
+- add best practices documentation ([#779](https://github.com/Azure/aad-pod-identity/pull/779))
+
+### Helm
+
+- add release namespace to chart manifests ([#741](https://github.com/Azure/aad-pod-identity/pull/741))
+- Add imagePullSecretes to the Helm chart ([#774](https://github.com/Azure/aad-pod-identity/pull/774))
+- Expose metrics port ([#777](https://github.com/Azure/aad-pod-identity/pull/777))
+- add user managed identity support to helm charts ([#781](https://github.com/Azure/aad-pod-identity/pull/781))
+
+### Test Improvements
+
+- add e2e test for block-instance-metadata ([#715](https://github.com/Azure/aad-pod-identity/pull/715))
+- add aks as part of pr and nightly test ([#717](https://github.com/Azure/aad-pod-identity/pull/717))
+- add load test pipeline to nightly job ([#744](https://github.com/Azure/aad-pod-identity/pull/744))
+- install aad-pod-identity in kube-system namespace ([#747](https://github.com/Azure/aad-pod-identity/pull/747))
+- bump golangci-lint to v1.30.0 ([#759](https://github.com/Azure/aad-pod-identity/pull/759))
+
+
 # v1.6.2
 
 ### Features

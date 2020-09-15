@@ -3,6 +3,7 @@ apiVersion: "aadpodidentity.k8s.io/v1"
 kind: AzurePodIdentityException
 metadata:
   name: mic
+  namespace: {{ .Release.Namespace }}
 spec:
   podLabels:
     app: mic

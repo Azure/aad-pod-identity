@@ -247,7 +247,7 @@ metadata:
 spec:
   containers:
   - name: demo
-    image: mcr.microsoft.com/k8s/aad-pod-identity/demo:1.2
+    image: mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.6.3
     args:
       - --subscriptionid=${SUBSCRIPTION_ID}
       - --clientid=${IDENTITY_CLIENT_ID}
@@ -270,7 +270,7 @@ spec:
 EOF
 ```
 
-> `mcr.microsoft.com/k8s/aad-pod-identity/demo` is an image that demostrates the use of AAD pod identity. The source code can be found [here](./cmd/demo/main.go).
+> `mcr.microsoft.com/oss/azure/aad-pod-identity/demo` is an image that demostrates the use of AAD pod identity. The source code can be found [here](./cmd/demo/main.go).
 
 To verify that the pod is indeed using the identity correctly:
 
