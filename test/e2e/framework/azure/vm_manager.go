@@ -64,7 +64,9 @@ func (m *vmManager) AssignUserAssignedIdentity(vmName, identityToAssign string) 
 		}
 	}
 
-	vm.Identity.UserAssignedIdentities[identityAssignResourceID] = &compute.VirtualMachineIdentityUserAssignedIdentitiesValue{}
+	vm.Identity.UserAssignedIdentities = map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue{
+		identityAssignResourceID: {},
+	}
 	switch vm.Identity.Type {
 	case compute.ResourceIdentityTypeSystemAssigned:
 		vm.Identity.Type = compute.ResourceIdentityTypeSystemAssignedUserAssigned

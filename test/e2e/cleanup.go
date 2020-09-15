@@ -28,7 +28,7 @@ func Cleanup(input CleanupInput) {
 	Expect(input.Lister).NotTo(BeNil(), "input.Lister is required for e2e.Cleanup")
 	Expect(input.Deleter).NotTo(BeNil(), "input.Deleter is required for e2e.Cleanup")
 
-	By(fmt.Sprintf("Deleting all pods in %s", input.Namespace.Name))
+	By(fmt.Sprintf("Deleting all pods in namespace \"%s\"", input.Namespace.Name))
 
 	podList := &corev1.PodList{}
 	Expect(input.Lister.List(context.TODO(), podList, client.InNamespace(input.Namespace.Name))).Should(Succeed())
