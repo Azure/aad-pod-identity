@@ -381,18 +381,14 @@ var _ = Describe("When managing identities from the underlying nodes", func() {
 			IdentityResourceID: azureIdentity.Spec.ResourceID,
 		})
 
-		go func() {
+		Eventually(func() bool {
 			err := azureClient.UnassignUserAssignedIdentity(node.Spec.ProviderID, keyvaultIdentity)
 			Expect(err).To(BeNil())
-		}()
-
-		By(fmt.Sprintf("Waiting for \"%s\" to be completely unassigned from \"%s\"", keyvaultIdentity, node.Name))
-		Eventually(func() bool {
 			userAssignedIdentities := azureClient.ListUserAssignedIdentities(node.Spec.ProviderID)
 			return !isUserAssignedIdentityExist(userAssignedIdentities, keyvaultIdentity)
 		}, framework.Timeout, framework.Polling).Should(BeTrue())
 
-		By("Waiting for identity assignment to be reconciled")
+		By(fmt.Sprintf("Waiting for identity assignment of \"%s\" to be reconciled", keyvaultIdentity))
 		Eventually(func() bool {
 			userAssignedIdentities := azureClient.ListUserAssignedIdentities(node.Spec.ProviderID)
 			return isUserAssignedIdentityExist(userAssignedIdentities, keyvaultIdentity)
