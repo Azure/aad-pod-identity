@@ -64,7 +64,9 @@ func (m *vmssManager) AssignUserAssignedIdentity(vmssName, identityToAssign stri
 		}
 	}
 
-	vmss.Identity.UserAssignedIdentities[identityAssignResourceID] = &compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{}
+	vmss.Identity.UserAssignedIdentities = map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{
+		identityAssignResourceID: {},
+	}
 	switch vmss.Identity.Type {
 	case compute.ResourceIdentityTypeSystemAssigned:
 		vmss.Identity.Type = compute.ResourceIdentityTypeSystemAssignedUserAssigned

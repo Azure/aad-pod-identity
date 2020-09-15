@@ -9,5 +9,5 @@ const (
 	Timeout = 5 * time.Minute
 
 	// Polling represents the polling interval for a long-running operation.
-	Polling = 5 * time.Second
+	Polling = 10 * time.Second
 )
