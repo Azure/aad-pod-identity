@@ -6,7 +6,7 @@ nameOverride: ""
 fullnameOverride: ""
 
 image:
-  repository: mcr.microsoft.com/k8s/aad-pod-identity
+  repository: mcr.microsoft.com/oss/azure/aad-pod-identity
   imagePullPolicy: Always
 
 # One or more secrets to be used when pulling images
@@ -43,7 +43,7 @@ operationMode: "standard"
 
 mic:
   image: mic
-  tag: 1.6.2
+  tag: v1.6.3
 
   priorityClassName: ""
 
@@ -122,7 +122,7 @@ mic:
 
 nmi:
   image: nmi
-  tag: 1.6.2
+  tag: v1.6.3
 
   priorityClassName: ""
 

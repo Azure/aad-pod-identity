@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: {{ template "aad-pod-identity.nmi.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "aad-pod-identity.labels" . | nindent 4 }}
     app.kubernetes.io/component: nmi
@@ -24,6 +25,10 @@ spec:
 {{ toYaml .Values.nmi.podAnnotations | indent 8 }}
 {{- end }}
     spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml .Values.imagePullSecrets | indent 8 }}
+      {{- end }}
       {{- if .Values.rbac.enabled }}
       serviceAccountName: {{ template "aad-pod-identity.nmi.fullname" . }}
       {{- end }}
@@ -31,6 +36,7 @@ spec:
       priorityClassName: {{ .Values.nmi.priorityClassName | quote }}
       {{- end }}
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       volumes:
       - hostPath:
           path: /run/xtables.lock
@@ -41,7 +47,7 @@ spec:
         image: "{{ .Values.image.repository }}/{{ .Values.nmi.image }}:{{ .Values.nmi.tag }}"
         imagePullPolicy: {{ .Values.image.imagePullPolicy }}
         args:
-          {{- if semverCompare "<= 1.6.1" .Values.nmi.tag }}
+          {{- if semverCompare "<= 1.6.1-0" .Values.nmi.tag }}
           - "--host-ip=$(HOST_IP)"
           {{- end }}
           - "--node=$(NODE_NAME)"
@@ -75,14 +81,14 @@ spec:
           {{- if .Values.nmi.metadataHeaderRequired}}
           - --metadata-header-required={{ .Values.nmi.metadataHeaderRequired }}
           {{- end }}
-          {{- if semverCompare ">= 1.6.0" .Values.nmi.tag }}
+          {{- if semverCompare ">= 1.6.0-0" .Values.nmi.tag }}
           - --operation-mode={{ .Values.operationMode }}
           {{- end}}
           {{- if eq .Values.operationMode "managed" }}
           - --forceNamespaced
           {{- end }}
         env:
-          {{- if semverCompare "<= 1.6.1" .Values.nmi.tag }}
+          {{- if semverCompare "<= 1.6.1-0" .Values.nmi.tag }}
           - name: HOST_IP
             valueFrom:
               fieldRef:
@@ -96,8 +102,13 @@ spec:
           - name: FORCENAMESPACED
             value: "{{ .Values.forceNameSpaced }}"
           {{- end }}
+        {{- if .Values.nmi.prometheusPort }}
+        ports:
+          - containerPort: {{ .Values.nmi.prometheusPort }}
+            name: metrics
+            protocol: TCP
+        {{- end }}
         securityContext:
-          privileged: true
           capabilities:
             add:
             - NET_ADMIN

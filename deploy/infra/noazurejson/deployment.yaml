@@ -48,7 +48,7 @@ spec:
     plural: azurepodidentityexceptions
   scope: Namespaced
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   labels:
@@ -68,6 +68,7 @@ spec:
         tier: node
     spec:
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       volumes:
       - hostPath:
           path: /run/xtables.lock
@@ -75,7 +76,7 @@ spec:
         name: iptableslock
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.6.2"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.6.3"
         imagePullPolicy: Always
         args:
           - "--node=$(NODE_NAME)"
@@ -97,7 +98,6 @@ spec:
             cpu: 100m
             memory: 256Mi
         securityContext:
-          privileged: true
           capabilities:
             add:
             - NET_ADMIN
@@ -127,7 +127,7 @@ metadata:
   name: aadpodidentity-admin-secret
   namespace: default
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
@@ -146,7 +146,7 @@ spec:
     spec:
       containers:
       - name: mic
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.6.2"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.6.3"
         imagePullPolicy: Always
         args:
           - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"

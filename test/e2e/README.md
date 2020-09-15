@@ -69,7 +69,7 @@ spec:
   selector: keyvault-identity
 EOF
 
-kubectl run identityvalidator --image=mcr.microsoft.com/k8s/aad-pod-identity/identityvalidator:1.6.2 --labels=aadpodidbinding=keyvault-identity --command sleep -- 3600
+kubectl run identityvalidator --image=mcr.microsoft.com/oss/azure/aad-pod-identity/identityvalidator:v1.6.3 --labels=aadpodidbinding=keyvault-identity --command sleep -- 3600
 
 kubectl exec identityvalidator -- identityvalidator \
                                   --subscription-id "$SUBSCRIPTION_ID" \

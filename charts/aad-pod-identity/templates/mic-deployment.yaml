@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "aad-pod-identity.mic.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     {{- include "aad-pod-identity.labels" . | nindent 4 }}
     app.kubernetes.io/component: mic
@@ -24,6 +25,10 @@ spec:
 {{ toYaml .Values.mic.podAnnotations | indent 8 }}
 {{- end }}
     spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+{{ toYaml .Values.imagePullSecrets | indent 8 }}
+      {{- end }}
       {{- if .Values.rbac.enabled }}
       serviceAccountName: {{ template "aad-pod-identity.mic.fullname" . }}
       {{- end }}
@@ -75,6 +80,9 @@ spec:
           {{- if .Values.mic.updateUserMSIRetryInterval }}
           - --update-user-msi-retry-interval={{ .Values.mic.updateUserMSIRetryInterval }}
           {{- end }}
+          {{- if .Values.mic.identityAssignmentReconcileInterval }}
+          - --identity-assignment-reconcile-interval={{ .Values.mic.identityAssignmentReconcileInterval }}
+          {{- end }}
         env:
           - name: MIC_POD_NAMESPACE
             valueFrom:
@@ -118,7 +126,25 @@ spec:
               secretKeyRef:
                 key: ClientSecret
                 name: {{ template "aad-pod-identity.mic.fullname" . }}
+          {{- if .Values.adminsecret.useMSI }}
+          - name: USE_MSI
+            valueFrom:
+              secretKeyRef:
+                key: UseMSI
+                name: {{ template "aad-pod-identity.mic.fullname" . }}
+          - name: USER_ASSIGNED_MSI_CLIENT_ID
+            valueFrom:
+              secretKeyRef:
+                key: UserAssignedMSIClientID
+                name: {{ template "aad-pod-identity.mic.fullname" . }}
           {{- end }}
+          {{- end }}
+        {{- if .Values.mic.prometheusPort }}
+        ports:
+          - containerPort: {{ .Values.mic.prometheusPort }}
+            name: metrics
+            protocol: TCP
+        {{- end }}
         {{- if not .Values.adminsecret }}
         volumeMounts:
           - name: k8s-azure-file

@@ -75,7 +75,7 @@ rules:
   resources: ["azureassignedidentities"]
   verbs: ["get", "list", "watch"]
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: aad-pod-id-nmi-binding
@@ -114,6 +114,7 @@ spec:
     spec:
       serviceAccountName: aad-pod-id-nmi-service-account
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       volumes:
       - hostPath:
           path: /run/xtables.lock
@@ -121,7 +122,7 @@ spec:
         name: iptableslock
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.6.2"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.6.3"
         imagePullPolicy: Always
         args:
           - "--node=$(NODE_NAME)"
@@ -143,7 +144,6 @@ spec:
             cpu: 100m
             memory: 256Mi
         securityContext:
-          privileged: true
           capabilities:
             add:
             - NET_ADMIN
@@ -195,7 +195,7 @@ rules:
   resources: ["azureassignedidentities"]
   verbs: ["*"]
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: aad-pod-id-mic-binding
@@ -233,7 +233,7 @@ spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.6.2"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.6.3"
         imagePullPolicy: Always
         args:
           - "--cloudconfig=/etc/kubernetes/azure.json"
