@@ -1,0 +1,28 @@
++++
+headless = false
++++
+
+- [Introduction]({{< relref "/" >}})
+- [Release Notes]({{< relref "/release-notes" >}})
+- [Getting Started]({{< relref "/getting-started" >}})
+- [1 Concepts]({{< relref "/concepts" >}})
+  - [1.1 AzureIdentity]({{< relref "/concepts/azureidentity" >}})
+  - [1.2 AzureIdentityBinding]({{< relref "/concepts/azureidentitybinding" >}})
+  - [1.3 AzureAssignedIdentity]({{< relref "/concepts/azureassignedidentity" >}})
+  - [1.4 AzurePodIdentityException]({{< relref "/concepts/azurepodidentityexception" >}})
+  - [1.5 Managed Identity Controller (MIC)]({{< relref "/concepts/mic" >}})
+  - [1.6 Node-Managed Identity (NMI)]({{< relref "/concepts/nmi" >}})
+- [2 Features]({{< relref "/features" >}})
+  - [2.1 Feature Flags]({{< relref "/features/feature-flags" >}})
+  - [2.2 Managed Mode]({{< relref "/features/managed-mode" >}})
+  - [2.3 Monitoring With Prometheus]({{< relref "/features/monitoring-with-prometheus" >}})
+  - [2.4 Namespaced Mode]({{< relref "/features/namespaced-mode" >}})
+  - [2.5 Non-Cluster Credentials for MIC]({{< relref "/features/non-cluster-credentials-for-mic" >}})
+  - [2.6 Validation Using Gatekeeper]({{< relref "/features/validation-using-gatekeeper" >}})
+- [3 Best Practices]({{< relref "/best-practices" >}})
+- [4 Troubleshooting]({{< relref "/troubleshooting" >}})
+- [5 Known Issues]({{< relref "/known-issues" >}})
+- [6 Uninstall Note]({{< relref "/uninstall-note" >}})
+- [7 Development]({{< relref "/development" >}})
+- [8 Code of Conduct]({{< relref "/code-of-conduct" >}})
+- [9 Support]({{< relref "/support" >}})

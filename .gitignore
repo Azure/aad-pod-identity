@@ -326,3 +326,7 @@ __pycache__/
 
 # cover profile
 coverage.txt
+
+# website
+website/public
+website/resources
