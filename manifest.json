@@ -1,0 +1,15 @@
+{
+  "name": "AAD Pod Identity",
+  "short_name": "AAD Pod Identity",
+  "start_url": "/aad-pod-identity/",
+  "scope": "/aad-pod-identity/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "/aad-pod-identity/favicon.svg",
+      "sizes": "512x512"
+    }
+  ]
+}
