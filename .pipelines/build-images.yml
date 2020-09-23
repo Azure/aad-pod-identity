@@ -11,9 +11,6 @@ steps:
   - script: |
       if [[ -n "${IMAGE_VERSION:-}" ]]; then
         echo "Image version: ${IMAGE_VERSION}"
-        echo "##vso[task.setvariable variable=MIC_VERSION]${IMAGE_VERSION}"
-        echo "##vso[task.setvariable variable=NMI_VERSION]${IMAGE_VERSION}"
-        echo "##vso[task.setvariable variable=IDENTITY_VALIDATOR_VERSION]${IMAGE_VERSION}"
         exit 0
       fi
 
@@ -23,16 +20,10 @@ steps:
       else
         IMAGE_VERSION="$(git describe --tags --always --dirty)-$(CLUSTER_CONFIG)"
       fi
+      export IMAGE_VERSION
+      echo "##vso[task.setvariable variable=IMAGE_VERSION]${IMAGE_VERSION}"
       echo "Image version: ${IMAGE_VERSION}"
 
-      export MIC_VERSION="${IMAGE_VERSION}"
-      echo "##vso[task.setvariable variable=MIC_VERSION]${MIC_VERSION}"
-      export NMI_VERSION="${IMAGE_VERSION}"
-      echo "##vso[task.setvariable variable=NMI_VERSION]${NMI_VERSION}"
-      export IDENTITY_VALIDATOR_VERSION="${IMAGE_VERSION}"
-      echo "##vso[task.setvariable variable=IDENTITY_VALIDATOR_VERSION]${IDENTITY_VALIDATOR_VERSION}"
-
       az acr login -n $(REGISTRY_NAME)
-      make image-mic image-nmi image-identity-validator
-      make push-mic push-nmi push-identity-validator
-    displayName: "Build and push MIC, NMI and identity-validator"
+      make images push
+    displayName: "Build and push MIC, NMI and identity-validator images"

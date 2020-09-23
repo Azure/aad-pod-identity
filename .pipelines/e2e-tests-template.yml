@@ -50,6 +50,9 @@ jobs:
 
         - script: |
             export REGISTRY="${REGISTRY:-$(REGISTRY_NAME).azurecr.io/k8s/aad-pod-identity}"
+            export MIC_VERSION="${IMAGE_VERSION}"
+            export NMI_VERSION="${IMAGE_VERSION}"
+            export IDENTITY_VALIDATOR_VERSION="${IMAGE_VERSION}"
             make e2e
           env:
             SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)

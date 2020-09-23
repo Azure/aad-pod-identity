@@ -1,30 +1,27 @@
-ARG BASEIMAGE=us.gcr.io/k8s-artifacts-prod/build-image/debian-base-amd64:v2.1.3
+ARG BASEIMAGE=gcr.io/distroless/static:nonroot
 
-FROM golang:1.15 AS build
+FROM golang:1.15 AS builder
 WORKDIR /go/src/github.com/Azure/aad-pod-identity
 ADD . .
 RUN go mod download
-ARG NMI_VERSION
-ARG MIC_VERSION
-ARG DEMO_VERSION
-ARG IDENTITY_VALIDATOR_VERSION
+ARG IMAGE_VERSION
 RUN make build
 
-FROM $BASEIMAGE AS base
+FROM us.gcr.io/k8s-artifacts-prod/build-image/debian-iptables-amd64:v12.1.2 AS nmi
 RUN clean-install ca-certificates
-
-FROM base AS nmi
-COPY --from=build /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
+COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
+RUN useradd -u 10001 nonroot
+USER nonroot
 ENTRYPOINT ["nmi"]
 
-FROM base AS mic
-COPY --from=build /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/mic /bin/
+FROM $BASEIMAGE AS mic
+COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/mic /bin/
 ENTRYPOINT ["mic"]
 
-FROM base AS demo
-COPY --from=build /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/demo /bin/
+FROM $BASEIMAGE AS demo
+COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/demo /bin/
 ENTRYPOINT ["demo"]
 
-FROM base AS identityvalidator
-COPY --from=build /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/identityvalidator /bin/
+FROM $BASEIMAGE AS identityvalidator
+COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/identityvalidator /bin/
 ENTRYPOINT ["identityvalidator"]

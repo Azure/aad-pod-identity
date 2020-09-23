@@ -93,6 +93,7 @@ spec:
               fieldRef:
                 fieldPath: spec.nodeName
         securityContext:
+          runAsUser: 0
           capabilities:
             add:
             - NET_ADMIN
@@ -140,6 +141,8 @@ spec:
           - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
+        securityContext:
+          runAsUser: 0
         env:
         - name: MIC_POD_NAMESPACE
           valueFrom:

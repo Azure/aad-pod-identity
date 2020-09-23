@@ -109,6 +109,7 @@ spec:
             protocol: TCP
         {{- end }}
         securityContext:
+          runAsUser: 0
           capabilities:
             add:
             - NET_ADMIN
