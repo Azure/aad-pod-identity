@@ -144,6 +144,7 @@ spec:
             cpu: 100m
             memory: 256Mi
         securityContext:
+          runAsUser: 0
           capabilities:
             add:
             - NET_ADMIN
@@ -238,6 +239,8 @@ spec:
         args:
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
+        securityContext:
+          runAsUser: 0
         env:
         - name: MIC_POD_NAMESPACE
           valueFrom:

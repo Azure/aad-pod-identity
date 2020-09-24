@@ -8,8 +8,6 @@ jobs:
       - task: GoTool@0
         inputs:
           version: 1.15
-      - script: make build
-        displayName: Build
       - script: make unit-test
         displayName: Run unit tests
       - script: bash <(curl -s https://codecov.io/bash)
@@ -20,3 +18,4 @@ jobs:
         displayName: Run lint
       - script: make helm-lint
         displayName: Run helm lint
+      - template: scan-images.yml

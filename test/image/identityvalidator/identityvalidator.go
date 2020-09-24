@@ -23,6 +23,7 @@ import (
 )
 
 var (
+	sleep                 = pflag.Bool("sleep", false, "Set to true to enter sleep mode")
 	subscriptionID        = pflag.String("subscription-id", "", "subscription id for test")
 	identityClientID      = pflag.String("identity-client-id", "", "client id for the msi id")
 	identityResourceID    = pflag.String("identity-resource-id", "", "resource id for the msi id")
@@ -38,6 +39,13 @@ const (
 
 func main() {
 	pflag.Parse()
+
+	if *sleep {
+		klog.Infof("entering sleep mode")
+		for {
+			select {}
+		}
+	}
 
 	podname := os.Getenv("E2E_TEST_POD_NAME")
 	podnamespace := os.Getenv("E2E_TEST_POD_NAMESPACE")

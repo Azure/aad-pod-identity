@@ -83,6 +83,8 @@ spec:
           {{- if .Values.mic.identityAssignmentReconcileInterval }}
           - --identity-assignment-reconcile-interval={{ .Values.mic.identityAssignmentReconcileInterval }}
           {{- end }}
+        securityContext:
+          runAsUser: 0
         env:
           - name: MIC_POD_NAMESPACE
             valueFrom:

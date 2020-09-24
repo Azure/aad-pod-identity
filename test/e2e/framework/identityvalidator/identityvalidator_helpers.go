@@ -56,10 +56,10 @@ func Create(input CreateInput) *corev1.Pod {
 				{
 					Name:  "identity-validator",
 					Image: fmt.Sprintf("%s/identityvalidator:%s", input.Config.Registry, input.Config.IdentityValidatorVersion),
-					Command: []string{
-						"sleep",
-						"3600",
+					Args: []string{
+						"--sleep",
 					},
+					ImagePullPolicy: corev1.PullAlways,
 					Env: []corev1.EnvVar{
 						{
 							Name: "E2E_TEST_POD_NAME",

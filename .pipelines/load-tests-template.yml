@@ -82,8 +82,8 @@ jobs:
             helm install pi manifest_staging/charts/aad-pod-identity --namespace $NAMESPACE --wait --timeout=10m -v=5 --debug \
               --set operationMode=${OPERATION_MODE} \
               --set image.repository=${REGISTRY} \
-              --set mic.tag=${MIC_VERSION} \
-              --set nmi.tag=${NMI_VERSION} \
+              --set mic.tag=${IMAGE_VERSION} \
+              --set nmi.tag=${IMAGE_VERSION} \
               --set enableScaleFeatures=true
 
             envsubst < test/load/azureidentity-template.yml > test/load/azureidentity.yml
