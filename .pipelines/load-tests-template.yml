@@ -6,6 +6,7 @@ jobs:
   - ${{ each operationMode in parameters.operationModes }}:
     - job:
       displayName: ${{ format('load/{0}', operationMode) }}
+      dependsOn: unit_tests
       strategy:
         matrix:
           test-pod-2000:
