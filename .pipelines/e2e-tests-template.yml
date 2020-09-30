@@ -23,7 +23,7 @@ jobs:
         - template: build-images.yml
 
         - script: |
-            export RESOURCE_GROUP="aad-pod-identity-e2e-$(openssl rand -hex 6)"
+            export RESOURCE_GROUP="aad-pod-identity-e2e-$(openssl rand -hex 2)"
             echo "##vso[task.setvariable variable=RESOURCE_GROUP]${RESOURCE_GROUP}"
           displayName: "Generate resource group name"
 
