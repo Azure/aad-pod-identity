@@ -1,13 +1,18 @@
-serve:
+bootstrap:
+	git submodule update --init --recursive
+	npm i
+
+serve: bootstrap
 	hugo server \
 		--buildDrafts \
 		--buildFuture \
 		--disableFastRender
 
-production-build:
+production-build: bootstrap
 	hugo --minify
 
-preview-build:
+preview-build: bootstrap
+	npm i
 	hugo \
 		--baseURL $(DEPLOY_PRIME_URL) \
 		--buildDrafts \
