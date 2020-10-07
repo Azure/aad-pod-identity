@@ -11,8 +11,8 @@ Make sure your identity with the client ID has reader permission to the resource
 
 read -p "Press enter to continue"
 
-client_id=$(az identity show -n demo-aad1 -g ${MC_RG} | jq -r .clientId)
-subscription_id=$(az account show | jq -r .id)
+client_id=$(az identity show -n demo-aad1 -g ${MC_RG} --query clientId -o tsv)
+subscription_id=$(az account show --query id -o tsv)
 
 perl -pi -e "s/CLIENT_ID/${client_id}/" ${file}
 perl -pi -e "s/SUBSCRIPTION_ID/${subscription_id}/" ${file}

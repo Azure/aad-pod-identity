@@ -54,7 +54,7 @@ This will create an AKS instance in the resource group created above. It may tak
 
 ```sh
 
-K8S_NAME="Cluster-Name"
+export K8S_NAME="Cluster-Name"
 ./scripts/1-init-aks/3-create-aks.sh
 
 ```

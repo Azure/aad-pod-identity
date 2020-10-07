@@ -20,7 +20,7 @@ fi
 
 if [ -z "$SUB_ID" ]
 then
-      SUB_ID=$(az account show | jq -r .id)
+      SUB_ID=$(az account show --query id -o tsv)
       echo "Subscription ${SUB_ID} detected from environment"
 fi
 

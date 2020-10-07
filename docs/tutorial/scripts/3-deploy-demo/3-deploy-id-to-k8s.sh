@@ -13,8 +13,8 @@ read -p "Press enter to continue"
 
 set -x
 
-client_id=$(az identity show -n demo-aad1 -g ${MC_RG} | jq -r .clientId)
-resource_id=$(az identity show -n demo-aad1 -g ${MC_RG} | jq -r .id)
+client_id=$(az identity show -n demo-aad1 -g ${MC_RG} --query clientId -o tsv)
+resource_id=$(az identity show -n demo-aad1 -g ${MC_RG} --query id -o tsv)
 
 perl -pi -e "s/CLIENT_ID/${client_id}/" ${file}
 perl -pi -e "s/RESOURCE_ID/${resource_id//\//\\/}/" ${file}
