@@ -1,32 +1,17 @@
 [build]
-base = "website/"
-publish = "public"
-command = "cd themes/docsy && git submodule update -f --init && cd ../.. && hugo"
+  base = "website/"
+  command = "make build"
+  publish = "public"
+
+[build.environment]
+  HUGO_VERSION = "0.73.0"
+  HUGO_ENABLEGITINFO = "true"
 
 [context.production.environment]
-HUGO_VERSION = "0.76.2"
-HUGO_ENV = "production"
-HUGO_ENABLEGITINFO = "true"
-
-[context.split1]
-command = "hugo --gc --minify --enableGitInfo"
-
-[context.split1.environment]
-HUGO_VERSION = "0.76.2"
-HUGO_ENV = "production"
+  HUGO_ENV = "production"
 
 [context.deploy-preview]
-command = "hugo --gc --minify --buildFuture -b $DEPLOY_PRIME_URL"
-# command = "make build-preview"
-
-[context.deploy-preview.environment]
-HUGO_VERSION = "0.76.2"
+  command = "make build-preview"
 
 [context.branch-deploy]
-command = "hugo --gc --minify -b $DEPLOY_PRIME_URL"
-
-[context.branch-deploy.environment]
-HUGO_VERSION = "0.76.2"
-
-[context.next.environment]
-HUGO_ENABLEGITINFO = "true"
+  command = "make build-preview"
