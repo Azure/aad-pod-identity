@@ -1,6 +1,6 @@
 [build]
   base = "website/"
-  command = "make build"
+  command = "cd themes/docsy && git submodule update -f --init && cd ../.. && hugo"
   publish = "public"
 
 [build.environment]
