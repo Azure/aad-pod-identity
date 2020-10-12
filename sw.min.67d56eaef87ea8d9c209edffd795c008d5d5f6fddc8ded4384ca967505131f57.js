@@ -1,1 +1,0 @@
-if(navigator.serviceWorker){navigator.serviceWorker.register("/aad-pod-identity/sw.js",{scope:"/aad-pod-identity/"});}

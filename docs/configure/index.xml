@@ -1,0 +1,379 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Azure Active Directory Pod Identity for Kubernetes – Configurations</title><link>https://azure.github.io/aad-pod-identity/docs/configure/</link><description>Recent content in Configurations on Azure Active Directory Pod Identity for Kubernetes</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Sun, 04 Oct 2020 00:00:00 +0000</lastBuildDate><atom:link href="https://azure.github.io/aad-pod-identity/docs/configure/index.xml" rel="self" type="application/rss+xml"/><item><title>Docs: Match Pods in the Namespace</title><link>https://azure.github.io/aad-pod-identity/docs/configure/match_pods_in_namespace/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/match_pods_in_namespace/</guid><description>
+&lt;blockquote>
+&lt;p>Available from &lt;a href="https://github.com/Azure/aad-pod-identity/releases/tag/1.3.0-mic-1.4.0-nmi">1.3.0-mic-1.4.0-nmi release&lt;/a>&lt;/p>
+&lt;/blockquote>
+&lt;p>By default, AAD Pod Identity matches pods to identities across namespaces. To match only pods in the namespace containing &lt;code>AzureIdentity&lt;/code>, use one of these techniques:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>Attach a &lt;code>aadpodidentity.k8s.io/Behavior: namespaced&lt;/code> [annotation] to each &lt;code>AzureIdentity&lt;/code> resource.&lt;/p>
+&lt;p>Here is the &lt;code>AzureIdentity&lt;/code> manifest from the previous step with this annotation added:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;aadpodidentity.k8s.io/v1&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">AzureIdentity&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;a-idname&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">annotations&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">aadpodidentity.k8s.io/Behavior&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">namespaced&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">spec&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">resourceID&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">/subscriptions/&amp;lt;subid&amp;gt;/resourcegroups/&amp;lt;resourcegroup&amp;gt;/providers/Microsoft.ManagedIdentity/userAssignedIdentities/&amp;lt;name&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">clientID&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;clientId&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>
+&lt;p>Add the &lt;code>--forceNamespaced&lt;/code> command line argument or set the &lt;code>FORCENAMESPACED=true&lt;/code> environment variable when starting both the MIC and NMI components.&lt;/p>
+&lt;p>Here is a section from the MIC deployment which adds &lt;em>both&lt;/em> the command line argument and the environment variable for illustration. Pick one approach and use it to update both the MIC deployment and the NMI daemon set.&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">spec&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">containers&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>- &lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">mic&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">image&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;mcr.microsoft.com/k8s/aad-pod-identity/mic:1.3&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">imagePullPolicy&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">Always&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">args&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>- &lt;span style="color:#4e9a06">&amp;#34;--cloudconfig=/etc/kubernetes/azure.json&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>- &lt;span style="color:#4e9a06">&amp;#34;--logtostderr&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>- &lt;span style="color:#4e9a06">&amp;#34;--forceNamespaced&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">env&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>- &lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">FORCENAMESPACED&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">value&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;true&amp;#34;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;/ul></description></item><item><title>Docs: Deploy AAD Pod Identity with a Dedicated Service Principle</title><link>https://azure.github.io/aad-pod-identity/docs/configure/deploy_aad_pod_dedicated_sp/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/deploy_aad_pod_dedicated_sp/</guid><description>
+&lt;blockquote>
+&lt;p>Available from 1.5 release&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="the-why">The why&lt;/h2>
+&lt;p>Goal: To enable user to use a separate service principal (aad-pod-identity admin service principal) other than the cluster service princial and to move away from &lt;code>/etc/kubernetes/azure.json&lt;/code>.&lt;/p>
+&lt;p>Users now have the option to deploy aad-pod-identity with a separate service principal which is together with its secret and other configurations stored in a Kubernetes secret object.&lt;/p>
+&lt;h2 id="permissions">Permissions&lt;/h2>
+&lt;p>The permission of the admin service principal needs to be &amp;lsquo;Contributor&amp;rsquo; role over the scope of node resource group starting with &amp;ldquo;MC_&amp;rdquo;.&lt;/p>
+&lt;p>Create a new service principal with the permission:&lt;/p>
+&lt;pre>&lt;code>az ad sp create-for-rbac -n &amp;quot;&amp;lt;sp_name&amp;gt;&amp;quot; --role &amp;quot;Contributor&amp;quot; --scopes &amp;quot;/subscriptions/&amp;lt;subscription-id&amp;gt;/resourceGroups/&amp;lt;MC_node_resource_group&amp;gt;&amp;quot;
+&lt;/code>&lt;/pre>&lt;blockquote>
+&lt;p>Note the &lt;code>appId&lt;/code> (client id), &lt;code>password&lt;/code> (secret) and &lt;code>tenant&lt;/code> from the resulting json, which will be used in creating the admin secret.&lt;/p>
+&lt;/blockquote>
+&lt;p>Or assign the permission for an existing service principal:&lt;/p>
+&lt;pre>&lt;code>az role assignment create --role &amp;quot;Contributor&amp;quot; --assignee &amp;lt;sp_id&amp;gt; --scope &amp;quot;/subscriptions/&amp;lt;subscription-id&amp;gt;/resourceGroups/&amp;lt;MC_node_resource_group&amp;gt;&amp;quot;
+&lt;/code>&lt;/pre>&lt;p>For any subsequent user assigned managed identity that&amp;rsquo;s intended for a pod, it&amp;rsquo;s also required to grant the service principal &amp;lsquo;Managed Identity Operator&amp;rsquo; permission (also stated &lt;a href="../../../README.md#6-set-permissions-for-mic">here&lt;/a>):&lt;/p>
+&lt;pre>&lt;code>az role assignment create --role &amp;quot;Managed Identity Operator&amp;quot; --assignee &amp;lt;sp_id&amp;gt; --scope &amp;lt;resource id of the managed identity&amp;gt;
+&lt;/code>&lt;/pre>&lt;h2 id="create-the-admin-secret">Create the admin secret&lt;/h2>
+&lt;p>The &lt;code>aadpodidentity-admin-secret&lt;/code> contains the following fields:&lt;/p>
+&lt;ul>
+&lt;li>Cloud: &lt;code>&amp;lt;base64-encoded-cloud&amp;gt;&lt;/code>
+&lt;ul>
+&lt;li>&amp;lsquo;Cloud&amp;rsquo; should be chosen from the following case-insensitive values: &lt;code>AzurePublicCloud&lt;/code>, &lt;code>AzureUSGovernmentCloud&lt;/code>, &lt;code>AzureChinaCloud&lt;/code>, &lt;code>AzureGermanCloud&lt;/code> (values taken from &lt;a href="https://raw.githubusercontent.com/Azure/go-autorest/master/autorest/azure/environments.go">here&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>SubscriptionID: &lt;code>&amp;lt;base64-encoded-subscription-id&amp;gt;&lt;/code>&lt;/li>
+&lt;li>ResourceGroup: &lt;code>&amp;lt;base64-encoded-resource-group&amp;gt;&lt;/code>
+&lt;ul>
+&lt;li>&amp;lsquo;ResourceGroup&amp;rsquo; is the node resource group where the actual virtual machines or virtual machine scale set resides.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>VMType: &lt;code>&amp;lt;base64-encoded-vm-type&amp;gt;&lt;/code>
+&lt;ul>
+&lt;li>&amp;lsquo;VMType&amp;rsquo; is optional and can be one of these values: &lt;code>standard&lt;/code> for normal virtual machine nodes, and &lt;code>vmss&lt;/code> for cluster deployed with a virtual machine scale set.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>TenantID: &lt;code>&amp;lt;base64-encoded-tenant-id&amp;gt;&lt;/code>&lt;/li>
+&lt;li>ClientID: &lt;code>&amp;lt;base64-encoded-client-id&amp;gt;&lt;/code>&lt;/li>
+&lt;li>ClientSecret: &lt;code>&amp;lt;base64-encoded-client-secret&amp;gt;&lt;/code>
+&lt;ul>
+&lt;li>&amp;lsquo;TenantID&amp;rsquo;, &amp;lsquo;ClientID&amp;rsquo; and &amp;lsquo;ClientSecret&amp;rsquo; are service principal&amp;rsquo;s &lt;code>tenant&lt;/code>, &lt;code>appId&lt;/code>, &lt;code>password&lt;/code> respectively.&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;blockquote>
+&lt;p>Use &lt;code>echo -n 'secret-content' | base64&lt;/code> to create a base64 encoded string.&lt;/p>
+&lt;/blockquote>
+&lt;p>Fill out those secret values in the /deploy/infra/noazurejson/deployment.yaml or /deploy/infra/noazurejson/deployment-rbac.yaml before executing &lt;code>kubectl create -f ./deploy/infra/noazurejson/deployment.yaml&lt;/code> or &lt;code>kubectl create -f ./deploy/infra/noazurejson/deployment-rbac.yaml&lt;/code>.&lt;/p>
+&lt;blockquote>
+&lt;p>Note that if not use the above yaml&amp;rsquo;s, &lt;code>aadpodidentity-admin-secret&lt;/code> must be created before deploying &lt;code>mic&lt;/code> and &lt;code>mic&lt;/code> must reference the secret as shown in the yaml&amp;rsquo;s.&lt;/p>
+&lt;/blockquote>
+&lt;p>The secret will be injected as an environment variable into &lt;code>mic&lt;/code> upon pod creation and cannot be updated during the lifecycle of &lt;code>mic&lt;/code>. However, redeploying &lt;code>mic&lt;/code> should pick up the updated service principal&amp;rsquo;s information should they change.&lt;/p></description></item><item><title>Docs: Disable AAD Pod Identity for a specific Pod/Application</title><link>https://azure.github.io/aad-pod-identity/docs/configure/application_exception/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/application_exception/</guid><description>
+&lt;blockquote>
+&lt;p>Available from 1.5 release&lt;/p>
+&lt;/blockquote>
+&lt;p>NMI pods modify the nodes' iptables to intercept calls to Azure Instance Metadata endpoint. This means any request that&amp;rsquo;s made to the Metadata endpoint will be intercepted by NMI even if the pod doesn&amp;rsquo;t use aad-pod-identity. &lt;code>AzurePodIdentityException&lt;/code> CRD can be configured to inform aad-pod-identity that any requests to metadata endpoint originating from a pod that matches labels defined in CRD should be proxied without any processing in NMI. NMI will proxy the request to the metdata endpoint and return the token back as is without any validation.&lt;/p>
+&lt;ol>
+&lt;li>Create the &lt;code>AzurePodIdentityException&lt;/code> with the same label that will be defined in the pod -&lt;/li>
+&lt;/ol>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;aadpodidentity.k8s.io/v1&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">AzurePodIdentityException&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">test-exception&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">spec&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">podLabels&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">foo&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">bar&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">app&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">custom&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Use the &lt;a href="../../examples/azurepodidentityexception.yaml">sample template&lt;/a>, replace the podLabels with a list of desired values and then create the resource on the cluster:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-shell" data-lang="shell">kubectl apply -f examples/aadpodidentityexception.yaml
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>When creating application pods that will not be using aad-pod-identity for calls to Azure Instance Metadata endpoint, include at least one of the labels in &lt;code>spec.template.metadata.labels&lt;/code>.&lt;/p>
+&lt;p>Example pod with same label as above defined in the spec -&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">apps/v1&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">Deployment&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">sample&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">labels&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">app&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">sample&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">spec&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">replicas&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">selector&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">matchLabels&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">app&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">sample&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">template&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">labels&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">app&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">sample&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">foo&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">bar &amp;lt;------- Label defined in exception CRD included in deployment&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">spec&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#000">...]&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>To verify the pods have the right label that match the ones defined in the exception crd -&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-shell" data-lang="shell">kubectl get pods --show-labels
+NAME READY STATUS RESTARTS AGE LABELS
+sample-td 1/1 Running &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> 16s &lt;span style="color:#000">app&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>sample,foo&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>bar
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>NOTE&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>&lt;code>AzurePodIdentityException&lt;/code> is per namespace. This means if the same label needs to be used in multiple namespaces to except pods, a CRD resource needs to be created in each namespace.&lt;/li>
+&lt;li>All the labels defined in the exception CRD doesn&amp;rsquo;t need to be defined in the deployment/pod spec. A single match is enough for the pod to be excepted.&lt;/li>
+&lt;/ul></description></item><item><title>Docs: Azure Identity Validation using Gatekeeper</title><link>https://azure.github.io/aad-pod-identity/docs/configure/azure_identity_validation/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/azure_identity_validation/</guid><description>
+&lt;h2 id="introduction">Introduction&lt;/h2>
+&lt;p>This will help validate various CRDs and the azure resources used in aad-pod-identity.
+Currently validation of User assigned MSI format in Azure Identity is supported.&lt;/p>
+&lt;p>&lt;a href="https://github.com/open-policy-agent/gatekeeper">Gatekeeper&lt;/a> - Policy Controller for Kubernetes, is used to validate the resources.&lt;/p>
+&lt;ul>
+&lt;li>It is a validating webhook that enforces CRD based policies&lt;/li>
+&lt;li>Provides admission system which allows to configure policy and rule as constraint&lt;/li>
+&lt;/ul>
+&lt;h4 id="prerequisite-gatekeeper-installation">Prerequisite Gatekeeper Installation&lt;/h4>
+&lt;p>Run the following to deploy a release version of Gatekeeper in your cluster or refer to &lt;a href="https://github.com/open-policy-agent/gatekeeper#installation-instructions">Gatekeeper Installation&lt;/a> for detailed instructions.&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">kubectl apply -f https://raw.githubusercontent.com/open-policy-agent/gatekeeper/master/deploy/gatekeeper.yaml
+&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="azure-identity-format-validation">Azure Identity Format Validation&lt;/h2>
+&lt;p>Policy can be configured as Gatekeeper constraint to ensure the validity of the Resource ID format in the given identity.Request will be rejected by admission controller in case of any violation of the configured constraint.&lt;/p>
+&lt;p>Following are the two major resources to enable this check.&lt;/p>
+&lt;ul>
+&lt;li>Constraint Template&lt;/li>
+&lt;li>Constraint&lt;/li>
+&lt;/ul>
+&lt;h3 id="constraint-template">Constraint Template&lt;/h3>
+&lt;p>&lt;code>ConstraintTemplate&lt;/code> describes both the &lt;a href="https://www.openpolicyagent.org/docs/v0.10.7/how-do-i-write-policies/">Rego&lt;/a> that enforces the constraint and the schema of the constraint.&lt;/p>
+&lt;ul>
+&lt;li>User assigned MSI is expected to have Resource ID in the given format.&lt;/li>
+&lt;/ul>
+&lt;pre>&lt;code>/subscriptions/&amp;lt;subid&amp;gt;/resourcegroups/&amp;lt;resourcegroup&amp;gt;/providers/Microsoft.ManagedIdentity/userAssignedIdentities/&amp;lt;name&amp;gt;
+&lt;/code>&lt;/pre>&lt;p>The same can be validate using the following regex pattern. Resource ID that does not match this pattern is considered invalid.&lt;/p>
+&lt;pre>&lt;code>(?i)/subscriptions/(.+?)/resourcegroups/(.+?)/providers/Microsoft.ManagedIdentity/(.+?)/(.+)
+&lt;/code>&lt;/pre>&lt;ul>
+&lt;li>Policy to ensure Resource ID is following expected pattern can be described via following Constraint template&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">templates.gatekeeper.sh/v1beta1&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">ConstraintTemplate&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">azureidentityformat&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">spec&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">crd&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">spec&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">names&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">azureidentityformat&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">listKind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">azureidentityformatList&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">plural&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">azureidentityformat&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">singular&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">azureidentityformat&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">targets&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>- &lt;span style="color:#204a87;font-weight:bold">target&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">admission.k8s.gatekeeper.sh&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">rego&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#8f5902;font-style:italic">|
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic"> package azureidentityformat
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic"> violation[{&amp;#34;msg&amp;#34;: msg}] {
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic"> input.review.kind.kind == &amp;#34;AzureIdentity&amp;#34;
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic"> # format of resourceId is checked only for user-assigned MSI
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic"> input.review.object.spec.type == 0
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic"> resourceId := input.review.object.spec.resourceID
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic"> result := re_match(`(?i)/subscriptions/(.+?)/resourcegroups/(.+?)/providers/Microsoft.ManagedIdentity/(.+?)/(.+)`,resourceId)
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic"> result == false
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic"> msg := sprintf(`The identity resourceId &amp;#39;%v&amp;#39; is invalid.It must be of the following format: &amp;#39;/subscriptions/&amp;lt;subid&amp;gt;/resourcegroups/&amp;lt;resourcegroup&amp;gt;/providers/Microsoft.ManagedIdentity/userAssignedIdentities/&amp;lt;name&amp;gt;&amp;#39;`,[resourceId])
+&lt;/span>&lt;span style="color:#8f5902;font-style:italic"> }
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>You can install this ConstraintTemplate with the following command:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/validation/gatekeeper/azureidentityformat_template.yaml
+&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="constraint">Constraint&lt;/h3>
+&lt;p>Constraint is used to inform Gatekeeper that the admin wants azureidentityformat ConstraintTemplate to be enforced.&lt;/p>
+&lt;p>If the constraint is violated by any request on Kind &lt;code>AzureIdentity&lt;/code> in apiGroup &lt;code>aadpodidentity.k8s.io&lt;/code>, request will be rejected via the admission controller.&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">constraints.gatekeeper.sh/v1beta1&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">azureidentityformat&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">azureidentityformatconstraint&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">spec&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">match&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">kinds&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>- &lt;span style="color:#204a87;font-weight:bold">apiGroups&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;aadpodidentity.k8s.io&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">kinds&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000;font-weight:bold">[&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;AzureIdentity&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">]&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>You can install this Constraint with the following command:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/validation/gatekeeper/azureidentityformat_constraint.yaml
+&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="examples">Examples&lt;/h3>
+&lt;ul>
+&lt;li>Following identity will pass the constraint and request will be accepted, as the resource ID is in the correct format.&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;aadpodidentity.k8s.io/v1&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">AzureIdentity&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">testidentityvalid&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">spec&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">resourceID&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">/subscriptions/00000000-0000-0000-0000-000000000000/resourcegroups/myResourceGroup/providers/Microsoft.ManagedIdentity/userAssignedIdentities/testidentity&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">clientID&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#0000cf;font-weight:bold">00000000-0000-0000-0000-000000000000&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>Following identity will violate the constraint and request will be rejected, as resource ID is not of correct format (&lt;code>resourcegroups/&amp;lt;resourcegroup&amp;gt;&lt;/code> is missing in resourceID).&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;aadpodidentity.k8s.io/v1&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">AzureIdentity&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">testidentityinvalid&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">spec&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">resourceID&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myidentity&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">clientID&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#0000cf;font-weight:bold">00000000-0000-0000-0000-000000000000&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh"> kubectl apply -f aadpodidentity_test_invalid.yaml
+Error from server &lt;span style="color:#ce5c00;font-weight:bold">([&lt;/span>denied by azureidentityformatconstraint&lt;span style="color:#ce5c00;font-weight:bold">]&lt;/span> The identity resourceId &lt;span style="color:#4e9a06">&amp;#39;/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myidentity&amp;#39;&lt;/span> is invalid.It must be of the following format: &lt;span style="color:#4e9a06">&amp;#39;/subscriptions/&amp;lt;subid&amp;gt;/resourcegroups/&amp;lt;resourcegroup&amp;gt;/providers/Microsoft.ManagedIdentity/userAssignedIdentities/&amp;lt;name&amp;gt;&amp;#39;&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">)&lt;/span>: error when creating &lt;span style="color:#4e9a06">&amp;#34;aadpodidentity_test_invalid.yaml&amp;#34;&lt;/span>: admission webhook &lt;span style="color:#4e9a06">&amp;#34;validation.gatekeeper.sh&amp;#34;&lt;/span> denied the request: &lt;span style="color:#ce5c00;font-weight:bold">[&lt;/span>denied by azureidentityformatconstraint&lt;span style="color:#ce5c00;font-weight:bold">]&lt;/span> The identity resourceId &lt;span style="color:#4e9a06">&amp;#39;/subscriptions/00000000-0000-0000-0000-000000000000/providers/Microsoft.ManagedIdentity/userAssignedIdentities/myidentity&amp;#39;&lt;/span> is invalid.It must be of the following format: &lt;span style="color:#4e9a06">&amp;#39;/subscriptions/&amp;lt;subid&amp;gt;/resourcegroups/&amp;lt;resourcegroup&amp;gt;/providers/Microsoft.ManagedIdentity/userAssignedIdentities/&amp;lt;name&amp;gt;&amp;#39;&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="uninstallation">Uninstallation&lt;/h3>
+&lt;h4 id="uninstall-constraint-template--constraint">Uninstall Constraint Template &amp;amp; Constraint&lt;/h4>
+&lt;ul>
+&lt;li>Delete instances of the constraint resource&lt;/li>
+&lt;li>Delete the ConstraintTemplate` resource&lt;/li>
+&lt;/ul>
+&lt;p>Run the following to uninstall / disable validation.&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">kubectl delete -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/validation/gatekeeper/azureidentityformat_constraint.yaml
+kubectl delete -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/validation/gatekeeper/azureidentityformat_template.yaml
+&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Docs: Feature Flags</title><link>https://azure.github.io/aad-pod-identity/docs/configure/feature_flags/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/feature_flags/</guid><description>
+&lt;h2 id="enable-scale-features-flag">Enable Scale Features flag&lt;/h2>
+&lt;blockquote>
+&lt;p>Available from 1.5.3 release&lt;/p>
+&lt;/blockquote>
+&lt;p>Aad-pod-identity adds labels to AzureAssignedIdentities which denote the nodename, podname and podnamespace.
+When the optional parameter &lt;code>enabledScaleFeatures&lt;/code> is set to &amp;lsquo;true&amp;rsquo;, the NMI watches for AzureAssignedIdentities will do a label based filtering on
+the nodename label. This approach is taken because currently K8s does not support field selectors in CRD watches. This reduces the load which
+NMIs add on API server. When this flag is enabled, NMI will no longer work for AzureAssignedIdentities which were created before 1.5.3-rc5, since
+they don&amp;rsquo;t have the labels. Hence please note that this flag renders your setup incompatible with releases before 1.5.3-rc5.&lt;/p>
+&lt;h2 id="batch-create-delete-flag">Batch Create Delete flag&lt;/h2>
+&lt;blockquote>
+&lt;p>Available from 1.5.3 release&lt;/p>
+&lt;/blockquote>
+&lt;p>MIC groups operations based on nodes/VMSS during the given cycle. With &lt;code>createDeleteBatch&lt;/code> parameter we can
+tune the number of operations (CREATE/DELETE/UPDATE) to the API server which are performed in parallel in the context of a
+node/VMSS.&lt;/p>
+&lt;h2 id="client-qps-flag">Client QPS flag&lt;/h2>
+&lt;blockquote>
+&lt;p>Available from 1.5.3 release&lt;/p>
+&lt;/blockquote>
+&lt;p>Aad-pod-identity has a new flag clientQps which can be used to control the total number of client operations performed per second
+to the API server by MIC.&lt;/p>
+&lt;h2 id="block-instance-metadata-flag">Block Instance Metadata flag&lt;/h2>
+&lt;p>The Azure Metadata API includes endpoints under &lt;code>/metadata/instance&lt;/code> which
+provide information about the virtual machine. You can see examples of this
+endpoint in &lt;a href="https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service#retrieving-all-metadata-for-an-instance">the Azure documentation&lt;/a>.&lt;/p>
+&lt;p>Some of the information returned by this endpoint may be considered sensitive
+or secret. The response includes information on the operating system and image,
+tags, resource IDs, network, and VM custom data.&lt;/p>
+&lt;p>This information is legitimately useful for many use cases, but also presents a
+risk. If an attacker can exploit a vulnerability that allows them to read from
+this endpoint, they may be able to access sensitive information even if the
+vulnerable Pod does not use Managed Identity.&lt;/p>
+&lt;p>The &lt;code>blockInstanceMetadata&lt;/code> flag for NMI will intercept any requests to this
+endpoint from Pods which are not using host networking and return an HTTP 403
+Forbidden response. This flag is disabled by default to maximize compatibility.
+Users are encouraged to determine if this option is relevant and beneficial for
+their use cases.&lt;/p>
+&lt;h2 id="immutableusermsis-flag">ImmutableUserMSIs flag&lt;/h2>
+&lt;blockquote>
+&lt;p>Available from 1.5.4 release&lt;/p>
+&lt;/blockquote>
+&lt;p>Aad-pod-identity has a new flag &lt;code>immutable-user-msis&lt;/code> which can be used to prevent deletion of specified identities from VM/VMSS.
+The list is comma separated. Example: 00000000-0000-0000-0000-000000000000,11111111-1111-1111-1111-111111111111&lt;/p>
+&lt;h2 id="metadata-header-required-flag">Metadata header required flag&lt;/h2>
+&lt;blockquote>
+&lt;p>Available from 1.6.0 release&lt;/p>
+&lt;/blockquote>
+&lt;p>When you query the Instance Metadata Service, you must provide the header &lt;code>Metadata: true&lt;/code> to ensure the request was not unintentionally redirected. You can see examples of this header in &lt;a href="https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service#using-headers">the Azure documentation&lt;/a>.&lt;/p>
+&lt;p>This is critical especially when you &lt;a href="https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http">acquire an access token&lt;/a> as a mitigation against Server Side Request Forgery (SSRF) attack.&lt;/p>
+&lt;p>The &lt;code>metadataHeaderRequired&lt;/code> flag for NMI will block all requests without Metadata header and return an HTTP 400 response. This flag is disabled by default for compatibility, but recommended for users to enable this feature.&lt;/p></description></item><item><title>Docs: Pod Identity in Managed Mode</title><link>https://azure.github.io/aad-pod-identity/docs/configure/pod_identity_in_managed_mode/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/pod_identity_in_managed_mode/</guid><description>
+&lt;blockquote>
+&lt;p>Available from 1.6.0 release&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="introduction">Introduction&lt;/h2>
+&lt;p>Starting from 1.6.0 release, 2 modes of operation are supported for pod-identity&lt;/p>
+&lt;ul>
+&lt;li>Standard Mode&lt;/li>
+&lt;li>Managed Mode&lt;/li>
+&lt;/ul>
+&lt;h3 id="standard-mode">Standard Mode&lt;/h3>
+&lt;p>This is the default mode in which pod-identity will be deployed. In this mode, there are 2 components, MIC (Managed Identity Controller) and NMI (Node Managed Identity). MIC handles the identity assignment/removal from the underlying vm/vmss when new pods using the identity are created/deleted.&lt;/p>
+&lt;h3 id="managed-mode">Managed Mode&lt;/h3>
+&lt;p>In this mode, there is only the NMI component deployed in the cluster. The identity assignment needs to be manually performed.&lt;/p>
+&lt;p>Deploy &lt;code>aad-pod-identity&lt;/code> components to an RBAC-enabled cluster in managed mode:&lt;/p>
+&lt;ul>
+&lt;li>This installs NMI in managed mode in the kube-system namespace&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/deploy/infra/managed-mode-deployment.yaml
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>&lt;strong>NOTE&lt;/strong> Managed mode is only supported in namespaced mode. This ensures pods in namespace are only matched with &lt;code>AzureIdentity&lt;/code> and &lt;code>AzureIdentityBinding&lt;/code> in the same namespace.&lt;/p>
+&lt;p>To assign the identity to the VM, run the following command -&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-shell" data-lang="shell">az vm identity assign -g &amp;lt;VM resource group name&amp;gt; -n &amp;lt;VM name&amp;gt; --identities &amp;lt;resource ID of managed identity&amp;gt;
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>To assign the identity to VMSS, run the following command -&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-shell" data-lang="shell">az vmss identity assign -g &amp;lt;VM resource group name&amp;gt; -n &amp;lt;VM name&amp;gt; --identities &amp;lt;resource ID of managed identity&amp;gt;
+&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="why-use-managed-mode">Why use Managed mode&lt;/h2>
+&lt;ul>
+&lt;li>Identity assignment on VM takes 10-20s and 40-60s in case of VMSS. In case of cronjobs or applications that require access to the identity and can&amp;rsquo;t tolerate the assignment delay, it&amp;rsquo;s best to use managed mode as the identity is manually pre-assigned to the VM/VMSS.&lt;/li>
+&lt;li>In standard mode, MIC requires write permissions on VM/VMSS and Managed Identity Operator permission on all user assigned MSIs. While running in managed mode, since there is no MIC, the role assignments are not required.&lt;/li>
+&lt;/ul></description></item><item><title>Docs: Monitoring Pod Identity with Prometheus</title><link>https://azure.github.io/aad-pod-identity/docs/configure/prometheus_monitoring/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/prometheus_monitoring/</guid><description>
+&lt;h2 id="introduction">Introduction&lt;/h2>
+&lt;p>AAD pod identity is a foundational service that other applications depend upon, it is recommended to monitor the same.&lt;/p>
+&lt;p>Liveliness probe and Prometheus metrics are available in both Managed Identity Controller (MIC) and the Node Managed Identity (NMI) components.&lt;/p>
+&lt;h2 id="liveliness-probe">Liveliness Probe&lt;/h2>
+&lt;p>MIC and NMI exposes /healthz endpoint with content of &amp;ldquo;Active/Not Active&amp;rdquo; state.
+State &amp;ldquo;Active&amp;rdquo; is being returned if the component has started successfully and &amp;ldquo;Not Active&amp;rdquo; otherwise.&lt;/p>
+&lt;h2 id="prometheus-metrics">Prometheus Metrics&lt;/h2>
+&lt;p>&lt;a href="https://github.com/prometheus/prometheus">Prometheus&lt;/a> is a systems and service monitoring system. It collects metrics from configured targets at given intervals, evaluates rule expressions,displays the results, and can trigger alerts if some condition is observed to be true.&lt;/p>
+&lt;p>The following &lt;a href="https://opencensus.io/">OpenCensus&lt;/a> metrics are exposed in AAD pod identity system via prometheus exporter.&lt;/p>
+&lt;p>&lt;strong>1. aadpodidentity_assigned_identity_addition_duration_seconds&lt;/strong>&lt;/p>
+&lt;p>Histogram that tracks the duration (in seconds) it takes for Assigned identity addition operations.&lt;/p>
+&lt;p>&lt;strong>2. aadpodidentity_assigned_identity_addition_count&lt;/strong>&lt;/p>
+&lt;p>Counter that tracks the cumulative number of assigned identity addition operations.&lt;/p>
+&lt;p>&lt;strong>3. aadpodidentity_assigned_identity_deletion_duration_seconds&lt;/strong>&lt;/p>
+&lt;p>Histogram that tracks the duration (in seconds) it takes for Assigned identity deletion operations.&lt;/p>
+&lt;p>&lt;strong>4. aadpodidentity_assigned_identity_deletion_count&lt;/strong>&lt;/p>
+&lt;p>Counter that tracks the cumulative number of assigned identity deletion operations.&lt;/p>
+&lt;p>&lt;strong>5. aadpodidentity_nmi_operations_duration_seconds&lt;/strong>&lt;/p>
+&lt;p>Histogram that tracks the latency (in seconds) of NMI operations to complete. Broken down by operation type, status code.&lt;/p>
+&lt;p>&lt;strong>6. aadpodidentity_mic_cycle_duration_seconds&lt;/strong>&lt;/p>
+&lt;p>Histogram that tracks the duration (in seconds) it takes for a single cycle in MIC.&lt;/p>
+&lt;p>&lt;strong>7. aadpodidentity_mic_cycle_count&lt;/strong>&lt;/p>
+&lt;p>Counter that tracks the number of cycles executed in MIC.&lt;/p>
+&lt;p>&lt;strong>8. aadpodidentity_mic_new_leader_election_count&lt;/strong>&lt;/p>
+&lt;p>Counter that tracks the cumulative number of new leader election in MIC.&lt;/p>
+&lt;p>&lt;strong>9. aadpodidentity_cloud_provider_operations_errors_count&lt;/strong>&lt;/p>
+&lt;p>Counter that tracks the cumulative number of cloud provider operations errors. Broken down by operation type.&lt;/p>
+&lt;p>&lt;strong>10. aadpodidentity_cloud_provider_operations_duration_seconds&lt;/strong>&lt;/p>
+&lt;p>Histogram that tracks the duration (in seconds) it takes for cloud provider operations. Broken down by operation type.&lt;/p>
+&lt;p>&lt;strong>11. aadpodidentity_kubernetes_api_operations_errors_count&lt;/strong>&lt;/p>
+&lt;p>Counter that tracks the cumulative number of kubernetes api operations errors. Broken down by operation type.&lt;/p>
+&lt;p>&lt;strong>12. aadpodidentity_imds_operations_errors_count&lt;/strong>&lt;/p>
+&lt;p>Counter that tracks the cumulative number of imds token operation errors. Broken down by operation type.&lt;/p>
+&lt;p>&lt;strong>13. aadpodidentity_imds_operations_duration_seconds&lt;/strong>&lt;/p>
+&lt;p>Histogram that tracks the duration (in seconds) it takes for IMDS token operations. Broken down by operation type.&lt;/p>
+&lt;h3 id="prometheus-metrics-endpoints">Prometheus Metrics Endpoints&lt;/h3>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th style="text-align:center">Component&lt;/th>
+&lt;th>Default Metric Port&lt;/th>
+&lt;th>Metric Path&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>NMI&lt;/code>&lt;/td>
+&lt;td>&lt;code>9090&lt;/code>&lt;/td>
+&lt;td>&lt;code>/metrics&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td style="text-align:center">&lt;code>MIC&lt;/code>&lt;/td>
+&lt;td>&lt;code>8888&lt;/code>&lt;/td>
+&lt;td>&lt;code>/metrics&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table></description></item><item><title>Docs: Enable PSP Clusters</title><link>https://azure.github.io/aad-pod-identity/docs/configure/enable_psp_enabled_clusters/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/enable_psp_enabled_clusters/</guid><description>
+&lt;h2 id="policy-to-allow-aad-pod-identity-to-work-in-psp-enabled-clusters">Policy to allow aad-pod-identity to work in PSP enabled clusters&lt;/h2>
+&lt;p>The NMI component of aad-pod-identity runs on &lt;code>hostNetwork&lt;/code> and in &lt;code>privileged&lt;/code> mode. If the cluster has Pod Security Policies (PSP) enabled that block &lt;code>hostNetwork&lt;/code> and &lt;code>privileged&lt;/code> mode, then the aad-pod-identity will be unable to run. The following step will create a PSP that allows the required access for aad-pod-identity components only in the desired namespace -&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/examples/psp-podidentity.yaml
+&lt;/code>&lt;/pre>&lt;/div></description></item></channel></rss>
