@@ -5,7 +5,7 @@
 &lt;p>By default, AAD Pod Identity matches pods to identities across namespaces. To match only pods in the namespace containing &lt;code>AzureIdentity&lt;/code>, use one of these techniques:&lt;/p>
 &lt;ul>
 &lt;li>
-&lt;p>Attach a &lt;code>aadpodidentity.k8s.io/Behavior: namespaced&lt;/code> [annotation] to each &lt;code>AzureIdentity&lt;/code> resource.&lt;/p>
+&lt;p>Attach a &lt;code>aadpodidentity.k8s.io/Behavior: namespaced&lt;/code> annotation to each &lt;code>AzureIdentity&lt;/code> resource.&lt;/p>
 &lt;p>Here is the &lt;code>AzureIdentity&lt;/code> manifest from the previous step with this annotation added:&lt;/p>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;aadpodidentity.k8s.io/v1&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
 &lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">AzureIdentity&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
@@ -33,7 +33,7 @@
 &lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">env&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
 &lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>- &lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">FORCENAMESPACED&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
 &lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">value&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;true&amp;#34;&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
-&lt;/ul></description></item><item><title>Docs: Deploy AAD Pod Identity with a Dedicated Service Principle</title><link>https://azure.github.io/aad-pod-identity/docs/configure/deploy_aad_pod_dedicated_sp/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/deploy_aad_pod_dedicated_sp/</guid><description>
+&lt;/ul></description></item><item><title>Docs: Deploy AAD Pod Identity with a Dedicated Service Principal</title><link>https://azure.github.io/aad-pod-identity/docs/configure/deploy_aad_pod_dedicated_sp/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/deploy_aad_pod_dedicated_sp/</guid><description>
 &lt;blockquote>
 &lt;p>Available from 1.5 release&lt;/p>
 &lt;/blockquote>
@@ -49,7 +49,7 @@
 &lt;/blockquote>
 &lt;p>Or assign the permission for an existing service principal:&lt;/p>
 &lt;pre>&lt;code>az role assignment create --role &amp;quot;Contributor&amp;quot; --assignee &amp;lt;sp_id&amp;gt; --scope &amp;quot;/subscriptions/&amp;lt;subscription-id&amp;gt;/resourceGroups/&amp;lt;MC_node_resource_group&amp;gt;&amp;quot;
-&lt;/code>&lt;/pre>&lt;p>For any subsequent user assigned managed identity that&amp;rsquo;s intended for a pod, it&amp;rsquo;s also required to grant the service principal &amp;lsquo;Managed Identity Operator&amp;rsquo; permission (also stated &lt;a href="../../../README.md#6-set-permissions-for-mic">here&lt;/a>):&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>For any subsequent user assigned managed identity that&amp;rsquo;s intended for a pod, it&amp;rsquo;s also required to grant the service principal &amp;lsquo;Managed Identity Operator&amp;rsquo; permission (also stated &lt;a href="../../getting-started/role-assignment/">here&lt;/a>):&lt;/p>
 &lt;pre>&lt;code>az role assignment create --role &amp;quot;Managed Identity Operator&amp;quot; --assignee &amp;lt;sp_id&amp;gt; --scope &amp;lt;resource id of the managed identity&amp;gt;
 &lt;/code>&lt;/pre>&lt;h2 id="create-the-admin-secret">Create the admin secret&lt;/h2>
 &lt;p>The &lt;code>aadpodidentity-admin-secret&lt;/code> contains the following fields:&lt;/p>
@@ -101,8 +101,8 @@
 &lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">podLabels&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
 &lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">foo&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">bar&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
 &lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">app&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">custom&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
-&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Use the &lt;a href="../../examples/azurepodidentityexception.yaml">sample template&lt;/a>, replace the podLabels with a list of desired values and then create the resource on the cluster:&lt;/p>
-&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-shell" data-lang="shell">kubectl apply -f examples/aadpodidentityexception.yaml
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Use the &lt;a href="https://github.com/Azure/aad-pod-identity/blob/master/examples/azurepodidentityexception.yaml">sample template&lt;/a>, replace the podLabels with a list of desired values and then create the resource on the cluster:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-shell" data-lang="shell">kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/examples/azurepodidentityexception.yaml
 &lt;/code>&lt;/pre>&lt;/div>&lt;p>When creating application pods that will not be using aad-pod-identity for calls to Azure Instance Metadata endpoint, include at least one of the labels in &lt;code>spec.template.metadata.labels&lt;/code>.&lt;/p>
 &lt;p>Example pod with same label as above defined in the spec -&lt;/p>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">apps/v1&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
@@ -151,7 +151,7 @@ Currently validation of User assigned MSI format in Azure Identity is supported.
 &lt;li>Constraint&lt;/li>
 &lt;/ul>
 &lt;h3 id="constraint-template">Constraint Template&lt;/h3>
-&lt;p>&lt;code>ConstraintTemplate&lt;/code> describes both the &lt;a href="https://www.openpolicyagent.org/docs/v0.10.7/how-do-i-write-policies/">Rego&lt;/a> that enforces the constraint and the schema of the constraint.&lt;/p>
+&lt;p>&lt;code>ConstraintTemplate&lt;/code> describes both the &lt;a href="https://www.openpolicyagent.org/docs/latest/policy-language/">Rego&lt;/a> that enforces the constraint and the schema of the constraint.&lt;/p>
 &lt;ul>
 &lt;li>User assigned MSI is expected to have Resource ID in the given format.&lt;/li>
 &lt;/ul>

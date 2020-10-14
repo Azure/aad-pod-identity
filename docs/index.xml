@@ -1,23 +1,23 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Azure Active Directory Pod Identity for Kubernetes – Documentation</title><link>https://azure.github.io/aad-pod-identity/docs/</link><description>Recent content in Documentation on Azure Active Directory Pod Identity for Kubernetes</description><generator>Hugo -- gohugo.io</generator><atom:link href="https://azure.github.io/aad-pod-identity/docs/index.xml" rel="self" type="application/rss+xml"/><item><title>Docs: Components</title><link>https://azure.github.io/aad-pod-identity/docs/getting-started/components/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/getting-started/components/</guid><description>
 &lt;h3 id="managed-identity-controller">Managed Identity Controller&lt;/h3>
-&lt;p>The Managed Identity Controller (MIC) is a Kubernetes [custom resource] that watches for changes to pods, &lt;code>AzureIdentity&lt;/code> and &lt;code>AzureIdentityBindings&lt;/code> through the Kubernetes API server. When it detects a relevant change, the MIC adds or deletes &lt;code>AzureAssignedIdentity&lt;/code> as needed.&lt;/p>
+&lt;p>The Managed Identity Controller (MIC) is a Kubernetes controller that watches for changes to pods, &lt;code>AzureIdentity&lt;/code> and &lt;code>AzureIdentityBindings&lt;/code> through the Kubernetes API server. When it detects a relevant change, the MIC adds or deletes &lt;code>AzureAssignedIdentity&lt;/code> as needed.&lt;/p>
 &lt;p>Specifically, when a pod is scheduled, the MIC assigns the identity on Azure to the underlying VM/VMSS during the creation phase. When the pod is deleted, it removes the identity from the underlying VM/VMSS on Azure. The MIC takes similar actions when &lt;code>AzureIdentity&lt;/code> or &lt;code>AzureIdentityBinding&lt;/code> are created or deleted.&lt;/p>
 &lt;h3 id="node-managed-identity">Node Managed Identity&lt;/h3>
-&lt;p>The authorization request to fetch a Service Principal Token from an MSI endpoint is sent to Azure Instance Metadata Service (IMDS) endpoint (169.254.169.254), which is redirected to the NMI pod. The redirection is accomplished by adding iptable rules to redirect all non-host traffic with IMDS endpoint on port 80 as destination to the NMI endpoint. The NMI server identifies the pod based on the remote address of the request and then queries Kubernetes (through MIC) for a matching Azure identity. NMI then makes an Azure Active Directory Authentication Library ([ADAL]) request to get the token for the client ID and returns it as a response. If the request had client ID as part of the query, it is validated against the admin-configured client ID.&lt;/p>
+&lt;p>The authorization request to fetch a Service Principal Token from an MSI endpoint is sent to Azure Instance Metadata Service (IMDS) endpoint (169.254.169.254), which is redirected to the NMI pod. The redirection is accomplished by adding iptable rules to redirect all non-host traffic with IMDS endpoint on port 80 as destination to the NMI endpoint. The NMI server identifies the pod based on the remote address of the request and then queries Kubernetes (through MIC) for a matching Azure identity. NMI then makes an Azure Active Directory Authentication Library (&lt;a href="https://docs.microsoft.com/en-us/azure/active-directory/azuread-dev/active-directory-authentication-libraries">ADAL&lt;/a>) request to get the token for the client ID and returns it as a response. If the request had client ID as part of the query, it is validated against the admin-configured client ID.&lt;/p>
 &lt;p>Here is an example cURL command that will fetch an access token to access ARM within a pod identified by an AAD-Pod-Identity selector:&lt;/p>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">curl &lt;span style="color:#4e9a06">&amp;#39;http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&amp;amp;resource=https%3A%2F%2Fmanagement.azure.com%2F&amp;#39;&lt;/span> -H Metadata:true -s
 &lt;/code>&lt;/pre>&lt;/div>&lt;p>For different ways to acquire an access token within a pod, please refer to this &lt;a href="https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token">documentation&lt;/a>.&lt;/p>
 &lt;p>Similarly, a host can make an authorization request to fetch Service Principal Token for a resource directly from the NMI host endpoint (http://127.0.0.1:2579/host/token/). The request must include the pod namespace &lt;code>podns&lt;/code> and the pod name &lt;code>podname&lt;/code> in the request header and the resource endpoint of the resource requesting the token. The NMI server identifies the pod based on the &lt;code>podns&lt;/code> and &lt;code>podname&lt;/code> in the request header and then queries k8s (through MIC) for a matching azure identity. Then NMI makes an ADAL request to get a token for the resource in the request, returning the &lt;code>token&lt;/code> and the &lt;code>clientid&lt;/code> as a response.&lt;/p>
 &lt;p>Here is an example cURL command:&lt;/p>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">curl http://127.0.0.1:2579/host/token/?resource&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>https://vault.azure.net -H &lt;span style="color:#4e9a06">&amp;#34;podname: nginx-flex-kv-int&amp;#34;&lt;/span> -H &lt;span style="color:#4e9a06">&amp;#34;podns: default&amp;#34;&lt;/span>
-&lt;/code>&lt;/pre>&lt;/div>&lt;p>For more information, please refer to the &lt;a href="./docs/design/concept.md">design documentation&lt;/a>.&lt;/p></description></item><item><title>Docs: Match Pods in the Namespace</title><link>https://azure.github.io/aad-pod-identity/docs/configure/match_pods_in_namespace/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/match_pods_in_namespace/</guid><description>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>For more information, please refer to the &lt;a href="../../design">design documentation&lt;/a>.&lt;/p></description></item><item><title>Docs: Match Pods in the Namespace</title><link>https://azure.github.io/aad-pod-identity/docs/configure/match_pods_in_namespace/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/match_pods_in_namespace/</guid><description>
 &lt;blockquote>
 &lt;p>Available from &lt;a href="https://github.com/Azure/aad-pod-identity/releases/tag/1.3.0-mic-1.4.0-nmi">1.3.0-mic-1.4.0-nmi release&lt;/a>&lt;/p>
 &lt;/blockquote>
 &lt;p>By default, AAD Pod Identity matches pods to identities across namespaces. To match only pods in the namespace containing &lt;code>AzureIdentity&lt;/code>, use one of these techniques:&lt;/p>
 &lt;ul>
 &lt;li>
-&lt;p>Attach a &lt;code>aadpodidentity.k8s.io/Behavior: namespaced&lt;/code> [annotation] to each &lt;code>AzureIdentity&lt;/code> resource.&lt;/p>
+&lt;p>Attach a &lt;code>aadpodidentity.k8s.io/Behavior: namespaced&lt;/code> annotation to each &lt;code>AzureIdentity&lt;/code> resource.&lt;/p>
 &lt;p>Here is the &lt;code>AzureIdentity&lt;/code> manifest from the previous step with this annotation added:&lt;/p>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;aadpodidentity.k8s.io/v1&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
 &lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">AzureIdentity&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
@@ -57,7 +57,7 @@
 az login
 az account &lt;span style="color:#204a87">set&lt;/span> -s &lt;span style="color:#4e9a06">&amp;#34;&lt;/span>&lt;span style="color:#4e9a06">${&lt;/span>&lt;span style="color:#000">SUBSCRIPTION_ID&lt;/span>&lt;span style="color:#4e9a06">}&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;&lt;/span>
 &lt;/code>&lt;/pre>&lt;/div>&lt;blockquote>
-&lt;p>For AKS clusters, there are two resource groups that you need to be aware of - the resource group where you deploy your AKS cluster to (denoted by the environment variable &lt;code>RESOURCE_GROUP&lt;/code>), and the cluster resource group (&lt;code>MC_&amp;lt;AKSResourceGroup&amp;gt;_&amp;lt;AKSClusterName&amp;gt;_&amp;lt;AKSClusterLocation&amp;gt;&lt;/code>). The latter contains all of the infrastructure resources associated with the cluster like VM/VMSS and VNet. Depending on where you deploy your user-assigned identities, you might need additional role assignments. Please refer to &lt;a href="#role-assignment">Role Assignment&lt;/a> for more information. For this demo, it is recommended to deploy the demo identity to your cluster resource group (the one with &lt;code>MC_&lt;/code> prefix).&lt;/p>
+&lt;p>For AKS clusters, there are two resource groups that you need to be aware of - the resource group where you deploy your AKS cluster to (denoted by the environment variable &lt;code>RESOURCE_GROUP&lt;/code>), and the cluster resource group (&lt;code>MC_&amp;lt;AKSResourceGroup&amp;gt;_&amp;lt;AKSClusterName&amp;gt;_&amp;lt;AKSClusterLocation&amp;gt;&lt;/code>). The latter contains all of the infrastructure resources associated with the cluster like VM/VMSS and VNet. Depending on where you deploy your user-assigned identities, you might need additional role assignments. Please refer to &lt;a href="../../getting-started/role-assignment/">Role Assignment&lt;/a> for more information. For this demo, it is recommended to deploy the demo identity to your cluster resource group (the one with &lt;code>MC_&lt;/code> prefix).&lt;/p>
 &lt;/blockquote>
 &lt;h3 id="1-deploy-aad-pod-identity">1. Deploy aad-pod-identity&lt;/h3>
 &lt;p>Deploy &lt;code>aad-pod-identity&lt;/code> components to an RBAC-enabled cluster:&lt;/p>
@@ -73,7 +73,7 @@ kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master
 helm install aad-pod-identity aad-pod-identity/aad-pod-identity
 &lt;/code>&lt;/pre>&lt;/div>&lt;p>For a list of overwritable values when installing with Helm, please refer to &lt;a href="https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#configuration">this section&lt;/a>.&lt;/p>
 &lt;blockquote>
-&lt;p>Important: For AKS clusters with limited [egress-traffic], Please install pod-identity in &lt;code>kube-system&lt;/code> namespace using the [helm charts].&lt;/p>
+&lt;p>Important: For AKS clusters with &lt;a href="https://docs.microsoft.com/en-us/azure/aks/limit-egress-traffic">limited egress traffic&lt;/a>, Please install aad-pod-identity in &lt;code>kube-system&lt;/code> namespace using the helm charts.&lt;/p>
 &lt;/blockquote>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">helm install aad-pod-identity aad-pod-identity/aad-pod-identity --namespace&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>kube-system
 &lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="2-create-an-identity-on-azure">2. Create an identity on Azure&lt;/h3>
@@ -99,7 +99,7 @@ helm install aad-pod-identity aad-pod-identity/aad-pod-identity
 &lt;p>Set &lt;code>type: 0&lt;/code> for user-assigned MSI, &lt;code>type: 1&lt;/code> for Service Principal with client secret, or &lt;code>type: 2&lt;/code> for Service Principal with certificate. For more information, see &lt;a href="https://github.com/Azure/aad-pod-identity/tree/master/deploy/demo">here&lt;/a>.&lt;/p>
 &lt;/blockquote>
 &lt;h3 id="4-optional-match-pods-in-the-namespace">4. (Optional) Match pods in the namespace&lt;/h3>
-&lt;p>For matching pods in the namespace, please refer to the &lt;a href="docs/readmes/README.namespaced.md">namespaced documentation&lt;/a>.&lt;/p>
+&lt;p>For matching pods in the namespace, please refer to the &lt;a href="../../configure/match_pods_in_namespace/">namespaced documentation&lt;/a>.&lt;/p>
 &lt;h3 id="5-deploy-azureidentitybinding">5. Deploy &lt;code>AzureIdentityBinding&lt;/code>&lt;/h3>
 &lt;p>Create an &lt;code>AzureIdentityBinding&lt;/code> that reference the &lt;code>AzureIdentity&lt;/code> you created above:&lt;/p>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">cat &lt;span style="color:#4e9a06">&amp;lt;&amp;lt;EOF | kubectl apply -f -
@@ -112,7 +112,7 @@ helm install aad-pod-identity aad-pod-identity/aad-pod-identity
 &lt;/span>&lt;span style="color:#4e9a06"> selector: ${IDENTITY_NAME}
 &lt;/span>&lt;span style="color:#4e9a06">EOF&lt;/span>
 &lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="6-deployment-and-validation">6. Deployment and Validation&lt;/h3>
-&lt;p>For a pod to match an identity binding, it needs a [label] with the key &lt;code>aadpodidbinding&lt;/code> whose value is that of the &lt;code>selector:&lt;/code> field in the &lt;code>AzureIdentityBinding&lt;/code>. Deploy a pod that validates the functionality:&lt;/p>
+&lt;p>For a pod to match an identity binding, it needs a label with the key &lt;code>aadpodidbinding&lt;/code> whose value is that of the &lt;code>selector:&lt;/code> field in the &lt;code>AzureIdentityBinding&lt;/code>. Deploy a pod that validates the functionality:&lt;/p>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">cat &lt;span style="color:#4e9a06">&amp;lt;&amp;lt; EOF | kubectl apply -f -
 &lt;/span>&lt;span style="color:#4e9a06">apiVersion: v1
 &lt;/span>&lt;span style="color:#4e9a06">kind: Pod
@@ -145,7 +145,7 @@ helm install aad-pod-identity aad-pod-identity/aad-pod-identity
 &lt;/span>&lt;span style="color:#4e9a06"> kubernetes.io/os: linux
 &lt;/span>&lt;span style="color:#4e9a06">EOF&lt;/span>
 &lt;/code>&lt;/pre>&lt;/div>&lt;blockquote>
-&lt;p>&lt;code>mcr.microsoft.com/oss/azure/aad-pod-identity/demo&lt;/code> is an image that demostrates the use of AAD pod identity. The source code can be found &lt;a href="./cmd/demo/main.go">here&lt;/a>.&lt;/p>
+&lt;p>&lt;code>mcr.microsoft.com/oss/azure/aad-pod-identity/demo&lt;/code> is an image that demostrates the use of AAD pod identity. The source code can be found &lt;a href="https://github.com/Azure/aad-pod-identity/blob/master/cmd/demo/main.go">here&lt;/a>.&lt;/p>
 &lt;/blockquote>
 &lt;p>To verify that the pod is indeed using the identity correctly:&lt;/p>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">kubectl logs demo
@@ -177,12 +177,10 @@ iptables -t nat -X aad-metadata
 &lt;ul>
 &lt;li>&lt;a href="https://azure.microsoft.com/en-us/free/">Azure Account&lt;/a>&lt;/li>
 &lt;/ul>
-&lt;p>In this tutorial we are going to be using the Azure CLI, bash scripts, and kubectl. There are three sections, and each section contains several scripts to run. You&amp;rsquo;ll find all the scripts in the &lt;code>/scripts&lt;/code> directory.&lt;/p>
-&lt;p>Lines like &lt;code>./scripts/path/to/script.sh&lt;/code> indicate you should execute that script.&lt;/p>
+&lt;p>In this tutorial we are going to be using the Azure CLI, bash scripts, and kubectl. There are three sections, and each section contains several scripts to run. You&amp;rsquo;ll find all the scripts in the &lt;code>tutorial&lt;/code> directory.&lt;/p>
 &lt;p>To begin, clone this repository&lt;/p>
-&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">
-git clone https://github.com/Azure/aad-pod-identity
-&lt;span style="color:#204a87">cd&lt;/span> aad-pod-identity/docs/tutorial
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">git clone https://github.com/Azure/aad-pod-identity
+&lt;span style="color:#204a87">cd&lt;/span> aad-pod-identity/tutorial
 &lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="using-azure-cli-kubectl-and-bash">Using Azure CLI, kubectl and bash&lt;/h3>
 &lt;p>The following steps require the &lt;a href="https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest">Azure CLI&lt;/a>, make sure to download and &lt;a href="https://docs.microsoft.com/en-us/cli/azure/authenticate-azure-cli?view=azure-cli-latest">login&lt;/a> before starting.&lt;/p>
 &lt;p>If you&amp;rsquo;re on Windows, you should use &lt;a href="https://docs.microsoft.com/en-us/windows/wsl/install-win10">Windows Subsystem for Linux&lt;/a> or another Bash terminal.&lt;/p>
@@ -190,24 +188,22 @@ git clone https://github.com/Azure/aad-pod-identity
 &lt;p>&lt;code>az aks install-cli&lt;/code>&lt;/p>
 &lt;h2 id="1-create-a-kubernetes-cluster-on-azure-aks">1. Create a Kubernetes Cluster on Azure (AKS)&lt;/h2>
 &lt;h3 id="11-register-the-required-resource-types">1.1. Register the required resource types&lt;/h3>
-&lt;p>&lt;code>./scripts/1-init-aks/1-azure-provider-registration.sh&lt;/code>&lt;/p>
+&lt;p>&lt;code>./1-init-aks/1-azure-provider-registration.sh&lt;/code>&lt;/p>
 &lt;p>AKS requires the following resources: Microsoft.Network, Microsoft.Storage, Microsoft.Compute, Microsoft.ContainerService. Register them on your subscription with the above script.&lt;/p>
 &lt;h3 id="12-create-a-resource-group">1.2. Create a Resource Group&lt;/h3>
 &lt;p>Set an environment variable in your shell, for the name of your resource group.&lt;/p>
 &lt;p>&lt;code>export RG=&amp;quot;k8s-test&amp;quot;&lt;/code>&lt;/p>
 &lt;p>This resource group is for your AKS cluster. Create it with this command.&lt;/p>
-&lt;p>&lt;code>./scripts/1-init-aks/2-create-rg.sh&lt;/code>&lt;/p>
+&lt;p>&lt;code>./1-init-aks/2-create-rg.sh&lt;/code>&lt;/p>
 &lt;h3 id="13-create-azure-kubernetes-service">1.3. Create Azure Kubernetes Service&lt;/h3>
 &lt;p>This will create an AKS instance in the resource group created above. It may take a couple of minutes to complete. Set the name of the this command in the shell.&lt;/p>
-&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">
-&lt;span style="color:#000">K8S_NAME&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;Cluster-Name&amp;#34;&lt;/span>
-./scripts/1-init-aks/3-create-aks.sh
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">&lt;span style="color:#000">K8S_NAME&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;Cluster-Name&amp;#34;&lt;/span>
+./1-init-aks/3-create-aks.sh
 &lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="14-configure-the-kubernetes-cli---kubectl">1.4. Configure the kubernetes CLI - &lt;code>kubectl&lt;/code>&lt;/h3>
 &lt;p>With &lt;code>kubectl&lt;/code> installed, run the following script&lt;/p>
-&lt;p>&lt;code>./scripts/1-init-aks/4-configure-cli.sh&lt;/code>&lt;/p>
+&lt;p>&lt;code>./1-init-aks/4-configure-cli.sh&lt;/code>&lt;/p>
 &lt;p>Now the &lt;code>kubectl&lt;/code> command should control your AKS cluster. Try it out, it should look similar to below:&lt;/p>
-&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">
-$ kubectl get nodes
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">$ kubectl get nodes
 NAME STATUS ROLES AGE VERSION
 aks-nodepool1-15831963-0 Ready agent 01h v1.9.6
 &lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="2-configure-aks-with-required-infrastructure-on-the-cluster">2. Configure AKS with required infrastructure on the cluster&lt;/h2>
@@ -217,7 +213,7 @@ aks-nodepool1-15831963-0 Ready agent 01h v1.9.6
 &lt;li>Node Managed Identity (NMI). Identifies the pod based on the remote address of the incoming request, and then queries the k8s (through MIC) for a matching Azure Id. It then make a adal request to get the token for the client id and returns as a response to the request. Implemented as a &lt;a href="https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/">DaemonSet&lt;/a>.&lt;/li>
 &lt;/ol>
 &lt;p>Deploy the infrastructure with the following command to deploy MIC, NMI, and MIC CRDs.&lt;/p>
-&lt;p>&lt;code>./scripts/2-config-aks/2-deploy-infra.sh&lt;/code>&lt;/p>
+&lt;p>&lt;code>./2-config-aks/2-deploy-infra.sh&lt;/code>&lt;/p>
 &lt;p>NOTE: If you have RBAC enabled, use the following deployment instead:&lt;/p>
 &lt;pre>&lt;code>kubectl create -f ../../deploy/infra/deployment-rbac.yaml
 &lt;/code>&lt;/pre>&lt;h2 id="3-deploy-the-demo">3. Deploy the demo&lt;/h2>
@@ -229,7 +225,7 @@ aks-nodepool1-15831963-0 Ready agent 01h v1.9.6
 &lt;p>Then set the environment variable&lt;/p>
 &lt;p>&lt;code>export MC_RG=&amp;quot;resource-group-name&amp;quot;&lt;/code>&lt;/p>
 &lt;p>Run the following to create an azure id&lt;/p>
-&lt;p>&lt;code>./scripts/3-deploy-demo/1-create-azure-id.sh&lt;/code>&lt;/p>
+&lt;p>&lt;code>./3-deploy-demo/1-create-azure-id.sh&lt;/code>&lt;/p>
 &lt;h3 id="32-deploy-demo">3.2. Deploy demo&lt;/h3>
 &lt;p>The &lt;code>/deploy/demo/deployment.yaml&lt;/code> describes the pod that will be deployed.&lt;/p>
 &lt;p>It automatically adds the following values from your environment:&lt;/p>
@@ -239,28 +235,26 @@ aks-nodepool1-15831963-0 Ready agent 01h v1.9.6
 &lt;li>resourcegroup: From the Azure Id you created above&lt;/li>
 &lt;/ul>
 &lt;p>Run the following to deploy the demo&lt;/p>
-&lt;p>&lt;code>./scripts/3-deploy-demo/2-deploy-demo.sh&lt;/code>&lt;/p>
+&lt;p>&lt;code>./3-deploy-demo/2-deploy-demo.sh&lt;/code>&lt;/p>
 &lt;h3 id="33-deploy-azure-id-to-kubernetes">3.3. Deploy Azure Id to Kubernetes&lt;/h3>
 &lt;p>We need to tell the cluster about the Id we created, so it can bind it to the pod (the next step). To do that, we will deploy the spec found in &lt;code>/deploy/demo/aadpodidentity.yaml&lt;/code>.&lt;/p>
 &lt;p>Run the following to deploy the Azure ID to Kubernetes:&lt;/p>
-&lt;p>&lt;code>./scripts/3-deploy-demo/3-deploy-id-to-k8s.sh&lt;/code>&lt;/p>
+&lt;p>&lt;code>./3-deploy-demo/3-deploy-id-to-k8s.sh&lt;/code>&lt;/p>
 &lt;h3 id="34-bind-the-id-to-our-demo-pod">3.4. Bind the Id to our demo pod&lt;/h3>
 &lt;p>Last thing we need to do is bind the Id we created in step 1, and deployed in step 3, to the pod we deployed in step 2.&lt;/p>
 &lt;p>Deploy the binding with the following&lt;/p>
-&lt;p>&lt;code>./scripts/3-deploy-demo/4-deploy-id-binding.sh&lt;/code>&lt;/p>
+&lt;p>&lt;code>./3-deploy-demo/4-deploy-id-binding.sh&lt;/code>&lt;/p>
 &lt;h2 id="did-it-work">Did it work?&lt;/h2>
 &lt;p>You&amp;rsquo;ll need to check the logs of each pod to know if everything worked.&lt;/p>
 &lt;p>First, get the pod names with the following command:&lt;/p>
-&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">
-$ kubectl get pods
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">$ kubectl get pods
 NAME READY STATUS RESTARTS AGE
 demo-757967c54-64pzr 1/1 Running &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> 1h &lt;span style="color:#8f5902;font-style:italic"># the demo pod&lt;/span>
 mic-64ddcf5f65-h4hft 1/1 Running &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> 19h &lt;span style="color:#8f5902;font-style:italic"># the MIC pod&lt;/span>
 nmi-b9xbg 1/1 Running &lt;span style="color:#0000cf;font-weight:bold">0&lt;/span> 1h &lt;span style="color:#8f5902;font-style:italic"># the NMI pod&lt;/span>
 &lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="check-the-managed-identity-controller-pod">Check the Managed Identity Controller pod&lt;/h3>
 &lt;p>Check the logs of the MIC controller and see the binding successfully applied on the node.&lt;/p>
-&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">
-$ kubectl logs mic-64ddcf5f65-h4hft
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">$ kubectl logs mic-64ddcf5f65-h4hft
 ....
 I0606 23:19:45.867711 &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> crd.go:123&lt;span style="color:#ce5c00;font-weight:bold">]&lt;/span> Got id podid to assign
 I0606 23:19:45.867829 &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> crd.go:142&lt;span style="color:#ce5c00;font-weight:bold">]&lt;/span> Creating assigned Id: demo-5788d95785-ghzwv-default-podid
@@ -270,15 +264,13 @@ I0606 23:20:11.051846 &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span
 I0606 23:20:11.052905 &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span> event.go:218&lt;span style="color:#ce5c00;font-weight:bold">]&lt;/span> Event&lt;span style="color:#ce5c00;font-weight:bold">(&lt;/span>v1.ObjectReference&lt;span style="color:#ce5c00;font-weight:bold">{&lt;/span>Kind:&lt;span style="color:#4e9a06">&amp;#34;AzureIdentityBinding&amp;#34;&lt;/span>, Namespace:&lt;span style="color:#4e9a06">&amp;#34;default&amp;#34;&lt;/span>, Name:&lt;span style="color:#4e9a06">&amp;#34;myIdBinding&amp;#34;&lt;/span>, UID:&lt;span style="color:#4e9a06">&amp;#34;19a07e0e-69e0-11e8-9e9f-4addade2df92&amp;#34;&lt;/span>, APIVersion:&lt;span style="color:#4e9a06">&amp;#34;aadpodidentity.k8s.io/v1&amp;#34;&lt;/span>, ResourceVersion:&lt;span style="color:#4e9a06">&amp;#34;89529&amp;#34;&lt;/span>, FieldPath:&lt;span style="color:#4e9a06">&amp;#34;&amp;#34;&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">})&lt;/span>: type: &lt;span style="color:#4e9a06">&amp;#39;Normal&amp;#39;&lt;/span> reason: &lt;span style="color:#4e9a06">&amp;#39;binding applied&amp;#39;&lt;/span> Binding myIdBinding applied on node aks-nodepool1-15831963-0 &lt;span style="color:#204a87;font-weight:bold">for&lt;/span> pod demo-5788d95785-ghzwv-default-podid
 &lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="check-the-node-managed-identity-pod">Check the Node Managed Identity pod&lt;/h3>
 &lt;p>Check the logs of the NMI pod to see only info level logging and 200 responses. If you see 403 or 404 responses, then something is wrong.&lt;/p>
-&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">
-$ kubectl logs nmi-b9xbg
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">$ kubectl logs nmi-b9xbg
 ...
 &lt;span style="color:#000">time&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;2018-06-07T01:30:04Z&amp;#34;&lt;/span> &lt;span style="color:#000">level&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>info &lt;span style="color:#000">msg&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;Status (200) took 55422159 ns&amp;#34;&lt;/span> req.method&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>GET req.path&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>/metadata/identity/oauth2/token req.remote&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>10.244.0.25
 &lt;span style="color:#000">time&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;2018-06-07T01:30:04Z&amp;#34;&lt;/span> &lt;span style="color:#000">level&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>info &lt;span style="color:#000">msg&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;matched identityType:0 clientid:a40e83f9-6198-4633-afae-d860eb5b7f7c resource:https://management.azure.com/&amp;#34;&lt;/span> req.method&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>GET req.path&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>/metadata/identity/oauth2/token req.remote&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>10.244.0.25
 &lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="check-the-demo-pod">Check the demo pod&lt;/h3>
 &lt;p>The demo pod should be reporting on the virtual machines in the resource group. If you see intermittant 403 responses, that is OK.&lt;/p>
-&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">
-$ kubectl logs demo-757967c54-64pzr
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">$ kubectl logs demo-757967c54-64pzr
 ...
 &lt;span style="color:#000">time&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;2018-06-07T01:32:30Z&amp;#34;&lt;/span> &lt;span style="color:#000">level&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>error &lt;span style="color:#000">msg&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;failed list all vm compute.VirtualMachinesClient#List: Failure responding to request: StatusCode=403 -- Original Error: autorest/azure: Service returned an error. Status=403 Code=\&amp;#34;AuthorizationFailed\&amp;#34; Message=\&amp;#34;The client &amp;#39;48affddb-9972-4b7e-a82b-c5d32d2a3dd5&amp;#39; with object id &amp;#39;48affddb-9972-4b7e-a82b-c5d32d2a3dd5&amp;#39; does not have authorization to perform action &amp;#39;Microsoft.Compute/virtualMachines/read&amp;#39; over scope &amp;#39;/subscriptions/c5760548-23c2-4223-b41e-5d68a8320a0c/resourceGroups/MC_k8s-test_clusterFrank_eastus/providers/Microsoft.Compute&amp;#39;.\&amp;#34;&amp;#34;&lt;/span> &lt;span style="color:#000">podip&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>10.244.0.25 &lt;span style="color:#000">podname&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>demo-757967c54-64pzr &lt;span style="color:#000">podnamespace&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>demo-757967c54-64pzr
 &lt;span style="color:#000">time&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;2018-06-07T01:32:30Z&amp;#34;&lt;/span> &lt;span style="color:#000">level&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>info &lt;span style="color:#000">msg&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;successfully acquired a token using the MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token)&amp;#34;&lt;/span> &lt;span style="color:#000">podip&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>10.244.0.25 &lt;span style="color:#000">podname&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>demo-757967c54-64pzr &lt;span style="color:#000">podnamespace&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>demo-757967c54-64pzr
@@ -287,30 +279,8 @@ $ kubectl logs demo-757967c54-64pzr
 &lt;/code>&lt;/pre>&lt;/div>&lt;h3 id="check-the-descriptions">Check the descriptions&lt;/h3>
 &lt;p>&lt;code>kubectl describe azureidentity&lt;/code>&lt;/p>
 &lt;p>&lt;code>kubectl describe azureidentitybinding&lt;/code>&lt;/p>
-&lt;h3 id="video">Video&lt;/h3>
-&lt;p>&lt;a href="https://www.youtube.com/watch?v=BXhIMJYDO4w">&lt;img src="https://img.youtube.com/vi/BXhIMJYDO4w/0.jpg" alt="Video of Running required commands">&lt;/a>&lt;/p>
-&lt;h2 id="continuous-deployment-with-vsts">Continuous Deployment with VSTS&lt;/h2>
-&lt;p>This section is optional.&lt;/p>
-&lt;p>It shows how to deploy the same pods and infrastructure as above using &lt;a href="https://www.visualstudio.com/team-services/continuous-integration/">VSTS Continuous Integration&lt;/a>.&lt;/p>
-&lt;h3 id="configure-kubernetes-connection-in-vsts">Configure Kubernetes Connection in VSTS&lt;/h3>
-&lt;p>Give VSTS permission to use your Kubernetes cluster by adding the endpoint to your project. Click the Cog Wheel, and go to Services. Add a new endpoint, and choose Kubernetes. See &lt;a href="https://almvm.azurewebsites.net/labs/vstsextend/kubernetes/">this tutorial&lt;/a> for a more details.&lt;/p>
-&lt;p>&lt;img src="images/k8s-endpoint-vsts.png" alt="Screenshot of Kubernetes Endpoint config in VSTS">&lt;/p>
-&lt;h3 id="release-definition">Release Definition&lt;/h3>
-&lt;p>Create a new empty Release Definition, and add this repository and a source with alias &lt;code>_aad_pods&lt;/code>&lt;/p>
-&lt;p>Add a Task of type &amp;lsquo;Deploy to Kubernetes&amp;rsquo;. Create one of these tasks for each of the following:&lt;/p>
-&lt;blockquote>
-&lt;p>The command of each is &lt;code>apply&lt;/code>, and the each below shows the reqired arguments.&lt;/p>
-&lt;/blockquote>
-&lt;ul>
-&lt;li>&lt;code>-f _aad-pods/deploy/infra/deployment.yaml&lt;/code>&lt;/li>
-&lt;li>&lt;code>-f _aad-pods/deploy/demo/deployment.yaml&lt;/code>&lt;/li>
-&lt;li>&lt;code>-f _aad-pods/deploy/demo/aadpodidentity.yaml&lt;/code>&lt;/li>
-&lt;li>&lt;code>-f _aad-pods/deploy/demo/aadpodidentitybinding.yaml&lt;/code>&lt;/li>
-&lt;/ul>
-&lt;p>The result should look like this&lt;/p>
-&lt;p>&lt;img src="images/vsts-deploy-tasks.png" alt="Screenshot of VSTS tasks">&lt;/p>
-&lt;h3 id="customising-each-deployment">Customising each Deployment&lt;/h3>
-&lt;p>You probably don&amp;rsquo;t want to deploy the same Demo every time. To customise the Kubernetes deployment, use the &lt;a href="https://marketplace.visualstudio.com/items?itemName=jakkaj.vsts-yaml-writer">YAML Writer&lt;/a> extension, and edit the values in the YAML files.&lt;/p></description></item><item><title>Docs: Deploy AAD Pod Identity with a Dedicated Service Principle</title><link>https://azure.github.io/aad-pod-identity/docs/configure/deploy_aad_pod_dedicated_sp/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/deploy_aad_pod_dedicated_sp/</guid><description>
+&lt;h3 id="aad-pod-identity-in-action">AAD Pod Identity In Action&lt;/h3>
+&lt;p>&lt;a href="https://www.youtube.com/watch?v=BXhIMJYDO4w">&lt;img src="https://img.youtube.com/vi/BXhIMJYDO4w/0.jpg" alt="Video of Running required commands">&lt;/a>&lt;/p></description></item><item><title>Docs: Deploy AAD Pod Identity with a Dedicated Service Principal</title><link>https://azure.github.io/aad-pod-identity/docs/configure/deploy_aad_pod_dedicated_sp/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/deploy_aad_pod_dedicated_sp/</guid><description>
 &lt;blockquote>
 &lt;p>Available from 1.5 release&lt;/p>
 &lt;/blockquote>
@@ -326,7 +296,7 @@ $ kubectl logs demo-757967c54-64pzr
 &lt;/blockquote>
 &lt;p>Or assign the permission for an existing service principal:&lt;/p>
 &lt;pre>&lt;code>az role assignment create --role &amp;quot;Contributor&amp;quot; --assignee &amp;lt;sp_id&amp;gt; --scope &amp;quot;/subscriptions/&amp;lt;subscription-id&amp;gt;/resourceGroups/&amp;lt;MC_node_resource_group&amp;gt;&amp;quot;
-&lt;/code>&lt;/pre>&lt;p>For any subsequent user assigned managed identity that&amp;rsquo;s intended for a pod, it&amp;rsquo;s also required to grant the service principal &amp;lsquo;Managed Identity Operator&amp;rsquo; permission (also stated &lt;a href="../../../README.md#6-set-permissions-for-mic">here&lt;/a>):&lt;/p>
+&lt;/code>&lt;/pre>&lt;p>For any subsequent user assigned managed identity that&amp;rsquo;s intended for a pod, it&amp;rsquo;s also required to grant the service principal &amp;lsquo;Managed Identity Operator&amp;rsquo; permission (also stated &lt;a href="../../getting-started/role-assignment/">here&lt;/a>):&lt;/p>
 &lt;pre>&lt;code>az role assignment create --role &amp;quot;Managed Identity Operator&amp;quot; --assignee &amp;lt;sp_id&amp;gt; --scope &amp;lt;resource id of the managed identity&amp;gt;
 &lt;/code>&lt;/pre>&lt;h2 id="create-the-admin-secret">Create the admin secret&lt;/h2>
 &lt;p>The &lt;code>aadpodidentity-admin-secret&lt;/code> contains the following fields:&lt;/p>
@@ -376,7 +346,7 @@ $ kubectl logs demo-757967c54-64pzr
 &lt;p>Note: &lt;code>&amp;lt;AKSResourceGroup&amp;gt;&lt;/code> is where your AKS cluster is deployed to.&lt;/p>
 &lt;/blockquote>
 &lt;h2 id="introduction">Introduction&lt;/h2>
-&lt;p>Currently, &lt;a href="../../README.md#managed-identity-controller">MIC&lt;/a> uses one of the following two ways to authenticate with Azure:&lt;/p>
+&lt;p>Currently, &lt;a href="../components/#managed-identity-controller">MIC&lt;/a> uses one of the following two ways to authenticate with Azure:&lt;/p>
 &lt;ol>
 &lt;li>&lt;a href="https://docs.microsoft.com/en-us/azure/aks/use-managed-identity">Managed Identity&lt;/a> (system-assigned identity or user-assigned identity)&lt;/li>
 &lt;li>&lt;a href="https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal">Service Principal&lt;/a> through &lt;code>/etc/kubernetes/azure.json&lt;/code>, which is available in every node, or credentials defined by environment variables;&lt;/li>
@@ -385,7 +355,7 @@ $ kubectl logs demo-757967c54-64pzr
 &lt;p>Clusters with managed identity are only compatible with AAD Pod Identity 1.5+.&lt;/p>
 &lt;/blockquote>
 &lt;h2 id="more-on-authentication-methods">More on authentication methods&lt;/h2>
-&lt;p>&lt;a href="https://github.com/kubernetes-sigs/cloud-provider-azure/blob/master/docs/cloud-provider-config.md#auth-configs">&lt;code>/etc/kubernetes/azure.json&lt;/code>&lt;/a> is a well-known JSON file in each node that provides the details about which method MIC uses for authentication:&lt;/p>
+&lt;p>&lt;a href="https://kubernetes-sigs.github.io/cloud-provider-azure/install/configs/">&lt;code>/etc/kubernetes/azure.json&lt;/code>&lt;/a> is a well-known JSON file in each node that provides the details about which method MIC uses for authentication:&lt;/p>
 &lt;table>
 &lt;thead>
 &lt;tr>
@@ -476,8 +446,8 @@ az role assignment create --role &lt;span style="color:#4e9a06">&amp;#34;Virtual
 &lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">podLabels&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
 &lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">foo&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">bar&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
 &lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">app&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">custom&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
-&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Use the &lt;a href="../../examples/azurepodidentityexception.yaml">sample template&lt;/a>, replace the podLabels with a list of desired values and then create the resource on the cluster:&lt;/p>
-&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-shell" data-lang="shell">kubectl apply -f examples/aadpodidentityexception.yaml
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Use the &lt;a href="https://github.com/Azure/aad-pod-identity/blob/master/examples/azurepodidentityexception.yaml">sample template&lt;/a>, replace the podLabels with a list of desired values and then create the resource on the cluster:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-shell" data-lang="shell">kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/examples/azurepodidentityexception.yaml
 &lt;/code>&lt;/pre>&lt;/div>&lt;p>When creating application pods that will not be using aad-pod-identity for calls to Azure Instance Metadata endpoint, include at least one of the labels in &lt;code>spec.template.metadata.labels&lt;/code>.&lt;/p>
 &lt;p>Example pod with same label as above defined in the spec -&lt;/p>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">apps/v1&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
@@ -526,7 +496,7 @@ Currently validation of User assigned MSI format in Azure Identity is supported.
 &lt;li>Constraint&lt;/li>
 &lt;/ul>
 &lt;h3 id="constraint-template">Constraint Template&lt;/h3>
-&lt;p>&lt;code>ConstraintTemplate&lt;/code> describes both the &lt;a href="https://www.openpolicyagent.org/docs/v0.10.7/how-do-i-write-policies/">Rego&lt;/a> that enforces the constraint and the schema of the constraint.&lt;/p>
+&lt;p>&lt;code>ConstraintTemplate&lt;/code> describes both the &lt;a href="https://www.openpolicyagent.org/docs/latest/policy-language/">Rego&lt;/a> that enforces the constraint and the schema of the constraint.&lt;/p>
 &lt;ul>
 &lt;li>User assigned MSI is expected to have Resource ID in the given format.&lt;/li>
 &lt;/ul>
