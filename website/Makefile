@@ -12,7 +12,6 @@ production-build: bootstrap
 	hugo --minify
 
 preview-build: bootstrap
-	npm i
 	hugo \
 		--baseURL $(DEPLOY_PRIME_URL) \
 		--buildDrafts \

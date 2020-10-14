@@ -27,14 +27,4 @@ export IDENTITY_RESOURCE_GROUP="<IdentityResourceGroup>"
 
 > Note: `<AKSResourceGroup>` is where your AKS cluster is deployed to.
 
-For more details, please refer to the [role assignment](./docs/readmes/README.role-assignment.md) documentation.
-
-
-## What's next?
-
-* [Add content and customize your site](/docs/adding-content/)
-* Get some ideas from our [Example Site](https://github.com/google/docsy-example) and other [Examples](/docs/examples/).
-* [Publish your site](/docs/deployment/).
-
-
-
+For more details, please refer to the [role assignment](role-assignment) documentation.

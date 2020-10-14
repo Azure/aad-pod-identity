@@ -23,10 +23,10 @@ spec:
     app: custom
 ```
 
-Use the [sample template](../../examples/azurepodidentityexception.yaml), replace the podLabels with a list of desired values and then create the resource on the cluster:
+Use the [sample template](https://github.com/Azure/aad-pod-identity/blob/master/examples/azurepodidentityexception.yaml), replace the podLabels with a list of desired values and then create the resource on the cluster:
 
 ```shell
-kubectl apply -f examples/aadpodidentityexception.yaml
+kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/examples/azurepodidentityexception.yaml
 ```
 
 When creating application pods that will not be using aad-pod-identity for calls to Azure Instance Metadata endpoint, include at least one of the labels in `spec.template.metadata.labels`.

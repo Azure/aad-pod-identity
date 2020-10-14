@@ -34,7 +34,7 @@ Following are the two major resources to enable this check.
 
 ### Constraint Template
 
-`ConstraintTemplate` describes both the [Rego](https://www.openpolicyagent.org/docs/v0.10.7/how-do-i-write-policies/) that enforces the constraint and the schema of the constraint.
+`ConstraintTemplate` describes both the [Rego](https://www.openpolicyagent.org/docs/latest/policy-language/) that enforces the constraint and the schema of the constraint.
 
    * User assigned MSI is expected to have Resource ID in the given format.
 

@@ -104,7 +104,7 @@ metadata:
 
 By default, aad-pod-identity matches pods with `AzureIdentities` across all namespaces. That means that a malicious pod could assign itself an unauthorized pod identity label and acquire a token with that particular `AzureIdentity`. This scenario can be mitigated by performing the following:
 
-- Deploy aad-pod-identity with [namespaced mode](README.namespaced.md). This will restrict pods from binding with `AzureIdentities` across different namespaces. Note that `AzureIdentities` and `AzureIdentityBindings` must be deployed to the same namespace as your workload when using namespaced mode.
+- Deploy aad-pod-identity with [namespaced mode](../configure/match_pods_in_namespace/). This will restrict pods from binding with `AzureIdentities` across different namespaces. Note that `AzureIdentities` and `AzureIdentityBindings` must be deployed to the same namespace as your workload when using namespaced mode.
 
 - Set up Kubernetes-native RBAC to restrict access and creation of `AzureIdentities` across sensitive namespaces.
 
