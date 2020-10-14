@@ -26,7 +26,7 @@ export IDENTITY_RESOURCE_GROUP="<IdentityResourceGroup>"
 
 ## Introduction
 
-Currently, [MIC](../../README.md#managed-identity-controller) uses one of the following two ways to authenticate with Azure:
+Currently, [MIC](../components/#managed-identity-controller) uses one of the following two ways to authenticate with Azure:
 
 1. [Managed Identity](https://docs.microsoft.com/en-us/azure/aks/use-managed-identity) (system-assigned identity or user-assigned identity)
 2. [Service Principal](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal) through `/etc/kubernetes/azure.json`, which is available in every node, or credentials defined by environment variables;
@@ -35,7 +35,7 @@ Currently, [MIC](../../README.md#managed-identity-controller) uses one of the fo
 
 ## More on authentication methods
 
-[`/etc/kubernetes/azure.json`](https://github.com/kubernetes-sigs/cloud-provider-azure/blob/master/docs/cloud-provider-config.md#auth-configs) is a well-known JSON file in each node that provides the details about which method MIC uses for authentication:
+[`/etc/kubernetes/azure.json`](https://kubernetes-sigs.github.io/cloud-provider-azure/install/configs/) is a well-known JSON file in each node that provides the details about which method MIC uses for authentication:
 
 | Authentication method                  | `/etc/kubernetes/azure.json` fields used                                                     |
 |----------------------------------------|---------------------------------------------------------------------------------------------|

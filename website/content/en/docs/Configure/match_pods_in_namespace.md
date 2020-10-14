@@ -10,7 +10,7 @@ description: >
 
 By default, AAD Pod Identity matches pods to identities across namespaces. To match only pods in the namespace containing `AzureIdentity`, use one of these techniques:
 
-* Attach a `aadpodidentity.k8s.io/Behavior: namespaced` [annotation] to each `AzureIdentity` resource.
+* Attach a `aadpodidentity.k8s.io/Behavior: namespaced` annotation to each `AzureIdentity` resource.
 
     Here is the `AzureIdentity` manifest from the previous step with this annotation added:
 

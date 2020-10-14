@@ -22,7 +22,7 @@ az login
 az account set -s "${SUBSCRIPTION_ID}"
 ```
 
-> For AKS clusters, there are two resource groups that you need to be aware of - the resource group where you deploy your AKS cluster to (denoted by the environment variable `RESOURCE_GROUP`), and the cluster resource group (`MC_<AKSResourceGroup>_<AKSClusterName>_<AKSClusterLocation>`). The latter contains all of the infrastructure resources associated with the cluster like VM/VMSS and VNet. Depending on where you deploy your user-assigned identities, you might need additional role assignments. Please refer to [Role Assignment](#role-assignment) for more information. For this demo, it is recommended to deploy the demo identity to your cluster resource group (the one with `MC_` prefix).
+> For AKS clusters, there are two resource groups that you need to be aware of - the resource group where you deploy your AKS cluster to (denoted by the environment variable `RESOURCE_GROUP`), and the cluster resource group (`MC_<AKSResourceGroup>_<AKSClusterName>_<AKSClusterLocation>`). The latter contains all of the infrastructure resources associated with the cluster like VM/VMSS and VNet. Depending on where you deploy your user-assigned identities, you might need additional role assignments. Please refer to [Role Assignment](../../getting-started/role-assignment/) for more information. For this demo, it is recommended to deploy the demo identity to your cluster resource group (the one with `MC_` prefix).
 
 ### 1. Deploy aad-pod-identity
 
@@ -53,7 +53,7 @@ helm install aad-pod-identity aad-pod-identity/aad-pod-identity
 
 For a list of overwritable values when installing with Helm, please refer to [this section](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#configuration).
 
-> Important: For AKS clusters with limited [egress-traffic], Please install pod-identity in `kube-system` namespace using the [helm charts].
+> Important: For AKS clusters with [limited egress traffic](https://docs.microsoft.com/en-us/azure/aks/limit-egress-traffic), Please install aad-pod-identity in `kube-system` namespace using the helm charts.
 
 ```bash
 helm install aad-pod-identity aad-pod-identity/aad-pod-identity --namespace=kube-system
@@ -96,7 +96,7 @@ EOF
 
 ### 4. (Optional) Match pods in the namespace
 
-For matching pods in the namespace, please refer to the [namespaced documentation](docs/readmes/README.namespaced.md).
+For matching pods in the namespace, please refer to the [namespaced documentation](../../configure/match_pods_in_namespace/).
 
 ### 5. Deploy `AzureIdentityBinding`
 
@@ -116,7 +116,7 @@ EOF
 
 ### 6. Deployment and Validation
 
-For a pod to match an identity binding, it needs a [label] with the key `aadpodidbinding` whose value is that of the `selector:` field in the `AzureIdentityBinding`. Deploy a pod that validates the functionality:
+For a pod to match an identity binding, it needs a label with the key `aadpodidbinding` whose value is that of the `selector:` field in the `AzureIdentityBinding`. Deploy a pod that validates the functionality:
 
 ```bash
 cat << EOF | kubectl apply -f -
@@ -152,7 +152,7 @@ spec:
 EOF
 ```
 
-> `mcr.microsoft.com/oss/azure/aad-pod-identity/demo` is an image that demostrates the use of AAD pod identity. The source code can be found [here](./cmd/demo/main.go).
+> `mcr.microsoft.com/oss/azure/aad-pod-identity/demo` is an image that demostrates the use of AAD pod identity. The source code can be found [here](https://github.com/Azure/aad-pod-identity/blob/master/cmd/demo/main.go).
 
 To verify that the pod is indeed using the identity correctly:
 

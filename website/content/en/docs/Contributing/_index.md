@@ -33,4 +33,4 @@ End-to-end testing tests whether the flow of aad-pod-identity from start to fini
 
 - Define test spec reflecting real user workflow, e.g. [creation of AzureIdentity, AzureIdentityBinding and a pod that consumes the identity](https://github.com/Azure/aad-pod-identity/blob/5c9c5e541d6612c31af4d09dc0ec7654388cc076/test/e2e/single_identity_test.go#L33-L96).
 
-See [test/e2e/README.md](./test/e2e/README.md) on how to run the aad-pod-identity e2e test suite locally.
+See [test/e2e/README.md](https://github.com/Azure/aad-pod-identity/blob/master/test/e2e/README.md) on how to run the aad-pod-identity e2e test suite locally.

@@ -1,6 +1,6 @@
 ---
-title: "Deploy AAD Pod Identity with a Dedicated Service Principle"
-linkTitle: "Deploy AAD Pod Identity with a Dedicated Service Principle"
+title: "Deploy AAD Pod Identity with a Dedicated Service Principal"
+linkTitle: "Deploy AAD Pod Identity with a Dedicated Service Principal"
 weight: 2
 description: >
   To enable user to use a separate service principal (aad-pod-identity admin service principal) other than the cluster service princial and to move away from /etc/kubernetes/azure.json.
@@ -32,7 +32,7 @@ Or assign the permission for an existing service principal:
 az role assignment create --role "Contributor" --assignee <sp_id> --scope "/subscriptions/<subscription-id>/resourceGroups/<MC_node_resource_group>"
 ```
 
-For any subsequent user assigned managed identity that's intended for a pod, it's also required to grant the service principal 'Managed Identity Operator' permission (also stated [here](../../../README.md#6-set-permissions-for-mic)):
+For any subsequent user assigned managed identity that's intended for a pod, it's also required to grant the service principal 'Managed Identity Operator' permission (also stated [here](../../getting-started/role-assignment/)):
 
 ```
 az role assignment create --role "Managed Identity Operator" --assignee <sp_id> --scope <resource id of the managed identity>
