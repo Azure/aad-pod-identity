@@ -31,6 +31,7 @@ steps:
           --max-pods ${MAX_PODS} \
           --service-principal $(AZURE_CLIENT_ID) \
           --client-secret $(AZURE_CLIENT_SECRET) \
+          --network-plugin azure \
           --generate-ssh-keys > /dev/null
       fi
 
