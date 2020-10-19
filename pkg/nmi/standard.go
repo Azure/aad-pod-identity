@@ -165,8 +165,8 @@ func (sc *StandardClient) listPodIDsWithRetry(ctx context.Context, podns, podnam
 		podns, podname, sc.ListPodIDsRetryAttemptsForCreated+sc.ListPodIDsRetryAttemptsForAssigned, sc.ListPodIDsRetryIntervalInSeconds, err)
 }
 
-// GetToken returns an ADAL token based on the request and its pod identity.
-func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource string, azureID aadpodid.AzureIdentity) (token *adal.Token, err error) {
+// GetTokens returns ADAL tokens based on the request and its pod identity.
+func (sc *StandardClient) GetTokens(ctx context.Context, rqClientID, rqResource string, azureID aadpodid.AzureIdentity) (tokens []*adal.Token, err error) {
 	rqHasClientID := len(rqClientID) != 0
 	clientID := azureID.Spec.ClientID
 
@@ -178,13 +178,14 @@ func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource s
 		}
 		klog.Infof("matched identityType:%v clientid:%s resource:%s", idType, utils.RedactClientID(clientID), rqResource)
 		token, err := auth.GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, rqResource)
-		return token, err
+		return []*adal.Token{token}, err
 	case aadpodid.ServicePrincipal:
 		tenantID := azureID.Spec.TenantID
+		auxiliaryTenantIDs := azureID.Spec.AuxiliaryTenantIDs
 		adEndpoint := azureID.Spec.ADEndpoint
 		secretRef := &azureID.Spec.ClientPassword
-		klog.Infof("matched identityType:%v adendpoint:%s tenantid:%s clientid:%s resource:%s",
-			idType, adEndpoint, tenantID, utils.RedactClientID(clientID), rqResource)
+		klog.Infof("matched identityType:%v adendpoint:%s tenantid:%s auxiliaryTenantIDs:%v clientid:%s resource:%s",
+			idType, adEndpoint, tenantID, auxiliaryTenantIDs, utils.RedactClientID(clientID), rqResource)
 		secret, err := sc.KubeClient.GetSecret(secretRef)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get Kubernetes secret %s/%s, err: %v", secretRef.Namespace, secretRef.Name, err)
@@ -194,8 +195,8 @@ func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource s
 			clientSecret = string(v)
 			break
 		}
-		token, err := auth.GetServicePrincipalToken(adEndpoint, tenantID, clientID, clientSecret, rqResource)
-		return token, err
+		tokens, err := auth.GetServicePrincipalToken(adEndpoint, tenantID, clientID, clientSecret, rqResource, auxiliaryTenantIDs)
+		return tokens, err
 	case aadpodid.ServicePrincipalCertificate:
 		tenantID := azureID.Spec.TenantID
 		adEndpoint := azureID.Spec.ADEndpoint
@@ -209,7 +210,7 @@ func (sc *StandardClient) GetToken(ctx context.Context, rqClientID, rqResource s
 		certificate, password := secret.Data["certificate"], secret.Data["password"]
 		token, err := auth.GetServicePrincipalTokenWithCertificate(adEndpoint, tenantID, clientID,
 			certificate, string(password), rqResource)
-		return token, err
+		return []*adal.Token{token}, err
 	default:
 		return nil, fmt.Errorf("unsupported identity type %+v", idType)
 	}

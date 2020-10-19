@@ -235,14 +235,14 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
-	token, err := s.TokenClient.GetToken(r.Context(), tokenRequest.ClientID, tokenRequest.Resource, *podID)
+	tokens, err := s.TokenClient.GetTokens(r.Context(), tokenRequest.ClientID, tokenRequest.Resource, *podID)
 	if err != nil {
 		klog.Errorf("failed to get service principal token for pod:%s/%s, error: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
 	nmiResp := NMIResponse{
-		Token:    newMSIResponse(*token),
+		Token:    newMSIResponse(*tokens[0]),
 		ClientID: podID.Spec.ClientID,
 	}
 	response, err := json.Marshal(nmiResp)
@@ -373,13 +373,25 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 		return
 	}
 
-	token, err := s.TokenClient.GetToken(r.Context(), tokenRequest.ClientID, tokenRequest.Resource, *podID)
+	tokens, err := s.TokenClient.GetTokens(r.Context(), tokenRequest.ClientID, tokenRequest.Resource, *podID)
 	if err != nil {
 		klog.Errorf("failed to get service principal token for pod: %s/%s, error: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusForbidden)
 		return
 	}
-	response, err := json.Marshal(newMSIResponse(*token))
+
+	var v interface{}
+	if len(tokens) == 1 {
+		v = newMSIResponse(*tokens[0])
+	} else {
+		var msiResp []msiResponse
+		for _, token := range tokens {
+			msiResp = append(msiResp, newMSIResponse(*token))
+		}
+		v = msiResp
+	}
+
+	response, err := json.Marshal(v)
 	if err != nil {
 		klog.Errorf("failed to marshal service principal token for pod: %s/%s, error: %+v", podns, podname, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
