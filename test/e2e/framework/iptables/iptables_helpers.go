@@ -24,6 +24,11 @@ const (
 	busybox = "busybox"
 )
 
+var (
+	busyboxPodByNode = make(map[string]corev1.Pod)
+	namespace        = ""
+)
+
 // WaitForRulesInput is the input for WaitForRules.
 type WaitForRulesInput struct {
 	Creator         framework.Creator
@@ -42,6 +47,11 @@ func WaitForRules(input WaitForRulesInput) {
 	Expect(input.Lister).NotTo(BeNil(), "input.Lister is required for iptables.WaitForRules")
 	Expect(input.Namespace).NotTo(BeEmpty(), "input.Namespace is required for iptables.WaitForRules")
 	Expect(input.KubeconfigPath).NotTo(BeEmpty(), "input.KubeconfigPath is required for iptables.WaitForRules")
+
+	if namespace == "" {
+		// cache namespace for liveness probe test
+		namespace = input.Namespace
+	}
 
 	if input.CreateDaemonSet {
 		busybox := &appsv1.DaemonSet{
@@ -68,7 +78,7 @@ func WaitForRules(input WaitForRulesInput) {
 						Containers: []corev1.Container{
 							{
 								Name:  busybox,
-								Image: "alpine:3.11.5",
+								Image: "us.gcr.io/k8s-artifacts-prod/build-image/debian-iptables-amd64:v12.1.2",
 								Stdin: true,
 								Command: []string{
 									"sleep",
@@ -121,6 +131,11 @@ func WaitForRules(input WaitForRulesInput) {
 		Expect(input.Lister.List(context.TODO(), pods, client.InNamespace(input.Namespace))).Should(Succeed())
 
 		for _, p := range pods.Items {
+			// cache pods by node name for liveness probe test
+			if _, ok := busyboxPodByNode[p.Spec.NodeName]; !ok {
+				busyboxPodByNode[p.Spec.NodeName] = p
+			}
+
 			if input.ShouldExist {
 				By(fmt.Sprintf("Checking if iptables rules exist in %s", p.Spec.NodeName))
 			} else {
@@ -129,26 +144,19 @@ func WaitForRules(input WaitForRulesInput) {
 
 			for _, cmd := range []struct {
 				command          string
-				noError          bool
 				expectedErrorMsg string
 			}{
 				{
-					command: "apk add iptables",
-					noError: true,
-				},
-				{
 					command:          "iptables -t nat --check PREROUTING -j aad-metadata",
-					noError:          input.ShouldExist,
 					expectedErrorMsg: "Couldn't load target `aad-metadata':No such file or directory",
 				},
 				{
 					command:          "iptables -t nat -L aad-metadata",
-					noError:          input.ShouldExist,
 					expectedErrorMsg: "No chain/target/match by that name",
 				},
 			} {
 				stderr, err := exec.KubectlExec(input.KubeconfigPath, p.Name, input.Namespace, strings.Split(cmd.command, " "))
-				if cmd.noError {
+				if input.ShouldExist {
 					Expect(err).To(BeNil())
 				} else {
 					Expect(err).NotTo(BeNil())
@@ -159,4 +167,17 @@ func WaitForRules(input WaitForRulesInput) {
 
 		return true
 	}, framework.Timeout, framework.Polling).Should(BeTrue())
+}
+
+type GetBusyboxPodByNodeInput struct {
+	NodeName string
+}
+
+func GetBusyboxPodByNode(input GetBusyboxPodByNodeInput) (corev1.Pod, string) {
+	Expect(input.NodeName).NotTo(BeEmpty(), "input.NodeName is required for iptables.GetBusyboxPodByNode")
+	Expect(namespace).NotTo(BeEmpty(), "namespace is required for iptables.GetBusyboxPodByNode")
+
+	pod, ok := busyboxPodByNode[input.NodeName]
+	Expect(ok).To(BeTrue())
+	return pod, namespace
 }
