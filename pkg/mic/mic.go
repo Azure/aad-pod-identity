@@ -24,6 +24,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -33,7 +34,7 @@ import (
 	"k8s.io/client-go/tools/leaderelection"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	"k8s.io/client-go/tools/record"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -283,7 +284,7 @@ func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder reco
 // UpgradeTypeIfRequired performs type upgrade for all aad-pod-identity CRDs if required.
 func (c *Client) UpgradeTypeIfRequired() error {
 	if c.TypeUpgradeCfg.EnableTypeUpgrade {
-		cm, err := c.CMClient.Get(c.CMCfg.Name, v1.GetOptions{})
+		cm, err := c.CMClient.Get(context.TODO(), c.CMCfg.Name, v1.GetOptions{})
 		// If we get an error and its not NotFound then return, because we cannot proceed.
 		if err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("failed to get ConfigMap %s/%s, error: %+v", c.CMCfg.Namespace, c.CMCfg.Name, err)
@@ -299,7 +300,7 @@ func (c *Client) UpgradeTypeIfRequired() error {
 					Name:      c.CMCfg.Name,
 				},
 			}
-			if cm, err = c.CMClient.Create(newCfgMap); err != nil {
+			if cm, err = c.CMClient.Create(context.TODO(), newCfgMap, metav1.CreateOptions{}); err != nil {
 				return fmt.Errorf("failed to create ConfigMap %s/%s, error: %+v", c.CMCfg.Namespace, c.CMCfg.Name, err)
 			}
 		}
@@ -319,7 +320,7 @@ func (c *Client) UpgradeTypeIfRequired() error {
 				cm.Data = make(map[string]string)
 			}
 			cm.Data[c.TypeUpgradeCfg.TypeUpgradeStatusKey] = version.MICVersion
-			_, err = c.CMClient.Update(cm)
+			_, err = c.CMClient.Update(context.TODO(), cm, metav1.UpdateOptions{})
 			if err != nil {
 				return fmt.Errorf("failed to update ConfigMap key %s failed, error: %+v", c.TypeUpgradeCfg.TypeUpgradeStatusKey, err)
 			}

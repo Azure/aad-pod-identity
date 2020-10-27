@@ -9,7 +9,7 @@ import (
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // This const block defines the metric names.

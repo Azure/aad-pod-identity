@@ -2,7 +2,7 @@ package filewatcher
 
 import (
 	"github.com/fsnotify/fsnotify"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // EventHandler is called when a fsnotify event occurs.

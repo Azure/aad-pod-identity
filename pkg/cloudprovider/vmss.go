@@ -15,7 +15,7 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // VMSSClient is used to interact with Azure virtual machine scale sets.

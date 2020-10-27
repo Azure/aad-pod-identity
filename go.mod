@@ -12,18 +12,17 @@ require (
 	github.com/Azure/go-autorest/autorest/validation v0.1.0 // indirect
 	github.com/coreos/go-iptables v0.3.0
 	github.com/fsnotify/fsnotify v1.4.9
-	github.com/golang/groupcache v0.0.0-20180513044358-24b0969c4cb7 // indirect
-	github.com/google/go-cmp v0.3.0
-	github.com/googleapis/gnostic v0.1.0 // indirect
-	github.com/pkg/errors v0.8.0
+	github.com/google/go-cmp v0.4.0
+	github.com/pkg/errors v0.9.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.4.0
-	go.opencensus.io v0.22.0
-	golang.org/x/crypto v0.0.0-20191206172530-e9b2fee46413
-	golang.org/x/sync v0.0.0-20190227155943-e225da77a7e6
-	gopkg.in/yaml.v2 v2.2.4
-	k8s.io/api v0.17.2
-	k8s.io/apimachinery v0.17.2
-	k8s.io/client-go v0.17.2
-	k8s.io/klog v1.0.0
+	go.opencensus.io v0.22.2
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	golang.org/x/sync v0.0.0-20190911185100-cd5d95a43a6e
+	gopkg.in/yaml.v2 v2.2.8
+	k8s.io/api v0.19.2
+	k8s.io/apimachinery v0.19.2
+	k8s.io/client-go v0.19.2
+	k8s.io/component-base v0.19.2
+	k8s.io/klog/v2 v2.3.0
 )

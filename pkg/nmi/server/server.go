@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/Azure/go-autorest/autorest/adal"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
 	"github.com/Azure/aad-pod-identity/pkg/auth"
 	"github.com/Azure/aad-pod-identity/pkg/k8s"

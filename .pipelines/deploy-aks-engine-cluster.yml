@@ -14,6 +14,8 @@ steps:
       envsubst < test/e2e/cluster_configs/$(CLUSTER_CONFIG).json > kubernetes.json
       cat kubernetes.json
     displayName: "Generate API model"
+    env:
+      AZURE_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
 
   - script: |
       aks-engine deploy \

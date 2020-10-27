@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/Azure/aad-pod-identity/pkg/log"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/nmi"
 	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
@@ -14,7 +15,7 @@ import (
 	"github.com/Azure/aad-pod-identity/version"
 
 	"github.com/spf13/pflag"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -50,10 +51,20 @@ var (
 
 func main() {
 	klog.InitFlags(nil)
+	defer klog.Flush()
+
+	logOptions := log.NewOptions()
+	logOptions.AddFlags()
+
 	// this is done for glog used by client-go underneath
 	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
 
 	pflag.Parse()
+
+	if err := logOptions.Apply(); err != nil {
+		klog.Fatalf("unable to apply logging options, error: %+v", err)
+	}
+
 	if *versionInfo {
 		version.PrintVersionAndExit()
 	}
