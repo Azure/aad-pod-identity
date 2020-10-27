@@ -47,8 +47,9 @@ mic:
 
   priorityClassName: ""
 
-  # log level. Uses V logs (glog)
+  # log level. Uses V logs (klog)
   logVerbosity: 0
+  loggingFormat: ""
 
   resources:
     limits:
@@ -125,6 +126,10 @@ nmi:
   tag: v1.6.3
 
   priorityClassName: ""
+
+  # log level. Uses V logs (klog)
+  logVerbosity: 0
+  loggingFormat: ""
 
   resources:
     limits:

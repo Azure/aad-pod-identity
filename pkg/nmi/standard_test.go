@@ -44,7 +44,7 @@ func TestGetTokenForMatchingIDBySP(t *testing.T) {
 	secret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "clientSecret"}, Data: make(map[string][]byte)}
 	val, _ := base64.StdEncoding.DecodeString("YWJjZA==")
 	secret.Data["key1"] = val
-	_, err = fakeClient.CoreV1().Secrets("default").Create(secret)
+	_, err = fakeClient.CoreV1().Secrets("default").Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Error creating secret: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestGetTokenForMatchingIDBySPCertificate(t *testing.T) {
 	val, _ := base64.StdEncoding.DecodeString("YWJjZA==")
 	secret.Data["certificate"] = val
 	secret.Data["password"] = val
-	_, err = fakeClient.CoreV1().Secrets("default").Create(secret)
+	_, err = fakeClient.CoreV1().Secrets("default").Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Error creating secret: %v", err)
 	}

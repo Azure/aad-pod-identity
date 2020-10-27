@@ -21,7 +21,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
 	yaml "gopkg.in/yaml.v2"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // Client is a cloud provider client

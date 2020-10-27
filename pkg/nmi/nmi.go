@@ -8,7 +8,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
 
 	"github.com/Azure/go-autorest/autorest/adal"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // OperationMode is the mode in which NMI is operating

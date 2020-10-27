@@ -81,6 +81,12 @@ spec:
           {{- if .Values.nmi.metadataHeaderRequired}}
           - --metadata-header-required={{ .Values.nmi.metadataHeaderRequired }}
           {{- end }}
+          {{- if .Values.nmi.loggingFormat }}
+          - --log-format={{ .Values.nmi.loggingFormat }}
+          {{- end}}
+          {{- if .Values.nmi.logVerbosity }}
+          - -v={{ .Values.nmi.logVerbosity }}
+          {{- end }}
           {{- if semverCompare ">= 1.6.0-0" .Values.nmi.tag }}
           - --operation-mode={{ .Values.operationMode }}
           {{- end}}

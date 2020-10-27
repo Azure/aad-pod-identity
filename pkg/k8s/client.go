@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -20,7 +21,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -246,7 +247,7 @@ func (c *KubeClient) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodI
 
 // GetSecret returns secret the secretRef represents
 func (c *KubeClient) GetSecret(secretRef *v1.SecretReference) (*v1.Secret, error) {
-	secret, err := c.ClientSet.CoreV1().Secrets(secretRef.Namespace).Get(secretRef.Name, metav1.GetOptions{})
+	secret, err := c.ClientSet.CoreV1().Secrets(secretRef.Namespace).Get(context.TODO(), secretRef.Name, metav1.GetOptions{})
 	if err != nil {
 		merr := c.reporter.ReportKubernetesAPIOperationError(metrics.GetSecretOperationName)
 		if merr != nil {

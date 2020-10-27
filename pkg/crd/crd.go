@@ -1,6 +1,7 @@
 package crd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -24,7 +25,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -308,7 +309,7 @@ func newPodIdentityExceptionInformer(lw *cache.ListWatch) (cache.SharedInformer,
 
 func (c *Client) getObjectList(resource string, i runtime.Object) (runtime.Object, error) {
 	options := v1.ListOptions{}
-	do := c.rest.Get().Namespace(v1.NamespaceAll).Resource(resource).VersionedParams(&options, v1.ParameterCodec).Do()
+	do := c.rest.Get().Namespace(v1.NamespaceAll).Resource(resource).VersionedParams(&options, v1.ParameterCodec).Do(context.TODO())
 	body, err := do.Raw()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get %s, error: %+v", resource, err)
@@ -321,7 +322,7 @@ func (c *Client) getObjectList(resource string, i runtime.Object) (runtime.Objec
 }
 
 func (c *Client) setObject(resource, ns, name string, i interface{}, obj runtime.Object) error {
-	err := c.rest.Put().Namespace(ns).Resource(resource).Name(name).Body(i).Do().Into(obj)
+	err := c.rest.Put().Namespace(ns).Resource(resource).Name(name).Body(i).Do(context.TODO()).Into(obj)
 	if err != nil {
 		return fmt.Errorf("failed to set object for resource %s, error: %+v", resource, err)
 	}
@@ -491,7 +492,7 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	}()
 
 	var res aadpodv1.AzureAssignedIdentity
-	err = c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Do().Into(&res)
+	err = c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Do(context.TODO()).Into(&res)
 	if apierrors.IsNotFound(err) {
 		return nil
 	}
@@ -501,7 +502,7 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	if hasFinalizer(&res) {
 		removeFinalizer(&res)
 		// update the assigned identity without finalizer and resource will be garbage collected
-		err = c.rest.Put().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Body(&res).Do().Error()
+		err = c.rest.Put().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Body(&res).Do(context.TODO()).Error()
 	}
 
 	klog.V(5).Infof("deleting %s took: %v", assignedIdentity.Name, time.Since(begin))
@@ -533,7 +534,7 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	if !hasFinalizer(&v1AssignedID) {
 		v1AssignedID.SetFinalizers(append(v1AssignedID.GetFinalizers(), finalizerName))
 	}
-	err = c.rest.Post().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Body(&v1AssignedID).Do().Into(&res)
+	err = c.rest.Post().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Body(&v1AssignedID).Do(context.TODO()).Into(&res)
 	if err != nil {
 		return err
 	}
@@ -561,7 +562,7 @@ func (c *Client) UpdateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	}()
 
 	v1AssignedID := aadpodv1.ConvertInternalAssignedIdentityToV1AssignedIdentity(*assignedIdentity)
-	err = c.rest.Put().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Body(&v1AssignedID).Do().Error()
+	err = c.rest.Put().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Body(&v1AssignedID).Do(context.TODO()).Error()
 	if err != nil {
 		return fmt.Errorf("failed to update AzureAssignedIdentity, error: %+v", err)
 	}
@@ -806,7 +807,7 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 		Resource(aadpodid.AzureAssignedIDResource).
 		Name(assignedIdentity.Name).
 		Body(patchBytes).
-		Do().
+		Do(context.TODO()).
 		Error()
 	klog.V(5).Infof("patch of %s took: %v", assignedIdentity.Name, time.Since(begin))
 	return err

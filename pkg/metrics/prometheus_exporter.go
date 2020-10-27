@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"contrib.go.opencensus.io/exporter/prometheus"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // newPrometheusExporter creates prometheus exporter and run the same on given port

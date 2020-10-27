@@ -3,7 +3,7 @@ package probes
 import (
 	"net/http"
 
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // InitHealthProbe - sets up a health probe which responds with success (200 - OK) once its initialized.

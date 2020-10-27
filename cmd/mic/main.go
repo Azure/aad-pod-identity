@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Azure/aad-pod-identity/pkg/log"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/mic"
 	"github.com/Azure/aad-pod-identity/pkg/probes"
@@ -15,7 +16,7 @@ import (
 
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -41,6 +42,10 @@ var (
 func main() {
 	klog.InitFlags(nil)
 	defer klog.Flush()
+
+	logOptions := log.NewOptions()
+	logOptions.AddFlags()
+
 	hostName, err := os.Hostname()
 	if err != nil {
 		klog.Fatalf("failed to get hostname, error: %+v", err)
@@ -92,6 +97,10 @@ func main() {
 	flag.DurationVar(&identityAssignmentReconcileInterval, "identity-assignment-reconcile-interval", 3*time.Minute, "The interval between reconciling identity assignment on Azure based on an existing list of AzureAssignedIdentities")
 
 	flag.Parse()
+
+	if err := logOptions.Apply(); err != nil {
+		klog.Fatalf("unable to apply logging options, error: %+v", err)
+	}
 
 	podns := os.Getenv("MIC_POD_NAMESPACE")
 	if podns == "" {

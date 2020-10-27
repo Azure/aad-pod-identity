@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,7 +28,7 @@ func TestGetSecret(t *testing.T) {
 	fakeClient := fake.NewSimpleClientset()
 
 	secret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secretName}}
-	_, err := fakeClient.CoreV1().Secrets("default").Create(secret)
+	_, err := fakeClient.CoreV1().Secrets("default").Create(context.TODO(), secret, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Error creating secret: %v", err)
 	}

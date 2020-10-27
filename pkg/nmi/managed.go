@@ -11,7 +11,7 @@ import (
 	utils "github.com/Azure/aad-pod-identity/pkg/utils"
 
 	"github.com/Azure/go-autorest/autorest/adal"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // ManagedClient implements the TokenClient interface
