@@ -123,17 +123,24 @@ func (c *VMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachi
 		return fmt.Errorf("VMUpdate client throttled, retry after: %v", c.retryAfterWriter)
 	}
 
-	if future, err = c.client.Update(ctx, rg, nodeName, compute.VirtualMachineUpdate{Identity: vm.Identity}); err != nil {
-		resp := future.Response()
-		// Update RetryAfterWriter so that no more requests would be sent until RetryAfter expires.
-		c.retryAfterWriter = time.Now().Add(getRetryAfter(resp))
-		return fmt.Errorf("failed to update identities for %s in %s, error: %+v", nodeName, rg, err)
+	hasUpdated := false
+	remainingIDs := vm.Identity.UserAssignedIdentities
+	for !hasUpdated || len(remainingIDs) > 0 {
+		hasUpdated = true
+		vm.Identity.UserAssignedIdentities, remainingIDs = truncateVMIdentities(remainingIDs)
+		if future, err = c.client.Update(ctx, rg, nodeName, compute.VirtualMachineUpdate{Identity: vm.Identity}); err != nil {
+			resp := future.Response()
+			// Update RetryAfterWriter so that no more requests would be sent until RetryAfter expires.
+			c.retryAfterWriter = time.Now().Add(getRetryAfter(resp))
+			return fmt.Errorf("failed to update identities for %s in %s, error: %+v", nodeName, rg, err)
+		}
+		if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
+			return fmt.Errorf("failed to wait for identity update completion for vm %s in resource group %s, error: %+v", nodeName, rg, err)
+		}
+		stats.Increment(stats.TotalPatchCalls, 1)
+		stats.AggregateConcurrent(stats.CloudPatch, begin, time.Now())
 	}
-	if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
-		return fmt.Errorf("failed to wait for identity update completion for vm %s in resource group %s, error: %+v", nodeName, rg, err)
-	}
-	stats.Increment(stats.TotalPatchCalls, 1)
-	stats.AggregateConcurrent(stats.CloudPatch, begin, time.Now())
+
 	return nil
 }
 
