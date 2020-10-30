@@ -31,10 +31,10 @@ const (
 	imdsOperationsDurationName             = "imds_operations_duration_seconds"
 
 	// AdalTokenFromMSIOperationName represents the duration of obtaining a token with MSI.
-	AdalTokenFromMSIOperationName = "adal_token_msi"
+	AdalTokenFromMSIOperationName = "adal_token_msi" // #nosec
 
 	// AdalTokenFromMSIWithUserAssignedIDOperationName represents the duration of obtaining a token with a user-assigned identity.
-	AdalTokenFromMSIWithUserAssignedIDOperationName = "adal_token_msi_userassignedid"
+	AdalTokenFromMSIWithUserAssignedIDOperationName = "adal_token_msi_userassignedid" // #nosec
 
 	// AdalTokenOperationName represents the duration of obtaining a token.
 	AdalTokenOperationName = "adal_token"

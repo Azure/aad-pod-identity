@@ -51,6 +51,7 @@ func (sc *StandardClient) GetIdentities(ctx context.Context, podns, podname, cli
 	// filter out if we are in namespaced mode
 	var filterPodIdentities []aadpodid.AzureIdentity
 	for _, val := range podIDs {
+		val := val // avoid implicit memory aliasing in for loop
 		if sc.IsNamespaced || aadpodid.IsNamespacedIdentity(&val) {
 			// namespaced mode
 			if val.Namespace == podns {

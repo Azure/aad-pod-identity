@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"net/http"
-	_ "net/http/pprof"
+	_ "net/http/pprof" // #nosec
 	"os"
 	"strings"
 	"time"
