@@ -6,8 +6,15 @@ steps:
 
       wget https://github.com/aquasecurity/trivy/releases/download/v0.11.0/trivy_0.11.0_Linux-64bit.tar.gz
       tar zxvf trivy_0.11.0_Linux-64bit.tar.gz
-      ./trivy --exit-code 1 --ignore-unfixed --no-progress "${REGISTRY}/mic:${IMAGE_VERSION}"
-      ./trivy --exit-code 1 --ignore-unfixed --no-progress "${REGISTRY}/nmi:${IMAGE_VERSION}"
-      ./trivy --exit-code 1 --ignore-unfixed --no-progress "${REGISTRY}/identityvalidator:${IMAGE_VERSION}"
-      ./trivy --exit-code 1 --ignore-unfixed --no-progress "${REGISTRY}/demo:${IMAGE_VERSION}"
+
+      # show all vulnerabilities in the logs
+      ./trivy "${REGISTRY}/mic:${IMAGE_VERSION}"
+      ./trivy "${REGISTRY}/nmi:${IMAGE_VERSION}"
+      ./trivy "${REGISTRY}/identityvalidator:${IMAGE_VERSION}"
+      ./trivy "${REGISTRY}/demo:${IMAGE_VERSION}"
+      
+      ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL "${REGISTRY}/mic:${IMAGE_VERSION}" || exit 1
+      ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL "${REGISTRY}/nmi:${IMAGE_VERSION}" || exit 1
+      ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL "${REGISTRY}/identityvalidator:${IMAGE_VERSION}" || exit 1
+      ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL "${REGISTRY}/demo:${IMAGE_VERSION}" || exit 1
     displayName: "Scan images for vulnerability"
