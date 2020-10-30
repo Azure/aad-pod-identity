@@ -280,7 +280,29 @@ I0606 23:20:11.052905 &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span
 &lt;p>&lt;code>kubectl describe azureidentity&lt;/code>&lt;/p>
 &lt;p>&lt;code>kubectl describe azureidentitybinding&lt;/code>&lt;/p>
 &lt;h3 id="aad-pod-identity-in-action">AAD Pod Identity In Action&lt;/h3>
-&lt;p>&lt;a href="https://www.youtube.com/watch?v=BXhIMJYDO4w">&lt;img src="https://img.youtube.com/vi/BXhIMJYDO4w/0.jpg" alt="Video of Running required commands">&lt;/a>&lt;/p></description></item><item><title>Docs: Deploy AAD Pod Identity with a Dedicated Service Principal</title><link>https://azure.github.io/aad-pod-identity/docs/configure/deploy_aad_pod_dedicated_sp/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/deploy_aad_pod_dedicated_sp/</guid><description>
+&lt;p>&lt;a href="https://www.youtube.com/watch?v=BXhIMJYDO4w">&lt;img src="https://img.youtube.com/vi/BXhIMJYDO4w/0.jpg" alt="Video of Running required commands">&lt;/a>&lt;/p></description></item><item><title>Docs: Deploy AAD Pod Identity in a Cluster with Kubenet</title><link>https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/</guid><description>
+&lt;blockquote>
+&lt;p>Starting from 1.7 release&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="introduction">Introduction&lt;/h2>
+&lt;p>AAD Pod Identity is disabled by default on clusters with Kubenet network plugin. The NMI pods will fail to run with error &lt;code>AAD Pod Identity is not supported for Kubenet&lt;/code>.&lt;/p>
+&lt;h2 id="why-this-change">Why this change?&lt;/h2>
+&lt;p>Kubenet network plugin is susceptible to ARP spoofing. This makes it possible for pods to impersonate as a pod with access to an identity. Using &lt;code>CAP_NET_RAW&lt;/code> capability the attacker pod could then request token as a pod it&amp;rsquo;s impersonating.&lt;/p>
+&lt;p>Network plugins like Azure CNI, Calico, Cilium prevents ARP Spoofing.&lt;/p>
+&lt;h2 id="mitigation-steps-to-take-before-running-clusters-with-kubenet">Mitigation steps to take before running clusters with Kubenet&lt;/h2>
+&lt;p>The recommended steps to take before configuring AAD Pod Identity to run on clusters with Kubenet network plugin&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>Add a &lt;a href="https://kubernetes.io/docs/tasks/configure-pod-container/security-context/">&lt;code>securityContext&lt;/code>&lt;/a> that drops the &lt;code>NET_RAW&lt;/code> capability by default in your applications.&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">securityContext&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">capabilities&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">drop&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>- &lt;span style="color:#000">NET_RAW&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>This shouldn’t affect most applications, since it&amp;rsquo;s only needed for applications that do deep networking inspection/manipulation. Dropping this capability will make sure even if your application code got compromised, the attacker could not perform such network-based attacks on your cluster.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="how-to-run-aad-pod-identity-on-clusters-with-kubenet">How to run AAD Pod Identity on clusters with Kubenet&lt;/h2>
+&lt;p>Set the &lt;code>--allow-network-plugin-kubenet=true&lt;/code> arg in the NMI container to continue running on clusters with Kubenet.&lt;/p></description></item><item><title>Docs: Deploy AAD Pod Identity with a Dedicated Service Principal</title><link>https://azure.github.io/aad-pod-identity/docs/configure/deploy_aad_pod_dedicated_sp/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/deploy_aad_pod_dedicated_sp/</guid><description>
 &lt;blockquote>
 &lt;p>Available from 1.5 release&lt;/p>
 &lt;/blockquote>
