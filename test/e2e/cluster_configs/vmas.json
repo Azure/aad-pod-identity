@@ -13,7 +13,8 @@
                 ],
                 "kubeletConfig": {
                     "--max-pods": "${MAX_PODS}"
-                }
+                },
+                "networkPlugin": "azure"
             }
         },
         "masterProfile": {

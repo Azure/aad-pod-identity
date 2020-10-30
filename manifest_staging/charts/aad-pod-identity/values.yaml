@@ -184,6 +184,10 @@ nmi:
   # default is false
   metadataHeaderRequired: ""
 
+  # enable running aad-pod-identity on clusters with kubenet
+  # default is false
+  allowNetworkPluginKubenet: false
+
 rbac:
   enabled: true
   # NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity.

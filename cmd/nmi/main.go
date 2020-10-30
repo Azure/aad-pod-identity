@@ -12,6 +12,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/nmi"
 	server "github.com/Azure/aad-pod-identity/pkg/nmi/server"
 	"github.com/Azure/aad-pod-identity/pkg/probes"
+	"github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/aad-pod-identity/version"
 
 	"github.com/spf13/pflag"
@@ -47,6 +48,8 @@ var (
 	metadataHeaderRequired             = pflag.Bool("metadata-header-required", false, "Metadata header required for querying Azure Instance Metadata service")
 	prometheusPort                     = pflag.String("prometheus-port", "9090", "Prometheus port for metrics")
 	operationMode                      = pflag.String("operation-mode", "standard", "NMI operation mode")
+	allowNetworkPluginKubenet          = pflag.Bool("allow-network-plugin-kubenet", false, "Allow running aad-pod-identity in cluster with kubenet")
+	kubeletConfig                      = pflag.String("kubelet-config", "/etc/default/kubelet", "Path to kubelet default config")
 )
 
 func main() {
@@ -67,6 +70,15 @@ func main() {
 
 	if *versionInfo {
 		version.PrintVersionAndExit()
+	}
+
+	// check if the cni is kubenet from the --network-plugin defined in kubelet config
+	isKubenet, err := utils.IsKubenetCNI(*kubeletConfig)
+	if err != nil {
+		klog.Fatalf("failed to check if CNI plugin is kubenet, error: %+v", err)
+	}
+	if !*allowNetworkPluginKubenet && isKubenet {
+		klog.Fatalf("AAD Pod Identity is not supported for Kubenet. Review https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/ for more details.")
 	}
 
 	klog.Infof("starting nmi process. Version: %v. Build date: %v.", version.NMIVersion, version.BuildDate)

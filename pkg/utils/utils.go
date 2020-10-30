@@ -2,7 +2,9 @@ package utils
 
 import (
 	"fmt"
+	"io/ioutil"
 	"regexp"
+	"strings"
 )
 
 // RedactClientID redacts client id
@@ -23,4 +25,14 @@ func ValidateResourceID(resourceID string) error {
 		return fmt.Errorf("invalid resource id: %q, must match /subscriptions/<subid>/resourcegroups/<resourcegroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<name>", resourceID)
 	}
 	return nil
+}
+
+func IsKubenetCNI(kubeletConfig string) (bool, error) {
+	var isKubenet bool
+	// read the kubelet config
+	bytes, err := ioutil.ReadFile(kubeletConfig)
+	if err != nil {
+		return isKubenet, err
+	}
+	return strings.Contains(string(bytes), "--network-plugin=kubenet"), nil
 }
