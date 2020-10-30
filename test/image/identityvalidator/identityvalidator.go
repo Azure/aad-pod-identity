@@ -82,18 +82,20 @@ func main() {
 
 // testClusterWideUserAssignedIdentity will verify whether cluster-wide user assigned identity is working properly
 func testClusterWideUserAssignedIdentity(ctx context.Context, msiEndpoint, subscriptionID, resourceGroup, identityClientID string) error {
-	os.Setenv("AZURE_CLIENT_ID", identityClientID)
+	if err := os.Setenv("AZURE_CLIENT_ID", identityClientID); err != nil {
+		return errors.Wrapf(err, "failed to set AZURE_CLIENT_ID environment variable")
+	}
 	defer os.Unsetenv("AZURE_CLIENT_ID")
 	token, err := adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(msiEndpoint, azure.PublicCloud.ResourceManagerEndpoint, identityClientID)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get service principal token from user assigned identity")
+		return errors.Wrapf(err, "failed to get service principal token from user assigned identity")
 	}
 
 	vmClient := compute.NewVirtualMachinesClient(subscriptionID)
 	vmClient.Authorizer = autorest.NewBearerAuthorizer(token)
 	vmlist, err := vmClient.List(ctx, resourceGroup)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to verify cluster-wide user assigned identity")
+		return errors.Wrapf(err, "failed to verify cluster-wide user assigned identity")
 	}
 
 	klog.Infof("successfully verified cluster-wide user assigned identity. VM count: %d", len(vmlist.Values()))
@@ -147,7 +149,9 @@ func testUserAssignedIdentityOnPod(ctx context.Context, msiEndpoint, identityCli
 		// When new authorizer is created, azure-sdk-for-go  tries to create data plane authorizer using MSI. It checks the AZURE_CLIENT_ID to get the client id
 		// for the user assigned identity. If client id not found, then NewServicePrincipalTokenFromMSI is invoked instead of using the actual
 		// user assigned identity. Setting this env var ensures we validate GetSecret using the desired user assigned identity.
-		os.Setenv("AZURE_CLIENT_ID", identityClientID)
+		if err := os.Setenv("AZURE_CLIENT_ID", identityClientID); err != nil {
+			return errors.Wrapf(err, "failed to set AZURE_CLIENT_ID environment variable")
+		}
 		defer os.Unsetenv("AZURE_CLIENT_ID")
 
 		authorizer, err := auth.NewAuthorizerFromEnvironment()
@@ -172,7 +176,7 @@ func testUserAssignedIdentityOnPod(ctx context.Context, msiEndpoint, identityCli
 		keyClient.Authorizer = authorizer
 		secret, err := keyClient.GetSecret(ctx, fmt.Sprintf("https://%s.vault.azure.net", keyvaultName), keyvaultSecretName, keyvaultSecretVersion)
 		if err != nil || *secret.Value == "" {
-			return errors.Wrapf(err, "Failed to verify user assigned identity on pod")
+			return errors.Wrapf(err, "failed to verify user assigned identity on pod")
 		}
 	}
 	klog.Infof("successfully verified user-assigned identity on pod")
@@ -184,11 +188,11 @@ func testUserAssignedIdentityOnPod(ctx context.Context, msiEndpoint, identityCli
 func testSystemAssignedIdentity(msiEndpoint string) (*adal.Token, error) {
 	spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, azure.PublicCloud.ResourceManagerEndpoint)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to acquire a token using the MSI VM extension")
+		return nil, errors.Wrapf(err, "failed to acquire a token using the MSI VM extension")
 	}
 
 	if err := spt.Refresh(); err != nil {
-		return nil, errors.Wrapf(err, "Failed to refresh ServicePrincipalTokenFromMSI using the MSI VM extension, msiEndpoint(%s)", msiEndpoint)
+		return nil, errors.Wrapf(err, "failed to refresh ServicePrincipalTokenFromMSI using the MSI VM extension, msiEndpoint(%s)", msiEndpoint)
 	}
 
 	token := spt.Token()

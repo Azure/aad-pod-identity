@@ -500,11 +500,8 @@ func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) (ns 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer func() {
-		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
-		}
-	}()
+	defer resp.Body.Close()
+
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		klog.Errorf("failed to read response body for %s, error: %+v", req.URL.String(), err)

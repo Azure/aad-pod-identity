@@ -1099,6 +1099,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 		}
 
 		for _, createID := range createOrUpdateList {
+			createID := createID // avoid implicit memory aliasing in for loop
 			id := createID.Spec.AzureIdentityRef
 			binding := createID.Spec.AzureBindingRef
 
@@ -1139,6 +1140,7 @@ func (c *Client) updateUserMSI(newAssignedIDs map[string]aadpodid.AzureAssignedI
 		}
 
 		for _, delID := range nodeTrackList.assignedIDsToDelete {
+			delID := delID // avoid implicit memory aliasing in for loop
 			id := delID.Spec.AzureIdentityRef
 			removedBinding := delID.Spec.AzureBindingRef
 			isUserAssignedMSI := c.checkIfUserAssignedMSI(*id)
@@ -1248,6 +1250,7 @@ func (c *Client) cleanUpAllAssignedIdentitiesOnNode(node string, nodeTrackList t
 	defer wg.Done()
 	klog.Infof("deleting all assigned identites for %s as node not found", node)
 	for _, deleteID := range nodeTrackList.assignedIDsToDelete {
+		deleteID := deleteID // avoid implicit memory aliasing in for loop
 		binding := deleteID.Spec.AzureBindingRef
 
 		err := c.removeAssignedIdentity(&deleteID)

@@ -42,7 +42,7 @@ NMI_IMAGE := $(NMI_BINARY_NAME):$(IMAGE_VERSION)
 MIC_IMAGE := $(MIC_BINARY_NAME):$(IMAGE_VERSION)
 DEMO_IMAGE := $(DEMO_BINARY_NAME):$(IMAGE_VERSION)
 IDENTITY_VALIDATOR_IMAGE := $(IDENTITY_VALIDATOR_BINARY_NAME):$(IMAGE_VERSION)
-ALL_DOCS := $(shell find . -name '*.md' -type f | sort)
+ALL_DOCS := $(shell find . -name '*.md' -type f | sort | grep -vE "website/(themes|node_modules)")
 TOOLS_MOD_DIR := ./tools
 TOOLS_DIR := $(abspath ./.tools)
 
@@ -61,8 +61,8 @@ $(TOOLS_DIR)/misspell: $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_M
 .PHONY: lint
 lint: $(TOOLS_DIR)/golangci-lint $(TOOLS_DIR)/misspell
 	$(TOOLS_DIR)/golangci-lint run --timeout=5m
-	$(TOOLS_DIR)/misspell -w $(ALL_DOCS) && \
-	go mod tidy
+	$(TOOLS_DIR)/misspell -w $(ALL_DOCS)
+	$(MAKE) check-mod
 
 .PHONY: clean-nmi
 clean-nmi:
@@ -192,7 +192,7 @@ validate-version:
 mod:
 	@go mod tidy
 
-.PHONY: check-vendor
+.PHONY: check-mod
 check-mod: mod
 	@git diff --exit-code go.mod go.sum
 

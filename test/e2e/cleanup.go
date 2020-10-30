@@ -33,6 +33,7 @@ func Cleanup(input CleanupInput) {
 	podList := &corev1.PodList{}
 	Expect(input.Lister.List(context.TODO(), podList, client.InNamespace(input.Namespace.Name))).Should(Succeed())
 	for _, pod := range podList.Items {
+		pod := pod // avoid implicit memory aliasing in for loop
 		Expect(input.Deleter.Delete(context.TODO(), &pod)).Should(Succeed())
 	}
 
