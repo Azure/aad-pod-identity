@@ -61,7 +61,7 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 }
 
 // UpdateIdentities updates the user assigned identities for the provided node
-func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmssIdentities compute.VirtualMachineScaleSet) error {
+func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmss compute.VirtualMachineScaleSet) error {
 	var future compute.VirtualMachineScaleSetsUpdateFuture
 	var err error
 	ctx := context.Background()
@@ -86,17 +86,24 @@ func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmssIdentities comput
 		return fmt.Errorf("VMSSUpdate client throttled, retry after: %v", c.retryAfterWriter)
 	}
 
-	if future, err = c.client.Update(ctx, rg, vmssName, compute.VirtualMachineScaleSetUpdate{Identity: vmssIdentities.Identity}); err != nil {
-		resp := future.Response()
-		// Update RetryAfterWriter so that no more requests would be sent until RetryAfter expires.
-		c.retryAfterWriter = time.Now().Add(getRetryAfter(resp))
-		return fmt.Errorf("failed to update identities for %s in %s, error: %+v", vmssName, rg, err)
+	hasUpdated := false
+	remainingIDs := vmss.Identity.UserAssignedIdentities
+	for !hasUpdated || len(remainingIDs) > 0 {
+		hasUpdated = true
+		vmss.Identity.UserAssignedIdentities, remainingIDs = truncateVMSSIdentities(remainingIDs)
+		if future, err = c.client.Update(ctx, rg, vmssName, compute.VirtualMachineScaleSetUpdate{Identity: vmss.Identity}); err != nil {
+			resp := future.Response()
+			// Update RetryAfterWriter so that no more requests would be sent until RetryAfter expires.
+			c.retryAfterWriter = time.Now().Add(getRetryAfter(resp))
+			return fmt.Errorf("failed to update identities for %s in %s, error: %+v", vmssName, rg, err)
+		}
+		if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
+			return fmt.Errorf("failed to wait for identity update completion for vmss %s in resource group %s, error: %+v", vmssName, rg, err)
+		}
+		stats.Increment(stats.TotalPatchCalls, 1)
+		stats.AggregateConcurrent(stats.CloudPatch, begin, time.Now())
 	}
-	if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
-		return fmt.Errorf("failed to wait for identity update completion for vmss %s in resource group %s, error: %+v", vmssName, rg, err)
-	}
-	stats.Increment(stats.TotalPatchCalls, 1)
-	stats.AggregateConcurrent(stats.CloudPatch, begin, time.Now())
+
 	return nil
 }
 
