@@ -175,8 +175,10 @@ type AzureIdentitySpec struct {
 
 	// Used for service principal
 	ClientPassword api.SecretReference `json:"clientpassword"`
-	// Service principal tenant id.
+	// Service principal primary tenant id.
 	TenantID string `json:"tenantid"`
+	// Service principal auxiliary tenant ids
+	AuxiliaryTenantIDs []string `json:"auxiliarytenantids"`
 	// For service principal. Option param for specifying the  AD details.
 	ADResourceID string `json:"adresourceid"`
 	ADEndpoint   string `json:"adendpoint"`

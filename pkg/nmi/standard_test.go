@@ -68,7 +68,7 @@ func TestGetTokenForMatchingIDBySP(t *testing.T) {
 			ClientPassword: secretRef,
 		},
 	}
-	_, _ = tokenClient.GetToken(context.Background(), podID.Spec.ClientID, "https://management.azure.com/", podID)
+	_, _ = tokenClient.GetTokens(context.Background(), podID.Spec.ClientID, "https://management.azure.com/", podID)
 }
 
 func TestGetTokenForMatchingIDBySPCertificate(t *testing.T) {
@@ -107,7 +107,7 @@ func TestGetTokenForMatchingIDBySPCertificate(t *testing.T) {
 			ClientPassword: secretRef,
 		},
 	}
-	_, _ = tokenClient.GetToken(context.Background(), podID.Spec.ClientID, "https://management.azure.com/", podID)
+	_, _ = tokenClient.GetTokens(context.Background(), podID.Spec.ClientID, "https://management.azure.com/", podID)
 }
 
 func TestGetIdentitiesStandardClient(t *testing.T) {

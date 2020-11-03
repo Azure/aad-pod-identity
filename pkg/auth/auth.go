@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/rsa"
 	"fmt"
 	"time"
@@ -98,7 +99,7 @@ func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string
 }
 
 // GetServicePrincipalToken return the token for the assigned user with client secret
-func GetServicePrincipalToken(adEndpointFromSpec, tenantID, clientID, secret, resource string) (*adal.Token, error) {
+func GetServicePrincipalToken(adEndpointFromSpec, tenantID, clientID, secret, resource string, auxiliaryTenantIDs []string) ([]*adal.Token, error) {
 	begin := time.Now()
 	var err error
 
@@ -120,6 +121,16 @@ func GetServicePrincipalToken(adEndpointFromSpec, tenantID, clientID, secret, re
 	if adEndpointFromSpec != "" {
 		activeDirectoryEndpoint = adEndpointFromSpec
 	}
+
+	if len(auxiliaryTenantIDs) != 0 {
+		return newMultiTenantServicePrincipalToken(activeDirectoryEndpoint, tenantID, clientID, secret, resource, auxiliaryTenantIDs)
+	}
+	return newServicePrincipalToken(activeDirectoryEndpoint, tenantID, clientID, secret, resource)
+}
+
+// newServicePrincipalToken creates a ServicePrincipalToken from the supplied Service Principal
+// credentials scoped to the named resource and tenant
+func newServicePrincipalToken(activeDirectoryEndpoint, tenantID, clientID, secret, resource string) ([]*adal.Token, error) {
 	oauthConfig, err := adal.NewOAuthConfig(activeDirectoryEndpoint, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OAuth config, error: %+v", err)
@@ -134,7 +145,37 @@ func GetServicePrincipalToken(adEndpointFromSpec, tenantID, clientID, secret, re
 		return nil, fmt.Errorf("failed to refresh token, error: %+v", err)
 	}
 	token := spt.Token()
-	return &token, nil
+	return []*adal.Token{&token}, nil
+}
+
+// newMultiTenantServicePrincipalToken creates a new MultiTenantServicePrincipalToken with the specified credentials and resource.
+// the first token in the array of tokens returned is the primaryToken
+// all tokens [1:] are the auxiliary tokens
+func newMultiTenantServicePrincipalToken(activeDirectoryEndpoint, primaryTenantID, clientID, secret, resource string, auxiliaryTenantIDs []string) ([]*adal.Token, error) {
+	oauthConfig, err := adal.NewMultiTenantOAuthConfig(activeDirectoryEndpoint, primaryTenantID, auxiliaryTenantIDs, adal.OAuthOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create MultiTenantOAuth config, error: %+v", err)
+	}
+	spt, err := adal.NewMultiTenantServicePrincipalToken(oauthConfig, clientID, secret, resource)
+	if err != nil {
+		return nil, err
+	}
+	err = spt.RefreshWithContext(context.TODO())
+	if err != nil {
+		return nil, fmt.Errorf("failed to refresh token, error: %+v", err)
+	}
+
+	var tokens []*adal.Token
+	// add primary token as the first token
+	primaryToken := spt.PrimaryToken.Token()
+	tokens = append(tokens, &primaryToken)
+
+	// add the auxiliary tokens from [1:]
+	for idx := range spt.AuxiliaryTokens {
+		auxiliaryToken := spt.AuxiliaryTokens[idx].Token()
+		tokens = append(tokens, &auxiliaryToken)
+	}
+	return tokens, nil
 }
 
 // GetServicePrincipalTokenWithCertificate return the token for the assigned user with certificate

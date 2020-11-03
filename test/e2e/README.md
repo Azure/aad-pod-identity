@@ -18,24 +18,26 @@ export KEYVAULT_SECRET_NAME="test-secret"
 
 The E2E test suite extracts runtime configurations through environment variables. Below is a list of environment variables to set before running the E2E test suite.
 
-| Variable                       | Description                                                                             |
-| ------------------------------ | --------------------------------------------------------------------------------------- |
-| `SUBSCRIPTION_ID`              | The Azure subscription ID.                                                              |
-| `RESOURCE_GROUP`               | The resource group of your Azure Kubernetes cluster.                                    |
-| `AZURE_CLIENT_ID`              | The client ID of your service principal.                                                |
-| `AZURE_CLIENT_SECRET`          | The client secret of your service principal.                                            |
-| `AZURE_TENANT_ID`              | The Azure tenant ID.                                                                    |
-| `KEYVAULT_NAME`                | The Azure KeyVault name.                                                                |
-| `KEYVAULT_SECRET_NAME`         | The name of the secret stored in the Azure KeyVault.                                    |
-| `KEYVAULT_SECRET_VERSION`      | The version of the secret stored in the Azure KeyVault.                                 |
-| `MIC_VERSION`                  | The MIC version.                                                                        |
-| `NMI_VERSION`                  | The NMI version.                                                                        |
-| `IDENTITY_VALIDATOR_VERSION`   | The identity validator version                                                          |
-| `SYSTEM_MSI_CLUSTER`           | Set to `true` if you are using an Azure cluster with system-assigned identity enabled.  |
-| `ENABLE_SCALE_FEATURES`        | Set to `true` if you want to enable the scale features.                                 |
-| `IMMUTABLE_IDENTITY_CLIENT_ID` | The client ID of the immutable user-assigned identity created by running setup.sh.      |
-| `NMI_MODE`                     | The NMI mode (`standard`, `managed`).                                                   |
-| `BLOCK_INSTANCE_METADATA`      | Set to `true` if you want to run test cases related to block-instance-metadata feature. |
+| Variable                          | Description                                                                              |
+| --------------------------------- | ---------------------------------------------------------------------------------------- |
+| `SUBSCRIPTION_ID`                 | The Azure subscription ID.                                                               |
+| `RESOURCE_GROUP`                  | The resource group of your Azure Kubernetes cluster.                                     |
+| `AZURE_CLIENT_ID`                 | The client ID of your service principal.                                                 |
+| `AZURE_CLIENT_SECRET`             | The client secret of your service principal.                                             |
+| `AZURE_TENANT_ID`                 | The Azure tenant ID.                                                                     |
+| `KEYVAULT_NAME`                   | The Azure KeyVault name.                                                                 |
+| `KEYVAULT_SECRET_NAME`            | The name of the secret stored in the Azure KeyVault.                                     |
+| `KEYVAULT_SECRET_VERSION`         | The version of the secret stored in the Azure KeyVault.                                  |
+| `MIC_VERSION`                     | The MIC version.                                                                         |
+| `NMI_VERSION`                     | The NMI version.                                                                         |
+| `IDENTITY_VALIDATOR_VERSION`      | The identity validator version                                                           |
+| `SYSTEM_MSI_CLUSTER`              | Set to `true` if you are using an Azure cluster with system-assigned identity enabled.   |
+| `ENABLE_SCALE_FEATURES`           | Set to `true` if you want to enable the scale features.                                  |
+| `IMMUTABLE_IDENTITY_CLIENT_ID`    | The client ID of the immutable user-assigned identity created by running setup.sh.       |
+| `NMI_MODE`                        | The NMI mode (`standard`, `managed`).                                                    |
+| `BLOCK_INSTANCE_METADATA`         | Set to `true` if you want to run test cases related to block-instance-metadata feature.  |
+| `SERVICE_PRINCIPAL_CLIENT_ID`     | The client ID of test service principal with Reader role to KeyVault resource group.     |
+| `SERVICE_PRINCIPAL_CLIENT_SECRET` | The client secret of test service principal with Reader role to KeyVault resource group. |
 
 Finally, to kick off a test run:
 

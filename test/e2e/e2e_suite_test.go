@@ -22,8 +22,9 @@ import (
 )
 
 const (
-	keyvaultIdentity = "keyvault-identity"
-	clusterIdentity  = "cluster-identity"
+	keyvaultIdentity         = "keyvault-identity"
+	clusterIdentity          = "cluster-identity"
+	keyVaultServicePrincipal = "keyvault-sp"
 )
 
 var (

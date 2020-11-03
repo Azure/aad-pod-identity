@@ -15,6 +15,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -35,6 +36,9 @@ type CreateInput struct {
 	IdentityName      string
 	IdentityType      aadpodv1.IdentityType
 	InvalidResourceID bool
+	TenantID          string
+	SPClientID        string
+	SPClientPassword  corev1.SecretReference
 }
 
 // Create creates an AzureIdentity resource.
@@ -55,12 +59,21 @@ func Create(input CreateInput) *aadpodv1.AzureIdentity {
 			Name:      input.Name,
 			Namespace: input.Namespace,
 		},
-		// TODO: account for SP type
-		Spec: aadpodv1.AzureIdentitySpec{
+	}
+
+	if input.IdentityType == aadpodv1.UserAssignedMSI {
+		azureIdentity.Spec = aadpodv1.AzureIdentitySpec{
 			Type:       input.IdentityType,
 			ResourceID: fmt.Sprintf(azure.ResourceIDTemplate, input.Config.SubscriptionID, input.Config.IdentityResourceGroup, input.IdentityName),
 			ClientID:   identityClientID,
-		},
+		}
+	} else {
+		azureIdentity.Spec = aadpodv1.AzureIdentitySpec{
+			Type:           input.IdentityType,
+			ClientID:       input.SPClientID,
+			TenantID:       input.TenantID,
+			ClientPassword: input.SPClientPassword,
+		}
 	}
 
 	// For gatekeeper test case

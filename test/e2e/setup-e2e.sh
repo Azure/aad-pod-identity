@@ -91,3 +91,8 @@ for identity in "${identities[@]}"; do
     # The following command might need a couple of retries to succeed
     retry_cmd "az role assignment create --role Reader --assignee ${IDENTITY_PRINCIPAL_ID} --scope /subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.KeyVault/vaults/${KEYVAULT_NAME}" "role assignment failed"
 done
+
+echo "Creating keyvault-sp and assign appropriate roles..."
+SERVICE_PRINCIPAL_CLIENT_SECRET=$(az ad sp create-for-rbac --role "Reader" --scope "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}" --name http://keyvault-sp --query 'password' -otsv)
+SERVICE_PRINCIPAL_CLIENT_ID=$(az ad sp show --id http://keyvault-sp --query 'appId' -otsv)
+retry_cmd "az keyvault set-policy -n ${KEYVAULT_NAME} --secret-permissions get list --spn ${SERVICE_PRINCIPAL_CLIENT_ID}" "set policy failed"
