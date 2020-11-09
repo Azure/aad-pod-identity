@@ -37,40 +37,40 @@ Currently, [MIC](../../concepts/mic) uses one of the following two ways to authe
 
 [`/etc/kubernetes/azure.json`](https://kubernetes-sigs.github.io/cloud-provider-azure/install/configs/) is a well-known JSON file in each node that provides the details about which method MIC uses for authentication:
 
-| Authentication method                  | `/etc/kubernetes/azure.json` fields used                                                     |
-|----------------------------------------|---------------------------------------------------------------------------------------------|
-| System-assigned managed identity       | `useManagedIdentityExtension: true` and `userAssignedIdentityID:""`                         |
-| User-assigned managed identity         | `useManagedIdentityExtension: true` and `userAssignedIdentityID:"<UserAssignedIdentityID>"` |
-| Service principal (default)            | `aadClientID: "<AADClientID>"` and `aadClientSecret: "<AADClientSecret>"`                   |
+| Authentication method            | `/etc/kubernetes/azure.json` fields used                                                    |
+|----------------------------------|---------------------------------------------------------------------------------------------|
+| System-assigned managed identity | `useManagedIdentityExtension: true` and `userAssignedIdentityID:""`                         |
+| User-assigned managed identity   | `useManagedIdentityExtension: true` and `userAssignedIdentityID:"<UserAssignedIdentityID>"` |
+| Service principal (default)      | `aadClientID: "<AADClientID>"` and `aadClientSecret: "<AADClientSecret>"`                   |
 
 ## Obtaining the ID of the managed identity / service principal
 
 After your cluster is provisioned, depending on your cluster identity configuration, run one of the following commands to retrieve the **ID** of your managed identity or service principal, which will be used for role assignment in the next section:
 
-| Cluster configuration                            | Command                                                                                                                                                                          |
-|--------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| AKS cluster with service principal               | `az aks show -g <AKSResourceGroup> -n <AKSClusterName> --query servicePrincipalProfile.clientId -otsv`                                                                           |
-| AKS cluster with managed identity                | `az aks show -g <AKSResourceGroup> -n <AKSClusterName> --query identityProfile.kubeletidentity.clientId -otsv`                                                                   |
-| aks-engine cluster with service principal        | Use the client ID of the service principal defined in the API model                                                                                                              |
-| aks-engine cluster with system-assigned identity | `az <vm|vmss> identity show -g <ClusterResourceGroup> -n <VM|VMSS Name> --query principalId -otsv`                                                                             |
-| aks-engine cluster with user-assigned identity   | `az <vm|vmss> identity show -g <ClusterResourceGroup> -n <VM|VMSS Name> --query userAssignedIdentities -otsv`, then copy the `clientID` of the selected user-assigned identity |
+| Cluster configuration                            | Command                                                                                                                                                                     |
+|--------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| AKS cluster with service principal               | `az aks show -g <AKSResourceGroup> -n <AKSClusterName> --query servicePrincipalProfile.clientId -otsv`                                                                      |
+| AKS cluster with managed identity                | `az aks show -g <AKSResourceGroup> -n <AKSClusterName> --query identityProfile.kubeletidentity.clientId -otsv`                                                              |
+| aks-engine cluster with service principal        | Use the client ID of the service principal defined in the API model                                                                                                         |
+| aks-engine cluster with system-assigned identity | `az <vm|vmss> identity show -g <NodeResourceGroup> -n <VM|VMSS Name> --query principalId -otsv`                                                                             |
+| aks-engine cluster with user-assigned identity   | `az <vm|vmss> identity show -g <NodeResourceGroup> -n <VM|VMSS Name> --query userAssignedIdentities -otsv`, then copy the `clientID` of the selected user-assigned identity |
 
 ## Performing role assignments
 
 The roles [**Managed Identity Operator**](https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#managed-identity-operator) and [**Virtual Machine Contributor**](https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#virtual-machine-contributor) must be assigned to the cluster managed identity or service principal, identified by the **ID** obtained above, before deploying AAD Pod Identity so that it can assign and un-assign identities from the underlying VM/VMSS.
 
-> For AKS cluster, the cluster resource group refers to the resource group with a `MC_` prefix, which contains all of the infrastructure resources associated with the cluster like VM/VMSS.
+> For AKS cluster, the node resource group refers to the resource group with a `MC_` prefix, which contains all of the infrastructure resources associated with the cluster like VM/VMSS.
 
 ```bash
-az role assignment create --role "Managed Identity Operator" --assignee <ID> --scope /subscriptions/<SubscriptionID>/resourcegroups/<ClusterResourceGroup>
-az role assignment create --role "Virtual Machine Contributor" --assignee <ID> --scope /subscriptions/<SubscriptionID>/resourcegroups/<ClusterResourceGroup>
+az role assignment create --role "Managed Identity Operator" --assignee <ID> --scope /subscriptions/<SubscriptionID>/resourcegroups/<NodeResourceGroup>
+az role assignment create --role "Virtual Machine Contributor" --assignee <ID> --scope /subscriptions/<SubscriptionID>/resourcegroups/<NodeResourceGroup>
 ```
 
 > RBAC and non-RBAC clusters require the same role assignments.
 
-## User-assigned identities that are not within the cluster resource group
+## User-assigned identities that are not within the node resource group
 
-There are additional role assignments required if you wish to assign user-assigned identities that are not within the cluster resource group. You can run the following command to assign the **Managed Identity Operator** role with the identity resource group scope:
+There are additional role assignments required if you wish to assign user-assigned identities that are not within the node resource group. You can run the following command to assign the **Managed Identity Operator** role with the identity resource group scope:
 
 ```bash
 az role assignment create --role "Managed Identity Operator" --assignee <ID> --scope /subscriptions/<SubscriptionID>/resourcegroups/<IdentityResourceGroup>

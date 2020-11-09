@@ -2,14 +2,14 @@
 
 ## Get Started
 
-To run the E2E tests in a given Azure subscription, a running Kubernetes cluster created through AKS Engine or Azure Kubernetes Service (AKS) is required. A service principal with `Contributor` role under the cluster resource group is also required. To obtain the service principal credentials for AKS, you can refer to [here](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal). For AKS Engine, if you have an existing cluster, search for the `servicePrincipalProfile` field in `apimodel.json` under the deployment folder. Otherwise, refer to [here](https://github.com/Azure/aks-engine/blob/master/docs/topics/service-principals.md). Last but not least, an Azure KeyVault is required to simulate the action of accessing Azure resources. You can run a script to help you provision all of the Azure resources required during the test run:
+To run the E2E tests in a given Azure subscription, a running Kubernetes cluster created through AKS Engine or Azure Kubernetes Service (AKS) is required. A service principal with `Contributor` role under the node resource group is also required. To obtain the service principal credentials for AKS, you can refer to [here](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal). For AKS Engine, if you have an existing cluster, search for the `servicePrincipalProfile` field in `apimodel.json` under the deployment folder. Otherwise, refer to [here](https://github.com/Azure/aks-engine/blob/master/docs/topics/service-principals.md). Last but not least, an Azure KeyVault is required to simulate the action of accessing Azure resources. You can run a script to help you provision all of the Azure resources required during the test run:
 
 ```bash
 # login as a user
 az login
 
 export SUBSCRIPTION_ID="<SubscriptionID>"
-export RESOURCE_GROUP="<ClusterResourceGroup>"
+export RESOURCE_GROUP="<NodeResourceGroup>"
 export KEYVAULT_NAME="my-keyvault"
 export KEYVAULT_SECRET_NAME="test-secret"
 

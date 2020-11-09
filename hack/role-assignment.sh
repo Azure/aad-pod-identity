@@ -26,7 +26,7 @@ az role assignment create --role "Managed Identity Operator" --assignee "${ID}" 
 az role assignment create --role "Virtual Machine Contributor" --assignee "${ID}" --scope "/subscriptions/${SUBSCRIPTION_ID}/resourcegroups/MC_${RESOURCE_GROUP}_${CLUSTER_NAME}_${CLUSTER_LOCATION}"
 
 # your resource group that is used to store your user-assigned identities
-# assuming it is within the same subscription as your AKS cluster resource group
+# assuming it is within the same subscription as your AKS node resource group
 if [[ -n "${IDENTITY_RESOURCE_GROUP:-}" ]]; then
   az role assignment create --role "Managed Identity Operator" --assignee "${ID}" --scope "/subscriptions/${SUBSCRIPTION_ID}/resourcegroups/${IDENTITY_RESOURCE_GROUP}"
 fi
