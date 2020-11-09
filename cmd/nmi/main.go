@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/nmi"
@@ -52,6 +53,10 @@ var (
 	kubeconfig                         = pflag.String("kubeconfig", "", "Path to the kube config")
 )
 
+// Delay nmi pod startup due to DNS not being available during first seconds of process execution.
+// Bug tracks removal of this delay: https://o365exchange.visualstudio.com/O365%20Core/_workitems/edit/1739605
+const nmiStatupDelay = time.Second * 10
+
 func main() {
 	// this is done for glog used by client-go underneath
 	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
@@ -62,6 +67,9 @@ func main() {
 	}
 
 	klog.Infof("Starting nmi process. Version: %v. Build date: %v.", version.NMIVersion, version.BuildDate)
+
+	// Bug tracks removal of this delay: https://o365exchange.visualstudio.com/O365%20Core/_workitems/edit/1739605
+	time.Sleep(nmiStatupDelay)
 
 	if *enableProfile {
 		profilePort := "6060"
