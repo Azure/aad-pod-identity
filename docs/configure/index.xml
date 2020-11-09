@@ -309,7 +309,40 @@ The list is comma separated. Example: 00000000-0000-0000-0000-000000000000,11111
 &lt;/blockquote>
 &lt;p>When you query the Instance Metadata Service, you must provide the header &lt;code>Metadata: true&lt;/code> to ensure the request was not unintentionally redirected. You can see examples of this header in &lt;a href="https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service#using-headers">the Azure documentation&lt;/a>.&lt;/p>
 &lt;p>This is critical especially when you &lt;a href="https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http">acquire an access token&lt;/a> as a mitigation against Server Side Request Forgery (SSRF) attack.&lt;/p>
-&lt;p>The &lt;code>metadataHeaderRequired&lt;/code> flag for NMI will block all requests without Metadata header and return an HTTP 400 response. This flag is disabled by default for compatibility, but recommended for users to enable this feature.&lt;/p></description></item><item><title>Docs: Pod Identity in Managed Mode</title><link>https://azure.github.io/aad-pod-identity/docs/configure/pod_identity_in_managed_mode/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/pod_identity_in_managed_mode/</guid><description>
+&lt;p>The &lt;code>metadataHeaderRequired&lt;/code> flag for NMI will block all requests without Metadata header and return an HTTP 400 response. This flag is disabled by default for compatibility, but recommended for users to enable this feature.&lt;/p></description></item><item><title>Docs: Pod Identity in Custom Cloud</title><link>https://azure.github.io/aad-pod-identity/docs/configure/custom_cloud/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/custom_cloud/</guid><description>
+&lt;p>This document highlights the steps to configure and use AAD Pod Identity in custom Azure cloud environments.&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>Ensure the cloud name in &lt;code>/etc/kubernetes/azure.json&lt;/code> is set to &lt;code>AzureStackCloud&lt;/code>&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-json" data-lang="json">&lt;span style="color:#000;font-weight:bold">{&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">&amp;#34;cloud&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;AzureStackCloud&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">&amp;#34;tenantId&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;xxxx&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;span style="color:#204a87;font-weight:bold">&amp;#34;subscriptionId&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span> &lt;span style="color:#4e9a06">&amp;#34;xxxx&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>
+&lt;span style="color:#a40000">...&lt;/span>
+&lt;span style="color:#000;font-weight:bold">}&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>
+&lt;p>Mount the JSON file that contains the custom cloud environment details. The custom cloud environment file is stored in the file system of the Kubernetes node. The &lt;code>go-autorest&lt;/code> library is configured to &lt;a href="https://github.com/Azure/go-autorest/blob/autorest/v0.10.0/autorest/azure/environments.go#L219-L221">read the Azure environment from file&lt;/a> by default for &lt;code>AzureStackCloud&lt;/code>&lt;/p>
+&lt;blockquote>
+&lt;p>NOTE: In case of AKS clusters, the custom cloud environment file is &lt;code>/etc/kubernetes/akscustom.json&lt;/code>&lt;/p>
+&lt;/blockquote>
+&lt;p>The file needs to be mounted only for the MIC pods.&lt;/p>
+&lt;p>Add the custom environment file volume mount in MIC deployment:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">- &lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">custom-env-file&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">mountPath&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">/etc/kubernetes/akscustom.json&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">readOnly&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">true&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>Add the custom environment file volume in MIC deployment:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">- &lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">custom-env-file&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">hostPath&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">path&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">/etc/kubernetes/akscustom.json&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>
+&lt;p>Set the &lt;code>AZURE_ENVIRONMENT_FILEPATH&lt;/code> environment variable as part of MIC deployment. This is used by &lt;code>go-autorest&lt;/code> to &lt;a href="https://github.com/Azure/go-autorest/blob/autorest/v0.10.0/autorest/azure/environments.go#L26-L28">read the custom cloud environment file&lt;/a>.&lt;/p>
+&lt;p>Add the environment variable to MIC deployment:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">- &lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">AZURE_ENVIRONMENT_FILEPATH&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">value&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;/etc/kubernetes/akscustom.json&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;/ol></description></item><item><title>Docs: Pod Identity in Managed Mode</title><link>https://azure.github.io/aad-pod-identity/docs/configure/pod_identity_in_managed_mode/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/pod_identity_in_managed_mode/</guid><description>
 &lt;blockquote>
 &lt;p>Available from 1.6.0 release&lt;/p>
 &lt;/blockquote>
