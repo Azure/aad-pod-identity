@@ -247,26 +247,26 @@
 &lt;/tr>
 &lt;tr>
 &lt;td>aks-engine cluster with system-assigned identity&lt;/td>
-&lt;td>&lt;code>az &amp;lt;vm|vmss&amp;gt; identity show -g &amp;lt;ClusterResourceGroup&amp;gt; -n &amp;lt;VM|VMSS Name&amp;gt; --query principalId -otsv&lt;/code>&lt;/td>
+&lt;td>&lt;code>az &amp;lt;vm|vmss&amp;gt; identity show -g &amp;lt;NodeResourceGroup&amp;gt; -n &amp;lt;VM|VMSS Name&amp;gt; --query principalId -otsv&lt;/code>&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;td>aks-engine cluster with user-assigned identity&lt;/td>
-&lt;td>&lt;code>az &amp;lt;vm|vmss&amp;gt; identity show -g &amp;lt;ClusterResourceGroup&amp;gt; -n &amp;lt;VM|VMSS Name&amp;gt; --query userAssignedIdentities -otsv&lt;/code>, then copy the &lt;code>clientID&lt;/code> of the selected user-assigned identity&lt;/td>
+&lt;td>&lt;code>az &amp;lt;vm|vmss&amp;gt; identity show -g &amp;lt;NodeResourceGroup&amp;gt; -n &amp;lt;VM|VMSS Name&amp;gt; --query userAssignedIdentities -otsv&lt;/code>, then copy the &lt;code>clientID&lt;/code> of the selected user-assigned identity&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
 &lt;h2 id="performing-role-assignments">Performing role assignments&lt;/h2>
 &lt;p>The roles &lt;a href="https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#managed-identity-operator">&lt;strong>Managed Identity Operator&lt;/strong>&lt;/a> and &lt;a href="https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#virtual-machine-contributor">&lt;strong>Virtual Machine Contributor&lt;/strong>&lt;/a> must be assigned to the cluster managed identity or service principal, identified by the &lt;strong>ID&lt;/strong> obtained above, before deploying AAD Pod Identity so that it can assign and un-assign identities from the underlying VM/VMSS.&lt;/p>
 &lt;blockquote>
-&lt;p>For AKS cluster, the cluster resource group refers to the resource group with a &lt;code>MC_&lt;/code> prefix, which contains all of the infrastructure resources associated with the cluster like VM/VMSS.&lt;/p>
+&lt;p>For AKS cluster, the node resource group refers to the resource group with a &lt;code>MC_&lt;/code> prefix, which contains all of the infrastructure resources associated with the cluster like VM/VMSS.&lt;/p>
 &lt;/blockquote>
-&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">az role assignment create --role &lt;span style="color:#4e9a06">&amp;#34;Managed Identity Operator&amp;#34;&lt;/span> --assignee &amp;lt;ID&amp;gt; --scope /subscriptions/&amp;lt;SubscriptionID&amp;gt;/resourcegroups/&amp;lt;ClusterResourceGroup&amp;gt;
-az role assignment create --role &lt;span style="color:#4e9a06">&amp;#34;Virtual Machine Contributor&amp;#34;&lt;/span> --assignee &amp;lt;ID&amp;gt; --scope /subscriptions/&amp;lt;SubscriptionID&amp;gt;/resourcegroups/&amp;lt;ClusterResourceGroup&amp;gt;
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">az role assignment create --role &lt;span style="color:#4e9a06">&amp;#34;Managed Identity Operator&amp;#34;&lt;/span> --assignee &amp;lt;ID&amp;gt; --scope /subscriptions/&amp;lt;SubscriptionID&amp;gt;/resourcegroups/&amp;lt;NodeResourceGroup&amp;gt;
+az role assignment create --role &lt;span style="color:#4e9a06">&amp;#34;Virtual Machine Contributor&amp;#34;&lt;/span> --assignee &amp;lt;ID&amp;gt; --scope /subscriptions/&amp;lt;SubscriptionID&amp;gt;/resourcegroups/&amp;lt;NodeResourceGroup&amp;gt;
 &lt;/code>&lt;/pre>&lt;/div>&lt;blockquote>
 &lt;p>RBAC and non-RBAC clusters require the same role assignments.&lt;/p>
 &lt;/blockquote>
-&lt;h2 id="user-assigned-identities-that-are-not-within-the-cluster-resource-group">User-assigned identities that are not within the cluster resource group&lt;/h2>
-&lt;p>There are additional role assignments required if you wish to assign user-assigned identities that are not within the cluster resource group. You can run the following command to assign the &lt;strong>Managed Identity Operator&lt;/strong> role with the identity resource group scope:&lt;/p>
+&lt;h2 id="user-assigned-identities-that-are-not-within-the-node-resource-group">User-assigned identities that are not within the node resource group&lt;/h2>
+&lt;p>There are additional role assignments required if you wish to assign user-assigned identities that are not within the node resource group. You can run the following command to assign the &lt;strong>Managed Identity Operator&lt;/strong> role with the identity resource group scope:&lt;/p>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">az role assignment create --role &lt;span style="color:#4e9a06">&amp;#34;Managed Identity Operator&amp;#34;&lt;/span> --assignee &amp;lt;ID&amp;gt; --scope /subscriptions/&amp;lt;SubscriptionID&amp;gt;/resourcegroups/&amp;lt;IdentityResourceGroup&amp;gt;
 &lt;/code>&lt;/pre>&lt;/div>&lt;p>To enable fine-grained control on which user-assigned identity the cluster has access to, run the following command:&lt;/p>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">az role assignment create --role &lt;span style="color:#4e9a06">&amp;#34;Managed Identity Operator&amp;#34;&lt;/span> --assignee &amp;lt;ID&amp;gt; --scope /subscriptions/&amp;lt;SubscriptionID&amp;gt;/resourcegroups/&amp;lt;IdentityResourceGroup&amp;gt;/providers/Microsoft.ManagedIdentity/userAssignedIdentities/&amp;lt;IdentityName&amp;gt;
@@ -287,7 +287,7 @@ az role assignment create --role &lt;span style="color:#4e9a06">&amp;#34;Virtual
 az login
 az account &lt;span style="color:#204a87">set&lt;/span> -s &lt;span style="color:#4e9a06">&amp;#34;&lt;/span>&lt;span style="color:#4e9a06">${&lt;/span>&lt;span style="color:#000">SUBSCRIPTION_ID&lt;/span>&lt;span style="color:#4e9a06">}&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;&lt;/span>
 &lt;/code>&lt;/pre>&lt;/div>&lt;blockquote>
-&lt;p>For AKS clusters, there are two resource groups that you need to be aware of - the resource group where you deploy your AKS cluster to (denoted by the environment variable &lt;code>RESOURCE_GROUP&lt;/code>), and the cluster resource group (&lt;code>MC_&amp;lt;AKSResourceGroup&amp;gt;_&amp;lt;AKSClusterName&amp;gt;_&amp;lt;AKSClusterLocation&amp;gt;&lt;/code>). The latter contains all of the infrastructure resources associated with the cluster like VM/VMSS and VNet. Depending on where you deploy your user-assigned identities, you might need additional role assignments. Please refer to &lt;a href="../../getting-started/role-assignment/">Role Assignment&lt;/a> for more information. For this demo, it is recommended to deploy the demo identity to your cluster resource group (the one with &lt;code>MC_&lt;/code> prefix).&lt;/p>
+&lt;p>For AKS clusters, there are two resource groups that you need to be aware of - the resource group where you deploy your AKS cluster to (denoted by the environment variable &lt;code>RESOURCE_GROUP&lt;/code>), and the node resource group (&lt;code>MC_&amp;lt;AKSResourceGroup&amp;gt;_&amp;lt;AKSClusterName&amp;gt;_&amp;lt;AKSClusterLocation&amp;gt;&lt;/code>). The latter contains all of the infrastructure resources associated with the cluster like VM/VMSS and VNet. Depending on where you deploy your user-assigned identities, you might need additional role assignments. Please refer to &lt;a href="../../getting-started/role-assignment/">Role Assignment&lt;/a> for more information. For this demo, it is recommended to deploy the demo identity to your node resource group (the one with &lt;code>MC_&lt;/code> prefix).&lt;/p>
 &lt;/blockquote>
 &lt;h3 id="1-deploy-aad-pod-identity">1. Deploy aad-pod-identity&lt;/h3>
 &lt;p>Deploy &lt;code>aad-pod-identity&lt;/code> components to an RBAC-enabled cluster:&lt;/p>
