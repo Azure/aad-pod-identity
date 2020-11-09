@@ -28,7 +28,7 @@ func newVMSSManager(config *framework.Config, vmssClient compute.VirtualMachineS
 // ListUserAssignedIdentities returns a list of user-assigned identities assigned to the node.
 func (m *vmssManager) ListUserAssignedIdentities(vmssName string) map[string]bool {
 	userAssignedIdentities := make(map[string]bool)
-	vmss, err := m.vmssClient.Get(context.TODO(), m.config.ClusterResourceGroup, vmssName)
+	vmss, err := m.vmssClient.Get(context.TODO(), m.config.NodeResourceGroup, vmssName)
 	if err != nil || vmss.Identity == nil {
 		return userAssignedIdentities
 	}
@@ -42,7 +42,7 @@ func (m *vmssManager) ListUserAssignedIdentities(vmssName string) map[string]boo
 
 // AssignUserAssignedIdentity assigns a user-assigned identity to a node.
 func (m *vmssManager) AssignUserAssignedIdentity(vmssName, identityToAssign string) error {
-	vmss, err := m.vmssClient.Get(context.TODO(), m.config.ClusterResourceGroup, vmssName)
+	vmss, err := m.vmssClient.Get(context.TODO(), m.config.NodeResourceGroup, vmssName)
 	if err != nil {
 		return err
 	}
@@ -80,7 +80,7 @@ func (m *vmssManager) AssignUserAssignedIdentity(vmssName, identityToAssign stri
 
 // UnassignUserAssignedIdentity un-assigns a user-assigned identity from a node.
 func (m *vmssManager) UnassignUserAssignedIdentity(vmssName, identityToUnassign string) error {
-	vmss, err := m.vmssClient.Get(context.TODO(), m.config.ClusterResourceGroup, vmssName)
+	vmss, err := m.vmssClient.Get(context.TODO(), m.config.NodeResourceGroup, vmssName)
 	if err != nil {
 		return err
 	}
@@ -116,7 +116,7 @@ func (m *vmssManager) UnassignUserAssignedIdentity(vmssName, identityToUnassign 
 
 // EnableSystemAssignedIdentity enables system-assigned identity for a node.
 func (m *vmssManager) EnableSystemAssignedIdentity(vmssName string) error {
-	vmss, err := m.vmssClient.Get(context.TODO(), m.config.ClusterResourceGroup, vmssName)
+	vmss, err := m.vmssClient.Get(context.TODO(), m.config.NodeResourceGroup, vmssName)
 	if err != nil {
 		return err
 	}
@@ -145,7 +145,7 @@ func (m *vmssManager) EnableSystemAssignedIdentity(vmssName string) error {
 
 // DisableSystemAssignedIdentity disables system-assigned identity for a node.
 func (m *vmssManager) DisableSystemAssignedIdentity(vmssName string) error {
-	vmss, err := m.vmssClient.Get(context.TODO(), m.config.ClusterResourceGroup, vmssName)
+	vmss, err := m.vmssClient.Get(context.TODO(), m.config.NodeResourceGroup, vmssName)
 	if err != nil {
 		return err
 	}
@@ -173,7 +173,7 @@ func (m *vmssManager) DisableSystemAssignedIdentity(vmssName string) error {
 
 // GetSystemAssignedIdentityInfo returns the principal ID and tenant ID of the system-assigned identity.
 func (m *vmssManager) GetSystemAssignedIdentityInfo(vmssName string) (string, string) {
-	vmss, err := m.vmssClient.Get(context.TODO(), m.config.ClusterResourceGroup, vmssName)
+	vmss, err := m.vmssClient.Get(context.TODO(), m.config.NodeResourceGroup, vmssName)
 	if err != nil {
 		return "", ""
 	}
@@ -186,7 +186,7 @@ func (m *vmssManager) GetSystemAssignedIdentityInfo(vmssName string) (string, st
 }
 
 func (m *vmssManager) updateIdentity(vmssName string, vmssIdentity *compute.VirtualMachineScaleSetIdentity) error {
-	if future, err := m.vmssClient.Update(context.TODO(), m.config.ClusterResourceGroup, vmssName, compute.VirtualMachineScaleSetUpdate{Identity: vmssIdentity}); err != nil {
+	if future, err := m.vmssClient.Update(context.TODO(), m.config.NodeResourceGroup, vmssName, compute.VirtualMachineScaleSetUpdate{Identity: vmssIdentity}); err != nil {
 		return err
 	} else {
 		if err := future.WaitForCompletionRef(context.TODO(), m.vmssClient.Client); err != nil {

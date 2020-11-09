@@ -78,7 +78,7 @@ az identity create -g <resource-group> -n <id-name>
 adminsecret:
   cloud: <cloud environment name>
   subscriptionID: <subscription id>
-  resourceGroup: <cluster resource group>
+  resourceGroup: <node resource group>
   vmType: <`standard` for normal virtual machine nodes, and `vmss` for cluster deployed with a virtual machine scale set>
   tenantID: <service principal tenant id>
   clientID: <service principal client id. Set to `msi` when using a User Managed Identity>

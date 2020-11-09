@@ -14,7 +14,7 @@ type Config struct {
 	SubscriptionID               string        `envconfig:"SUBSCRIPTION_ID"`
 	ResourceGroup                string        `envconfig:"RESOURCE_GROUP"`
 	IdentityResourceGroup        string        `envconfig:"IDENTITY_RESOURCE_GROUP"`
-	ClusterResourceGroup         string        `envconfig:"CLUSTER_RESOURCE_GROUP"`
+	NodeResourceGroup            string        `envconfig:"NODE_RESOURCE_GROUP"`
 	AzureClientID                string        `envconfig:"AZURE_CLIENT_ID"`
 	AzureClientSecret            string        `envconfig:"AZURE_CLIENT_SECRET"`
 	AzureTenantID                string        `envconfig:"AZURE_TENANT_ID"`
@@ -41,7 +41,7 @@ func (c *Config) DeepCopy() *Config {
 	copy.SubscriptionID = c.SubscriptionID
 	copy.ResourceGroup = c.ResourceGroup
 	copy.IdentityResourceGroup = c.IdentityResourceGroup
-	copy.ClusterResourceGroup = c.ClusterResourceGroup
+	copy.NodeResourceGroup = c.NodeResourceGroup
 	copy.AzureClientID = c.AzureClientID
 	copy.AzureClientSecret = c.AzureClientSecret
 	copy.AzureTenantID = c.AzureTenantID
@@ -71,14 +71,14 @@ func ParseConfig() (*Config, error) {
 	}
 
 	if c.IdentityResourceGroup == "" {
-		// Assume user-assigned identities are within the cluster resource group
+		// Assume user-assigned identities are within the node resource group
 		c.IdentityResourceGroup = c.ResourceGroup
 	}
-	if c.ClusterResourceGroup == "" {
-		c.ClusterResourceGroup = c.ResourceGroup
+	if c.NodeResourceGroup == "" {
+		c.NodeResourceGroup = c.ResourceGroup
 	}
 	c.IdentityResourceGroup = strings.ToLower(c.IdentityResourceGroup)
-	c.ClusterResourceGroup = strings.ToLower(c.ClusterResourceGroup)
+	c.NodeResourceGroup = strings.ToLower(c.NodeResourceGroup)
 
 	return c, nil
 }

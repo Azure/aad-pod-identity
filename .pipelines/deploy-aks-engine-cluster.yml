@@ -28,9 +28,9 @@ steps:
       export KUBECONFIG="$(pwd)/_output/${RESOURCE_GROUP}/kubeconfig/kubeconfig.$(LOCATION).json"
       echo "##vso[task.setvariable variable=KUBECONFIG]${KUBECONFIG}"
 
-      # set CLUSTER_RESOURCE_GROUP for e2e test config
-      export CLUSTER_RESOURCE_GROUP="${RESOURCE_GROUP}"
-      echo "##vso[task.setvariable variable=CLUSTER_RESOURCE_GROUP]${CLUSTER_RESOURCE_GROUP}"
+      # set NODE_RESOURCE_GROUP for e2e test config
+      export NODE_RESOURCE_GROUP="${RESOURCE_GROUP}"
+      echo "##vso[task.setvariable variable=NODE_RESOURCE_GROUP]${NODE_RESOURCE_GROUP}"
 
       # Sleep for 120 seconds to wait for nodes and pods to become ready
       sleep 120

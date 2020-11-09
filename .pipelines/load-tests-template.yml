@@ -101,7 +101,7 @@ jobs:
           env:
             NAMESPACE: "kube-system"
             SUBSCRIPTION_ID: $(LOAD_TEST_SUBSCRIPTION_ID)
-            POD_IDENTITY_RESOURCE_GROUP: $(CLUSTER_RESOURCE_GROUP)
+            POD_IDENTITY_RESOURCE_GROUP: $(NODE_RESOURCE_GROUP)
 
         - script: |
             echo "--- CONFIG ---"
