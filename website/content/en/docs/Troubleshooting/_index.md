@@ -9,7 +9,7 @@ description: >
 
 ## Logging
 
-Below is a list of commands you can use to view relevant logs of aad-pod-identity [components](../getting-started/components/).
+Below is a list of commands you can use to view relevant logs of aad-pod-identity components.
 
 ### Isolate errors from logs
 
@@ -24,7 +24,7 @@ kubectl logs -l component=nmi --since=1h | grep ^E
 
 ### Ensure that iptables rule exists
 
-To ensure that the correct iptables rule is injected to each node via the [NMI](../getting-started/components/#node-managed-identity) pods, the following command ensures that on a given node, there exists an iptables rule where all packets with a destination IP of 169.254.169.254 (IMDS endpoint) are routed to port 2579 of the host network.
+To ensure that the correct iptables rule is injected to each node via the [NMI](../concepts/nmi) pods, the following command ensures that on a given node, there exists an iptables rule where all packets with a destination IP of 169.254.169.254 (IMDS endpoint) are routed to port 2579 of the host network.
 
 ```bash
 NMI_POD=$(kubectl get pod -l component=nmi -ojsonpath='{.items[?(@.spec.nodeName=="<NodeName>")].metadata.name}')
