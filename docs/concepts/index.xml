@@ -1,0 +1,408 @@
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Azure Active Directory Pod Identity for Kubernetes – Concepts</title><link>https://azure.github.io/aad-pod-identity/docs/concepts/</link><description>Recent content in Concepts on Azure Active Directory Pod Identity for Kubernetes</description><generator>Hugo -- gohugo.io</generator><lastBuildDate>Tue, 03 Nov 2020 00:00:00 +0000</lastBuildDate><atom:link href="https://azure.github.io/aad-pod-identity/docs/concepts/index.xml" rel="self" type="application/rss+xml"/><item><title>Docs: AzureIdentity</title><link>https://azure.github.io/aad-pod-identity/docs/concepts/azureidentity/</link><pubDate>Tue, 03 Nov 2020 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/concepts/azureidentity/</guid><description>
+&lt;details>
+&lt;summary>Examples&lt;/summary>
+&lt;ul>
+&lt;li>user-assigned identity&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;aadpodidentity.k8s.io/v1&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">AzureIdentity&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;AzureIdentityName&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">spec&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#0000cf;font-weight:bold">0&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">resourceID&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;ResourceID&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">clientID&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;ClientID&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>service principal (single-tenant)&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">v1&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">Secret&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;SecretName&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">Opaque&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">data&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">clientSecret&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;ClientSecret&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#000">---&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;aadpodidentity.k8s.io/v1&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">AzureIdentity&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;AzureIdentityName&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">spec&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">tenantID&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;TenantID&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">clientID&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;ClientID&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">clientPassword&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>{&lt;span style="color:#4e9a06">&amp;#34;name&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;&amp;lt;SecretName&amp;gt;&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;namespace&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;&amp;lt;SecretNamespace&amp;gt;&amp;#34;&lt;/span>}&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>service principal (multi-tenant)&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">v1&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">Secret&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;SecretName&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">Opaque&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">data&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">clientSecret&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;ClientSecret&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#000">---&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;aadpodidentity.k8s.io/v1&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">AzureIdentity&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;AzureIdentityName&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">spec&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#0000cf;font-weight:bold">1&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">tenantID&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;PrimaryTenantID&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">auxiliaryTenantIDs&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>- &lt;span style="color:#000">&amp;lt;AuxiliaryTenantID1&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>- &lt;span style="color:#000">&amp;lt;AuxiliaryTenantID2&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">clientID&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;ClientID&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">clientPassword&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>{&lt;span style="color:#4e9a06">&amp;#34;name&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;&amp;lt;SecretName&amp;gt;&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;namespace&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;&amp;lt;SecretNamespace&amp;gt;&amp;#34;&lt;/span>}&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;ul>
+&lt;li>service principal (certifcate)&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">v1&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">Secret&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;SecretName&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">Opaque&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">data&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">certificate&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;Certificate&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">password&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;Password&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#000">---&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;aadpodidentity.k8s.io/v1&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">AzureIdentity&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;AzureIdentityName&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">spec&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">type&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#0000cf;font-weight:bold">2&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">tenantID&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;TenantID&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">clientID&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;ClientID&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">clientPassword&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>{&lt;span style="color:#4e9a06">&amp;#34;Name&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;&amp;lt;SecretName&amp;gt;&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">,&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;Namespace&amp;#34;&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;&amp;lt;SecretNamespace&amp;gt;&amp;#34;&lt;/span>}&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/details>
+&lt;h2 id="azureidentity">&lt;code>AzureIdentity&lt;/code>&lt;/h2>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Field&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;code>apiVersion&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: &lt;a href="https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources">https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources&lt;/a>.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>kind&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: &lt;a href="https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds">https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds&lt;/a>.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>metadata&lt;/code>&lt;br>&lt;a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#objectmeta-v1-meta">&lt;em>&lt;code>ObjectMeta&lt;/code>&lt;/em>&lt;/a>&lt;/td>
+&lt;td>Standard object&amp;rsquo;s metadata. More info: &lt;a href="https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata">https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>spec&lt;/code>&lt;br>&lt;a href="#azureidentityspec">&lt;em>&lt;code>AzureIdentitySpec&lt;/code>&lt;/em>&lt;/a>&lt;/td>
+&lt;td>Describes the specifications of an identity resource on Azure.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="azureidentityspec">&lt;code>AzureIdentitySpec&lt;/code>&lt;/h2>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Field&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;code>type&lt;/code>&lt;br>&lt;em>integer&lt;/em>&lt;/td>
+&lt;td>&lt;code>0&lt;/code>: user-assigned identity.&lt;br>&lt;code>1&lt;/code>: service principal. &lt;br>&lt;code>2&lt;/code>: service principal with certificate.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>resourceID&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>The resource ID of the user-assigned identity (only applicable when &lt;code>type&lt;/code> is &lt;code>0&lt;/code>), i.e. &lt;code>/subscriptions/&amp;lt;SubscriptionID&amp;gt;/resourcegroups/&amp;lt;ResourceGroup&amp;gt;/providers/Microsoft.ManagedIdentity/userAssignedIdentities/&amp;lt;UserAssignedIdentityName&amp;gt;&lt;/code>.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>clientID&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>The client ID of the identity.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>clientPassword&lt;/code>&lt;br>&lt;a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#secretreference-v1-core">&lt;em>SecretReference&lt;/em>&lt;/a>&lt;/td>
+&lt;td>The client secret of the identity, represented as a Kubernetes secret (only applicable when &lt;code>type&lt;/code> is &lt;code>1&lt;/code> or &lt;code>2&lt;/code>).&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>tenantID&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>The primary tenant ID of the identity (only applicable when &lt;code>type&lt;/code> is &lt;code>1&lt;/code> or &lt;code>2&lt;/code>).&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>auxiliaryTenantIDs&lt;/code>&lt;br>&lt;em>[]string&lt;/em>&lt;/td>
+&lt;td>The auxiliary tenant IDs of the identity (only applicable when &lt;code>type&lt;/code> is &lt;code>1&lt;/code>).&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>adEndpoint&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>The Azure Active Directory endpoint.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table></description></item><item><title>Docs: AzureIdentityBinding</title><link>https://azure.github.io/aad-pod-identity/docs/concepts/azureidentitybinding/</link><pubDate>Tue, 03 Nov 2020 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/concepts/azureidentitybinding/</guid><description>
+&lt;details>
+&lt;summary>Examples&lt;/summary>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;aadpodidentity.k8s.io/v1&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">AzureIdentityBinding&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">&amp;lt;AzureIdentityBindingName&amp;gt;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">spec&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">azureIdentity&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;&amp;lt;AzureIdentityName&amp;gt;&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">selector&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;&amp;lt;Selector&amp;gt;&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/details>
+&lt;h2 id="azureidentitybinding">&lt;code>AzureIdentityBinding&lt;/code>&lt;/h2>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Field&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;code>apiVersion&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: &lt;a href="https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources">https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources&lt;/a>.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>kind&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: &lt;a href="https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds">https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds&lt;/a>.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>metadata&lt;/code>&lt;br>&lt;a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#objectmeta-v1-meta">&lt;em>&lt;code>ObjectMeta&lt;/code>&lt;/em>&lt;/a>&lt;/td>
+&lt;td>Standard object&amp;rsquo;s metadata. More info: &lt;a href="https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata">https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>spec&lt;/code>&lt;br>&lt;a href="#azureidentitybindingspec">&lt;em>&lt;code>AzureIdentityBindingSpec&lt;/code>&lt;/em>&lt;/a>&lt;/td>
+&lt;td>Describes the specifications of an identity binding relationship between an &lt;a href="../azureidentity">&lt;code>AzureIdentity&lt;/code>&lt;/a> and pod(s).&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="azureidentitybindingspec">&lt;code>AzureIdentityBindingSpec&lt;/code>&lt;/h2>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Field&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;code>azureIdentity&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>The name of the &lt;a href="../azureidentity">&lt;code>AzureIdentity&lt;/code>&lt;/a> that should be assigned to the pod(s) if matching selector is found.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>selector&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>The selector to identify which pods should be assigned to the &lt;code>AzureIdentity&lt;/code> above. It will go through a list of pods and look for value of pod label with key &lt;code>aadpodidbinding&lt;/code> that is equal to itself.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table></description></item><item><title>Docs: AzureAssignedIdentity</title><link>https://azure.github.io/aad-pod-identity/docs/concepts/azureassignedidentity/</link><pubDate>Tue, 03 Nov 2020 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/concepts/azureassignedidentity/</guid><description>
+&lt;blockquote>
+&lt;p>Note: the lifecycle of &lt;code>AzureAssignedIdentity&lt;/code> is fully managed by &lt;a href="../block-diagram-and-design">MIC&lt;/a>. Users should not manually modify the fields.&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="azureassignedidentity">&lt;code>AzureAssignedIdentity&lt;/code>&lt;/h2>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Field&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;code>apiVersion&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: &lt;a href="https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources">https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources&lt;/a>.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>kind&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: &lt;a href="https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds">https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds&lt;/a>.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>metadata&lt;/code>&lt;br>&lt;a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#objectmeta-v1-meta">&lt;em>&lt;code>ObjectMeta&lt;/code>&lt;/em>&lt;/a>&lt;/td>
+&lt;td>Standard object&amp;rsquo;s metadata. More info: &lt;a href="https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata">https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>spec&lt;/code>&lt;br>&lt;a href="#azureassignedidentityspec">&lt;em>&lt;code>AzureAssignedIdentitySpec&lt;/code>&lt;/em>&lt;/a>&lt;/td>
+&lt;td>Describes the current state of identity binding relationship between an &lt;a href="../azureidentity">&lt;code>AzureIdentity&lt;/code>&lt;/a> and a pod.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="azureassignedidentityspec">&lt;code>AzureAssignedIdentitySpec&lt;/code>&lt;/h2>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Field&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;code>azureIdentityRef&lt;/code>&lt;br>&lt;a href="../azureidentity">&lt;em>AzureIdentity&lt;/em>&lt;/a>&lt;/td>
+&lt;td>The &lt;a href="../azureidentity">&lt;code>AzureIdentity&lt;/code>&lt;/a> that is bound to the pod.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>azureBindingRef&lt;/code>&lt;br>&lt;a href="../azureidentitybinding">&lt;em>AzureIdentityBinding&lt;/em>&lt;/a>&lt;/td>
+&lt;td>The &lt;a href="../azureidentitybinding">&lt;code>AzureIdentityBinding&lt;/code>&lt;/a> that is binding the &lt;a href="../azureidentity">&lt;code>AzureIdentity&lt;/code>&lt;/a> and the pod together.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>pod&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>The name of the pod that is bound to the &lt;a href="../azureidentity">&lt;code>AzureIdentity&lt;/code>&lt;/a>.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>podNamespace&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>The namespace of the pod that is bound to the &lt;a href="../azureidentity">&lt;code>AzureIdentity&lt;/code>&lt;/a>.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>nodename&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>The name of the node that the pod is scheduled to.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table></description></item><item><title>Docs: AzurePodIdentityException</title><link>https://azure.github.io/aad-pod-identity/docs/concepts/azurepodidentityexception/</link><pubDate>Tue, 03 Nov 2020 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/concepts/azurepodidentityexception/</guid><description>
+&lt;details>
+&lt;summary>Examples&lt;/summary>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-yaml" data-lang="yaml">&lt;span style="color:#204a87;font-weight:bold">apiVersion&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#4e9a06">&amp;#34;aadpodidentity.k8s.io/v1&amp;#34;&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">kind&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">AzurePodIdentityException&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">metadata&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">name&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">aks-addon-exception&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">namespace&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">kube-system&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">&lt;/span>&lt;span style="color:#204a87;font-weight:bold">spec&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">podLabels&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#204a87;font-weight:bold">kubernetes.azure.com/managedby&lt;/span>&lt;span style="color:#000;font-weight:bold">:&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline"> &lt;/span>&lt;span style="color:#000">aks&lt;/span>&lt;span style="color:#f8f8f8;text-decoration:underline">
+&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;/details>
+&lt;h2 id="azurepodidentityexception">&lt;code>AzurePodIdentityException&lt;/code>&lt;/h2>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Field&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;code>apiVersion&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: &lt;a href="https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources">https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources&lt;/a>.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>kind&lt;/code>&lt;br>&lt;em>string&lt;/em>&lt;/td>
+&lt;td>Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: &lt;a href="https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds">https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds&lt;/a>.&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>metadata&lt;/code>&lt;br>&lt;a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#objectmeta-v1-meta">&lt;em>&lt;code>ObjectMeta&lt;/code>&lt;/em>&lt;/a>&lt;/td>
+&lt;td>Standard object&amp;rsquo;s metadata. More info: &lt;a href="https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata">https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata&lt;/a>&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>&lt;code>spec&lt;/code>&lt;br>&lt;a href="#azurepodidentityexceptionspec">&lt;em>&lt;code>AzurePodIdentityExceptionSpec&lt;/code>&lt;/em>&lt;/a>&lt;/td>
+&lt;td>Describes the specifications of which pods are allowed to access IMDS without being intercepted by NMI.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="azurepodidentityexceptionspec">&lt;code>AzurePodIdentityExceptionSpec&lt;/code>&lt;/h2>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Field&lt;/th>
+&lt;th>Description&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;code>podLabels&lt;/code>&lt;br>&lt;em>map[string]string&lt;/em>&lt;/td>
+&lt;td>Pods with matching labels will bypass NMI validation.&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table></description></item><item><title>Docs: Managed Identity Controller (MIC)</title><link>https://azure.github.io/aad-pod-identity/docs/concepts/mic/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/concepts/mic/</guid><description>
+&lt;p>Specifically, when a pod is scheduled, the MIC assigns the identity on Azure to the underlying VM/VMSS during the creation phase. When all pods using the identity are deleted, it removes the identity from the underlying VM/VMSS on Azure. The MIC takes similar actions when &lt;code>AzureIdentity&lt;/code> or &lt;code>AzureIdentityBinding&lt;/code> are created or deleted.&lt;/p></description></item><item><title>Docs: Node Managed Identity (NMI)</title><link>https://azure.github.io/aad-pod-identity/docs/concepts/nmi/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/concepts/nmi/</guid><description>
+&lt;p>The authorization request to fetch a Service Principal Token from an MSI endpoint is sent to Azure Instance Metadata Service (IMDS) endpoint (169.254.169.254), which is redirected to the NMI pod. The redirection is accomplished by adding iptable rules to redirect all non-host traffic with IMDS endpoint on port 80 as destination to the NMI endpoint. The NMI server identifies the pod based on the remote address of the request and then queries Kubernetes (through &lt;code>AzureAssignedIdentity&lt;/code>) for a matching Azure identity. NMI then makes an Azure Active Directory Authentication Library (&lt;a href="https://docs.microsoft.com/en-us/azure/active-directory/azuread-dev/active-directory-authentication-libraries">ADAL&lt;/a>) request to get the token for the client ID and returns it as a response. If the request had client ID as part of the query, it is validated against the admin-configured client ID.&lt;/p>
+&lt;p>Here is an example cURL command that will fetch an access token to access ARM within a pod identified by an AAD-Pod-Identity selector:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">curl &lt;span style="color:#4e9a06">&amp;#39;http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&amp;amp;resource=https%3A%2F%2Fmanagement.azure.com%2F&amp;#39;&lt;/span> -H Metadata:true -s
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>For different ways to acquire an access token within a pod, please refer to this &lt;a href="https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token">documentation&lt;/a>.&lt;/p>
+&lt;p>Similarly, a host can make an authorization request to fetch Service Principal Token for a resource directly from the NMI host endpoint (http://127.0.0.1:2579/host/token/). The request must include the pod namespace &lt;code>podns&lt;/code> and the pod name &lt;code>podname&lt;/code> in the request header and the resource endpoint of the resource requesting the token. The NMI server identifies the pod based on the &lt;code>podns&lt;/code> and &lt;code>podname&lt;/code> in the request header and then queries k8s (through &lt;code>AzureAssignedIdentity&lt;/code>) for a matching azure identity. Then NMI makes an ADAL request to get a token for the resource in the request, returning the &lt;code>token&lt;/code> and the &lt;code>clientid&lt;/code> as a response.&lt;/p>
+&lt;p>Here is an example cURL command:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">curl http://127.0.0.1:2579/host/token/?resource&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>https://vault.azure.net -H &lt;span style="color:#4e9a06">&amp;#34;podname: nginx-flex-kv-int&amp;#34;&lt;/span> -H &lt;span style="color:#4e9a06">&amp;#34;podns: default&amp;#34;&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>For more information, please refer to the &lt;a href="../../design">design documentation&lt;/a>.&lt;/p></description></item><item><title>Docs: Block Diagram and Design</title><link>https://azure.github.io/aad-pod-identity/docs/concepts/block-diagram-and-design/</link><pubDate>Tue, 03 Nov 2020 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/concepts/block-diagram-and-design/</guid><description>
+&lt;p>&lt;img src="../block-diagram.png" alt="Block Diagram">&lt;/p>
+&lt;h2 id="aad-and-kubernetes">AAD and Kubernetes&lt;/h2>
+&lt;p>The relationship between kubernetes and AAD is covered in three main areas:&lt;/p>
+&lt;ol>
+&lt;li>
+&lt;p>&lt;strong>Cluster Identity&lt;/strong>: The identity used by the cloud provider running in various kubernetes components to perform operations against Azure, typically against Azure&amp;rsquo;s resource group where the cluster lives. This identity is set during the cluster bring up process. This is not included in the scope of this proposal.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>User Identity&lt;/strong>: What enables user/operator to authenticate against AAD using AAD before using &lt;code>kubectl&lt;/code> commands. This is not included in the scope of this proposal.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;strong>Application Identities&lt;/strong>: Identities that are used by applications running on kubernetes to access any resources that uses AAD as identity provider. These resources can be ARM, Applications running on the same cluster, on azure, or anywhere else. Managing, assigning these identities is the scope of this document.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;blockquote>
+&lt;p>This proposal does not cover how application can be configured to use AAD as identity/authentication provider.&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="use-cases">Use cases&lt;/h2>
+&lt;ol>
+&lt;li>Kubernetes applications depending on other applications that use AAD as an identity provider. These applications include Azure first party services such as ARM, Azure SQL, and Azure KeyVault.&lt;/li>
+&lt;/ol>
+&lt;blockquote>
+&lt;p>Azure 1st party services are all moving to use AAD as the primary identity provider.&lt;/p>
+&lt;/blockquote>
+&lt;ol start="2">
+&lt;li>
+&lt;p>Delegating authorization to tools such as AAD group memberships.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Enable identity rotation without application interruption.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;blockquote>
+&lt;p>Example: rotating a service principal password/cert without having to edit secrets assigned directly to applications.&lt;/p>
+&lt;/blockquote>
+&lt;ol start="4">
+&lt;li>Provide a framework to enable time-boxed identity assignment. Manually triggered or automated. The same framework can be used for (jit sudo style access with automation tools).&lt;/li>
+&lt;/ol>
+&lt;blockquote>
+&lt;p>Example: a front end application can have access to centralized data store between midnight and 1 AM during business days only.&lt;/p>
+&lt;/blockquote>
+&lt;h2 id="guiding-principles">Guiding Principles&lt;/h2>
+&lt;ol>
+&lt;li>
+&lt;p>Favor little to no change to how users currently write applications against various editions of &lt;a href="https://docs.microsoft.com/en-us/azure/active-directory/develop/active-directory-authentication-libraries">ADAL&lt;/a>. Favor committing changes to SDKs and don&amp;rsquo;t ask users to change applications that are written for Kubernetes.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Favor little to no change in the way users create kubernetes application specs (favor declarative approach). This enables users to focus their development and debugging experience in code they wrote, not code imposed on them.&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;blockquote>
+&lt;p>Example: favor annotation and labels over side-cars (even dynamically injected).&lt;/p>
+&lt;/blockquote>
+&lt;ol start="3">
+&lt;li>Separate identities from &lt;code>identity assignment&lt;/code> applications enables users to swap identities used by the applications.&lt;/li>
+&lt;/ol>
+&lt;h2 id="processes">Processes&lt;/h2>
+&lt;h3 id="aad-identity-management-and-assignment-within-cluster">AAD Identity Management and Assignment (within cluster)&lt;/h3>
+&lt;ul>
+&lt;li>
+&lt;p>Cluster operators create instances of &lt;code>crd:azureIdentity&lt;/code>. Each instance is a kubernetes object representing Azure AAD identity that can be EMSI or service principal (with password).&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Cluster operators create instances of &lt;code>crd:azureIdentityBinding&lt;/code>. Each instance represents binding between &lt;code>pod&lt;/code> and &lt;code>crd:azureIdentity&lt;/code>.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>A Controller will run to create &lt;code>crd:azureAssignedIdentity&lt;/code> based on &lt;code>crd:azureIdentityBinding&lt;/code> linking &lt;code>pod&lt;/code> with &lt;code>crd:azureIdentity&lt;/code>.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;h3 id="acquiring-tokens">Acquiring Tokens&lt;/h3>
+&lt;blockquote>
+&lt;p>for reference please read &lt;a href="https://docs.microsoft.com/en-us/azure/active-directory/managed-service-identity/how-to-use-vm-token">Azure VM Managed Service Identity (MSI)&lt;/a> and &lt;a href="https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/howto-assign-access-portal">Assign a Managed Service Identity&lt;/a>&lt;/p>
+&lt;/blockquote>
+&lt;ol>
+&lt;li>
+&lt;p>Kubernetes applications (pods) will default to use MSI endpoint.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>All traffic to MSI endpoint is routed via &lt;code>iptables&lt;/code> to a daemon-set that will use &lt;code>sourceIp&lt;/code> to identify pod, then find an appropriate &lt;code>crd:azureIdentityBinding&lt;/code>. The daemon-set mimics all the REST API offered by MSI endpoint. All tokens are presented to pods on MSI endpoint irrespective of the identity used to back this request (EMSI or service principal).&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>All token issuance will be logged as events attached to &lt;code>crd:azureIdentityBinding&lt;/code> for audit purposes.&lt;/p>
+&lt;/li>
+&lt;/ol></description></item></channel></rss>
