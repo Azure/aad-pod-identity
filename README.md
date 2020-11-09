@@ -11,7 +11,7 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 
 ## Getting Started
 
-Get familiar with the [core components](https://azure.github.io/aad-pod-identity/docs/getting-started/components/) and setup the correct [role assignments](https://azure.github.io/aad-pod-identity/docs/getting-started/role-assignment/) on Azure.
+Setup the correct [role assignments](https://azure.github.io/aad-pod-identity/docs/getting-started/role-assignment/) on Azure and install AAD Pod Identity through [Helm](https://azure.github.io/aad-pod-identity/docs/getting-started/installation/#helm) or [YAML deployment files](https://azure.github.io/aad-pod-identity/docs/getting-started/installation/#quick-install). Get familiar with our [CRDs](https://azure.github.io/aad-pod-identity/docs/concepts/azureidentity/) and [core components](https://azure.github.io/aad-pod-identity/docs/concepts/mic/).
 
 Try our [walkthrough](https://azure.github.io/aad-pod-identity/docs/demo/standard_walkthrough/) to get a better understanding of the application workflow.
 

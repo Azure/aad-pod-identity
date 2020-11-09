@@ -1,7 +1,7 @@
 ---
 title: "Role Assignment"
 linkTitle: "Role Assignment"
-weight: 2
+weight: 1
 description: >
   Your cluster will need the correct role assignment configuration to perform Azure-related operations.
 ---
@@ -26,7 +26,7 @@ export IDENTITY_RESOURCE_GROUP="<IdentityResourceGroup>"
 
 ## Introduction
 
-Currently, [MIC](../components/#managed-identity-controller) uses one of the following two ways to authenticate with Azure:
+Currently, [MIC](../../concepts/mic) uses one of the following two ways to authenticate with Azure:
 
 1. [Managed Identity](https://docs.microsoft.com/en-us/azure/aks/use-managed-identity) (system-assigned identity or user-assigned identity)
 2. [Service Principal](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal) through `/etc/kubernetes/azure.json`, which is available in every node, or credentials defined by environment variables;
@@ -52,8 +52,8 @@ After your cluster is provisioned, depending on your cluster identity configurat
 | AKS cluster with service principal               | `az aks show -g <AKSResourceGroup> -n <AKSClusterName> --query servicePrincipalProfile.clientId -otsv`                                                                           |
 | AKS cluster with managed identity                | `az aks show -g <AKSResourceGroup> -n <AKSClusterName> --query identityProfile.kubeletidentity.clientId -otsv`                                                                   |
 | aks-engine cluster with service principal        | Use the client ID of the service principal defined in the API model                                                                                                              |
-| aks-engine cluster with system-assigned identity | `az <vm\|vmss> identity show -g <ClusterResourceGroup> -n <VM\|VMSS Name> --query principalId -otsv`                                                                             |
-| aks-engine cluster with user-assigned identity   | `az <vm\|vmss> identity show -g <ClusterResourceGroup> -n <VM\|VMSS Name> --query userAssignedIdentities -otsv`, then copy the `clientID` of the selected user-assigned identity |
+| aks-engine cluster with system-assigned identity | `az <vm|vmss> identity show -g <ClusterResourceGroup> -n <VM|VMSS Name> --query principalId -otsv`                                                                             |
+| aks-engine cluster with user-assigned identity   | `az <vm|vmss> identity show -g <ClusterResourceGroup> -n <VM|VMSS Name> --query userAssignedIdentities -otsv`, then copy the `clientID` of the selected user-assigned identity |
 
 ## Performing role assignments
 
