@@ -68,7 +68,7 @@ func main() {
 
 	klog.Infof("Starting nmi process. Version: %v. Build date: %v.", version.NMIVersion, version.BuildDate)
 	// Bug tracks removal of this delay: https://o365exchange.visualstudio.com/O365%20Core/_workitems/edit/1739605
-	time.Sleep(agentStatupDelay)
+	time.Sleep(nmiStatupDelay)
 
 	if *enableProfile {
 		profilePort := "6060"
