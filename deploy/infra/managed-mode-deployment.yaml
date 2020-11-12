@@ -105,9 +105,12 @@ spec:
           path: /run/xtables.lock
           type: FileOrCreate
         name: iptableslock
+      - name: kubelet-config
+        hostPath:
+          path: /etc/default/kubelet
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.6.3"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.7.0"
         imagePullPolicy: Always
         args:
           - "--node=$(NODE_NAME)"
@@ -131,12 +134,16 @@ spec:
             cpu: 100m
             memory: 256Mi
         securityContext:
+          runAsUser: 0
           capabilities:
             add:
             - NET_ADMIN
         volumeMounts:
         - mountPath: /run/xtables.lock
           name: iptableslock
+        - name: kubelet-config
+          mountPath: /etc/default/kubelet
+          readOnly: true
         livenessProbe:
           httpGet:
             path: /healthz

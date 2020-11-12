@@ -30,7 +30,7 @@ installMICException: "true"
 adminsecret: {}
 #   cloud: <cloud environment name>
 #   subscriptionID: <subscription id>
-#   resourceGroup: <cluster resource group>
+#   resourceGroup: <node resource group>
 #   vmType: <`standard` for normal virtual machine nodes, and `vmss` for cluster deployed with a virtual machine scale set>
 #   tenantID: <service principal tenant id>
 #   clientID: <service principal client id. Set to `msi` when using a User Managed Identity>
@@ -43,12 +43,13 @@ operationMode: "standard"
 
 mic:
   image: mic
-  tag: v1.6.3
+  tag: v1.7.0
 
   priorityClassName: ""
 
-  # log level. Uses V logs (glog)
+  # log level. Uses V logs (klog)
   logVerbosity: 0
+  loggingFormat: ""
 
   resources:
     limits:
@@ -122,9 +123,13 @@ mic:
 
 nmi:
   image: nmi
-  tag: v1.6.3
+  tag: v1.7.0
 
   priorityClassName: ""
+
+  # log level. Uses V logs (klog)
+  logVerbosity: 0
+  loggingFormat: ""
 
   resources:
     limits:
@@ -178,6 +183,10 @@ nmi:
   # https://github.com/Azure/aad-pod-identity/blob/master/docs/readmes/README.featureflags.md#metadata-header-required-flag
   # default is false
   metadataHeaderRequired: ""
+
+  # enable running aad-pod-identity on clusters with kubenet
+  # default is false
+  allowNetworkPluginKubenet: false
 
 rbac:
   enabled: true

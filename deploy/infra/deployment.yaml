@@ -76,9 +76,12 @@ spec:
           path: /run/xtables.lock
           type: FileOrCreate
         name: iptableslock
+      - name: kubelet-config
+        hostPath:
+          path: /etc/default/kubelet
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.6.3"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.7.0"
         imagePullPolicy: Always
         args:
           - "--node=$(NODE_NAME)"
@@ -93,6 +96,7 @@ spec:
               fieldRef:
                 fieldPath: spec.nodeName
         securityContext:
+          runAsUser: 0
           capabilities:
             add:
             - NET_ADMIN
@@ -106,6 +110,9 @@ spec:
         volumeMounts:
         - mountPath: /run/xtables.lock
           name: iptableslock
+        - name: kubelet-config
+          mountPath: /etc/default/kubelet
+          readOnly: true
         livenessProbe:
           httpGet:
             path: /healthz
@@ -134,12 +141,14 @@ spec:
     spec:
       containers:
       - name: mic
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.6.3"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.7.0"
         imagePullPolicy: Always
         args:
           - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
+        securityContext:
+          runAsUser: 0
         env:
         - name: MIC_POD_NAMESPACE
           valueFrom:
