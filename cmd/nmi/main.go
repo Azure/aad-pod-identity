@@ -3,20 +3,24 @@ package main
 import (
 	goflag "flag"
 	"net/http"
+	_ "net/http/pprof" // #nosec
 	"os"
 	"runtime"
 	"strings"
 	"time"
 
+	"github.com/Azure/aad-pod-identity/pkg/log"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/nmi"
 	"github.com/Azure/aad-pod-identity/pkg/nmi/server"
 	"github.com/Azure/aad-pod-identity/pkg/probes"
+	"github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/aad-pod-identity/version"
+
 	"github.com/spf13/pflag"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -30,12 +34,10 @@ const (
 )
 
 var (
-	debug                              = pflag.Bool("debug", false, "sets log to debug level")
 	versionInfo                        = pflag.Bool("version", false, "prints the version information")
 	nmiPort                            = pflag.String("nmi-port", defaultNmiPort, "NMI application port")
 	metadataIP                         = pflag.String("metadata-ip", defaultMetadataIP, "instance metadata host ip")
 	metadataPort                       = pflag.String("metadata-port", defaultMetadataPort, "instance metadata host ip")
-	hostIP                             = pflag.String("host-ip", "", "host IP address")
 	nodename                           = pflag.String("node", "", "node name")
 	ipTableUpdateTimeIntervalInSeconds = pflag.Int("ipt-update-interval-sec", defaultIPTableUpdateTimeIntervalInSeconds, "update interval of iptables")
 	forceNamespaced                    = pflag.Bool("forceNamespaced", false, "Forces mic to namespace identities, binding, and assignment")
@@ -51,6 +53,8 @@ var (
 	prometheusPort                     = pflag.String("prometheus-port", "9090", "Prometheus port for metrics")
 	operationMode                      = pflag.String("operation-mode", "standard", "NMI operation mode")
 	kubeconfig                         = pflag.String("kubeconfig", "", "Path to the kube config")
+	allowNetworkPluginKubenet          = pflag.Bool("allow-network-plugin-kubenet", false, "Allow running aad-pod-identity in cluster with kubenet")
+	kubeletConfig                      = pflag.String("kubelet-config", "/etc/default/kubelet", "Path to kubelet default config")
 )
 
 // Delay nmi startup due to DNS not being available during first seconds of nmi process execution.
@@ -58,32 +62,55 @@ var (
 const nmiStatupDelay = time.Second * 10
 
 func main() {
+	klog.InitFlags(nil)
+	defer klog.Flush()
+
+	logOptions := log.NewOptions()
+	logOptions.AddFlags()
+
 	// this is done for glog used by client-go underneath
 	pflag.CommandLine.AddGoFlagSet(goflag.CommandLine)
 
 	pflag.Parse()
+
+	if err := logOptions.Apply(); err != nil {
+		klog.Fatalf("unable to apply logging options, error: %+v", err)
+	}
+
 	if *versionInfo {
 		version.PrintVersionAndExit()
 	}
 
-	klog.Infof("Starting nmi process. Version: %v. Build date: %v.", version.NMIVersion, version.BuildDate)
+	// check if the cni is kubenet from the --network-plugin defined in kubelet config
+	isKubenet, err := utils.IsKubenetCNI(*kubeletConfig)
+	if err != nil {
+		klog.Fatalf("failed to check if CNI plugin is kubenet, error: %+v", err)
+	}
+	if !*allowNetworkPluginKubenet && isKubenet {
+		klog.Fatalf("AAD Pod Identity is not supported for Kubenet. Review https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/ for more details.")
+	}
+
+	klog.Infof("starting nmi process. Version: %v. Build date: %v.", version.NMIVersion, version.BuildDate)
 	// Bug tracks removal of this delay: https://o365exchange.visualstudio.com/O365%20Core/_workitems/edit/1739605
 	time.Sleep(nmiStatupDelay)
 
 	if *enableProfile {
 		profilePort := "6060"
-		klog.Infof("Starting profiling on port %s", profilePort)
+		klog.Infof("starting profiling on port %s", profilePort)
 		go func() {
-			klog.Error(http.ListenAndServe("localhost:"+profilePort, nil))
+			addr := "localhost:" + profilePort
+			if err := http.ListenAndServe(addr, nil); err != nil {
+				klog.Errorf("failed to listen and serve %s, error: %+v", addr, err)
+			}
 		}()
 	}
 	if *enableScaleFeatures {
-		klog.Infof("Features for scale clusters enabled")
+		klog.Infof("features for scale clusters enabled")
 	}
 
 	// Register and expose metrics views
 	if err := metrics.RegisterAndExport(*prometheusPort); err != nil {
-		klog.Fatalf("Could not register and export metrics: %+v", err)
+		klog.Fatalf("failed to register and export metrics on port %s, error: %+v", *prometheusPort, err)
 	}
 
 	// normalize operation mode
@@ -91,7 +118,7 @@ func main() {
 
 	client, err := nmi.GetKubeClient(*nodename, *operationMode, *enableScaleFeatures)
 	if err != nil {
-		klog.Fatalf("error creating kube client, err: %+v", err)
+		klog.Fatalf("failed to get kube client, error: %+v", err)
 	}
 
 	klog.Infof("Build kubeconfig (%s)", kubeconfig)
@@ -103,14 +130,13 @@ func main() {
 	exit := make(<-chan struct{})
 	client.Start(exit)
 	*forceNamespaced = *forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
-	klog.Infof("Running NMI in namespaced mode: %v", *forceNamespaced)
+	klog.Infof("running NMI in namespaced mode: %v", *forceNamespaced)
 
 	s := server.NewServer(*micNamespace, *blockInstanceMetadata, *metadataHeaderRequired, config)
 	s.KubeClient = client
 	s.MetadataIP = *metadataIP
 	s.MetadataPort = *metadataPort
 	s.NMIPort = *nmiPort
-	s.HostIP = *hostIP
 	s.NodeName = *nodename
 	s.IPTableUpdateTimeIntervalInSeconds = *ipTableUpdateTimeIntervalInSeconds
 
@@ -125,7 +151,7 @@ func main() {
 	// Create new token client based on the nmi mode
 	tokenClient, err := nmi.GetTokenClient(client, nmiConfig)
 	if err != nil {
-		klog.Fatalf("failed to initialize token client, err: %v", err)
+		klog.Fatalf("failed to initialize token client, error: %+v", err)
 	}
 	s.TokenClient = tokenClient
 

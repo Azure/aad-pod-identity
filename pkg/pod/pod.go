@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/informers"
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // Client represents new pod client
@@ -63,8 +63,7 @@ func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType, p
 				}
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
-				oldPod := OldObj.(*v1.Pod)
-				newPod := newObj.(*v1.Pod)
+				oldPod, newPod := OldObj.(*v1.Pod), newObj.(*v1.Pod)
 
 				// This is to handle windows nmi by observing ip change
 				if podInfoCh != nil {
@@ -79,10 +78,10 @@ func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType, p
 					}
 				}
 
-				// We are interested in updates to pod if the node changes.
+				// We are only interested in updates to pod if the node or label changes.
 				// Having this check will ensure that mic sync loop does not do extra work
 				// for every pod update.
-				if oldPod.Spec.NodeName != newPod.Spec.NodeName {
+				if oldPod.Spec.NodeName != newPod.Spec.NodeName || oldPod.ObjectMeta.Labels[aadpodid.CRDLabelKey] != newPod.ObjectMeta.Labels[aadpodid.CRDLabelKey] {
 					klog.V(6).Infof("Pod Updated")
 					if eventCh != nil {
 						eventCh <- aadpodid.PodUpdated
@@ -95,19 +94,19 @@ func addPodHandler(i informersv1.PodInformer, eventCh chan aadpodid.EventType, p
 
 func (c *Client) syncCache(exit <-chan struct{}) {
 	cacheSyncStarted := time.Now()
-	klog.V(6).Infof("Wait for cache to sync")
+	klog.V(6).Infof("wait for cache to sync")
 	if !cache.WaitForCacheSync(exit, c.PodWatcher.Informer().HasSynced) {
-		klog.Error("Wait for pod cache sync failed")
+		klog.Error("wait for pod cache sync failed")
 		return
 	}
-	klog.Infof("Pod cache synchronized. Took %s", time.Since(cacheSyncStarted).String())
+	klog.Infof("pod cache synchronized. Took %s", time.Since(cacheSyncStarted).String())
 }
 
-// Start ...
+// Start starts watching for any pod-related changes.
 func (c *Client) Start(exit <-chan struct{}) {
 	go c.PodWatcher.Informer().Run(exit)
 	c.syncCache(exit)
-	klog.Info("Pod watcher started!!")
+	klog.Info("pod watcher started !!")
 }
 
 // GetPods returns list of all pods
@@ -115,7 +114,6 @@ func (c *Client) GetPods() (pods []*v1.Pod, err error) {
 	begin := time.Now()
 	crdReq, err := labels.NewRequirement(aadpodid.CRDLabelKey, selection.Exists, nil)
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 	crdSelector := labels.NewSelector().Add(*crdReq)

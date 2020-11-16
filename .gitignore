@@ -22,7 +22,6 @@ x86/
 bld/
 [Bb]in/
 [Oo]bj/
-[Ll]og/
 
 # Everything outside the src directory
 #/*
@@ -323,3 +322,10 @@ __pycache__/
 
 # Go tools
 .tools/
+
+# cover profile
+coverage.txt
+
+# website
+website/public
+website/resources

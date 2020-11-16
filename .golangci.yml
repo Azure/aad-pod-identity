@@ -9,6 +9,7 @@ linters:
     - goimports
     - golint
     - gofmt
+    - gosec
 
 linters-settings:
   misspell:

@@ -1,6 +1,7 @@
 package crd
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -11,6 +12,7 @@ import (
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,9 +22,10 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/informers/internalinterfaces"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (
@@ -39,7 +42,7 @@ type Client struct {
 	reporter                     *metrics.Reporter
 }
 
-// ClientInt ...
+// ClientInt is an abstraction used to interact with CRDs.
 type ClientInt interface {
 	Start(exit <-chan struct{})
 	SyncCache(exit <-chan struct{}, initial bool, cacheSyncs ...cache.InformerSynced)
@@ -57,11 +60,10 @@ type ClientInt interface {
 	ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error)
 }
 
-// NewCRDClientLite ...
+// NewCRDClientLite returns a new CRD lite client and error if any.
 func NewCRDClientLite(config *rest.Config, nodeName string, scale, isStandardMode bool) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 
@@ -78,7 +80,6 @@ func NewCRDClientLite(config *rest.Config, nodeName string, scale, isStandardMod
 
 		assignedIDListInformer, err = newAssignedIDInformer(assignedIDListWatch)
 		if err != nil {
-			klog.Error(err)
 			return nil, err
 		}
 	} else {
@@ -93,14 +94,12 @@ func NewCRDClientLite(config *rest.Config, nodeName string, scale, isStandardMod
 	podIdentityExceptionListWatch := newPodIdentityExceptionListWatch(restClient)
 	podIdentityExceptionInformer, err := newPodIdentityExceptionInformer(podIdentityExceptionListWatch)
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		klog.Error(err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create reporter for metrics, error: %+v", err)
 	}
 
 	return &Client{
@@ -113,39 +112,34 @@ func NewCRDClientLite(config *rest.Config, nodeName string, scale, isStandardMod
 	}, nil
 }
 
-// NewCRDClient returns a new crd client and error if any
+// NewCRDClient returns a new CRD client and error if any.
 func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClient *Client, err error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 
 	bindingListWatch := newBindingListWatch(restClient)
 	bindingInformer, err := newBindingInformer(restClient, eventCh, bindingListWatch)
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 
 	idListWatch := newIDListWatch(restClient)
 	idInformer, err := newIDInformer(restClient, eventCh, idListWatch)
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 
 	assignedIDListWatch := newAssignedIDListWatch(restClient)
 	assignedIDListInformer, err := newAssignedIDInformer(assignedIDListWatch)
 	if err != nil {
-		klog.Error(err)
 		return nil, err
 	}
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		klog.Error(err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create reporter for metrics, error: %+v", err)
 	}
 
 	return &Client{
@@ -162,8 +156,9 @@ func newRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
 	crdconfig.GroupVersion = &schema.GroupVersion{Group: aadpodv1.CRDGroup, Version: aadpodv1.CRDVersion}
 	crdconfig.APIPath = "/apis"
 	crdconfig.ContentType = runtime.ContentTypeJSON
-	s := runtime.NewScheme()
-	s.AddKnownTypes(*crdconfig.GroupVersion,
+	scheme := runtime.NewScheme()
+
+	scheme.AddKnownTypes(*crdconfig.GroupVersion,
 		&aadpodv1.AzureIdentity{},
 		&aadpodv1.AzureIdentityList{},
 		&aadpodv1.AzureIdentityBinding{},
@@ -173,10 +168,14 @@ func newRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
 		&aadpodv1.AzurePodIdentityException{},
 		&aadpodv1.AzurePodIdentityExceptionList{},
 	)
-	crdconfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{
-		CodecFactory: serializer.NewCodecFactory(s)}
 
-	//Client interacting with our CRDs
+	if err := clientgoscheme.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
+
+	crdconfig.NegotiatedSerializer = serializer.WithoutConversionCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)}
+
+	// Client interacting with our CRDs
 	restClient, err := rest.RESTClientFor(&crdconfig)
 	if err != nil {
 		return nil, err
@@ -194,20 +193,20 @@ func newBindingInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw 
 		&aadpodv1.AzureIdentityBinding{},
 		time.Minute*10)
 	if azBindingInformer == nil {
-		return nil, fmt.Errorf("Could not create watcher for %s", aadpodv1.AzureIDBindingResource)
+		return nil, fmt.Errorf("failed to create watcher for %s", aadpodv1.AzureIDBindingResource)
 	}
 	azBindingInformer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				klog.V(6).Infof("Binding created")
+				klog.V(6).Infof("binding created")
 				eventCh <- aadpodid.BindingCreated
 			},
 			DeleteFunc: func(obj interface{}) {
-				klog.V(6).Infof("Binding deleted")
+				klog.V(6).Infof("binding deleted")
 				eventCh <- aadpodid.BindingDeleted
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
-				klog.V(6).Infof("Binding updated")
+				klog.V(6).Infof("binding updated")
 				eventCh <- aadpodid.BindingUpdated
 			},
 		},
@@ -225,20 +224,20 @@ func newIDInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cach
 		&aadpodv1.AzureIdentity{},
 		time.Minute*10)
 	if azIDInformer == nil {
-		return nil, fmt.Errorf("Could not create Identity watcher for %s", aadpodv1.AzureIDResource)
+		return nil, fmt.Errorf("failed to create watcher for %s", aadpodv1.AzureIDResource)
 	}
 	azIDInformer.AddEventHandler(
 		cache.ResourceEventHandlerFuncs{
 			AddFunc: func(obj interface{}) {
-				klog.V(6).Infof("Identity created")
+				klog.V(6).Infof("identity created")
 				eventCh <- aadpodid.IdentityCreated
 			},
 			DeleteFunc: func(obj interface{}) {
-				klog.V(6).Infof("Identity deleted")
+				klog.V(6).Infof("identity deleted")
 				eventCh <- aadpodid.IdentityDeleted
 			},
 			UpdateFunc: func(OldObj, newObj interface{}) {
-				klog.V(6).Infof("Identity updated")
+				klog.V(6).Infof("identity updated")
 				eventCh <- aadpodid.IdentityUpdated
 			},
 		},
@@ -255,7 +254,6 @@ func NodeNameFilter(nodeName string) internalinterfaces.TweakListOptionsFunc {
 			l = &v1.ListOptions{}
 		}
 		l.LabelSelector = l.LabelSelector + "nodename=" + nodeName
-		return
 	}
 }
 
@@ -270,7 +268,7 @@ func newAssignedIDListWatch(r *rest.RESTClient) *cache.ListWatch {
 func newAssignedIDInformer(lw *cache.ListWatch) (cache.SharedInformer, error) {
 	azAssignedIDInformer := cache.NewSharedInformer(lw, &aadpodv1.AzureAssignedIdentity{}, time.Minute*10)
 	if azAssignedIDInformer == nil {
-		return nil, fmt.Errorf("could not create %s informer", aadpodv1.AzureAssignedIDResource)
+		return nil, fmt.Errorf("failed to create %s informer", aadpodv1.AzureAssignedIDResource)
 	}
 	return azAssignedIDInformer, nil
 }
@@ -278,7 +276,7 @@ func newAssignedIDInformer(lw *cache.ListWatch) (cache.SharedInformer, error) {
 func newBindingInformerLite(lw *cache.ListWatch) (cache.SharedInformer, error) {
 	azBindingInformer := cache.NewSharedInformer(lw, &aadpodv1.AzureIdentityBinding{}, time.Minute*10)
 	if azBindingInformer == nil {
-		return nil, fmt.Errorf("could not create %s informer", aadpodv1.AzureIDBindingResource)
+		return nil, fmt.Errorf("failed to create %s informer", aadpodv1.AzureIDBindingResource)
 	}
 	return azBindingInformer, nil
 }
@@ -286,7 +284,7 @@ func newBindingInformerLite(lw *cache.ListWatch) (cache.SharedInformer, error) {
 func newIDInformerLite(lw *cache.ListWatch) (cache.SharedInformer, error) {
 	azIDInformer := cache.NewSharedInformer(lw, &aadpodv1.AzureIdentity{}, time.Minute*10)
 	if azIDInformer == nil {
-		return nil, fmt.Errorf("could not create %s informer", aadpodv1.AzureIDResource)
+		return nil, fmt.Errorf("failed to create %s informer", aadpodv1.AzureIDResource)
 	}
 	return azIDInformer, nil
 }
@@ -295,7 +293,7 @@ func newPodIdentityExceptionListWatch(r *rest.RESTClient) *cache.ListWatch {
 	optionsModifier := func(options *v1.ListOptions) {}
 	return cache.NewFilteredListWatchFromClient(
 		r,
-		aadpodv1.AzureIdentityExceptionResource,
+		aadpodv1.AzurePodIdentityExceptionResource,
 		v1.NamespaceAll,
 		optionsModifier,
 	)
@@ -304,33 +302,34 @@ func newPodIdentityExceptionListWatch(r *rest.RESTClient) *cache.ListWatch {
 func newPodIdentityExceptionInformer(lw *cache.ListWatch) (cache.SharedInformer, error) {
 	azPodIDExceptionInformer := cache.NewSharedInformer(lw, &aadpodv1.AzurePodIdentityException{}, time.Minute*10)
 	if azPodIDExceptionInformer == nil {
-		return nil, fmt.Errorf("could not create %s informer", aadpodv1.AzureIdentityExceptionResource)
+		return nil, fmt.Errorf("failed to create %s informer", aadpodv1.AzurePodIdentityExceptionResource)
 	}
 	return azPodIDExceptionInformer, nil
 }
 
 func (c *Client) getObjectList(resource string, i runtime.Object) (runtime.Object, error) {
 	options := v1.ListOptions{}
-	do := c.rest.Get().Namespace(v1.NamespaceAll).Resource(resource).VersionedParams(&options, v1.ParameterCodec).Do()
+	do := c.rest.Get().Namespace(v1.NamespaceAll).Resource(resource).VersionedParams(&options, v1.ParameterCodec).Do(context.TODO())
 	body, err := do.Raw()
 	if err != nil {
-		return nil, fmt.Errorf("get failed for %s with error: %v", resource, err)
+		return nil, fmt.Errorf("failed to get %s, error: %+v", resource, err)
 	}
 	err = json.Unmarshal(body, &i)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal to object: %T, error: %v", i, err)
+		return nil, fmt.Errorf("failed to unmarshal to object %T, error: %+v", i, err)
 	}
 	return i, err
 }
 
 func (c *Client) setObject(resource, ns, name string, i interface{}, obj runtime.Object) error {
-	err := c.rest.Put().Namespace(ns).Resource(resource).Name(name).Body(i).Do().Into(obj)
+	err := c.rest.Put().Namespace(ns).Resource(resource).Name(name).Body(i).Do(context.TODO()).Into(obj)
 	if err != nil {
-		return fmt.Errorf("set object for resource: %s, error: %v", resource, err)
+		return fmt.Errorf("failed to set object for resource %s, error: %+v", resource, err)
 	}
 	return nil
 }
 
+// Upgrade performs type upgrade to a specific aad-pod-identity CRD.
 func (c *Client) Upgrade(resource string, i runtime.Object) (map[string]runtime.Object, error) {
 	m := make(map[string]runtime.Object)
 	i, err := c.getObjectList(resource, i)
@@ -340,13 +339,13 @@ func (c *Client) Upgrade(resource string, i runtime.Object) (map[string]runtime.
 
 	list, err := meta.ExtractList(i)
 	if err != nil {
-		return m, fmt.Errorf("extract list error for resource: %s, err: %v", resource, err)
+		return m, fmt.Errorf("failed to extract list for resource %s, error: %+v", resource, err)
 	}
 
 	for _, item := range list {
 		o, err := meta.Accessor(item)
 		if err != nil {
-			return m, fmt.Errorf("get object for resource: %s, error: %v", resource, err)
+			return m, fmt.Errorf("failed to get object for resource %s, error: %+v", resource, err)
 		}
 		switch resource {
 		case aadpodv1.AzureIDResource:
@@ -373,6 +372,7 @@ func (c *Client) Upgrade(resource string, i runtime.Object) (map[string]runtime.
 	return m, nil
 }
 
+// UpgradeAll performs type upgrade to for all aad-pod-identity CRDs.
 func (c *Client) UpgradeAll() error {
 	updatedAzureIdentities, err := c.Upgrade(aadpodv1.AzureIDResource, &aadpodv1.AzureIdentityList{})
 	if err != nil {
@@ -382,7 +382,7 @@ func (c *Client) UpgradeAll() error {
 	if err != nil {
 		return err
 	}
-	_, err = c.Upgrade(aadpodv1.AzureIdentityExceptionResource, &aadpodv1.AzurePodIdentityExceptionList{})
+	_, err = c.Upgrade(aadpodv1.AzurePodIdentityExceptionResource, &aadpodv1.AzurePodIdentityExceptionList{})
 	if err != nil {
 		return err
 	}
@@ -396,12 +396,12 @@ func (c *Client) UpgradeAll() error {
 	}
 	list, err := meta.ExtractList(i)
 	if err != nil {
-		return fmt.Errorf("extract list error for resource: %s, err: %v", aadpodv1.AzureAssignedIDResource, err)
+		return fmt.Errorf("failed to extract list for resource: %s, error: %+v", aadpodv1.AzureAssignedIDResource, err)
 	}
 	for _, item := range list {
 		o, err := meta.Accessor(item)
 		if err != nil {
-			return fmt.Errorf("get object for resource: %s, error: %v", aadpodv1.AzureAssignedIDResource, err)
+			return fmt.Errorf("failed to get object for resource: %s, error: %+v", aadpodv1.AzureAssignedIDResource, err)
 		}
 		obj := o.(*aadpodv1.AzureAssignedIdentity)
 		idName := obj.Spec.AzureIdentityRef.Name
@@ -447,7 +447,7 @@ func (c *Client) StartLite(exit <-chan struct{}) {
 	klog.Info("CRD lite informers started ")
 }
 
-// Start ...
+// Start starts all informer routines to watch for CRD-related changes.
 func (c *Client) Start(exit <-chan struct{}) {
 	go c.BindingInformer.Run(exit)
 	go c.IDInformer.Run(exit)
@@ -460,10 +460,10 @@ func (c *Client) Start(exit <-chan struct{}) {
 func (c *Client) SyncCache(exit <-chan struct{}, initial bool, cacheSyncs ...cache.InformerSynced) {
 	if !cache.WaitForCacheSync(exit, cacheSyncs...) {
 		if !initial {
-			klog.Errorf("Cache could not be synchronized")
+			klog.Errorf("cache failed to be synchronized")
 			return
 		}
-		panic("Cache could not be synchronized")
+		panic("Cache failed to be synchronized")
 	}
 }
 
@@ -474,12 +474,15 @@ func (c *Client) SyncCacheAll(exit <-chan struct{}, initial bool) {
 
 // RemoveAssignedIdentity removes the assigned identity
 func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
-	klog.V(6).Infof("Deletion of assigned id named: %s", assignedIdentity.Name)
+	klog.V(6).Infof("deleting assigned id %s/%s", assignedIdentity.Namespace, assignedIdentity.Name)
 	begin := time.Now()
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityDeletionOperationName)
+			err = c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityDeletionOperationName)
+			if err != nil {
+				klog.Warningf("failed to report metrics, error: %+v", err)
+			}
 			return
 		}
 		c.reporter.Report(
@@ -489,7 +492,7 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	}()
 
 	var res aadpodv1.AzureAssignedIdentity
-	err = c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Do().Into(&res)
+	err = c.rest.Delete().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Do(context.TODO()).Into(&res)
 	if apierrors.IsNotFound(err) {
 		return nil
 	}
@@ -499,22 +502,25 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	if hasFinalizer(&res) {
 		removeFinalizer(&res)
 		// update the assigned identity without finalizer and resource will be garbage collected
-		err = c.rest.Put().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Body(&res).Do().Error()
+		err = c.rest.Put().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Body(&res).Do(context.TODO()).Error()
 	}
 
-	klog.V(5).Infof("Deletion %s took: %v", assignedIdentity.Name, time.Since(begin))
-	stats.Update(stats.AssignedIDDel, time.Since(begin))
+	klog.V(5).Infof("deleting %s took: %v", assignedIdentity.Name, time.Since(begin))
+	stats.AggregateConcurrent(stats.DeleteAzureAssignedIdentity, begin, time.Now())
 	return err
 }
 
 // CreateAssignedIdentity creates new assigned identity
 func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
-	klog.Infof("Got assigned id %s to assign", assignedIdentity.Name)
+	klog.Infof("creating assigned id %s/%s", assignedIdentity.Namespace, assignedIdentity.Name)
 	begin := time.Now()
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityAdditionOperationName)
+			err = c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityAdditionOperationName)
+			if err != nil {
+				klog.Warningf("failed to report metrics, error: %+v", err)
+			}
 			return
 		}
 		c.reporter.Report(
@@ -528,24 +534,25 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	if !hasFinalizer(&v1AssignedID) {
 		v1AssignedID.SetFinalizers(append(v1AssignedID.GetFinalizers(), finalizerName))
 	}
-	err = c.rest.Post().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Body(&v1AssignedID).Do().Into(&res)
+	err = c.rest.Post().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Body(&v1AssignedID).Do(context.TODO()).Into(&res)
 	if err != nil {
-		klog.Error(err)
 		return err
 	}
 
-	klog.V(5).Infof("Time take to create %s: %v", assignedIdentity.Name, time.Since(begin))
-	stats.Update(stats.AssignedIDAdd, time.Since(begin))
+	klog.V(5).Infof("time taken to create %s/%s: %v", assignedIdentity.Namespace, assignedIdentity.Name, time.Since(begin))
+	stats.AggregateConcurrent(stats.CreateAzureAssignedIdentiy, begin, time.Now())
 	return nil
 }
 
+// UpdateAssignedIdentity updates an existing assigned identity
 func (c *Client) UpdateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
-	klog.Infof("Got assigned id %s/%s to update", assignedIdentity.Namespace, assignedIdentity.Name)
+	klog.Infof("updating assigned id %s/%s", assignedIdentity.Namespace, assignedIdentity.Name)
 	begin := time.Now()
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityUpdateOperationName)
+			err = c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityUpdateOperationName)
+			klog.Warningf("failed to report metrics, error: %+v", err)
 			return
 		}
 		c.reporter.Report(
@@ -555,13 +562,13 @@ func (c *Client) UpdateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	}()
 
 	v1AssignedID := aadpodv1.ConvertInternalAssignedIdentityToV1AssignedIdentity(*assignedIdentity)
-	err = c.rest.Put().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Body(&v1AssignedID).Do().Error()
+	err = c.rest.Put().Namespace(assignedIdentity.Namespace).Resource(aadpodid.AzureAssignedIDResource).Name(assignedIdentity.Name).Body(&v1AssignedID).Do(context.TODO()).Error()
 	if err != nil {
-		return fmt.Errorf("failed to update assigned identity: %v", err)
+		return fmt.Errorf("failed to update AzureAssignedIdentity, error: %+v", err)
 	}
 
-	klog.V(5).Infof("Time take to update %s/%s: %v", assignedIdentity.Namespace, assignedIdentity.Name, time.Since(begin))
-	stats.Update(stats.AssignedIDAdd, time.Since(begin))
+	klog.V(5).Infof("time taken to update %s/%s: %v", assignedIdentity.Namespace, assignedIdentity.Name, time.Since(begin))
+	stats.AggregateConcurrent(stats.UpdateAzureAssignedIdentity, begin, time.Now())
 	return nil
 }
 
@@ -575,9 +582,7 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 	for _, binding := range list {
 		o, ok := binding.(*aadpodv1.AzureIdentityBinding)
 		if !ok {
-			err := fmt.Errorf("could not cast %T to %s", binding, aadpodv1.AzureIDBindingResource)
-			klog.Error(err)
-			return nil, err
+			return nil, fmt.Errorf("failed to cast %T to %s", binding, aadpodv1.AzureIDBindingResource)
 		}
 		// Note: List items returned from cache have empty Kind and API version..
 		// Work around this issue since we need that for event recording to work.
@@ -589,10 +594,10 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 		internalBinding := aadpodv1.ConvertV1BindingToInternalBinding(*o)
 
 		resList = append(resList, internalBinding)
-		klog.V(6).Infof("Appending binding: %s/%s to list.", o.Namespace, o.Name)
+		klog.V(6).Infof("appending binding: %s/%s to list.", o.Namespace, o.Name)
 	}
 
-	stats.Update(stats.BindingList, time.Since(begin))
+	stats.Aggregate(stats.AzureIdentityBindingList, time.Since(begin))
 	return &resList, nil
 }
 
@@ -606,9 +611,7 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 	for _, assignedID := range list {
 		o, ok := assignedID.(*aadpodv1.AzureAssignedIdentity)
 		if !ok {
-			err := fmt.Errorf("could not cast %T to %s", assignedID, aadpodv1.AzureAssignedIDResource)
-			klog.Error(err)
-			return nil, err
+			return nil, fmt.Errorf("failed to cast %T to %s", assignedID, aadpodv1.AzureAssignedIDResource)
 		}
 		// Note: List items returned from cache have empty Kind and API version..
 		// Work around this issue since we need that for event recording to work.
@@ -618,10 +621,10 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 			Kind:    reflect.TypeOf(*o).String()})
 		out := aadpodv1.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o)
 		resList = append(resList, out)
-		klog.V(6).Infof("Appending Assigned ID: %s/%s to list.", o.Namespace, o.Name)
+		klog.V(6).Infof("appending AzureAssignedIdentity: %s/%s to list.", o.Namespace, o.Name)
 	}
 
-	stats.Update(stats.AssignedIDList, time.Since(begin))
+	stats.Aggregate(stats.AzureAssignedIdentityList, time.Since(begin))
 	return &resList, nil
 }
 
@@ -636,9 +639,7 @@ func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdenti
 
 		o, ok := assignedID.(*aadpodv1.AzureAssignedIdentity)
 		if !ok {
-			err := fmt.Errorf("could not cast %T to %s", assignedID, aadpodv1.AzureAssignedIDResource)
-			klog.Error(err)
-			return nil, err
+			return nil, fmt.Errorf("failed to cast %T to %s", assignedID, aadpodv1.AzureAssignedIDResource)
 		}
 		// Note: List items returned from cache have empty Kind and API version..
 		// Work around this issue since we need that for event recording to work.
@@ -650,10 +651,10 @@ func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdenti
 		out := aadpodv1.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o)
 		// assigned identities names are unique across namespaces as we use pod name-<id ns>-<id name>
 		result[o.Name] = out
-		klog.V(6).Infof("Added to map with key: %s", o.Name)
+		klog.V(6).Infof("added to map with key: %s", o.Name)
 	}
 
-	stats.Update(stats.AssignedIDList, time.Since(begin))
+	stats.Aggregate(stats.AzureAssignedIdentityList, time.Since(begin))
 	return result, nil
 }
 
@@ -667,9 +668,7 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 	for _, id := range list {
 		o, ok := id.(*aadpodv1.AzureIdentity)
 		if !ok {
-			err := fmt.Errorf("could not cast %T to %s", id, aadpodv1.AzureIDResource)
-			klog.Error(err)
-			return nil, err
+			return nil, fmt.Errorf("failed to cast %T to %s", id, aadpodv1.AzureIDResource)
 		}
 		// Note: List items returned from cache have empty Kind and API version..
 		// Work around this issue since we need that for event recording to work.
@@ -681,10 +680,10 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 		out := aadpodv1.ConvertV1IdentityToInternalIdentity(*o)
 
 		resList = append(resList, out)
-		klog.V(6).Infof("Appending Identity: %s/%s to list.", o.Namespace, o.Name)
+		klog.V(6).Infof("appending AzureIdentity %s/%s to list.", o.Namespace, o.Name)
 	}
 
-	stats.Update(stats.IDList, time.Since(begin))
+	stats.Aggregate(stats.AzureIdentityList, time.Since(begin))
 	return &resList, nil
 }
 
@@ -698,9 +697,7 @@ func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodI
 	for _, binding := range list {
 		o, ok := binding.(*aadpodv1.AzurePodIdentityException)
 		if !ok {
-			err := fmt.Errorf("could not cast %T to %s", binding, aadpodid.AzureIdentityExceptionResource)
-			klog.Error(err)
-			return nil, err
+			return nil, fmt.Errorf("failed to cast %T to %s", binding, aadpodid.AzurePodIdentityExceptionResource)
 		}
 		if o.Namespace == ns {
 			// Note: List items returned from cache have empty Kind and API version..
@@ -712,11 +709,11 @@ func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodI
 			out := aadpodv1.ConvertV1PodIdentityExceptionToInternalPodIdentityException(*o)
 
 			resList = append(resList, out)
-			klog.V(6).Infof("Appending exception: %s/%s to list.", o.Namespace, o.Name)
+			klog.V(6).Infof("appending exception: %s/%s to list.", o.Namespace, o.Name)
 		}
 	}
 
-	stats.Update(stats.ExceptionList, time.Since(begin))
+	stats.Aggregate(stats.AzurePodIdentityExceptionList, time.Since(begin))
 	return &resList, nil
 }
 
@@ -782,11 +779,14 @@ type patchStatusOps struct {
 
 // UpdateAzureAssignedIdentityStatus updates the status field in AzureAssignedIdentity to indicate current status
 func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) (err error) {
-	klog.Infof("Updating assigned identity %s/%s status to %s", assignedIdentity.Namespace, assignedIdentity.Name, status)
+	klog.Infof("updating AzureAssignedIdentity %s/%s status to %s", assignedIdentity.Namespace, assignedIdentity.Name, status)
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportKubernetesAPIOperationError(metrics.UpdateAzureAssignedIdentityStatusOperationName)
+			err = c.reporter.ReportKubernetesAPIOperationError(metrics.UpdateAzureAssignedIdentityStatusOperationName)
+			if err != nil {
+				klog.Warningf("failed to report metrics, error: %+v", err)
+			}
 		}
 	}()
 
@@ -807,9 +807,9 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 		Resource(aadpodid.AzureAssignedIDResource).
 		Name(assignedIdentity.Name).
 		Body(patchBytes).
-		Do().
+		Do(context.TODO()).
 		Error()
-	klog.V(5).Infof("Patch of %s took: %v", assignedIdentity.Name, time.Since(begin))
+	klog.V(5).Infof("patch of %s took: %v", assignedIdentity.Name, time.Since(begin))
 	return err
 }
 

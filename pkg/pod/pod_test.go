@@ -7,26 +7,19 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 type TestPodClient struct {
 	pods []*corev1.Pod
 }
 
-func NewTestPodClient() *TestPodClient {
-	var pods []*corev1.Pod
-	return &TestPodClient{
-		pods: pods,
-	}
-}
-
 func (c TestPodClient) Start(exit <-chan struct{}) {
-	klog.Info("Start called from the test interface")
+	klog.Info("start called from the test interface")
 }
 
 func (c TestPodClient) GetPods() (pods []*corev1.Pod, err error) {
-	//TODO: Add label matching. For now we add only pods which we want to add.
+	// TODO: Add label matching. For now we add only pods which we want to add.
 	return c.pods, nil
 }
 

@@ -70,18 +70,22 @@ spec:
         tier: node
     spec:
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       volumes:
       - hostPath:
           path: /run/xtables.lock
           type: FileOrCreate
         name: iptableslock
+      - name: kubelet-config
+        hostPath:
+          path: /etc/default/kubelet
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.6.0"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.7.0"
         imagePullPolicy: Always
         args:
-          - "--host-ip=$(HOST_IP)"
           - "--node=$(NODE_NAME)"
+          - "--http-probe-port=8085"
         env:
           - name: HOST_IP
             valueFrom:
@@ -92,7 +96,7 @@ spec:
               fieldRef:
                 fieldPath: spec.nodeName
         securityContext:
-          privileged: true
+          runAsUser: 0
           capabilities:
             add:
             - NET_ADMIN
@@ -106,14 +110,17 @@ spec:
         volumeMounts:
         - mountPath: /run/xtables.lock
           name: iptableslock
+        - name: kubelet-config
+          mountPath: /etc/default/kubelet
+          readOnly: true
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8080
+            port: 8085
           initialDelaySeconds: 10
           periodSeconds: 5
       nodeSelector:
-        beta.kubernetes.io/os: linux
+        kubernetes.io/os: linux
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -199,17 +206,19 @@ spec:
     spec:
       containers:
       - name: mic
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.6.0"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.7.0"
         imagePullPolicy: Always
         args:
           - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
+        securityContext:
+          runAsUser: 0
         env:
         - name: MIC_POD_NAMESPACE
           valueFrom:
             fieldRef:
-              fieldPath: metadata.namespace       
+              fieldPath: metadata.namespace
         resources:
           limits:
             cpu: 200m
@@ -244,4 +253,4 @@ spec:
         hostPath:
           path: /etc/kubernetes/azure.json
       nodeSelector:
-        beta.kubernetes.io/os: linux
+        kubernetes.io/os: linux

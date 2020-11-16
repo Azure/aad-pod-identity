@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSetUserIdentities(t *testing.T) {
+func TestSetUserIdentitiesVMSS(t *testing.T) {
 	testIdentityInfo := &vmssIdentityInfo{
 		info: &compute.VirtualMachineScaleSetIdentity{},
 	}
@@ -21,4 +21,29 @@ func TestSetUserIdentities(t *testing.T) {
 	// add id3 and delete id1
 	update = testIdentityInfo.SetUserIdentities(map[string]bool{"id3": true, "id4": true, "id1": false})
 	assert.True(t, update)
+}
+
+func TestRemoveUserIdentityVMSS(t *testing.T) {
+	testIdentityInfo := &vmssIdentityInfo{
+		info: &compute.VirtualMachineScaleSetIdentity{
+			UserAssignedIdentities: map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{
+				"id1": {},
+				"id2": {},
+			},
+		},
+	}
+
+	// removing id1 (should be case-insensitive)
+	removed := testIdentityInfo.RemoveUserIdentity("ID1")
+	assert.True(t, removed)
+	assert.Len(t, testIdentityInfo.info.UserAssignedIdentities, 1)
+
+	// removing id2 (should be case-insensitive)
+	removed = testIdentityInfo.RemoveUserIdentity("ID2")
+	assert.True(t, removed)
+	assert.Len(t, testIdentityInfo.info.UserAssignedIdentities, 0)
+
+	removed = testIdentityInfo.RemoveUserIdentity("ID2")
+	assert.False(t, removed)
+	assert.Len(t, testIdentityInfo.info.UserAssignedIdentities, 0)
 }

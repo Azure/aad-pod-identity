@@ -2,23 +2,29 @@ package cloudprovider
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/config"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	"github.com/Azure/aad-pod-identity/version"
+
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // VMClient client for VirtualMachines
 type VMClient struct {
 	client   compute.VirtualMachinesClient
 	reporter *metrics.Reporter
+	// ARM throttling configures.
+	retryAfterReader time.Time
+	retryAfterWriter time.Time
 }
 
 // VMClientInt is the interface used by "cloudprovider" for interacting with Azure vmas
@@ -33,18 +39,19 @@ func NewVirtualMachinesClient(config config.AzureConfig, spt *adal.ServicePrinci
 
 	azureEnv, err := azure.EnvironmentFromName(config.Cloud)
 	if err != nil {
-		klog.Errorf("Get cloud env error: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get cloud environment, error: %+v", err)
 	}
 	client.BaseURI = azureEnv.ResourceManagerEndpoint
 	client.Authorizer = autorest.NewBearerAuthorizer(spt)
 	client.PollingDelay = 5 * time.Second
-	client.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
+	err = client.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
+	if err != nil {
+		return nil, fmt.Errorf("failed to add MIC to user agent, error: %+v", err)
+	}
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		klog.Errorf("New reporter error: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create reporter for metrics, error: %+v", err)
 	}
 
 	return &VMClient{
@@ -61,19 +68,32 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportCloudProviderOperationError(metrics.GetVMOperationName)
+			err = c.reporter.ReportCloudProviderOperationError(metrics.GetVMOperationName)
+			if err != nil {
+				klog.Warningf("failed to report metrics, error: %+v", err)
+			}
 			return
 		}
-		c.reporter.ReportCloudProviderOperationDuration(metrics.GetVMOperationName, time.Since(begin))
+		err = c.reporter.ReportCloudProviderOperationDuration(metrics.GetVMOperationName, time.Since(begin))
+		if err != nil {
+			klog.Warningf("failed to report metrics, error: %+v", err)
+		}
 	}()
+
+	// Report errors if the client is throttled.
+	if c.retryAfterReader.After(time.Now()) {
+		return compute.VirtualMachine{}, fmt.Errorf("VMGet client throttled, retry after: %v", c.retryAfterReader)
+	}
 
 	vm, err := c.client.Get(ctx, rgName, nodeName, "")
 	if err != nil {
-		klog.Error(err)
-		return vm, err
+		resp := vm.Response.Response
+		// Update RetryAfterReader so that no more requests would be sent until RetryAfter expires.
+		c.retryAfterReader = time.Now().Add(getRetryAfter(resp))
+		return vm, fmt.Errorf("failed to get vm %s in resource group %s, error: %+v", nodeName, rgName, err)
 	}
-	stats.UpdateCount(stats.TotalGetCalls, 1)
-	stats.Update(stats.CloudGet, time.Since(begin))
+	stats.Increment(stats.TotalGetCalls, 1)
+	stats.AggregateConcurrent(stats.CloudGet, begin, time.Now())
 	return vm, nil
 }
 
@@ -86,23 +106,41 @@ func (c *VMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachi
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportCloudProviderOperationError(metrics.PutVMOperationName)
+			err = c.reporter.ReportCloudProviderOperationError(metrics.UpdateVMOperationName)
+			if err != nil {
+				klog.Warningf("failed to report metrics, error: %+v", err)
+			}
 			return
 		}
-		c.reporter.ReportCloudProviderOperationDuration(metrics.PutVMOperationName, time.Since(begin))
+		err = c.reporter.ReportCloudProviderOperationDuration(metrics.UpdateVMOperationName, time.Since(begin))
+		if err != nil {
+			klog.Warningf("failed to report metrics, error: %+v", err)
+		}
 	}()
 
-	if future, err = c.client.Update(ctx, rg, nodeName, compute.VirtualMachineUpdate{
-		Identity: vm.Identity}); err != nil {
-		klog.Errorf("Failed to update VM with error %v", err)
-		return err
+	// Report errors if the client is throttled.
+	if c.retryAfterWriter.After(time.Now()) {
+		return fmt.Errorf("VMUpdate client throttled, retry after: %v", c.retryAfterWriter)
 	}
-	if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
-		klog.Error(err)
-		return err
+
+	hasUpdated := false
+	remainingIDs := vm.Identity.UserAssignedIdentities
+	for !hasUpdated || len(remainingIDs) > 0 {
+		hasUpdated = true
+		vm.Identity.UserAssignedIdentities, remainingIDs = truncateVMIdentities(remainingIDs)
+		if future, err = c.client.Update(ctx, rg, nodeName, compute.VirtualMachineUpdate{Identity: vm.Identity}); err != nil {
+			resp := future.Response()
+			// Update RetryAfterWriter so that no more requests would be sent until RetryAfter expires.
+			c.retryAfterWriter = time.Now().Add(getRetryAfter(resp))
+			return fmt.Errorf("failed to update identities for %s in %s, error: %+v", nodeName, rg, err)
+		}
+		if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
+			return fmt.Errorf("failed to wait for identity update completion for vm %s in resource group %s, error: %+v", nodeName, rg, err)
+		}
+		stats.Increment(stats.TotalPatchCalls, 1)
+		stats.AggregateConcurrent(stats.CloudPatch, begin, time.Now())
 	}
-	stats.UpdateCount(stats.TotalPutCalls, 1)
-	stats.Update(stats.CloudPut, time.Since(begin))
+
 	return nil
 }
 
@@ -145,12 +183,14 @@ func (i *vmIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 	nodeList := make(map[string]bool)
 	// add all current existing ids
 	for id := range i.info.UserAssignedIdentities {
+		id = strings.ToLower(id)
 		nodeList[id] = true
 	}
 
 	// add and remove the new list of identities keeping the same type as before
 	userAssignedIdentities := make(map[string]*compute.VirtualMachineIdentityUserAssignedIdentitiesValue)
 	for id, add := range ids {
+		id = strings.ToLower(id)
 		_, exists := nodeList[id]
 		// already exists on node and want to remove existing identity
 		if exists && !add {
@@ -180,4 +220,16 @@ func (i *vmIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 	i.info.Type = getUpdatedResourceIdentityType(i.info.Type)
 	i.info.UserAssignedIdentities = userAssignedIdentities
 	return len(i.info.UserAssignedIdentities) > 0
+}
+
+func (i *vmIdentityInfo) RemoveUserIdentity(delID string) bool {
+	delID = strings.ToLower(delID)
+	if i.info.UserAssignedIdentities != nil {
+		if _, ok := i.info.UserAssignedIdentities[delID]; ok {
+			delete(i.info.UserAssignedIdentities, delID)
+			return true
+		}
+	}
+
+	return false
 }
