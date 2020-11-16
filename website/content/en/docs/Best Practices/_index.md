@@ -100,7 +100,8 @@ metadata:
 ...
 ```
 
-Note: if you do not specify which managed identity to use (e.g. `az login -i`) then one of the managed identities matching the `aadpodidbinding` selector will be selected at random. To make sure the right managed identity is used for a particular workload, make sure you specify the manage identity's `clientId` when authenticating (e.g. `az login -i -u CLIENTID`).
+Note: if you do not specify which managed identity to use (e.g. `az login -i`) then one of the managed identities matching the `aadpodidbinding` selector will be selected at random. To make sure the right managed identity is used for a particular workload, make sure you specify the managed identity's `clientId`  (e.g. `az login -i -u <CLIENT ID>`) or `resourceID` (e.g `az login -i -u <RESOURCE ID>`) when authenticating.
+
 
 ## Pods using unauthorized AzureIdentities
 
