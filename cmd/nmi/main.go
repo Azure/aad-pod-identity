@@ -129,17 +129,19 @@ func main() {
 	}
 	s.TokenClient = tokenClient
 
-	// Health probe will always report success once its started. The contents
-	// will report "Active" once the iptables rules are set
-	probes.InitAndStart(*httpProbePort, &s.Initialized)
-
 	mainRoutineDone := make(chan struct{})
 	subRoutineDone := make(chan struct{})
 
 	var redirector server.RedirectorFunc
 	if runtime.GOOS == "windows" {
+		// NMI Windows health probe will report successful if it can call hcn agent sucessfully,
+		// or it will return 500 error and the nmi windows pod will get reboot.
+		probes.InitAndStartNMIWindowsProbe(*httpProbePort, &s.Initialized, *nodename)
 		redirector = server.WindowsRedirector(s, subRoutineDone)
 	} else {
+		// NMI Linux Health probe will always report success once its started. The contents
+		// will report "Active" once the iptables rules are set
+		probes.InitAndStart(*httpProbePort, &s.Initialized)
 		redirector = server.LinuxRedirector(s, subRoutineDone)
 	}
 
