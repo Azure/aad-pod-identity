@@ -16,7 +16,7 @@ image:
 # https://github.com/Azure/aad-pod-identity#4-optional-match-pods-in-the-namespace
 # By default, AAD Pod Identity matches pods to identities across namespaces.
 # To match only pods in the namespace containing AzureIdentity set this to true.
-forceNameSpaced: "false"
+forceNamespaced: "false"
 
 # When NMI runs on a node where MIC is running, then MIC token request call is also
 # intercepted by NMI. MIC can't get a valid token as to initialize and then
