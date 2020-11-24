@@ -16,10 +16,11 @@ export RESOURCE_GROUP="<AKSResourceGroup>"
 export CLUSTER_NAME="<AKSClusterName>"
 export CLUSTER_LOCATION="<AKSClusterLocation>"
 
-# if you are planning to deploy your user-assigned identities in a separate resource group
+# Optional: if you are planning to deploy your user-assigned identities
+# in a separate resource group instead of your node resource group
 export IDENTITY_RESOURCE_GROUP="<IdentityResourceGroup>"
 
-./hack/role-assignment.sh
+curl -s https://raw.githubusercontent.com/Azure/aad-pod-identity/master/hack/role-assignment.sh | bash
 ```
 
 > Note: `<AKSResourceGroup>` is where your AKS cluster is deployed to.
