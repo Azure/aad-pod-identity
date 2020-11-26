@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-blob-deployment
+  namespace: blob
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: demo-blob
+  template:
+    metadata: 
+      name: demo-blob
+      labels:
+        name: demo-blob
+        aadpodidbinding: blob-example
+    spec:
+      containers:
+      - name: demo-blob
+        image: <IMG>
+        env:
+          - name: AZURE_CLIENT_ID
+            value: <IDENTITY_CLIENT_ID>
+          - name: BLOB_ACCOUNT_NAME
+            value: <STORAGE_ACCOUNT_NAME>
+          - name: BLOB_CONTAINER_NAME
+            value: <CONTAINER_NAME>
+      nodeSelector:
+        kubernetes.io/os: linux
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-blob-service
+  namespace: blob
+spec:
+  type: NodePort
+  selector:
+    name: demo-blob
+  ports:
+    - port: 8080
+      targetPort: 8080
