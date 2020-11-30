@@ -10,16 +10,17 @@ Run the following commands to set Azure-related environment variables and login 
 
 ```bash
 export SUBSCRIPTION_ID="<SubscriptionID>"
-export RESOURCE_GROUP="<AKSResourceGroup>"
-export CLUSTER_NAME="<AKSClusterName>"
-export CLUSTER_LOCATION="<AKSClusterLocation>"
-
-export IDENTITY_RESOURCE_GROUP="MC_${RESOURCE_GROUP}_${CLUSTER_NAME}_${CLUSTER_LOCATION}"
-export IDENTITY_NAME="demo"
 
 # login as a user and set the appropriate subscription ID
 az login
 az account set -s "${SUBSCRIPTION_ID}"
+
+export RESOURCE_GROUP="<AKSResourceGroup>"
+export CLUSTER_NAME="<AKSClusterName>"
+
+# for this demo, we will be deploying a user-assigned identity to the AKS node resource group
+export IDENTITY_RESOURCE_GROUP="$(az aks show -g ${RESOURCE_GROUP} -n ${CLUSTER_NAME} --query nodeResourceGroup -otsv)"
+export IDENTITY_NAME="demo"
 ```
 
 > For AKS clusters, there are two resource groups that you need to be aware of - the resource group where you deploy your AKS cluster to (denoted by the environment variable `RESOURCE_GROUP`), and the node resource group (`MC_<AKSResourceGroup>_<AKSClusterName>_<AKSClusterLocation>`). The latter contains all of the infrastructure resources associated with the cluster like VM/VMSS and VNet. Depending on where you deploy your user-assigned identities, you might need additional role assignments. Please refer to [Role Assignment](../../getting-started/role-assignment/) for more information. For this demo, it is recommended to deploy the demo identity to your node resource group (the one with `MC_` prefix).
