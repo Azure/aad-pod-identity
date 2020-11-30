@@ -83,6 +83,12 @@ To enable fine-grained control on which user-assigned identity the cluster has a
 az role assignment create --role "Managed Identity Operator" --assignee <ID>  --scope /subscriptions/<SubscriptionID>/resourcegroups/<IdentityResourceGroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<IdentityName>
 ```
 
+## Reducing number of role assignments
+
+Currently there's a limit of [2000 role assignments](https://docs.microsoft.com/en-us/azure/role-based-access-control/troubleshooting#azure-role-assignments-limit) allowed within an Azure subscription. Once you've hit this limit, you will not be able to assign new roles.
+
+To reduce the number of role assignments, one thing you could do is instead of assigning the `Managed Identity Operator` role to managed identities individually, you could assign the `Managed Identity Operator` role to the resource group the managed identities belong to. Resources will inherit roles from the resource group, meaning you can create as many managed identities as you need and not affect the subscription's overall role assignment count.
+
 ## Useful links
 
 - [Use managed identities in AKS](https://docs.microsoft.com/en-us/azure/aks/use-managed-identity)
