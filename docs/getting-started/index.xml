@@ -5,9 +5,10 @@
 &lt;span style="color:#204a87">export&lt;/span> &lt;span style="color:#000">RESOURCE_GROUP&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;&amp;lt;AKSResourceGroup&amp;gt;&amp;#34;&lt;/span>
 &lt;span style="color:#204a87">export&lt;/span> &lt;span style="color:#000">CLUSTER_NAME&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;&amp;lt;AKSClusterName&amp;gt;&amp;#34;&lt;/span>
 &lt;span style="color:#204a87">export&lt;/span> &lt;span style="color:#000">CLUSTER_LOCATION&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;&amp;lt;AKSClusterLocation&amp;gt;&amp;#34;&lt;/span>
-&lt;span style="color:#8f5902;font-style:italic"># if you are planning to deploy your user-assigned identities in a separate resource group&lt;/span>
+&lt;span style="color:#8f5902;font-style:italic"># Optional: if you are planning to deploy your user-assigned identities&lt;/span>
+&lt;span style="color:#8f5902;font-style:italic"># in a separate resource group instead of your node resource group&lt;/span>
 &lt;span style="color:#204a87">export&lt;/span> &lt;span style="color:#000">IDENTITY_RESOURCE_GROUP&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;&amp;lt;IdentityResourceGroup&amp;gt;&amp;#34;&lt;/span>
-./hack/role-assignment.sh
+curl -s https://raw.githubusercontent.com/Azure/aad-pod-identity/master/hack/role-assignment.sh &lt;span style="color:#000;font-weight:bold">|&lt;/span> bash
 &lt;/code>&lt;/pre>&lt;/div>&lt;blockquote>
 &lt;p>Note: &lt;code>&amp;lt;AKSResourceGroup&amp;gt;&lt;/code> is where your AKS cluster is deployed to.&lt;/p>
 &lt;/blockquote>
