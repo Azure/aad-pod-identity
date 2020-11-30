@@ -16,10 +16,11 @@ export RESOURCE_GROUP="<AKSResourceGroup>"
 export CLUSTER_NAME="<AKSClusterName>"
 export CLUSTER_LOCATION="<AKSClusterLocation>"
 
-# if you are planning to deploy your user-assigned identities in a separate resource group
+# Optional: if you are planning to deploy your user-assigned identities
+# in a separate resource group instead of your node resource group
 export IDENTITY_RESOURCE_GROUP="<IdentityResourceGroup>"
 
-./hack/role-assignment.sh
+curl -s https://raw.githubusercontent.com/Azure/aad-pod-identity/master/hack/role-assignment.sh | bash
 ```
 
 > Note: `<AKSResourceGroup>` is where your AKS cluster is deployed to.
@@ -81,6 +82,12 @@ To enable fine-grained control on which user-assigned identity the cluster has a
 ```bash
 az role assignment create --role "Managed Identity Operator" --assignee <ID>  --scope /subscriptions/<SubscriptionID>/resourcegroups/<IdentityResourceGroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<IdentityName>
 ```
+
+## Reducing number of role assignments
+
+Currently there's a limit of [2000 role assignments](https://docs.microsoft.com/en-us/azure/role-based-access-control/troubleshooting#azure-role-assignments-limit) allowed within an Azure subscription. Once you've hit this limit, you will not be able to assign new roles.
+
+To reduce the number of role assignments, one thing you could do is instead of assigning the `Managed Identity Operator` role to managed identities individually, you could assign the `Managed Identity Operator` role to the resource group the managed identities belong to. Resources will inherit roles from the resource group, meaning you can create as many managed identities as you need and not affect the subscription's overall role assignment count.
 
 ## Useful links
 
