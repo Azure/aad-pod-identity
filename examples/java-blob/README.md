@@ -8,7 +8,7 @@ This sample takes a `POST` request and saves it as a text file in an Azure Blob 
 
 ## Prerequisites
 
-* AKS cluster
+* an AKS cluster with [managed identity enabled](https://docs.microsoft.com/en-us/azure/aks/use-managed-identity)
 * AAD Pod Identity installed and configured
 * Azure Container Registry
 * Azure Storage
@@ -16,7 +16,7 @@ This sample takes a `POST` request and saves it as a text file in an Azure Blob 
 
 ## Setup
 
-### Create Manage Identity and Assign Role
+### Create a Managed Identity and Assign Roles
 
 In this step, we'll create a new user-assigned identity which will be used to interact with the Azure Storage account.
 
@@ -26,21 +26,21 @@ In this step, we'll create a new user-assigned identity which will be used to in
 
     ```sh
     CLUSTER_NAME=<YOUR_AKS_CLUSTER_NAME>
-    CLUSTER_RESOURCEGROUP=$(az aks list --query "[?name == '$CLUSTER_NAME'].resourceGroup" -o tsv)
+    CLUSTER_RESOURCE_GROUP=$(az aks list --query "[?name == '$CLUSTER_NAME'].resourceGroup" -o tsv)
 
     IDENTITY_NAME=<YOUR_IDENTITY_NAME>
-    IDENTITY_RESOURCE_GROUP=<YOUR_RESOURCE_GROUP>
+    IDENTITY_RESOURCE_GROUP=$(az aks show -g $CLUSTER_RESOURCE_GROUP -n $CLUSTER_NAME --query nodeResourceGroup -otsv)
 
     STORAGE_ACCOUNT_NAME=<STORAGE_ACCOUNT_NAME>
-    STORAGE_ACCOUNT_RESOURCEGROUP=$(az storage account list --query "[?name == '$STORAGE_ACCOUNT_NAME'].resourceGroup" -o tsv)
+    STORAGE_ACCOUNT_RESOURCE_GROUP=$(az storage account list --query "[?name == '$STORAGE_ACCOUNT_NAME'].resourceGroup" -o tsv)
 
-    CLUSTER_MSI_CLIENTID=$(az aks show \
+    CLUSTER_MSI_CLIENT_ID=$(az aks show \
         -n $CLUSTER_NAME \
-        -g $CLUSTER_RESOURCEGROUP \
+        -g $CLUSTER_RESOURCE_GROUP \
         --query "identityProfile.kubeletidentity.clientId" \
         -o tsv)
 
-    STORAGE_ACCOUNT_RESOURCEID=$(az storage account show \
+    STORAGE_ACCOUNT_RESOURCE_ID=$(az storage account show \
         --name $STORAGE_ACCOUNT_NAME \
         --query 'id' -o tsv)
     ```
@@ -59,7 +59,7 @@ In this step, we'll create a new user-assigned identity which will be used to in
         --query 'clientId' -o tsv)
     ```
 
-3. Assign role to allow AAD Pod Identity to access our newly created manage identity:
+3. Assign role to allow AAD Pod Identity to access our newly created managed identity:
 
     ```sh
     az role assignment create \
@@ -76,10 +76,10 @@ In this step, we'll create a new user-assigned identity which will be used to in
     az role assignment create \
         --role "Storage Blob Data Contributor" \
         --assignee $IDENTITY_CLIENT_ID \
-        --scope "$(STORAGE_ACCOUNT_RESOURCEID)/blobServices/default/containers/$(CONTAINER)"
+        --scope "$STORAGE_ACCOUNT_RESOURCE_ID/blobServices/default/containers/$CONTAINER"
     ```
 
-    **Note**: if you want the manage identity to access your entire Storage Account, you can ignore `/blobServices/default/containers/$(CONTAINER)`.
+    **Note**: if you want the managed identity to access your entire Storage Account, you can ignore `/blobServices/default/containers/$(CONTAINER)`.
 
 ### Configure AAD Pod Identity
 
@@ -87,6 +87,7 @@ The following step will create a new `AzureIdentity` resource in Kubernetes in t
 
 ```sh
 NAMESPACE=blob
+kubectl create namespace $NAMESPACE
 
 cat << EOF | kubectl apply -f -
 apiVersion: "aadpodidentity.k8s.io/v1"
@@ -104,13 +105,13 @@ EOF
 Now we'll create the `AzureIdentityBinding` and specify the selector.
 
 ```sh
-POD_LABEL_SELECTOR=IDENTITY_NAME
+POD_LABEL_SELECTOR=$IDENTITY_NAME
 
 cat << EOF | kubectl apply -f -
 apiVersion: aadpodidentity.k8s.io/v1
 kind: AzureIdentityBinding
 metadata:
-  name: $(IDENTITY_NAME)-binding
+  name: $IDENTITY_NAME-binding
   namespace: $NAMESPACE
 spec: 
   azureIdentity: $IDENTITY_NAME
@@ -170,7 +171,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: demo-blob-service
-  namespace: blob
+  namespace: $NAMESPACE
 spec:
   type: NodePort
   selector:
