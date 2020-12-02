@@ -27,6 +27,7 @@ helm install aad-pod-identity/aad-pod-identity --set=installCRDs=true
 | `2.0.0`            | `1.6.1`                  |
 | `2.0.1`            | `1.6.2`                  |
 | `2.0.2`            | `1.6.3`                  |
+| `2.1.0`            | `1.7.0`                  |
 
 ## Introduction
 

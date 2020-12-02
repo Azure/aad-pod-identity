@@ -70,6 +70,22 @@ mic:
 
   affinity: {}
 
+  # Topology spread constraints rely on node labels to identify the topology domain(s) that each Node is in.
+  # ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
+  topologySpreadConstraints: []
+    # - maxSkew: 1
+    #   topologyKey: failure-domain.beta.kubernetes.io/zone
+    #   whenUnsatisfiable: DoNotSchedule
+    #   labelSelector:
+    #     matchLabels:
+    #       app.kubernetes.io/component: mic
+
+  # Limit the number of concurrent disruptions that your application experiences,
+  # allowing for higher availability while permitting the cluster administrator to manage the clusters nodes.
+  # ref: https://kubernetes.io/docs/tasks/run-application/configure-pdb/
+  podDisruptionBudget: {}
+    # minAvailable: 1
+
   leaderElection:
     # Override leader election instance name (default is 'hostname')
     instance: ""
