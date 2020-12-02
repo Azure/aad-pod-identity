@@ -99,6 +99,9 @@ spec:
           {{- if .Values.nmi.allowNetworkPluginKubenet }}
           - --allow-network-plugin-kubenet={{ .Values.nmi.allowNetworkPluginKubenet }}
           {{- end }}
+          {{- if .Values.nmi.kubeletConfig }}
+          - --kubelet-config={{ .Values.nmi.kubeletConfig }}
+          {{- end }}
         env:
           {{- if semverCompare "<= 1.6.1-0" .Values.nmi.tag }}
           - name: HOST_IP
