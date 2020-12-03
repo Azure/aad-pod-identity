@@ -1,6 +1,57 @@
+---
+title: "Changelog"
+linkTitle: "Changelog"
+type: docs
+menu:
+  main:
+    weight: 10
+---
+
+## v1.7.0
+
+### Breaking Change
+- If upgrading from versions 1.5.x to 1.7.x of pod-identity, please carefully review this [doc](http://localhost:1313/aad-pod-identity/docs/#v160-breaking-change) before upgrade.
+- Pod Identity is disabled by default for Clusters with Kubenet. Please review this [doc](https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/) before upgrade.
+
+### Features
+- support JSON logging format ([#839](https://github.com/Azure/aad-pod-identity/pull/839))
+- disable aad-pod-identity by default for kubenet ([#842](https://github.com/Azure/aad-pod-identity/pull/842))
+- add auxiliary tenant ids for service principal ([#843](https://github.com/Azure/aad-pod-identity/pull/843))
+
+### Bug Fixes
+- account for 150+ identity assignment and unassignment ([#847](https://github.com/Azure/aad-pod-identity/pull/847))
+
+### Other Improvements
+-  include image scanning as part of CI & set non-root user in Dockerfile ([#803](https://github.com/Azure/aad-pod-identity/pull/803))
+
+### Documentation
+- initial layout for static site ([#801](https://github.com/Azure/aad-pod-identity/pull/801))
+- update website theme to docsy ([#828](https://github.com/Azure/aad-pod-identity/pull/828))
+- update invalid URLs in website ([#832](https://github.com/Azure/aad-pod-identity/pull/832))
+- fix casing of "priorityClassName" parameters in README.md ([#856](https://github.com/Azure/aad-pod-identity/pull/856))
+- add docs for various topics ([#858](https://github.com/Azure/aad-pod-identity/pull/858))
+- s/cluster resource group/node resource group ([#862](https://github.com/Azure/aad-pod-identity/pull/862))
+- add docs for configuring in custom cloud ([#863](https://github.com/Azure/aad-pod-identity/pull/863))
+- fix broken links and typo ([#864](https://github.com/Azure/aad-pod-identity/pull/864))
+
+### Helm
+- remove extra indentation in crd.yaml ([#833](https://github.com/Azure/aad-pod-identity/pull/833))
+- make runAsUser conditional for MIC in helm ([#844](https://github.com/Azure/aad-pod-identity/pull/844))
+
+### Test Improvements
+- remove aks cluster version in e2e ([#808](https://github.com/Azure/aad-pod-identity/pull/808))
+- decrease length of RG name to allow cluster creation in eastus2euap ([#810](https://github.com/Azure/aad-pod-identity/pull/810))
+- health check with podIP from the busybox container ([#840](https://github.com/Azure/aad-pod-identity/pull/840))
+- add gosec as part of linting ([#850](https://github.com/Azure/aad-pod-identity/pull/850))
+- remove --ignore-unfixed for trivy ([#854](https://github.com/Azure/aad-pod-identity/pull/854))
+
 :warning: v1.6.0+ contains breaking changes. Please carefully review this [doc](README.md#v160-breaking-change) before upgrade from 1.x.x versions of pod-identity.
 
-# v1.6.3
+## v1.6.3
+
+### Breaking Change
+
+v1.6.0+ contains breaking changes. Please carefully review this [doc](http://localhost:1313/aad-pod-identity/docs/#v160-breaking-change) before upgrading from 1.x.x versions of pod-identity.
 
 ### Features
 
@@ -18,7 +69,7 @@
 
 - add deploy manifests and helm charts to staging dir ([#736](https://github.com/Azure/aad-pod-identity/pull/736))
 - fix miscellaneous linting problem in the codebase ([#733](https://github.com/Azure/aad-pod-identity/pull/733))
-- remove privileged: true for NMI daemonset ([#745](https://github.com/Azure/aad-pod-identity/pull/745)) 
+- remove privileged: true for NMI daemonset ([#745](https://github.com/Azure/aad-pod-identity/pull/745))
 - Update to go1.15 ([#751](https://github.com/Azure/aad-pod-identity/pull/751))
 - automate role assignments and improve troubleshooting guide ([#754](https://github.com/Azure/aad-pod-identity/pull/754))
 - set dnspolicy to clusterfirstwithhostnet for NMI ([#776](https://github.com/Azure/aad-pod-identity/pull/776))
@@ -49,7 +100,7 @@
 - bump golangci-lint to v1.30.0 ([#759](https://github.com/Azure/aad-pod-identity/pull/759))
 
 
-# v1.6.2
+## v1.6.2
 
 ### Features
 
@@ -93,7 +144,7 @@
 - add code coverage as part of CI ([#705](https://github.com/Azure/aad-pod-identity/pull/705))
 
 
-# v1.6.1
+## v1.6.1
 
 ### Features
 - re-initialize MIC cloud client when cloud config is updated ([#590](https://github.com/Azure/aad-pod-identity/pull/590))
@@ -122,8 +173,7 @@
 - make cloud config configurable in helm chart ([#598](https://github.com/Azure/aad-pod-identity/pull/598))
 - Support multiple identities in helm chart ([#457](https://github.com/Azure/aad-pod-identity/pull/457))
 
-
-# v1.6.0
+## v1.6.0
 
 ### Features
 - Add support for pod-identity managed mode ([#486](https://github.com/Azure/aad-pod-identity/pull/486))
@@ -140,3 +190,101 @@
 - Update client-go version to v0.17.2 ([#398](https://github.com/Azure/aad-pod-identity/pull/398))
 - Update to go1.14 ([#543](https://github.com/Azure/aad-pod-identity/pull/543))
 - Add validation for resource id format ([#548](https://github.com/Azure/aad-pod-identity/pull/548))
+
+## v1.5.5
+
+### Bug Fixes
+
+- Prevent flushing custom iptable rules frequently ([#474](https://github.com/Azure/aad-pod-identity/pull/474))
+
+## v1.5.4
+
+### Features
+
+- Add block-instance-metadata flag ([#396](https://github.com/Azure/aad-pod-identity/pull/396))
+- Add metrics ([#429](https://github.com/Azure/aad-pod-identity/pull/429))
+- Adding support for whitelisting of user-defined managed identities ([#431](https://github.com/Azure/aad-pod-identity/pull/431))
+
+### Bug Fixes
+
+- Fix glog flag parse error in nmi ([#435](https://github.com/Azure/aad-pod-identity/pull/435))
+
+### Other Improvements
+
+- Add application/json header for all return paths ([#424](https://github.com/Azure/aad-pod-identity/pull/424))
+- Update golang used to build binaries ([#426](https://github.com/Azure/aad-pod-identity/pull/426))
+- Reduce log verbosity for debug log ([#433](https://github.com/Azure/aad-pod-identity/pull/433))
+- Move to latest Alpine 3.10.4 ([#446](https://github.com/Azure/aad-pod-identity/pull/446))
+- Validate resource param exists in request ([#450](https://github.com/Azure/aad-pod-identity/pull/450))
+
+## v1.5.3
+
+### Bug Fixes
+
+- Fix concurrent map read and map write while updating stats ([#344](https://github.com/Azure/aad-pod-identity/pull/344))
+- Fix list calls to use local cache inorder to reduce api server load ([#358](https://github.com/Azure/aad-pod-identity/pull/358))
+- Clean up assigned identities if node not found ([#367](https://github.com/Azure/aad-pod-identity/pull/367))
+- Fixes to identity operations on VMSS ([#379](https://github.com/Azure/aad-pod-identity/pull/379))
+- Fix namespaced multiple binding/identity handling and verbose logs ([#388](https://github.com/Azure/aad-pod-identity/pull/388))
+- Fix panic issues while identity ids is nil ([#403](https://github.com/Azure/aad-pod-identity/pull/403))
+
+### Other Improvements
+
+- Set Content-Type on token response ([#341](https://github.com/Azure/aad-pod-identity/pull/341))
+- Redact client id in NMI logs ([#343](https://github.com/Azure/aad-pod-identity/pull/343))
+- Add user agent to kube-api calls ([#353](https://github.com/Azure/aad-pod-identity/pull/353))
+- Add resource and request limits ([#372](https://github.com/Azure/aad-pod-identity/pull/372))
+- Add user agent to ARM calls ([#387](https://github.com/Azure/aad-pod-identity/pull/387))
+- Scale and performance improvements ([#408](https://github.com/Azure/aad-pod-identity/pull/408))
+- Remove unused GET in CreateOrUpdate ([#411](https://github.com/Azure/aad-pod-identity/pull/411))
+- Remove deprecated API Version usages ([#416](https://github.com/Azure/aad-pod-identity/pull/416))
+
+## v1.5.2
+
+### Bug Fixes
+
+- Fix the token backward compat in host based token fetching ([#337](https://github.com/Azure/aad-pod-identity/pull/337))
+
+## v1.5.1
+
+### Bug Fixes
+
+- Append NMI version to the `User-Agent` for adal only once ([#333](https://github.com/Azure/aad-pod-identity/pull/333))
+
+### Other Improvements
+
+- Change 'updateStrategy' for nmi DaemonSet to `RollingUpdate` ([#334](https://github.com/Azure/aad-pod-identity/pull/334))
+
+## v1.5
+
+### Features
+
+- Support aad-pod-identity in init containers ([#191](https://github.com/Azure/aad-pod-identity/pull/191))
+- Cleanup iptable chain and rule on uninstall ([#211](https://github.com/Azure/aad-pod-identity/pull/211))
+- Remove dependency on azure.json ([#221](https://github.com/Azure/aad-pod-identity/pull/221))
+- Add states for AzureAssignedIdentity and improve performance ([#219](https://github.com/Azure/aad-pod-identity/pull/219))
+- System MSI cluster support ([#265](https://github.com/Azure/aad-pod-identity/pull/265))
+- Leader election in MIC ([#277](https://github.com/Azure/aad-pod-identity/pull/277))
+- Liveness probe for MIC and NMI ([#309](https://github.com/Azure/aad-pod-identity/pull/309))
+- Application Exception ([#310](https://github.com/Azure/aad-pod-identity/pull/310))
+
+### Bug Fixes
+
+- Fix AzureIdentity with service principal ([#197](https://github.com/Azure/aad-pod-identity/pull/197))
+- Determine resource manager endpoint based on cloud name ([#226](https://github.com/Azure/aad-pod-identity/pull/226))
+- Fix incorrect resource endpoint with sp ([#251](https://github.com/Azure/aad-pod-identity/pull/251))
+- Fix vmss identity deletion for ID in use ([#203](https://github.com/Azure/aad-pod-identity/pull/203))
+- Fix removal of user assigned identity from nodes with system assigned ([#259](https://github.com/Azure/aad-pod-identity/pull/259))
+- Handle case sensitive id check ([#271](https://github.com/Azure/aad-pod-identity/pull/271))
+- Fix assigned id deletion when no identity exists ([#320](https://github.com/Azure/aad-pod-identity/pull/320))
+
+### Other Improvements
+
+- Use go modules ([#179](https://github.com/Azure/aad-pod-identity/pull/179))
+- Log binary versions of MIC and NMI in logs ([#216](https://github.com/Azure/aad-pod-identity/pull/216))
+- List CRDs via cache and avoid extra work on pod update ([#232](https://github.com/Azure/aad-pod-identity/pull/232))
+- Reduce identity assignment times ([#199](https://github.com/Azure/aad-pod-identity/pull/199))
+- NMI retries and ticker for periodic sync reconcile ([#272](https://github.com/Azure/aad-pod-identity/pull/272))
+- Update error status code based on state ([#292](https://github.com/Azure/aad-pod-identity/pull/292))
+- Process identity assignment/removal for nodes in parallel ([#305](https://github.com/Azure/aad-pod-identity/pull/305))
+- Update base alpine image to 3.10.1 ([#324](https://github.com/Azure/aad-pod-identity/pull/324))

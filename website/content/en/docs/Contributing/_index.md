@@ -13,6 +13,39 @@ The AAD Pod Identity project welcomes contributions and suggestions. Most contri
 
 When you submit a pull request, a CLA-bot will automatically determine whether you need to provide a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions provided by the bot. You will only need to do this once across all repos using our CLA.
 
+## Development
+
+### Prerequisites
+
+- Go 1.15
+- Docker
+- an AKS cluster / AKS-Engine cluster
+- Helm 3
+- A container registry. One of the following would work:
+  - Dockerhub
+  - Azure Container Registry (ACR)
+
+### Development flow
+
+```bash
+git clone https://github.com/Azure/aad-pod-identity ${GOPATH}/src/github.com/Azure/aad-pod-identity
+cd ${GOPATH}/src/github.com/Azure/aad-pod-identity
+
+export REGISTRY=<RegistryName>
+
+# Build MIC and NMI images
+make image-mic image-nmi
+
+# push images to your container registry
+make push-mic push-nmi
+
+# install the above images on your cluster
+helm install aad-pod-identity manifest_staging/charts/aad-pod-identity \
+  --set image.repository="${REGISTRY}" \
+  --set mic.tag=v0.0.0-dev \
+  --set nmi.tag=v0.0.0-dev
+```
+
 ## Test Standard
 
 ### Unit tests
