@@ -67,7 +67,7 @@ In this step, we'll create a new user-assigned identity which will be used to in
     ```sh
     az role assignment create \
         --role "Managed Identity Operator" \
-        --assignee $CLUSTER_MSI_CLIENTID \
+        --assignee $CLUSTER_MSI_CLIENT_ID \
         --scope $IDENTITY_RESOURCE_ID
     ```
 
