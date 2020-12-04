@@ -44,7 +44,7 @@ spec:
         name: iptableslock
       - name: kubelet-config
         hostPath:
-          path: {{ .Values.nmi.kubeletConfig }}
+          path: {{ template "aad-pod-identity.nmi.kubeConfig" . }}
       containers:
       - name: nmi
         image: "{{ .Values.image.repository }}/{{ .Values.nmi.image }}:{{ .Values.nmi.tag }}"
@@ -99,7 +99,7 @@ spec:
           {{- if .Values.nmi.allowNetworkPluginKubenet }}
           - --allow-network-plugin-kubenet={{ .Values.nmi.allowNetworkPluginKubenet }}
           {{- end }}
-          {{- if .Values.nmi.kubeletConfig }}
+          {{- if semverCompare ">= 1.7.0-0" .Values.nmi.tag }}
           - --kubelet-config={{ .Values.nmi.kubeletConfig }}
           {{- end }}
         env:
@@ -132,7 +132,7 @@ spec:
         - mountPath: /run/xtables.lock
           name: iptableslock
         - name: kubelet-config
-          mountPath: /etc/default/kubelet
+          mountPath: {{ template "aad-pod-identity.nmi.kubeConfig" . }}
           readOnly: true
         livenessProbe:
           httpGet:
