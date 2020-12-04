@@ -1,4 +1,3 @@
-
 ---
 title: "Documentation"
 linkTitle: "Documentation"
@@ -18,7 +17,7 @@ With [Azure/aad-pod-identity#842](https://github.com/Azure/aad-pod-identity/pull
 If you still wish to install aad-pod-identity on a kubenet-enabled cluster, set the helm chart value `nmi.allowNetworkPluginKubenet` to `true` in the helm command:
 
 ```bash
-helm (install|upgrade) --set nmi.allowNetworkPluginKubenet=true ...
+helm (install|upgrade) ... --set nmi.allowNetworkPluginKubenet=true ...
 ```
 
 ## v1.6.0 Breaking Change

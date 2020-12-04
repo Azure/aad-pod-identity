@@ -1,10 +1,10 @@
-# Spring Boot + Azure Storage + AAD Pod Identity
-
-This tutorial is based on [this documentation](https://docs.microsoft.com/en-us/azure/developer/java/spring-framework/configure-spring-boot-starter-java-app-with-azure-storage).
-
-This repository contains sample code and instructions demonstrating how you can access Azure Storage using a user-assigned identity with the aid of AAD Pod Identity from a spring boot application.
-
-This sample takes a `POST` request and saves it as a text file in an Azure Blob Storage container.
+---
+title: "Spring Boot + Azure Storage + AAD Pod Identity"
+linkTitle: "Spring Boot + Azure Storage + AAD Pod Identity"
+weight: 2
+description: >
+  Sample code and instructions demonstrating how you can access Azure Storage using a user-assigned identity with the aid of AAD Pod Identity from a spring boot application.
+---
 
 ## Prerequisites
 
@@ -20,11 +20,14 @@ This sample takes a `POST` request and saves it as a text file in an Azure Blob 
 
 In this step, we'll create a new user-assigned identity which will be used to interact with the Azure Storage account.
 
-**Note:** this step can be skipped if you already have a manage identity you'd like to reuse.
+> this step can be skipped if you already have a managed identity you'd like to reuse.
 
 1. Setup:
 
     ```sh
+    git clone https://github.com/Azure/aad-pod-identity $GOPATH/src/github.com/Azure/aad-pod-identity
+    cd $GOPATH/src/github.com/Azure/aad-pod-identity/examples/java-blob
+
     CLUSTER_NAME=<YOUR_AKS_CLUSTER_NAME>
     CLUSTER_RESOURCE_GROUP=$(az aks list --query "[?name == '$CLUSTER_NAME'].resourceGroup" -o tsv)
 
@@ -45,7 +48,7 @@ In this step, we'll create a new user-assigned identity which will be used to in
         --query 'id' -o tsv)
     ```
 
-2. Create the manage identity:
+2. Create a managed identity:
 
     ```sh
     IDENTITY_RESOURCE_ID=$(az identity create \
@@ -64,11 +67,11 @@ In this step, we'll create a new user-assigned identity which will be used to in
     ```sh
     az role assignment create \
         --role "Managed Identity Operator" \
-        --assignee $CLUSTER_MSI_CLIENTID \
+        --assignee $CLUSTER_MSI_CLIENT_ID \
         --scope $IDENTITY_RESOURCE_ID
     ```
 
-4. Grant permission to specific container in the Azure Storage Account:
+4. Grant permission to specific storage container in the Azure Storage Account:
 
     ```sh
     CONTAINER=test
@@ -79,7 +82,7 @@ In this step, we'll create a new user-assigned identity which will be used to in
         --scope "$STORAGE_ACCOUNT_RESOURCE_ID/blobServices/default/containers/$CONTAINER"
     ```
 
-    **Note**: if you want the managed identity to access your entire Storage Account, you can ignore `/blobServices/default/containers/$(CONTAINER)`.
+> if you want the managed identity to access your entire Storage Account, you can ignore `/blobServices/default/containers/$CONTAINER`.
 
 ### Configure AAD Pod Identity
 
@@ -113,7 +116,7 @@ kind: AzureIdentityBinding
 metadata:
   name: $IDENTITY_NAME-binding
   namespace: $NAMESPACE
-spec: 
+spec:
   azureIdentity: $IDENTITY_NAME
   selector: $POD_LABEL_SELECTOR
 EOF
@@ -125,7 +128,7 @@ In the root of this project contains a `Dockerfile`. All you need to do is build
 
 ```sh
 ACR=<YOUR_ACR>
-IMG=$(ACR).azurecr.io/azure-storage-example:1
+IMG=$ACR.azurecr.io/azure-storage-example:1
 
 az acr login --name $ACR
 
@@ -148,7 +151,7 @@ spec:
     matchLabels:
       name: demo-blob
   template:
-    metadata: 
+    metadata:
       name: demo-blob
       labels:
         name: demo-blob

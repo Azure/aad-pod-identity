@@ -14,7 +14,6 @@ AKS and aks-engine clusters require an identity to communicate with Azure. This 
 export SUBSCRIPTION_ID="<SubscriptionID>"
 export RESOURCE_GROUP="<AKSResourceGroup>"
 export CLUSTER_NAME="<AKSClusterName>"
-export CLUSTER_LOCATION="<AKSClusterLocation>"
 
 # Optional: if you are planning to deploy your user-assigned identities
 # in a separate resource group instead of your node resource group
