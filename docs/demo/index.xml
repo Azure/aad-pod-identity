@@ -233,4 +233,163 @@ I0606 23:20:11.052905 &lt;span style="color:#0000cf;font-weight:bold">1&lt;/span
 &lt;p>&lt;code>kubectl describe azureidentity&lt;/code>&lt;/p>
 &lt;p>&lt;code>kubectl describe azureidentitybinding&lt;/code>&lt;/p>
 &lt;h3 id="aad-pod-identity-in-action">AAD Pod Identity In Action&lt;/h3>
-&lt;p>&lt;a href="https://www.youtube.com/watch?v=BXhIMJYDO4w">&lt;img src="https://img.youtube.com/vi/BXhIMJYDO4w/0.jpg" alt="Video of Running required commands">&lt;/a>&lt;/p></description></item><item><title>Docs: Quickstart Demo</title><link>https://azure.github.io/aad-pod-identity/docs/demo/quickstart/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/demo/quickstart/</guid><description/></item></channel></rss>
+&lt;p>&lt;a href="https://www.youtube.com/watch?v=BXhIMJYDO4w">&lt;img src="https://img.youtube.com/vi/BXhIMJYDO4w/0.jpg" alt="Video of Running required commands">&lt;/a>&lt;/p></description></item><item><title>Docs: Spring Boot + Azure Storage + AAD Pod Identity</title><link>https://azure.github.io/aad-pod-identity/docs/demo/java-blob/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/demo/java-blob/</guid><description>
+&lt;h2 id="prerequisites">Prerequisites&lt;/h2>
+&lt;ul>
+&lt;li>an AKS cluster with &lt;a href="https://docs.microsoft.com/en-us/azure/aks/use-managed-identity">managed identity enabled&lt;/a>&lt;/li>
+&lt;li>AAD Pod Identity installed and configured&lt;/li>
+&lt;li>Azure Container Registry&lt;/li>
+&lt;li>Azure Storage
+&lt;ul>
+&lt;li>Make sure you have already created a container&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="setup">Setup&lt;/h2>
+&lt;h3 id="create-a-managed-identity-and-assign-roles">Create a Managed Identity and Assign Roles&lt;/h3>
+&lt;p>In this step, we&amp;rsquo;ll create a new user-assigned identity which will be used to interact with the Azure Storage account.&lt;/p>
+&lt;blockquote>
+&lt;p>this step can be skipped if you already have a managed identity you&amp;rsquo;d like to reuse.&lt;/p>
+&lt;/blockquote>
+&lt;ol>
+&lt;li>
+&lt;p>Setup:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">git clone https://github.com/Azure/aad-pod-identity &lt;span style="color:#000">$GOPATH&lt;/span>/src/github.com/Azure/aad-pod-identity
+&lt;span style="color:#204a87">cd&lt;/span> &lt;span style="color:#000">$GOPATH&lt;/span>/src/github.com/Azure/aad-pod-identity/examples/java-blob
+&lt;span style="color:#000">CLUSTER_NAME&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&amp;lt;YOUR_AKS_CLUSTER_NAME&amp;gt;
+&lt;span style="color:#000">CLUSTER_RESOURCE_GROUP&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#204a87;font-weight:bold">$(&lt;/span>az aks list --query &lt;span style="color:#4e9a06">&amp;#34;[?name == &amp;#39;&lt;/span>&lt;span style="color:#000">$CLUSTER_NAME&lt;/span>&lt;span style="color:#4e9a06">&amp;#39;].resourceGroup&amp;#34;&lt;/span> -o tsv&lt;span style="color:#204a87;font-weight:bold">)&lt;/span>
+&lt;span style="color:#000">IDENTITY_NAME&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&amp;lt;YOUR_IDENTITY_NAME&amp;gt;
+&lt;span style="color:#000">IDENTITY_RESOURCE_GROUP&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#204a87;font-weight:bold">$(&lt;/span>az aks show -g &lt;span style="color:#000">$CLUSTER_RESOURCE_GROUP&lt;/span> -n &lt;span style="color:#000">$CLUSTER_NAME&lt;/span> --query nodeResourceGroup -otsv&lt;span style="color:#204a87;font-weight:bold">)&lt;/span>
+&lt;span style="color:#000">STORAGE_ACCOUNT_NAME&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&amp;lt;STORAGE_ACCOUNT_NAME&amp;gt;
+&lt;span style="color:#000">STORAGE_ACCOUNT_RESOURCE_GROUP&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#204a87;font-weight:bold">$(&lt;/span>az storage account list --query &lt;span style="color:#4e9a06">&amp;#34;[?name == &amp;#39;&lt;/span>&lt;span style="color:#000">$STORAGE_ACCOUNT_NAME&lt;/span>&lt;span style="color:#4e9a06">&amp;#39;].resourceGroup&amp;#34;&lt;/span> -o tsv&lt;span style="color:#204a87;font-weight:bold">)&lt;/span>
+&lt;span style="color:#000">CLUSTER_MSI_CLIENT_ID&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#204a87;font-weight:bold">$(&lt;/span>az aks show &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> -n &lt;span style="color:#000">$CLUSTER_NAME&lt;/span> &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> -g &lt;span style="color:#000">$CLUSTER_RESOURCE_GROUP&lt;/span> &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --query &lt;span style="color:#4e9a06">&amp;#34;identityProfile.kubeletidentity.clientId&amp;#34;&lt;/span> &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> -o tsv&lt;span style="color:#204a87;font-weight:bold">)&lt;/span>
+&lt;span style="color:#000">STORAGE_ACCOUNT_RESOURCE_ID&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#204a87;font-weight:bold">$(&lt;/span>az storage account show &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --name &lt;span style="color:#000">$STORAGE_ACCOUNT_NAME&lt;/span> &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --query &lt;span style="color:#4e9a06">&amp;#39;id&amp;#39;&lt;/span> -o tsv&lt;span style="color:#204a87;font-weight:bold">)&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>
+&lt;p>Create a managed identity:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">&lt;span style="color:#000">IDENTITY_RESOURCE_ID&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#204a87;font-weight:bold">$(&lt;/span>az identity create &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --name &lt;span style="color:#000">$IDENTITY_NAME&lt;/span> &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --resource-group &lt;span style="color:#000">$IDENTITY_RESOURCE_GROUP&lt;/span> &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --query &lt;span style="color:#4e9a06">&amp;#39;id&amp;#39;&lt;/span> -o tsv&lt;span style="color:#204a87;font-weight:bold">)&lt;/span>
+&lt;span style="color:#000">IDENTITY_CLIENT_ID&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#204a87;font-weight:bold">$(&lt;/span>az identity show &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> -n &lt;span style="color:#000">$IDENTITY_NAME&lt;/span> &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> -g &lt;span style="color:#000">$IDENTITY_RESOURCE_GROUP&lt;/span> &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --query &lt;span style="color:#4e9a06">&amp;#39;clientId&amp;#39;&lt;/span> -o tsv&lt;span style="color:#204a87;font-weight:bold">)&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>
+&lt;p>Assign role to allow AAD Pod Identity to access our newly created managed identity:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">az role assignment create &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --role &lt;span style="color:#4e9a06">&amp;#34;Managed Identity Operator&amp;#34;&lt;/span> &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --assignee &lt;span style="color:#000">$CLUSTER_MSI_CLIENT_ID&lt;/span> &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --scope &lt;span style="color:#000">$IDENTITY_RESOURCE_ID&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;li>
+&lt;p>Grant permission to specific storage container in the Azure Storage Account:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">&lt;span style="color:#000">CONTAINER&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#204a87">test&lt;/span>
+az role assignment create &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --role &lt;span style="color:#4e9a06">&amp;#34;Storage Blob Data Contributor&amp;#34;&lt;/span> &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --assignee &lt;span style="color:#000">$IDENTITY_CLIENT_ID&lt;/span> &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --scope &lt;span style="color:#4e9a06">&amp;#34;&lt;/span>&lt;span style="color:#000">$STORAGE_ACCOUNT_RESOURCE_ID&lt;/span>&lt;span style="color:#4e9a06">/blobServices/default/containers/&lt;/span>&lt;span style="color:#000">$CONTAINER&lt;/span>&lt;span style="color:#4e9a06">&amp;#34;&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;/li>
+&lt;/ol>
+&lt;blockquote>
+&lt;p>if you want the managed identity to access your entire Storage Account, you can ignore &lt;code>/blobServices/default/containers/$CONTAINER&lt;/code>.&lt;/p>
+&lt;/blockquote>
+&lt;h3 id="configure-aad-pod-identity">Configure AAD Pod Identity&lt;/h3>
+&lt;p>The following step will create a new &lt;code>AzureIdentity&lt;/code> resource in Kubernetes in the &lt;code>blob&lt;/code> namespace. If your namespace is something different then change NAMESPACE to match the namespace you want to deploy into.&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">&lt;span style="color:#000">NAMESPACE&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>blob
+kubectl create namespace &lt;span style="color:#000">$NAMESPACE&lt;/span>
+cat &lt;span style="color:#4e9a06">&amp;lt;&amp;lt; EOF | kubectl apply -f -
+&lt;/span>&lt;span style="color:#4e9a06">apiVersion: &amp;#34;aadpodidentity.k8s.io/v1&amp;#34;
+&lt;/span>&lt;span style="color:#4e9a06">kind: AzureIdentity
+&lt;/span>&lt;span style="color:#4e9a06">metadata:
+&lt;/span>&lt;span style="color:#4e9a06"> name: $IDENTITY_NAME
+&lt;/span>&lt;span style="color:#4e9a06"> namespace: $NAMESPACE
+&lt;/span>&lt;span style="color:#4e9a06">spec:
+&lt;/span>&lt;span style="color:#4e9a06"> type: 0
+&lt;/span>&lt;span style="color:#4e9a06"> resourceID: $IDENTITY_RESOURCE_ID
+&lt;/span>&lt;span style="color:#4e9a06"> clientID: $IDENTITY_CLIENT_ID
+&lt;/span>&lt;span style="color:#4e9a06">EOF&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>Now we&amp;rsquo;ll create the &lt;code>AzureIdentityBinding&lt;/code> and specify the selector.&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">&lt;span style="color:#000">POD_LABEL_SELECTOR&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#000">$IDENTITY_NAME&lt;/span>
+cat &lt;span style="color:#4e9a06">&amp;lt;&amp;lt; EOF | kubectl apply -f -
+&lt;/span>&lt;span style="color:#4e9a06">apiVersion: aadpodidentity.k8s.io/v1
+&lt;/span>&lt;span style="color:#4e9a06">kind: AzureIdentityBinding
+&lt;/span>&lt;span style="color:#4e9a06">metadata:
+&lt;/span>&lt;span style="color:#4e9a06"> name: $IDENTITY_NAME-binding
+&lt;/span>&lt;span style="color:#4e9a06"> namespace: $NAMESPACE
+&lt;/span>&lt;span style="color:#4e9a06">spec:
+&lt;/span>&lt;span style="color:#4e9a06"> azureIdentity: $IDENTITY_NAME
+&lt;/span>&lt;span style="color:#4e9a06"> selector: $POD_LABEL_SELECTOR
+&lt;/span>&lt;span style="color:#4e9a06">EOF&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="build">Build&lt;/h2>
+&lt;p>In the root of this project contains a &lt;code>Dockerfile&lt;/code>. All you need to do is build the container and push to Azure Container Registry.&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">&lt;span style="color:#000">ACR&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&amp;lt;YOUR_ACR&amp;gt;
+&lt;span style="color:#000">IMG&lt;/span>&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#000">$ACR&lt;/span>.azurecr.io/azure-storage-example:1
+az acr login --name &lt;span style="color:#000">$ACR&lt;/span>
+docker build -t &lt;span style="color:#000">$IMG&lt;/span> .
+docker push &lt;span style="color:#000">$IMG&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="deploy">Deploy&lt;/h2>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">cat &lt;span style="color:#4e9a06">&amp;lt;&amp;lt; EOF | kubectl apply -f -
+&lt;/span>&lt;span style="color:#4e9a06">apiVersion: apps/v1
+&lt;/span>&lt;span style="color:#4e9a06">kind: Deployment
+&lt;/span>&lt;span style="color:#4e9a06">metadata:
+&lt;/span>&lt;span style="color:#4e9a06"> name: demo-blob-deployment
+&lt;/span>&lt;span style="color:#4e9a06"> namespace: $NAMESPACE
+&lt;/span>&lt;span style="color:#4e9a06">spec:
+&lt;/span>&lt;span style="color:#4e9a06"> replicas: 1
+&lt;/span>&lt;span style="color:#4e9a06"> selector:
+&lt;/span>&lt;span style="color:#4e9a06"> matchLabels:
+&lt;/span>&lt;span style="color:#4e9a06"> name: demo-blob
+&lt;/span>&lt;span style="color:#4e9a06"> template:
+&lt;/span>&lt;span style="color:#4e9a06"> metadata:
+&lt;/span>&lt;span style="color:#4e9a06"> name: demo-blob
+&lt;/span>&lt;span style="color:#4e9a06"> labels:
+&lt;/span>&lt;span style="color:#4e9a06"> name: demo-blob
+&lt;/span>&lt;span style="color:#4e9a06"> aadpodidbinding: $POD_LABEL_SELECTOR
+&lt;/span>&lt;span style="color:#4e9a06"> spec:
+&lt;/span>&lt;span style="color:#4e9a06"> containers:
+&lt;/span>&lt;span style="color:#4e9a06"> - name: demo-blob
+&lt;/span>&lt;span style="color:#4e9a06"> image: $IMG
+&lt;/span>&lt;span style="color:#4e9a06"> env:
+&lt;/span>&lt;span style="color:#4e9a06"> - name: AZURE_CLIENT_ID
+&lt;/span>&lt;span style="color:#4e9a06"> value: $IDENTITY_CLIENT_ID
+&lt;/span>&lt;span style="color:#4e9a06"> - name: BLOB_ACCOUNT_NAME
+&lt;/span>&lt;span style="color:#4e9a06"> value: $STORAGE_ACCOUNT_NAME
+&lt;/span>&lt;span style="color:#4e9a06"> - name: BLOB_CONTAINER_NAME
+&lt;/span>&lt;span style="color:#4e9a06"> value: $CONTAINER
+&lt;/span>&lt;span style="color:#4e9a06"> nodeSelector:
+&lt;/span>&lt;span style="color:#4e9a06"> kubernetes.io/os: linux
+&lt;/span>&lt;span style="color:#4e9a06">---
+&lt;/span>&lt;span style="color:#4e9a06">apiVersion: v1
+&lt;/span>&lt;span style="color:#4e9a06">kind: Service
+&lt;/span>&lt;span style="color:#4e9a06">metadata:
+&lt;/span>&lt;span style="color:#4e9a06"> name: demo-blob-service
+&lt;/span>&lt;span style="color:#4e9a06"> namespace: $NAMESPACE
+&lt;/span>&lt;span style="color:#4e9a06">spec:
+&lt;/span>&lt;span style="color:#4e9a06"> type: NodePort
+&lt;/span>&lt;span style="color:#4e9a06"> selector:
+&lt;/span>&lt;span style="color:#4e9a06"> name: demo-blob
+&lt;/span>&lt;span style="color:#4e9a06"> ports:
+&lt;/span>&lt;span style="color:#4e9a06"> - port: 8080
+&lt;/span>&lt;span style="color:#4e9a06"> targetPort: 8080
+&lt;/span>&lt;span style="color:#4e9a06">EOF&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="test">Test&lt;/h2>
+&lt;p>To interact with the &lt;code>demo-blob&lt;/code> pod running in AKS, we first need a pod with cURL installed. The following command create a new pod called &lt;code>curl&lt;/code> using the &lt;code>curlimages/curl&lt;/code> image, and then execute into the pod.&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">kubectl run curl --rm -i --tty --image&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>curlimages/curl:7.73.0 -n blob -- sh
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>Once you have access into the &lt;code>curl&lt;/code> pod, run the following command to upload a new blob into the Azure Storage Account:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">curl -d &lt;span style="color:#4e9a06">&amp;#39;new message&amp;#39;&lt;/span> -H &lt;span style="color:#4e9a06">&amp;#39;Content-Type: text/plain&amp;#39;&lt;/span> demo-blob-service:8080/
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>Assuming everything works, this will create a new &lt;code>.txt&lt;/code> file the container created earlier with the text &lt;code>new message&lt;/code>.&lt;/p>
+&lt;p>You should receive the following message:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">file quickstart-8fea77d9-d133-4cb1-8f16-391dc8e4e3f7.txt was uploaded
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>To retrieve the contents of the blob, assuming the file was saved under &lt;code>quickstart-8fea77d9-d133-4cb1-8f16-391dc8e4e3f7.txt&lt;/code>, make the following &lt;code>GET&lt;/code> request:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">curl -X GET http://demo-blob-service:8080/?fileName&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>quickstart-8fea77d9-d133-4cb1-8f16-391dc8e4e3f7.txt
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>You should get back the following:&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-sh" data-lang="sh">new message
+&lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Docs: Quickstart Demo</title><link>https://azure.github.io/aad-pod-identity/docs/demo/quickstart/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/demo/quickstart/</guid><description/></item></channel></rss>
