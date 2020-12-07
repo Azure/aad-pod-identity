@@ -59,7 +59,7 @@ helm.sh/chart: {{ template "aad-pod-identity.chart" . }}
 {{/*
 Determine KubeConfig Path
 */}}
-{{- define "aad-pod-identity.nmi.kubeConfig" -}}
+{{- define "aad-pod-identity.nmi.kubeletConfig" -}}
 {{- if semverCompare ">= 1.7.0-0" .Values.nmi.tag }}
 {{- .Values.nmi.kubeletConfig -}}
 {{- else -}}
