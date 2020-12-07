@@ -42,9 +42,11 @@ spec:
           path: /run/xtables.lock
           type: FileOrCreate
         name: iptableslock
+      {{- if semverCompare ">= 1.7.0-0" .Values.nmi.tag }}
       - name: kubelet-config
         hostPath:
-          path: {{ template "aad-pod-identity.nmi.kubeletConfig" . }}
+          path: {{ .Values.nmi.kubeletConfig }}
+      {{- end }}
       containers:
       - name: nmi
         image: "{{ .Values.image.repository }}/{{ .Values.nmi.image }}:{{ .Values.nmi.tag }}"
@@ -131,9 +133,11 @@ spec:
         volumeMounts:
         - mountPath: /run/xtables.lock
           name: iptableslock
+        {{- if semverCompare ">= 1.7.0-0" .Values.nmi.tag }}
         - name: kubelet-config
-          mountPath: {{ template "aad-pod-identity.nmi.kubeletConfig" . }}
+          mountPath: {{ .Values.nmi.kubeletConfig }}
           readOnly: true
+        {{- end }}
         livenessProbe:
           httpGet:
             path: /healthz

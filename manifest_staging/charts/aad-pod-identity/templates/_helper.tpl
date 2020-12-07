@@ -55,14 +55,3 @@ Common labels.
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 helm.sh/chart: {{ template "aad-pod-identity.chart" . }}
 {{- end -}}
-
-{{/*
-Determine KubeConfig Path
-*/}}
-{{- define "aad-pod-identity.nmi.kubeletConfig" -}}
-{{- if semverCompare ">= 1.7.0-0" .Values.nmi.tag }}
-{{- .Values.nmi.kubeletConfig -}}
-{{- else -}}
-{{- "/etc/default/kubelet" -}}
-{{- end -}}
-{{- end -}}
