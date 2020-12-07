@@ -56,7 +56,7 @@ spec:
     kinds:
       - apiGroups: [""]
         kinds: ["Pod"]
-    excludedNamespaces :
+    excludedNamespaces:
       - "kube-system"
   parameters:
     requiredDropCapabilities: ["NET_RAW"]
