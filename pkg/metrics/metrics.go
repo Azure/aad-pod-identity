@@ -2,14 +2,14 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"go.opencensus.io/stats"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
-
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // This const block defines the metric names.
@@ -35,31 +35,43 @@ const (
 	imdsOperationsErrorsCountName          = "imds_operations_errors_count"
 	imdsOperationsDurationName             = "imds_operations_duration_seconds"
 
-	// AdalTokenFromMSIOperationName ...
-	AdalTokenFromMSIOperationName = "adal_token_msi"
-	// AdalTokenFromMSIWithUserAssignedIDOperationName ...
-	AdalTokenFromMSIWithUserAssignedIDOperationName = "adal_token_msi_userassignedid"
-	// AdalTokenOperationName ...
+	// AdalTokenFromMSIOperationName represents the duration of obtaining a token with MSI.
+	AdalTokenFromMSIOperationName = "adal_token_msi" // #nosec
+
+	// AdalTokenFromMSIWithUserAssignedIDOperationName represents the duration of obtaining a token with a user-assigned identity.
+	AdalTokenFromMSIWithUserAssignedIDOperationName = "adal_token_msi_userassignedid" // #nosec
+
+	// AdalTokenOperationName represents the duration of obtaining a token.
 	AdalTokenOperationName = "adal_token"
-	// GetVmssOperationName ...
+
+	// GetVmssOperationName represents the duration of a GET request to a VMSS instance.
 	GetVmssOperationName = "vmss_get"
-	// PutVmssOperationName ...
-	PutVmssOperationName = "vmss_create_or_update"
-	// GetVMOperationName ...
+
+	// UpdateVMSSOperationName represents the duration of a PATCH request to a VMSS instance.
+	UpdateVMSSOperationName = "vmss_update"
+
+	// GetVMOperationName represents the duration of a GET request to a VM instance.
 	GetVMOperationName = "vm_get"
-	// PutVMOperationName ...
-	PutVMOperationName = "vm_create_or_update"
-	// AssignedIdentityDeletionOperationName ...
+
+	// UpdateVMOperationName represents the duration of a PATCH request to a VM instance.
+	UpdateVMOperationName = "vm_update"
+
+	// AssignedIdentityDeletionOperationName represents the duration of an AzureAssignedIdentity deletion.
 	AssignedIdentityDeletionOperationName = "assigned_identity_deletion"
-	// AssignedIdentityAdditionOperationName ...
+
+	// AssignedIdentityAdditionOperationName represents the duration of an AzureAssignedIdentity addition.
 	AssignedIdentityAdditionOperationName = "assigned_identity_addition"
-	// AssignedIdentityUpdateOperationName ...
+
+	// AssignedIdentityUpdateOperationName represents the duration of an AzureAssignedIdentity update.
 	AssignedIdentityUpdateOperationName = "assigned_identity_update"
-	// UpdateAzureAssignedIdentityStatusOperationName ...
+
+	// UpdateAzureAssignedIdentityStatusOperationName represents the status of an AzureAssignedIdentity update operation.
 	UpdateAzureAssignedIdentityStatusOperationName = "update_azure_assigned_identity_status"
-	// GetPodListOperationName
+
+	// GetPodListOperationName represents the status of a pod list operation.
 	GetPodListOperationName = "get_pod_list"
-	// GetSecretOperationName
+
+	// GetSecretOperationName represents the status of a secret get operation.
 	GetSecretOperationName = "get_secret"
 	// HostTokenType
 	HostTokenOperationType = "get_host_token"
@@ -209,27 +221,27 @@ func SinceInSeconds(start time.Time) float64 {
 // registerViews register views to be collected by exporter
 func registerViews() error {
 	views := []*view.View{
-		&view.View{
+		{
 			Description: AssignedIdentityAdditionDurationM.Description(),
 			Measure:     AssignedIdentityAdditionDurationM,
 			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
 		},
-		&view.View{
+		{
 			Description: AssignedIdentityAdditionCountM.Description(),
 			Measure:     AssignedIdentityAdditionCountM,
 			Aggregation: view.Count(),
 		},
-		&view.View{
+		{
 			Description: AssignedIdentityDeletionDurationM.Description(),
 			Measure:     AssignedIdentityDeletionDurationM,
 			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
 		},
-		&view.View{
+		{
 			Description: AssignedIdentityDeletionCountM.Description(),
 			Measure:     AssignedIdentityDeletionCountM,
 			Aggregation: view.Count(),
 		},
-		&view.View{
+		{
 			Description: NMIOperationsDurationM.Description(),
 			Measure:     NMIOperationsDurationM,
 			Aggregation: view.Distribution(0.5, 1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100),
@@ -264,29 +276,29 @@ func registerViews() error {
 			Measure:     MICCycleDurationM,
 			Aggregation: view.Distribution(0.5, 1, 5, 10, 30, 60, 120, 300, 600, 900, 1200),
 		},
-		&view.View{
+		{
 			Description: MICCycleCountM.Description(),
 			Measure:     MICCycleCountM,
 			Aggregation: view.Count(),
 		},
-		&view.View{
+		{
 			Description: MICNewLeaderElectionCountM.Description(),
 			Measure:     MICNewLeaderElectionCountM,
 			Aggregation: view.Count(),
 		},
-		&view.View{
+		{
 			Description: CloudProviderOperationsErrorsCountM.Description(),
 			Measure:     CloudProviderOperationsErrorsCountM,
 			Aggregation: view.Count(),
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
-		&view.View{
+		{
 			Description: CloudProviderOperationsDurationM.Description(),
 			Measure:     CloudProviderOperationsDurationM,
 			Aggregation: view.Distribution(0.5, 1, 5, 10, 30, 60, 120, 300, 600, 900, 1200),
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
-		&view.View{
+		{
 			Description: KubernetesAPIOperationsErrorsCountM.Description(),
 			Measure:     KubernetesAPIOperationsErrorsCountM,
 			Aggregation: view.Count(),
@@ -304,18 +316,18 @@ func registerViews() error {
 			Aggregation: view.Count(),
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
-		&view.View{
+		{
 			Description: ImdsOperationsDurationM.Description(),
 			Measure:     ImdsOperationsDurationM,
 			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
 			TagKeys:     []tag.Key{operationTypeKey},
 		},
-		&view.View{
+		{
 			Description: AssignedIdentityUpdateDurationM.Description(),
 			Measure:     AssignedIdentityUpdateDurationM,
 			Aggregation: view.Distribution(0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 2, 3, 4, 5, 10),
 		},
-		&view.View{
+		{
 			Description: AssignedIdentityUpdateCountM.Description(),
 			Measure:     AssignedIdentityUpdateCountM,
 			Aggregation: view.Count(),
@@ -433,17 +445,15 @@ func (r *Reporter) ReportOperation(operationType string, measurement stats.Measu
 func RegisterAndExport(port string) error {
 	err := registerViews()
 	if err != nil {
-		klog.Errorf("Failed to register views for metrics. error:%v", err)
-		return err
+		return fmt.Errorf("failed to register views for metrics, error:%v", err)
 	}
-	klog.Infof("Registered views for metric")
+	klog.Infof("registered views for metric")
 	exporter, err := newPrometheusExporter(componentNamespace, port)
 	if err != nil {
-		klog.Errorf("Prometheus exporter error: %+v", err)
-		return err
+		return fmt.Errorf("failed to create Prometheus exporter, error: %+v", err)
 	}
 	view.RegisterExporter(exporter)
-	klog.Infof("Registered and exported metrics on port %s", port)
+	klog.Infof("registered and exported metrics on port %s", port)
 	return nil
 }
 

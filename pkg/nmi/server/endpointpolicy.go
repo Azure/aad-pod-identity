@@ -11,7 +11,7 @@ import (
 	client "github.com/Microsoft/hcnproxy/pkg/client"
 	msg "github.com/Microsoft/hcnproxy/pkg/types"
 	v1 "github.com/Microsoft/hcsshim"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 const (

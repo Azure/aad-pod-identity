@@ -9,11 +9,8 @@ GOOS ?= linux
 TEST_GOOS ?= linux
 IDENTITY_VALIDATOR_BINARY_NAME := identityvalidator
 
-DEFAULT_VERSION := 0.0.0-dev
-NMI_VERSION ?= $(DEFAULT_VERSION)
-MIC_VERSION ?= $(DEFAULT_VERSION)
-DEMO_VERSION ?= $(DEFAULT_VERSION)
-IDENTITY_VALIDATOR_VERSION ?= $(DEFAULT_VERSION)
+DEFAULT_VERSION := v0.0.0-dev
+IMAGE_VERSION ?= $(DEFAULT_VERSION)
 
 NMI_VERSION_VAR := $(REPO_PATH)/version.NMIVersion
 MIC_VERSION_VAR := $(REPO_PATH)/version.MICVersion
@@ -34,20 +31,24 @@ else
 	endif
 endif
 
-GO_BUILD_OPTIONS := --tags "netgo osusergo"  -ldflags "-s -X $(NMI_VERSION_VAR)=$(NMI_VERSION) -X $(MIC_VERSION_VAR)=$(MIC_VERSION) -X $(GIT_VAR)=$(GIT_HASH) -X $(BUILD_DATE_VAR)=$(BUILD_DATE) -extldflags '-static'"
+GO_BUILD_OPTIONS := --tags "netgo osusergo"  -ldflags "-s -X $(NMI_VERSION_VAR)=$(IMAGE_VERSION) -X $(MIC_VERSION_VAR)=$(IMAGE_VERSION) -X $(GIT_VAR)=$(GIT_HASH) -X $(BUILD_DATE_VAR)=$(BUILD_DATE) -extldflags '-static'"
 E2E_TEST_OPTIONS := -count=1 -v -timeout 24h -ginkgo.progress $(E2E_TEST_OPTIONS_EXTRA)
 
 # useful for other docker repos
 REGISTRY_NAME ?= upstreamk8sci
-REGISTRY ?= $(REGISTRY_NAME).azurecr.io
 REPO_PREFIX ?= k8s/aad-pod-identity
-NMI_IMAGE ?= $(REPO_PREFIX)/$(NMI_BINARY_NAME):$(NMI_VERSION)
-MIC_IMAGE ?= $(REPO_PREFIX)/$(MIC_BINARY_NAME):$(MIC_VERSION)
-DEMO_IMAGE ?= $(REPO_PREFIX)/$(DEMO_BINARY_NAME):$(DEMO_VERSION)
-IDENTITY_VALIDATOR_IMAGE ?= $(REPO_PREFIX)/$(IDENTITY_VALIDATOR_BINARY_NAME):$(IDENTITY_VALIDATOR_VERSION)
-ALL_DOCS := $(shell find . -name '*.md' -type f | sort)
+REGISTRY ?= $(REGISTRY_NAME).azurecr.io/$(REPO_PREFIX)
+NMI_IMAGE := $(NMI_BINARY_NAME):$(IMAGE_VERSION)
+MIC_IMAGE := $(MIC_BINARY_NAME):$(IMAGE_VERSION)
+DEMO_IMAGE := $(DEMO_BINARY_NAME):$(IMAGE_VERSION)
+IDENTITY_VALIDATOR_IMAGE := $(IDENTITY_VALIDATOR_BINARY_NAME):$(IMAGE_VERSION)
+ALL_DOCS := $(shell find . -name '*.md' -type f | sort | grep -vE "website/(themes|node_modules)")
 TOOLS_MOD_DIR := ./tools
 TOOLS_DIR := $(abspath ./.tools)
+
+# docker env var
+DOCKER_BUILDKIT = 1
+export DOCKER_BUILDKIT
 
 $(TOOLS_DIR)/golangci-lint: $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
 	cd $(TOOLS_MOD_DIR) && \
@@ -59,9 +60,9 @@ $(TOOLS_DIR)/misspell: $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_M
 
 .PHONY: lint
 lint: $(TOOLS_DIR)/golangci-lint $(TOOLS_DIR)/misspell
-	$(TOOLS_DIR)/golangci-lint run
-	$(TOOLS_DIR)/misspell -w $(ALL_DOCS) && \
-	go mod tidy
+	$(TOOLS_DIR)/golangci-lint run --timeout=5m
+	$(TOOLS_DIR)/misspell -w $(ALL_DOCS)
+	$(MAKE) check-mod
 
 .PHONY: clean-nmi
 clean-nmi:
@@ -109,7 +110,7 @@ bin/%:
 
 .PHONY: build-identity-validator
 build-identity-validator: clean-identity-validator
-	PKG_NAME=github.com/Azure/$(PROJECT_NAME)/test/e2e/$(IDENTITY_VALIDATOR_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(IDENTITY_VALIDATOR_BINARY_NAME)
+	PKG_NAME=github.com/Azure/$(PROJECT_NAME)/test/image/$(IDENTITY_VALIDATOR_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(IDENTITY_VALIDATOR_BINARY_NAME)
 
 .PHONY: build
 build: clean build-nmi build-mic build-demo build-identity-validator
@@ -123,41 +124,53 @@ deepcopy-gen:
 
 .PHONY: image-nmi
 image-nmi:
-	docker build -t "$(REGISTRY)/$(NMI_IMAGE)" --build-arg NMI_VERSION="$(NMI_VERSION)" --target=nmi .
+	docker build \
+		--target nmi \
+		--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
+		-t $(REGISTRY)/$(NMI_IMAGE) .
 
 .PHONY: image-mic
 image-mic:
-	docker build -t "$(REGISTRY)/$(MIC_IMAGE)" --build-arg MIC_VERSION="$(MIC_VERSION)" --target=mic .
+	docker build \
+		--target mic \
+		--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
+		-t "$(REGISTRY)/$(MIC_IMAGE)" .
 
 .PHONY: image-demo
 image-demo:
-	docker build -t $(REGISTRY)/$(DEMO_IMAGE) --build-arg DEMO_VERSION="$(DEMO_VERSION)" --target=demo .
+	docker build \
+		--target demo \
+		--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
+		-t "$(REGISTRY)/$(DEMO_IMAGE)" .
 
 .PHONY: image-identity-validator
 image-identity-validator:
-	docker build -t $(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE) --build-arg IDENTITY_VALIDATOR_VERSION="$(IDENTITY_VALIDATOR_VERSION)" --target=identityvalidator .
+	docker build \
+		--target identityvalidator \
+		--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
+		-t "$(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE)" .
 
-.PHONY: image
-image:image-nmi image-mic image-demo image-identity-validator
+.PHONY: images
+images: image-nmi image-mic image-demo image-identity-validator
 
 .PHONY: push-nmi
-push-nmi: validate-version-NMI
-	az acr repository show --name $(REGISTRY_NAME) --image $(NMI_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(NMI_IMAGE) already exists" && exit 1; fi
+push-nmi: validate-version
+	az acr repository show --name $(REGISTRY_NAME) --image $(NMI_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(NMI_IMAGE) already exists" && exit 0; fi
 	docker push $(REGISTRY)/$(NMI_IMAGE)
 
 .PHONY: push-mic
-push-mic: validate-version-MIC
-	az acr repository show --name $(REGISTRY_NAME) --image $(MIC_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(MIC_IMAGE) already exists" && exit 1; fi
+push-mic: validate-version
+	az acr repository show --name $(REGISTRY_NAME) --image $(MIC_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(MIC_IMAGE) already exists" && exit 0; fi
 	docker push $(REGISTRY)/$(MIC_IMAGE)
 
 .PHONY: push-demo
-push-demo: validate-version-DEMO
-	az acr repository show --name $(REGISTRY_NAME) --image $(DEMO_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(DEMO_IMAGE) already exists" && exit 1; fi
+push-demo: validate-version
+	az acr repository show --name $(REGISTRY_NAME) --image $(DEMO_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(DEMO_IMAGE) already exists" && exit 0; fi
 	docker push $(REGISTRY)/$(DEMO_IMAGE)
 
 .PHONY: push-identity-validator
-push-identity-validator: validate-version-IDENTITY_VALIDATOR
-	az acr repository show --name $(REGISTRY_NAME) --image $(IDENTITY_VALIDATOR_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(IDENTITY_VALIDATOR_IMAGE) already exists" && exit 1; fi
+push-identity-validator: validate-version
+	az acr repository show --name $(REGISTRY_NAME) --image $(IDENTITY_VALIDATOR_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(IDENTITY_VALIDATOR_IMAGE) already exists" && exit 0; fi
 	docker push $(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE)
 
 .PHONY: push
@@ -165,31 +178,27 @@ push: push-nmi push-mic push-demo push-identity-validator
 
 .PHONY: e2e
 e2e:
-	GOOS=$(TEST_GOOS) go test github.com/Azure/$(PROJECT_NAME)/test/e2e $(E2E_TEST_OPTIONS)
+	make -C test/e2e/ run
 
 .PHONY: unit-test
 unit-test:
-	GOOS=$(TEST_GOOS) go test -race -count=1 $(shell go list ./... | grep -v /test/e2e) -v
+	GOOS=$(TEST_GOOS) CGO_ENABLED=1 go test -race -coverprofile=coverage.txt -covermode=atomic -count=1 $(shell go list ./... | grep -v /test/e2e) -v
 
 .PHONY: validate-version
-validate-version: validate-version-NMI validate-version-MIC validate-version-IDENTITY_VALIDATOR validate-version-DEMO
-
-.PHONY: validate-version-%
-validate-version-%:
-	@echo $(*)_VERSION=$($(*)_VERSION)
-	@DEFAULT_VERSION=$(DEFAULT_VERSION) CHECK_VERSION="$($(*)_VERSION)" scripts/validate_version.sh
+validate-version:
+	@DEFAULT_VERSION=$(DEFAULT_VERSION) CHECK_VERSION="$(IMAGE_VERSION)" scripts/validate_version.sh
 
 .PHONY: mod
 mod:
 	@go mod tidy
 
-.PHONY: check-vendor
+.PHONY: check-mod
 check-mod: mod
 	@git diff --exit-code go.mod go.sum
 
 .PHONY: helm-lint
 helm-lint:
 	# Download and install Helm
-	curl https://raw.githubusercontent.com/helm/helm/master/scripts/get | bash
+	curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 	# run lint on helm charts
-	helm lint --strict charts/aad-pod-identity
+	helm lint --strict manifest_staging/charts/aad-pod-identity

@@ -11,7 +11,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	v1 "k8s.io/api/core/v1"
 	types "k8s.io/apimachinery/pkg/types"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 var podMap = make(map[types.UID]string)

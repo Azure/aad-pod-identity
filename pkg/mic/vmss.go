@@ -4,6 +4,7 @@ import (
 	"path"
 
 	"github.com/Azure/aad-pod-identity/pkg/cloudprovider"
+
 	"github.com/Azure/go-autorest/autorest/azure"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"

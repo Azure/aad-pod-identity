@@ -75,7 +75,7 @@ rules:
   resources: ["azureassignedidentities"]
   verbs: ["get", "list", "watch"]
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: aad-pod-id-nmi-binding
@@ -114,18 +114,22 @@ spec:
     spec:
       serviceAccountName: aad-pod-id-nmi-service-account
       hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       volumes:
       - hostPath:
           path: /run/xtables.lock
           type: FileOrCreate
         name: iptableslock
+      - name: kubelet-config
+        hostPath:
+          path: /etc/default/kubelet
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/nmi:1.6.0"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.7.0"
         imagePullPolicy: Always
         args:
-          - "--host-ip=$(HOST_IP)"
           - "--node=$(NODE_NAME)"
+          - "--http-probe-port=8085"
         env:
           - name: HOST_IP
             valueFrom:
@@ -143,21 +147,24 @@ spec:
             cpu: 100m
             memory: 256Mi
         securityContext:
-          privileged: true
+          runAsUser: 0
           capabilities:
             add:
             - NET_ADMIN
         volumeMounts:
         - mountPath: /run/xtables.lock
           name: iptableslock
+        - name: kubelet-config
+          mountPath: /etc/default/kubelet
+          readOnly: true
         livenessProbe:
           httpGet:
             path: /healthz
-            port: 8080
+            port: 8085
           initialDelaySeconds: 10
           periodSeconds: 5
       nodeSelector:
-        beta.kubernetes.io/os: linux
+        kubernetes.io/os: linux
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -260,7 +267,7 @@ rules:
   resources: ["azureassignedidentities"]
   verbs: ["*"]
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: aad-pod-id-mic-binding
@@ -298,16 +305,18 @@ spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
-        image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.6.0"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.7.0"
         imagePullPolicy: Always
         args:
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
+        securityContext:
+          runAsUser: 0
         env:
         - name: MIC_POD_NAMESPACE
           valueFrom:
             fieldRef:
-              fieldPath: metadata.namespace                
+              fieldPath: metadata.namespace
         resources:
           limits:
             cpu: 200m
@@ -330,4 +339,4 @@ spec:
         hostPath:
           path: /etc/kubernetes/azure.json
       nodeSelector:
-        beta.kubernetes.io/os: linux
+        kubernetes.io/os: linux

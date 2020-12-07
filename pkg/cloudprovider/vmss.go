@@ -2,23 +2,29 @@ package cloudprovider
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/config"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/stats"
 	"github.com/Azure/aad-pod-identity/version"
+
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // VMSSClient is used to interact with Azure virtual machine scale sets.
 type VMSSClient struct {
 	client   compute.VirtualMachineScaleSetsClient
 	reporter *metrics.Reporter
+	// ARM throttling configures.
+	retryAfterReader time.Time
+	retryAfterWriter time.Time
 }
 
 // VMSSClientInt is the interface used by "cloudprovider" for interacting with Azure vmss
@@ -33,18 +39,19 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 
 	azureEnv, err := azure.EnvironmentFromName(config.Cloud)
 	if err != nil {
-		klog.Errorf("Get cloud env error: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to get cloud environment, error: %+v", err)
 	}
 	client.BaseURI = azureEnv.ResourceManagerEndpoint
 	client.Authorizer = autorest.NewBearerAuthorizer(spt)
 	client.PollingDelay = 5 * time.Second
-	client.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
+	err = client.AddToUserAgent(version.GetUserAgent("MIC", version.MICVersion))
+	if err != nil {
+		return nil, fmt.Errorf("failed to add MIC to user agent, error: %+v", err)
+	}
 
 	reporter, err := metrics.NewReporter()
 	if err != nil {
-		klog.Errorf("New reporter error: %+v", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to create reporter for metrics, error: %+v", err)
 	}
 
 	return &VMSSClient{
@@ -54,7 +61,7 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 }
 
 // UpdateIdentities updates the user assigned identities for the provided node
-func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmssIdentities compute.VirtualMachineScaleSet) error {
+func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmss compute.VirtualMachineScaleSet) error {
 	var future compute.VirtualMachineScaleSetsUpdateFuture
 	var err error
 	ctx := context.Background()
@@ -62,23 +69,41 @@ func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmssIdentities comput
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportCloudProviderOperationError(metrics.PutVmssOperationName)
+			err = c.reporter.ReportCloudProviderOperationError(metrics.UpdateVMSSOperationName)
+			if err != nil {
+				klog.Warningf("failed to report metrics, error: %+v", err)
+			}
 			return
 		}
-		c.reporter.ReportCloudProviderOperationDuration(metrics.PutVmssOperationName, time.Since(begin))
+		err = c.reporter.ReportCloudProviderOperationDuration(metrics.UpdateVMSSOperationName, time.Since(begin))
+		if err != nil {
+			klog.Warningf("failed to report metrics, error: %+v", err)
+		}
 	}()
 
-	if future, err = c.client.Update(ctx, rg, vmssName, compute.VirtualMachineScaleSetUpdate{
-		Identity: vmssIdentities.Identity}); err != nil {
-		klog.Errorf("Failed to update VM with error %v", err)
-		return err
+	// Report errors if the client is throttled.
+	if c.retryAfterWriter.After(time.Now()) {
+		return fmt.Errorf("VMSSUpdate client throttled, retry after: %v", c.retryAfterWriter)
 	}
-	if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
-		klog.Error(err)
-		return err
+
+	hasUpdated := false
+	remainingIDs := vmss.Identity.UserAssignedIdentities
+	for !hasUpdated || len(remainingIDs) > 0 {
+		hasUpdated = true
+		vmss.Identity.UserAssignedIdentities, remainingIDs = truncateVMSSIdentities(remainingIDs)
+		if future, err = c.client.Update(ctx, rg, vmssName, compute.VirtualMachineScaleSetUpdate{Identity: vmss.Identity}); err != nil {
+			resp := future.Response()
+			// Update RetryAfterWriter so that no more requests would be sent until RetryAfter expires.
+			c.retryAfterWriter = time.Now().Add(getRetryAfter(resp))
+			return fmt.Errorf("failed to update identities for %s in %s, error: %+v", vmssName, rg, err)
+		}
+		if err = future.WaitForCompletionRef(ctx, c.client.Client); err != nil {
+			return fmt.Errorf("failed to wait for identity update completion for vmss %s in resource group %s, error: %+v", vmssName, rg, err)
+		}
+		stats.Increment(stats.TotalPatchCalls, 1)
+		stats.AggregateConcurrent(stats.CloudPatch, begin, time.Now())
 	}
-	stats.UpdateCount(stats.TotalPutCalls, 1)
-	stats.Update(stats.CloudPut, time.Since(begin))
+
 	return nil
 }
 
@@ -89,19 +114,33 @@ func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMac
 
 	defer func() {
 		if err != nil {
-			c.reporter.ReportCloudProviderOperationError(metrics.GetVmssOperationName)
+			err = c.reporter.ReportCloudProviderOperationError(metrics.GetVmssOperationName)
+			if err != nil {
+				klog.Warningf("failed to report metrics, error: %+v", err)
+			}
 			return
 		}
-		c.reporter.ReportCloudProviderOperationDuration(metrics.GetVmssOperationName, time.Since(begin))
+		err = c.reporter.ReportCloudProviderOperationDuration(metrics.GetVmssOperationName, time.Since(begin))
+		if err != nil {
+			klog.Warningf("failed to report metrics, error: %+v", err)
+		}
 	}()
-	vm, err := c.client.Get(ctx, rgName, vmssName)
-	if err != nil {
-		klog.Error(err)
-		return vm, err
+
+	// Report errors if the client is throttled.
+	if c.retryAfterReader.After(time.Now()) {
+		return compute.VirtualMachineScaleSet{}, fmt.Errorf("VMSSGet client throttled, retry after: %v", c.retryAfterReader)
 	}
-	stats.UpdateCount(stats.TotalGetCalls, 1)
-	stats.Update(stats.CloudGet, time.Since(begin))
-	return vm, nil
+
+	vmss, err := c.client.Get(ctx, rgName, vmssName)
+	if err != nil {
+		resp := vmss.Response.Response
+		// Update RetryAfterReader so that no more requests would be sent until RetryAfter expires.
+		c.retryAfterReader = time.Now().Add(getRetryAfter(resp))
+		return vmss, fmt.Errorf("failed to get vmss %s in resource group %s, error: %+v", vmssName, rgName, err)
+	}
+	stats.Increment(stats.TotalGetCalls, 1)
+	stats.AggregateConcurrent(stats.CloudGet, begin, time.Now())
+	return vmss, nil
 }
 
 // vmssIdentityHolder implements `IdentityHolder` for vmss resources.
@@ -147,12 +186,14 @@ func (i *vmssIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 	nodeList := make(map[string]bool)
 	// add all current existing ids
 	for id := range i.info.UserAssignedIdentities {
+		id = strings.ToLower(id)
 		nodeList[id] = true
 	}
 
 	// add and remove the new list of identities keeping the same type as before
 	userAssignedIdentities := make(map[string]*compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue)
 	for id, add := range ids {
+		id = strings.ToLower(id)
 		_, exists := nodeList[id]
 		// already exists on node and want to remove existing identity
 		if exists && !add {
@@ -182,4 +223,16 @@ func (i *vmssIdentityInfo) SetUserIdentities(ids map[string]bool) bool {
 	i.info.Type = getUpdatedResourceIdentityType(i.info.Type)
 	i.info.UserAssignedIdentities = userAssignedIdentities
 	return len(i.info.UserAssignedIdentities) > 0
+}
+
+func (i *vmssIdentityInfo) RemoveUserIdentity(delID string) bool {
+	delID = strings.ToLower(delID)
+	if i.info.UserAssignedIdentities != nil {
+		if _, ok := i.info.UserAssignedIdentities[delID]; ok {
+			delete(i.info.UserAssignedIdentities, delID)
+			return true
+		}
+	}
+
+	return false
 }

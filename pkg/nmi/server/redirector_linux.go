@@ -9,7 +9,7 @@ import (
 	"time"
 
 	iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // LinuxRedirector returns sync function for linux redirector

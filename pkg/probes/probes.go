@@ -5,10 +5,9 @@ import (
 	"net/http"
 
 	msg "github.com/Microsoft/hcnproxy/pkg/types"
+	"k8s.io/klog/v2"
 
 	hcnclient "github.com/Microsoft/hcnproxy/pkg/client"
-
-	"k8s.io/klog"
 )
 
 // InitHealthProbe - sets up a health probe which responds with success (200 - OK) once its initialized.
@@ -19,9 +18,9 @@ func InitHealthProbe(condition *bool) {
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		if *condition {
-			w.Write([]byte("Active"))
+			_, _ = w.Write([]byte("Active"))
 		} else {
-			w.Write([]byte("Not Active"))
+			_, _ = w.Write([]byte("Not Active"))
 		}
 	})
 }
@@ -29,26 +28,25 @@ func InitHealthProbe(condition *bool) {
 func startAsync(port string) {
 	err := http.ListenAndServe(":"+port, nil)
 	if err != nil {
-		klog.Errorf("Http listen and serve error: %+v", err)
-		panic(err)
-	} else {
-		klog.Info("Http listen and serve started !")
+		klog.Fatalf("http listen and serve error: %+v", err)
 	}
+
+	klog.Info("http listen and serve started !")
 }
 
-//Start - Starts the required http server to start the probe to respond.
+// Start starts the required http server to start the probe to respond.
 func Start(port string) {
 	go startAsync(port)
 }
 
-// InitAndStart - Initialize the default probes and starts the http listening port.
+// InitAndStart initializes the default probes and starts the http listening port.
 func InitAndStart(port string, condition *bool) {
 	InitHealthProbe(condition)
 	klog.Infof("Initialized health probe on port %s", port)
 
 	// Start the probe.
 	Start(port)
-	klog.Info("Started health probe")
+	klog.Info("started health probe")
 }
 
 // InitAndStartNMIWindowsProbe - Initialize the nmi windows probes and starts the http listening port.

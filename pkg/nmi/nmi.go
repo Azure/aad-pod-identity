@@ -6,8 +6,9 @@ import (
 
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
+
 	"github.com/Azure/go-autorest/autorest/adal"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 )
 
 // OperationMode is the mode in which NMI is operating
@@ -31,24 +32,25 @@ type Config struct {
 }
 
 const (
-	// StandardMode ...
+	// StandardMode is the name of NMI's standard mode.
 	StandardMode OperationMode = "standard"
-	// ManagedMode ...
+
+	// ManagedMode is the name of NMI's managed mode.
 	ManagedMode OperationMode = "managed"
 )
 
-// TokenClient ...
+// TokenClient is an abstraction used to retrieve pods' identities and ADAL tokens.
 type TokenClient interface {
 	// GetIdentities gets the list of identities which match the
 	// given pod in the form of AzureIdentity.
-	GetIdentities(ctx context.Context, podns, podname, clientID string) (*aadpodid.AzureIdentity, error)
-	// GetToken acquires a token by using the AzureIdentity.
-	GetToken(ctx context.Context, clientID, resource string, podID aadpodid.AzureIdentity) (token *adal.Token, err error)
+	GetIdentities(ctx context.Context, podns, podname, clientID, resourceID string) (*aadpodid.AzureIdentity, error)
+	// GetTokens acquires tokens by using the AzureIdentity.
+	GetTokens(ctx context.Context, clientID, resource string, podID aadpodid.AzureIdentity) (tokens []*adal.Token, err error)
 }
 
 // GetTokenClient returns a token client
 func GetTokenClient(client k8s.Client, config Config) (TokenClient, error) {
-	klog.Infof("Initializing in %s mode", config.Mode)
+	klog.Infof("initializing in %s mode", config.Mode)
 
 	switch getOperationMode(config.Mode) {
 	case StandardMode:

@@ -2,6 +2,7 @@ package k8s
 
 import (
 	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
+
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -38,7 +39,7 @@ func (c *FakeClient) ListPodIdsWithBinding(podns string, labels map[string]strin
 	return nil, nil
 }
 
-// ListPodIdentityExceptions ...
+// ListPodIdentityExceptions for pod
 func (c *FakeClient) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodIdentityException, error) {
 	return nil, nil
 }
