@@ -238,8 +238,6 @@ func Validate(input ValidateInput) {
 		"identityvalidator",
 		"--subscription-id",
 		input.Config.SubscriptionID,
-		"--resource-group",
-		input.Config.IdentityResourceGroup,
 		"--identity-client-id",
 		input.IdentityClientID,
 		"--keyvault-name",
