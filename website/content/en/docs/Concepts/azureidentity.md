@@ -4,7 +4,7 @@ linkTitle: "AzureIdentity"
 weight: 1
 date: 2020-11-03
 description: >
-  Describes one of the following Azure identity resources: 0) user-assigned identity, 1) service principal, or 2) service principal with certifcate.
+  Describes one of the following Azure identity resources: 0) user-assigned identity, 1) service principal, or 2) service principal with certificate.
 ---
 
 <details>
@@ -70,7 +70,7 @@ spec:
   clientPassword: {"name":"<SecretName>","namespace":"<SecretNamespace>"}
 ```
 
-- service principal (certifcate)
+- service principal (certificate)
 
 ```yaml
 apiVersion: v1
@@ -98,7 +98,7 @@ spec:
 ## `AzureIdentity`
 
 | Field                                                                                                                   | Description                                                                                                                                                                                                                                                                                         |
-|-------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `apiVersion`<br>*string*                                                                                                | APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources.  |
 | `kind`<br>*string*                                                                                                      | Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds. |
 | `metadata`<br>[*`ObjectMeta`*](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.19/#objectmeta-v1-meta) | Standard object's metadata. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata                                                                                                                                                                 |
@@ -107,7 +107,7 @@ spec:
 ## `AzureIdentitySpec`
 
 | Field                                                                                                                                 | Description                                                                                                                                                                                                                                      |
-|---------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `type`<br>*integer*                                                                                                                   | `0`: user-assigned identity.<br>`1`: service principal. <br>`2`: service principal with certificate.                                                                                                                                             |
 | `resourceID`<br>*string*                                                                                                              | The resource ID of the user-assigned identity (only applicable when `type` is `0`), i.e. `/subscriptions/<SubscriptionID>/resourcegroups/<ResourceGroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<UserAssignedIdentityName>`. |
 | `clientID`<br>*string*                                                                                                                | The client ID of the identity.                                                                                                                                                                                                                   |

@@ -17,7 +17,7 @@ helm install aad-pod-identity/aad-pod-identity --set=installCRDs=true
 ## Helm chart and aad-pod-identity versions
 
 | Helm Chart Version | AAD Pod Identity Version |
-|--------------------|--------------------------|
+| ------------------ | ------------------------ |
 | `1.5.2`            | `1.5.2`                  |
 | `1.5.3`            | `1.5.3`                  |
 | `1.5.4`            | `1.5.4`                  |
@@ -154,6 +154,41 @@ Once this is done, the helm upgrade command will succeed.
 
 A major chart version change (like v1.6.0 -> v2.0.0) indicates that there is a backward-incompatible (breaking) change needing manual actions.
 
+#### 3.0.0
+
+Accessing the identities in the list is harder for the user to figure out and prone to errors if the order is changed. This version updates the `azureIdentities` to be a map instead of a list of identities.
+
+The following is a basic example of the required change in the user-supplied values file.
+
+```diff
+-azureIdentities:
+-  - name: "azure-identity"
+-    # if not defined, then the azure identity will be deployed in the same namespace as the chart
+-    namespace: ""
+-    # type 0: MSI, type 1: Service Principal
+-    type: 0
+-    # /subscriptions/subscription-id/resourcegroups/resource-group/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name
+-    resourceID: "resource-id"
+-    clientID: "client-id"
+-    binding:
+-      name: "azure-identity-binding"
+-      # The selector will also need to be included in labels for app deployment
+-      selector: "demo"
++azureIdentities:
++  "azure-identity":
++    # if not defined, then the azure identity will be deployed in the same namespace as the chart
++    namespace: ""
++    # type 0: MSI, type 1: Service Principal
++    type: 0
++    # /subscriptions/subscription-id/resourcegroups/resource-group/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name
++    resourceID: "resource-id"
++    clientID: "client-id"
++    binding:
++      name: "azure-identity-binding"
++      # The selector will also need to be included in labels for app deployment
++      selector: "demo"
+```
+
 #### 2.0.0
 
 This version removes the `azureIdentity` and `azureIdentityBinding` values in favor of `azureIdentities`, a list of identities and their respective bindings, to support the creation of multiple AzureIdentity and AzureIdentityBinding resources.
@@ -187,7 +222,7 @@ The following is a basic example of the required change in the user-supplied val
 The following tables list the configurable parameters of the aad-pod-identity chart and their default values.
 
 | Parameter                                 | Description                                                                                                                                                                                                                                                                                                                   | Default                                                        |
-|-------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | `nameOverride`                            | String to partially override aad-pod-identity.fullname template with a string (will prepend the release name)                                                                                                                                                                                                                 | `""`                                                           |
 | `fullnameOverride`                        | String to fully override aad-pod-identity.fullname template with a string                                                                                                                                                                                                                                                     | `""`                                                           |
 | `image.repository`                        | Image repository                                                                                                                                                                                                                                                                                                              | `mcr.microsoft.com/oss/azure/aad-pod-identity`                 |
@@ -244,7 +279,7 @@ The following tables list the configurable parameters of the aad-pod-identity ch
 | `nmi.allowNetworkPluginKubenet`           | Allow running aad-pod-identity in cluster with kubenet                                                                                                                                                                                                                                                                        | `false`                                                        |
 | `rbac.enabled`                            | Create and use RBAC for all aad-pod-identity resources                                                                                                                                                                                                                                                                        | `true`                                                         |
 | `rbac.allowAccessToSecrets`               | NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity. If using only MSI (type: 0) in AzureIdentity, secret get permission can be disabled by setting this to false.                                                                                                              | `true`                                                         |
-| `azureIdentities`                         | List of azure identities and azure identity bindings resources to create                                                                                                                                                                                                                                                      | `[]`                                                           |
+| `azureIdentities`                         | Map of azure identities and azure identity bindings resources to create. The map key is the `AzureIdentity` name.                                                                                                                                                                                                             | `{}`                                                           |
 | `installCRDs`                             | If true, install necessary custom resources                                                                                                                                                                                                                                                                                   | `false`                                                        |
 
 ## Troubleshooting

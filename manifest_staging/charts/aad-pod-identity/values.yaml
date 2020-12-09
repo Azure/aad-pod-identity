@@ -211,15 +211,25 @@ rbac:
   allowAccessToSecrets: true
 
 # Create azure identities and bindings
-azureIdentities: []
-  # - name: "azure-identity"
+# This is a map with the AzureIdentityName being the key and the rest of the blob as value in accordance
+# to helm best practices: https://helm.sh/docs/chart_best_practices/values/#consider-how-users-will-use-your-values
+azureIdentities:
+  # "azure-identity":
   #   # if not defined, then the azure identity will be deployed in the same namespace as the chart
   #   namespace: ""
-  #   # type 0: MSI, type 1: Service Principal
+  #   # type 0: User-assigned identity, type 1: Service Principal, type 2: Service principal with certificate
   #   type: 0
   #   # /subscriptions/subscription-id/resourcegroups/resource-group/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name
+  #   # Required for type 0
   #   resourceID: ""
+  #   # Required for type 0, 1 and 2
   #   clientID: ""
+  #   # Required for type 1 and 2
+  #   tenantID: ""
+  #   # Required for type 1 and 2
+  #   clientPassword: "{\"name\":\"<secret name>\",\"namespace\":\"<secret namespace>\"}"
+  #   # Optional for type 1 and 2 (multi-tenant)
+  #   auxiliaryTenantIDs: []
   #   binding:
   #     name: "azure-identity-binding"
   #     # The selector will also need to be included in labels for app deployment
