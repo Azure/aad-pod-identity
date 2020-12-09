@@ -75,7 +75,6 @@ kubectl run identityvalidator --image=mcr.microsoft.com/oss/azure/aad-pod-identi
 
 kubectl exec identityvalidator -- identityvalidator \
                                   --subscription-id "$SUBSCRIPTION_ID" \
-                                  --resource-group "$RESOURCE_GROUP" \
                                   --identity-client-id "$AZURE_CLIENT_ID" \
                                   --keyvault-name "$KEYVAULT_NAME" \
                                   --keyvault-secret-name "$KEYVAULT_SECRET_NAME" \

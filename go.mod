@@ -13,7 +13,6 @@ require (
 	github.com/coreos/go-iptables v0.3.0
 	github.com/fsnotify/fsnotify v1.4.9
 	github.com/google/go-cmp v0.4.0
-	github.com/pkg/errors v0.9.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.4.0
 	go.opencensus.io v0.22.2
