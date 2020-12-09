@@ -8,7 +8,7 @@ ARG IMAGE_VERSION
 RUN make build
 
 FROM us.gcr.io/k8s-artifacts-prod/build-image/debian-iptables-amd64:v12.1.2 AS nmi
-RUN clean-install ca-certificates
+RUN clean-install ca-certificates libssl1.1
 COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
 RUN useradd -u 10001 nonroot
 USER nonroot
