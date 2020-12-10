@@ -204,6 +204,10 @@ nmi:
   # default is false
   allowNetworkPluginKubenet: false
 
+  # Path to kubelet default config.
+  # default is /etc/default/kubelet
+  kubeletConfig: "/etc/default/kubelet"
+
 rbac:
   enabled: true
   # NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity.
