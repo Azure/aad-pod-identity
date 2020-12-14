@@ -55,6 +55,10 @@
 &lt;/li>
 &lt;/ul>
 &lt;h2 id="how-to-run-aad-pod-identity-on-clusters-with-kubenet">How to run AAD Pod Identity on clusters with Kubenet&lt;/h2>
+&lt;div class="alert alert-warning" role="alert">
+&lt;h4 class="alert-heading">Warning&lt;/h4>
+Running aad-pod-identity in a cluster with Kubenet is not a recommended configuration because of the security implication. Please follow the mitigation steps and configure policies before enabling aad-pod-identity in a cluster with Kubenet.
+&lt;/div>
 &lt;p>Set the &lt;code>--allow-network-plugin-kubenet=true&lt;/code> arg in the NMI container (or &lt;code>--set nmi.allowNetworkPluginKubenet=true&lt;/code> if deploying with Helm) to continue running on clusters with Kubenet.&lt;/p>
 &lt;p>To mitigate the vulnerability at the cluster level, you can use &lt;a href="https://www.openpolicyagent.org/">OpenPolicyAgent&lt;/a> admission controller together with &lt;a href="https://github.com/open-policy-agent/gatekeeper">Gatekeeper&lt;/a> validating webhook.&lt;/p>
 &lt;p>Provided you have Gatekeeper already installed in your cluster, add the &lt;code>ConstraintTemplate&lt;/code> of type &lt;code>K8sPSPCapabilities&lt;/code>:&lt;/p>

@@ -131,9 +131,11 @@ deployment.apps/mic created
 &lt;/code>&lt;/pre>&lt;/details>&lt;br/>
 &lt;p>For AKS clusters, you will have to allow MIC and AKS add-ons to access IMDS without being intercepted by NMI:&lt;/p>
 &lt;pre>&lt;code>kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.7.0/deploy/infra/mic-exception.yaml
-&lt;/code>&lt;/pre>&lt;blockquote>
-&lt;p>WARNING: failure to apply &lt;code>mic-exception.yaml&lt;/code> in AKS clusters will result in token failures for AKS addons using managed identity for authentication.&lt;/p>
-&lt;/blockquote>
+&lt;/code>&lt;/pre>
+&lt;div class="alert alert-warning" role="alert">
+&lt;h4 class="alert-heading">Warning&lt;/h4>
+failure to apply &lt;code>mic-exception.yaml&lt;/code> in AKS clusters will result in token failures for AKS addons using managed identity for authentication.
+&lt;/div>
 &lt;details>
 &lt;summary>Result&lt;/summary>
 &lt;pre>&lt;code>azurepodidentityexception.aadpodidentity.k8s.io/mic-exception created
