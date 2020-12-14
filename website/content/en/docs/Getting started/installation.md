@@ -60,7 +60,9 @@ For AKS clusters, you will have to allow MIC and AKS add-ons to access IMDS with
 kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.7.0/deploy/infra/mic-exception.yaml
 ```
 
-> WARNING: failure to apply `mic-exception.yaml` in AKS clusters will result in token failures for AKS addons using managed identity for authentication.
+{{% alert title="Warning" color="warning" %}}
+failure to apply `mic-exception.yaml` in AKS clusters will result in token failures for AKS addons using managed identity for authentication.
+{{% /alert %}}
 
 <details>
 <summary>Result</summary>

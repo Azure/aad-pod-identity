@@ -45,7 +45,9 @@ menu:
 - add gosec as part of linting ([#850](https://github.com/Azure/aad-pod-identity/pull/850))
 - remove --ignore-unfixed for trivy ([#854](https://github.com/Azure/aad-pod-identity/pull/854))
 
-:warning: v1.6.0+ contains breaking changes. Please carefully review this [doc](README.md#v160-breaking-change) before upgrade from 1.x.x versions of pod-identity.
+{{% alert title="Warning" color="warning" %}}
+v1.6.0+ contains breaking changes. Please carefully review this [doc](README.md#v160-breaking-change) before upgrade from 1.x.x versions of pod-identity.
+{{% /alert %}}
 
 ## v1.6.3
 
