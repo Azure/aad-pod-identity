@@ -34,6 +34,11 @@ The recommended steps to take before configuring AAD Pod Identity to run on clus
 
 ## How to run AAD Pod Identity on clusters with Kubenet
 
+{{% alert title="Warning" color="warning" %}}
+Running aad-pod-identity in a cluster with Kubenet is not a recommended configuration because of the security implication. Please follow the mitigation steps and configure policies before enabling aad-pod-identity in a cluster with Kubenet.
+{{% /alert %}}
+
+
 Set the `--allow-network-plugin-kubenet=true` arg in the NMI container (or `--set nmi.allowNetworkPluginKubenet=true` if deploying with Helm) to continue running on clusters with Kubenet.
 
 To mitigate the vulnerability at the cluster level, you can use [OpenPolicyAgent](https://www.openpolicyagent.org/) admission controller together with [Gatekeeper](https://github.com/open-policy-agent/gatekeeper) validating webhook.
