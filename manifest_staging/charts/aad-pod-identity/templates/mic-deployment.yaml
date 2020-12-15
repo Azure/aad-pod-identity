@@ -96,7 +96,7 @@ spec:
               fieldRef:
                 fieldPath: metadata.namespace
           - name: FORCENAMESPACED
-            value: "{{ .Values.forceNamespaced }}"
+            value: "{{ .Values.forceNameSpaced | default .Values.forceNamespaced }}"
           {{- if .Values.adminsecret }}
           - name: CLOUD
             valueFrom:
