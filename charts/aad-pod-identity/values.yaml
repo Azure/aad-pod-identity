@@ -16,7 +16,13 @@ image:
 # https://github.com/Azure/aad-pod-identity#4-optional-match-pods-in-the-namespace
 # By default, AAD Pod Identity matches pods to identities across namespaces.
 # To match only pods in the namespace containing AzureIdentity set this to true.
-forceNameSpaced: "false"
+# DEPRECATED - use 'forceNamespaced' instead.
+forceNameSpaced: ""
+
+# https://github.com/Azure/aad-pod-identity#4-optional-match-pods-in-the-namespace
+# By default, AAD Pod Identity matches pods to identities across namespaces.
+# To match only pods in the namespace containing AzureIdentity set this to true.
+forceNamespaced: "false"
 
 # When NMI runs on a node where MIC is running, then MIC token request call is also
 # intercepted by NMI. MIC can't get a valid token as to initialize and then
@@ -43,7 +49,7 @@ operationMode: "standard"
 
 mic:
   image: mic
-  tag: v1.7.0
+  tag: v1.7.1
 
   priorityClassName: ""
 
@@ -69,6 +75,22 @@ mic:
   tolerations: []
 
   affinity: {}
+
+  # Topology spread constraints rely on node labels to identify the topology domain(s) that each Node is in.
+  # ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
+  topologySpreadConstraints: []
+    # - maxSkew: 1
+    #   topologyKey: failure-domain.beta.kubernetes.io/zone
+    #   whenUnsatisfiable: DoNotSchedule
+    #   labelSelector:
+    #     matchLabels:
+    #       app.kubernetes.io/component: mic
+
+  # Limit the number of concurrent disruptions that your application experiences,
+  # allowing for higher availability while permitting the cluster administrator to manage the clusters nodes.
+  # ref: https://kubernetes.io/docs/tasks/run-application/configure-pdb/
+  podDisruptionBudget: {}
+    # minAvailable: 1
 
   leaderElection:
     # Override leader election instance name (default is 'hostname')
@@ -123,7 +145,7 @@ mic:
 
 nmi:
   image: nmi
-  tag: v1.7.0
+  tag: v1.7.1
 
   priorityClassName: ""
 
@@ -188,6 +210,10 @@ nmi:
   # default is false
   allowNetworkPluginKubenet: false
 
+  # Path to kubelet default config.
+  # default is /etc/default/kubelet
+  kubeletConfig: "/etc/default/kubelet"
+
 rbac:
   enabled: true
   # NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity.
@@ -195,15 +221,25 @@ rbac:
   allowAccessToSecrets: true
 
 # Create azure identities and bindings
-azureIdentities: []
-  # - name: "azure-identity"
+# This is a map with the AzureIdentityName being the key and the rest of the blob as value in accordance
+# to helm best practices: https://helm.sh/docs/chart_best_practices/values/#consider-how-users-will-use-your-values
+azureIdentities:
+  # "azure-identity":
   #   # if not defined, then the azure identity will be deployed in the same namespace as the chart
   #   namespace: ""
-  #   # type 0: MSI, type 1: Service Principal
+  #   # type 0: User-assigned identity, type 1: Service Principal, type 2: Service principal with certificate
   #   type: 0
   #   # /subscriptions/subscription-id/resourcegroups/resource-group/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name
+  #   # Required for type 0
   #   resourceID: ""
+  #   # Required for type 0, 1 and 2
   #   clientID: ""
+  #   # Required for type 1 and 2
+  #   tenantID: ""
+  #   # Required for type 1 and 2
+  #   clientPassword: "{\"name\":\"<secret name>\",\"namespace\":\"<secret namespace>\"}"
+  #   # Optional for type 1 and 2 (multi-tenant)
+  #   auxiliaryTenantIDs: []
   #   binding:
   #     name: "azure-identity-binding"
   #     # The selector will also need to be included in labels for app deployment
