@@ -125,7 +125,7 @@ spec:
           path: /etc/default/kubelet
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.7.0"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.7.1"
         imagePullPolicy: Always
         args:
           - "--node=$(NODE_NAME)"
@@ -240,7 +240,7 @@ spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.7.0"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.7.1"
         imagePullPolicy: Always
         args:
           - "--cloudconfig=/etc/kubernetes/azure.json"

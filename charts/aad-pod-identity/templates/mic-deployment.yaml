@@ -96,7 +96,7 @@ spec:
               fieldRef:
                 fieldPath: metadata.namespace
           - name: FORCENAMESPACED
-            value: "{{ .Values.forceNameSpaced }}"
+            value: "{{ .Values.forceNameSpaced | default .Values.forceNamespaced }}"
           {{- if .Values.adminsecret }}
           - name: CLOUD
             valueFrom:
@@ -188,6 +188,10 @@ spec:
 {{- end }}
 {{- with .Values.mic.tolerations }}
       tolerations:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- with .Values.mic.topologySpreadConstraints }}
+      topologySpreadConstraints:
 {{ toYaml . | indent 8 }}
 {{- end }}
 {{- end -}}

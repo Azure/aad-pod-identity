@@ -7,6 +7,43 @@ menu:
     weight: 10
 ---
 
+## v1.7.1
+
+### Breaking Change
+- If upgrading from versions 1.5.x to 1.7.x of pod-identity, please carefully review this [doc](http://localhost:1313/aad-pod-identity/docs/#v160-breaking-change) before upgrade.
+- Pod Identity is disabled by default for Clusters with Kubenet. Please review this [doc](https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/) before upgrade.
+- Helm chart contains breaking changes. Please review this [doc](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#300) before upgrade.
+
+### Bug Fixes
+- allow overwriting NODE_RESOURCE_GROUP in role-assignment.sh ([#873](https://github.com/Azure/aad-pod-identity/pull/873))
+
+### Other Improvements
+- fix CVE-2020-1971 ([#905](https://github.com/Azure/aad-pod-identity/pull/905))
+- fix CVE-2020-27350 ([#909](https://github.com/Azure/aad-pod-identity/pull/909))
+
+### Documentation
+- add note about specifying which identity to use ([#869](https://github.com/Azure/aad-pod-identity/pull/869))
+- fix `|` in markdown table ([#882](https://github.com/Azure/aad-pod-identity/pull/882))
+- use `az aks show` for node resource group & more convenient command to run role assignment script ([#879](https://github.com/Azure/aad-pod-identity/pull/879))
+- reduce number of role assignments ([#883](https://github.com/Azure/aad-pod-identity/pull/883))
+- add spring boot example which interacts with blob storage ([#878](https://github.com/Azure/aad-pod-identity/pull/878))
+- add changelog & development section and move java-blob example to website ([#891](https://github.com/Azure/aad-pod-identity/pull/891))
+- Added instructions how to mitigate ARP spoofing on kubenet clusters with OPA/Gatekeeper ([#894](https://github.com/Azure/aad-pod-identity/pull/894))
+- add warning note to kubenet docs ([#911](https://github.com/Azure/aad-pod-identity/pull/911))
+
+### Helm
+- rename forceNameSpaced to forceNamespaced ([#874](https://github.com/Azure/aad-pod-identity/pull/874))
+- bump helm chart version to 2.1.0 for aad-pod-identity v1.7.0 ([#884](https://github.com/Azure/aad-pod-identity/pull/884))
+- add topologySpreadConstraints and PodDisruptionBudget in helm chart ([#886](https://github.com/Azure/aad-pod-identity/pull/886))
+- adding option to configure kubeletConfig ([#906](https://github.com/Azure/aad-pod-identity/pull/906))
+- deprecate forceNameSpaced value ([#914](https://github.com/Azure/aad-pod-identity/pull/914))
+- add notes ([#916](https://github.com/Azure/aad-pod-identity/pull/916))
+- use map for azureIdentities instead of list in helm chart ([#899](https://github.com/Azure/aad-pod-identity/pull/899))
+
+### Test Improvements
+- remove getIdentityValidatorArgs ([#910](https://github.com/Azure/aad-pod-identity/pull/910))
+- less error-prone identityvalidator ([#901](https://github.com/Azure/aad-pod-identity/pull/901))
+
 ## v1.7.0
 
 ### Breaking Change

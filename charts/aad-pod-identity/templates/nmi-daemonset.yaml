@@ -42,9 +42,11 @@ spec:
           path: /run/xtables.lock
           type: FileOrCreate
         name: iptableslock
+      {{- if semverCompare ">= 1.7.0-0" .Values.nmi.tag }}
       - name: kubelet-config
         hostPath:
-          path: /etc/default/kubelet
+          path: {{ .Values.nmi.kubeletConfig }}
+      {{- end }}
       containers:
       - name: nmi
         image: "{{ .Values.image.repository }}/{{ .Values.nmi.image }}:{{ .Values.nmi.tag }}"
@@ -99,6 +101,9 @@ spec:
           {{- if .Values.nmi.allowNetworkPluginKubenet }}
           - --allow-network-plugin-kubenet={{ .Values.nmi.allowNetworkPluginKubenet }}
           {{- end }}
+          {{- if semverCompare ">= 1.7.0-0" .Values.nmi.tag }}
+          - --kubelet-config={{ .Values.nmi.kubeletConfig }}
+          {{- end }}
         env:
           {{- if semverCompare "<= 1.6.1-0" .Values.nmi.tag }}
           - name: HOST_IP
@@ -112,7 +117,7 @@ spec:
                 fieldPath: spec.nodeName
           {{- if eq .Values.operationMode "standard" }}
           - name: FORCENAMESPACED
-            value: "{{ .Values.forceNameSpaced }}"
+            value: "{{ .Values.forceNameSpaced | default .Values.forceNamespaced }}"
           {{- end }}
         {{- if .Values.nmi.prometheusPort }}
         ports:
@@ -128,9 +133,11 @@ spec:
         volumeMounts:
         - mountPath: /run/xtables.lock
           name: iptableslock
+        {{- if semverCompare ">= 1.7.0-0" .Values.nmi.tag }}
         - name: kubelet-config
-          mountPath: /etc/default/kubelet
+          mountPath: {{ .Values.nmi.kubeletConfig }}
           readOnly: true
+        {{- end }}
         livenessProbe:
           httpGet:
             path: /healthz

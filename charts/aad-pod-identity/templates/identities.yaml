@@ -2,27 +2,36 @@
 apiVersion: v1
 kind: List
 items:
-{{- range .Values.azureIdentities }}
+{{- range $key, $value := .Values.azureIdentities }}
   - apiVersion: "aadpodidentity.k8s.io/v1"
     kind: AzureIdentity
     metadata:
-      name: {{ .name }}
+      name: {{ $key }}
       namespace: {{ default $.Release.Namespace .namespace }}
       labels:
         {{- include "aad-pod-identity.labels" $ | nindent 8 }}
     spec:
-      type: {{ .type }}
-      resourceID: {{ required "resourceID is required!" .resourceID }}
-      clientID: {{ required "clientID is required!" .clientID }}
+      type: {{ $value.type }}
+      clientID: {{ required "clientID is required!" $value.clientID }}
+      {{- if eq (int $value.type) 0 }}
+      resourceID: {{ required "resourceID is required!" $value.resourceID }}
+      {{- else }}
+      tenantID: {{ required "tenantID is required!" $value.tenantID }}
+      clientPassword: {{ required "clientPassword is required!" $value.clientPassword }}
+      auxiliaryTenantIDs:
+        {{- range $value.auxiliaryTenantIDs }}
+        - {{ . }}
+        {{- end }}
+      {{- end }}
   - apiVersion: "aadpodidentity.k8s.io/v1"
     kind: AzureIdentityBinding
     metadata:
-      name: {{ .binding.name }}
+      name: {{ $value.binding.name }}
       namespace: {{ default $.Release.Namespace .namespace }}
       labels:
         {{- include "aad-pod-identity.labels" $ | nindent 8 }}
     spec:
-      azureIdentity: {{ .name }}
-      selector: {{ required "binding.selector is required!" .binding.selector }}
+      azureIdentity: {{ $key }}
+      selector: {{ required "binding.selector is required!" $value.binding.selector }}
 {{- end }}
 {{- end -}}
