@@ -87,8 +87,8 @@ const (
 	// DeleteAzureAssignedIdentity represents the duration it takes to delete an AzureAssignedIdentity.
 	DeleteAzureAssignedIdentity Type = "AzureAssignedIdentity deletion"
 
-	// CreateAzureAssignedIdentiy represents the duration it takes to create an AzureAssignedIdentity.
-	CreateAzureAssignedIdentiy Type = "AzureAssignedIdentity creation"
+	// CreateAzureAssignedIdentity represents the duration it takes to create an AzureAssignedIdentity.
+	CreateAzureAssignedIdentity Type = "AzureAssignedIdentity creation"
 
 	// UpdateAzureAssignedIdentity represents the duration it takes to update an AzureAssignedIdentity.
 	UpdateAzureAssignedIdentity Type = "AzureAssignedIdentity update"
@@ -191,7 +191,7 @@ func PrintSync() {
 
 		Print(CloudGet)
 		Print(CloudPatch)
-		Print(CreateAzureAssignedIdentiy)
+		Print(CreateAzureAssignedIdentity)
 		Print(UpdateAzureAssignedIdentity)
 		Print(DeleteAzureAssignedIdentity)
 
