@@ -76,7 +76,7 @@ clean-mic:
 clean-demo:
 	rm -rf bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME)
 
-.PHONY: clean-idenity-validator
+.PHONY: clean-identity-validator
 clean-identity-validator:
 	rm -rf bin/$(PROJECT_NAME)/$(IDENTITY_VALIDATOR_BINARY_NAME)
 

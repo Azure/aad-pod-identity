@@ -540,7 +540,7 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	}
 
 	klog.V(5).Infof("time taken to create %s/%s: %v", assignedIdentity.Namespace, assignedIdentity.Name, time.Since(begin))
-	stats.AggregateConcurrent(stats.CreateAzureAssignedIdentiy, begin, time.Now())
+	stats.AggregateConcurrent(stats.CreateAzureAssignedIdentity, begin, time.Now())
 	return nil
 }
 
