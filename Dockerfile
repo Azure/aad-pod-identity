@@ -21,6 +21,10 @@ FROM $BASEIMAGE AS mic
 COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/mic /bin/
 ENTRYPOINT ["mic"]
 
+FROM $BASEIMAGE AS micdocker
+COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/micdocker /bin/
+ENTRYPOINT ["micdocker"]
+
 FROM $BASEIMAGE AS demo
 COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/demo /bin/
 ENTRYPOINT ["demo"]

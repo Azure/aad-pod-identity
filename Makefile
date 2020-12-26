@@ -3,13 +3,14 @@ PROJECT_NAME := aad-pod-identity
 REPO_PATH="$(ORG_PATH)/$(PROJECT_NAME)"
 NMI_BINARY_NAME := nmi
 MIC_BINARY_NAME := mic
+MIC_DOCKER_BINARY_NAME := micdocker
 DEMO_BINARY_NAME := demo
 SIMPLE_CMD_BINARY_NAME := simple
 GOOS ?= linux
 TEST_GOOS ?= linux
 IDENTITY_VALIDATOR_BINARY_NAME := identityvalidator
 
-DEFAULT_VERSION := v0.0.0-dev
+DEFAULT_VERSION := v1.7.1-docker
 IMAGE_VERSION ?= $(DEFAULT_VERSION)
 
 NMI_VERSION_VAR := $(REPO_PATH)/version.NMIVersion
@@ -35,11 +36,12 @@ GO_BUILD_OPTIONS := --tags "netgo osusergo"  -ldflags "-s -X $(NMI_VERSION_VAR)=
 E2E_TEST_OPTIONS := -count=1 -v -timeout 24h -ginkgo.progress $(E2E_TEST_OPTIONS_EXTRA)
 
 # useful for other docker repos
-REGISTRY_NAME ?= upstreamk8sci
+REGISTRY_NAME ?= wallsmedia
 REPO_PREFIX ?= k8s/aad-pod-identity
-REGISTRY ?= $(REGISTRY_NAME).azurecr.io/$(REPO_PREFIX)
+REGISTRY ?= $(REGISTRY_NAME)/$(REPO_PREFIX)
 NMI_IMAGE := $(NMI_BINARY_NAME):$(IMAGE_VERSION)
 MIC_IMAGE := $(MIC_BINARY_NAME):$(IMAGE_VERSION)
+MIC_DOCKER_IMAGE := $(MIC_DOCKER_BINARY_NAME):$(IMAGE_VERSION)
 DEMO_IMAGE := $(DEMO_BINARY_NAME):$(IMAGE_VERSION)
 IDENTITY_VALIDATOR_IMAGE := $(IDENTITY_VALIDATOR_BINARY_NAME):$(IMAGE_VERSION)
 ALL_DOCS := $(shell find . -name '*.md' -type f | sort | grep -vE "website/(themes|node_modules)")
@@ -72,9 +74,13 @@ clean-nmi:
 clean-mic:
 	rm -rf bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME)
 
+.PHONY: clean-micdocker
+clean-micdocker:
+	rm -rf bin/$(PROJECT_NAME)/$(MIC_DOCKER_IMAGE)
+
 .PHONY: clean-demo
 clean-demo:
-	rm -rf bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME)
+	rm -rf bin/$(PROJECT_NAME)/$(MIC_DOCKER_BINARY_NAME)
 
 .PHONY: clean-identity-validator
 clean-identity-validator:
@@ -96,6 +102,10 @@ build-nmi: clean-nmi
 build-mic: clean-mic
 	CGO_ENABLED=0 PKG_NAME=github.com/Azure/$(PROJECT_NAME)/cmd/$(MIC_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(MIC_BINARY_NAME)
 
+.PHONY: build-micdocker
+build-micdocker: clean-micdocker
+	CGO_ENABLED=0 PKG_NAME=github.com/Azure/$(PROJECT_NAME)/cmd/$(MIC_DOCKER_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(MIC_DOCKER_BINARY_NAME)
+
 .PHONY: build-simple
 build-simple:
 	CGO_ENABLED=0 PKG_NAME=github.com/Azure/$(PROJECT_NAME)/cmd/$(SIMPLE_CMD_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(SIMPLE_CMD_BINARY_NAME)
@@ -113,7 +123,7 @@ build-identity-validator: clean-identity-validator
 	PKG_NAME=github.com/Azure/$(PROJECT_NAME)/test/image/$(IDENTITY_VALIDATOR_BINARY_NAME) $(MAKE) bin/$(PROJECT_NAME)/$(IDENTITY_VALIDATOR_BINARY_NAME)
 
 .PHONY: build
-build: clean build-nmi build-mic build-demo build-identity-validator
+build: clean build-nmi build-mic build-micdocker build-demo build-identity-validator
 
 .PHONY: precommit
 precommit: build unit-test lint
@@ -136,6 +146,13 @@ image-mic:
 		--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
 		-t "$(REGISTRY)/$(MIC_IMAGE)" .
 
+.PHONY: image-micdocker
+image-micdocker:
+	docker build \
+		--target mic \
+		--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
+		-t "$(REGISTRY)/$(MIC_DOCKER_IMAGE)" .
+
 .PHONY: image-demo
 image-demo:
 	docker build \
@@ -151,30 +168,35 @@ image-identity-validator:
 		-t "$(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE)" .
 
 .PHONY: images
-images: image-nmi image-mic image-demo image-identity-validator
+images: image-nmi image-mic image-micdocker image-demo image-identity-validator
 
 .PHONY: push-nmi
 push-nmi: validate-version
-	az acr repository show --name $(REGISTRY_NAME) --image $(NMI_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(NMI_IMAGE) already exists" && exit 0; fi
+# 	az acr repository show --name $(REGISTRY_NAME) --image $(NMI_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(NMI_IMAGE) already exists" && exit 0; fi
 	docker push $(REGISTRY)/$(NMI_IMAGE)
 
 .PHONY: push-mic
 push-mic: validate-version
-	az acr repository show --name $(REGISTRY_NAME) --image $(MIC_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(MIC_IMAGE) already exists" && exit 0; fi
+# 	az acr repository show --name $(REGISTRY_NAME) --image $(MIC_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(MIC_IMAGE) already exists" && exit 0; fi
 	docker push $(REGISTRY)/$(MIC_IMAGE)
+
+.PHONY: push-micdocker
+push-micdocker: validate-version
+# 	az acr repository show --name $(REGISTRY_NAME) --image $(MIC_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(MIC_IMAGE) already exists" && exit 0; fi
+	docker push $(REGISTRY)/$(MIC_DOCKER_IMAGE)
 
 .PHONY: push-demo
 push-demo: validate-version
-	az acr repository show --name $(REGISTRY_NAME) --image $(DEMO_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(DEMO_IMAGE) already exists" && exit 0; fi
+# 	az acr repository show --name $(REGISTRY_NAME) --image $(DEMO_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(DEMO_IMAGE) already exists" && exit 0; fi
 	docker push $(REGISTRY)/$(DEMO_IMAGE)
 
 .PHONY: push-identity-validator
 push-identity-validator: validate-version
-	az acr repository show --name $(REGISTRY_NAME) --image $(IDENTITY_VALIDATOR_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(IDENTITY_VALIDATOR_IMAGE) already exists" && exit 0; fi
+# 	az acr repository show --name $(REGISTRY_NAME) --image $(IDENTITY_VALIDATOR_IMAGE) > /dev/null 2>&1; if [ $$? -eq 0 ]; then echo "$(IDENTITY_VALIDATOR_IMAGE) already exists" && exit 0; fi
 	docker push $(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE)
 
 .PHONY: push
-push: push-nmi push-mic push-demo push-identity-validator
+push: push-nmi push-mic push-micdocker push-demo push-identity-validator
 
 .PHONY: e2e
 e2e:

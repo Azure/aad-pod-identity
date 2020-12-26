@@ -9,7 +9,7 @@ import (
 
 	"github.com/Azure/aad-pod-identity/pkg/log"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
-	"github.com/Azure/aad-pod-identity/pkg/mic-docker"
+	"github.com/Azure/aad-pod-identity/pkg/micdocker"
 	"github.com/Azure/aad-pod-identity/pkg/probes"
 	"github.com/Azure/aad-pod-identity/version"
 
