@@ -1,0 +1,36 @@
+---
+# Source: deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: azureblazor-kv-access
+  labels:
+    app: azureblazor-kv-access
+    release: "example"
+    heritage: "Helm"
+    namespace: default
+    aadpodidbinding:  azure-service-principal-pod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: azureblazor-kv-access
+  template:
+    metadata:
+      labels:
+        app: azureblazor-kv-access
+        appVersion: v1
+        aadpodidbinding:  azure-service-principal-pod
+    spec:
+      containers:
+      - name: azureblazor-kv-access
+        image: "azureblazorkvaccess.server:1.0"
+        imagePullPolicy: Never
+        env:
+          - name: ASPNETCORE_ENVIRONMENT
+            value: Development
+        resources:
+          requests:
+            memory: "250Mi"
+          limits:
+            memory: "300Mi"

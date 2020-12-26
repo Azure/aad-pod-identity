@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    component: mic
+    k8s-app: aad-pod-id
+  name: mic
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      component: mic
+  template:
+    metadata:
+      labels:
+        component: mic
+    spec:
+      serviceAccountName: aad-pod-id-mic-service-account
+      containers:
+      - name: mic
+        image: "wallsmedia/mic:v1.7.1-docker"
+        imagePullPolicy: Always
+        volumeMounts:
+          - name: kubeconfig
+            mountPath: /etc/kubernetes/kubeconfig
+        args:
+          - "--logtostderr"
+          - "--kubeconfig=/etc/kubernetes/kubeconfig"
+        securityContext:
+          runAsUser: 0
+        env:
+          - name: MIC_POD_NAMESPACE
+            valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          - name: CLOUD
+            value: "AZUREPUBLICCLOUD"
+        resources:
+          limits:
+            cpu: 200m
+            memory: 1024Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: kubeconfig
+        hostPath:
+          path: /run/desktop/mnt/host/d/kubefake/kubeconfig
+      nodeSelector:
+        kubernetes.io/os: linux
+      

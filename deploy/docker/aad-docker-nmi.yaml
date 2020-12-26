@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    component: nmi
+    tier: node
+    k8s-app: aad-pod-id
+  name: nmi
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      component: nmi
+      tier: node
+  template:
+    metadata:
+      labels:
+        component: nmi
+        tier: node
+    spec:
+      serviceAccountName: aad-pod-id-nmi-service-account
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: nmi
+        image: "wallsmedia/nmi:v1.7.1-docker"
+        imagePullPolicy: Always
+        args:
+          - "--node=$(NODE_NAME)"
+          - "--http-probe-port=8085"
+        env:
+          - name: HOST_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+          - name: NODE_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.nodeName
+        resources:
+          limits:
+            cpu: 200m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 256Mi
+        securityContext:
+          runAsUser: 0
+          capabilities:
+            add:
+            - NET_ADMIN
+        volumeMounts:
+        - name: iptableslock
+          mountPath: /run/xtables.lock
+        - name: kubelet-config
+          mountPath: /etc/default/kubelet
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8085
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: iptableslock
+        hostPath:
+          path: /run/desktop/mnt/host/d/kubefake/xtables.lock
+          type: FileOrCreate
+      - name: kubelet-config
+        hostPath:
+          path: /run/desktop/mnt/host/d/kubefake/kubelet
+      nodeSelector:
+        kubernetes.io/os: linux
+

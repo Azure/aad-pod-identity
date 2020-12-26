@@ -1,0 +1,22 @@
+---
+# Source: service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: azureblazor-kv-access
+  labels:
+    app: azureblazor-kv-access
+    chart: "aazureblazor-kv-accessv0.1.0"
+    release: "alex"
+  annotations:
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    service.beta.kubernetes.io/azure-load-balancer-internal-subnet: "api-ingress-subnet"
+spec:
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 80
+  selector:
+    app: azureblazor-kv-access
+  type: LoadBalancer
+

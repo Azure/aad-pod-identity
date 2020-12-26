@@ -1,0 +1,4 @@
+ --network-plugin=cni 
+ 
+ /run/desktop/mnt/host/d/kubefake/kubelet
+ 

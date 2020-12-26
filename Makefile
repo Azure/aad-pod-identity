@@ -37,8 +37,8 @@ E2E_TEST_OPTIONS := -count=1 -v -timeout 24h -ginkgo.progress $(E2E_TEST_OPTIONS
 
 # useful for other docker repos
 REGISTRY_NAME ?= wallsmedia
-REPO_PREFIX ?= k8s/aad-pod-identity
-REGISTRY ?= $(REGISTRY_NAME)/$(REPO_PREFIX)
+#REPO_PREFIX ?= k8s-aad-pod-identity
+REGISTRY ?= $(REGISTRY_NAME)#/$(REPO_PREFIX)
 NMI_IMAGE := $(NMI_BINARY_NAME):$(IMAGE_VERSION)
 MIC_IMAGE := $(MIC_BINARY_NAME):$(IMAGE_VERSION)
 MIC_DOCKER_IMAGE := $(MIC_DOCKER_BINARY_NAME):$(IMAGE_VERSION)
@@ -76,11 +76,11 @@ clean-mic:
 
 .PHONY: clean-micdocker
 clean-micdocker:
-	rm -rf bin/$(PROJECT_NAME)/$(MIC_DOCKER_IMAGE)
+	rm -rf bin/$(PROJECT_NAME)/$(MIC_DOCKER_BINARY_NAME)
 
 .PHONY: clean-demo
 clean-demo:
-	rm -rf bin/$(PROJECT_NAME)/$(MIC_DOCKER_BINARY_NAME)
+	rm -rf bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME)
 
 .PHONY: clean-identity-validator
 clean-identity-validator:
