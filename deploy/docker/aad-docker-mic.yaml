@@ -19,7 +19,7 @@ spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
-        image: "wallsmedia/mic:v1.7.1-docker"
+        image: "wallsmedia/micdocker:v1.7.1-docker"
         imagePullPolicy: Always
         volumeMounts:
           - name: kubeconfig
