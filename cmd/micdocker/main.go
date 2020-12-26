@@ -19,22 +19,19 @@ import (
 )
 
 var (
-	kubeconfig string
-	//cloudconfig                         string
-	forceNamespaced     bool
-	versionInfo         bool
-	syncRetryDuration   time.Duration
-	leaderElectionCfg   mic.LeaderElectionConfig
-	httpProbePort       string
-	enableProfile       bool
-	enableScaleFeatures bool
-	createDeleteBatch   int64
-	clientQPS           float64
-	prometheusPort      string
-	//immutableUserMSIs                   string
-	cmConfig          mic.CMConfig
-	typeUpgradeConfig mic.TypeUpgradeConfig
-	//updateUserMSIConfig                 mic.UpdateUserMSIConfig
+	kubeconfig                          string
+	forceNamespaced                     bool
+	versionInfo                         bool
+	syncRetryDuration                   time.Duration
+	leaderElectionCfg                   mic.LeaderElectionConfig
+	httpProbePort                       string
+	enableProfile                       bool
+	enableScaleFeatures                 bool
+	createDeleteBatch                   int64
+	clientQPS                           float64
+	prometheusPort                      string
+	cmConfig                            mic.CMConfig
+	typeUpgradeConfig                   mic.TypeUpgradeConfig
 	identityAssignmentReconcileInterval time.Duration
 )
 
@@ -50,7 +47,6 @@ func main() {
 		klog.Fatalf("failed to get hostname, error: %+v", err)
 	}
 	flag.StringVar(&kubeconfig, "kubeconfig", "", "Path to the kube config")
-	//flag.StringVar(&cloudconfig, "cloudconfig", "", "Path to cloud config e.g. Azure.json file")
 	flag.BoolVar(&forceNamespaced, "forceNamespaced", false, "Forces namespaced identities, binding, and assignment")
 	flag.BoolVar(&versionInfo, "version", false, "Prints the version information")
 	flag.DurationVar(&syncRetryDuration, "syncRetryDuration", 3600*time.Second, "The interval in seconds at which sync loop should periodically check for errors and reconcile.")
@@ -79,18 +75,11 @@ func main() {
 	// Client QPS is used to configure the client-go QPS throttling and bursting.
 	flag.Float64Var(&clientQPS, "clientQps", 5, "Client QPS used for throttling of calls to kube-api server")
 
-	// Identities that should be never removed from Azure AD (used defined managed identities)
-	//flag.StringVar(&immutableUserMSIs, "immutable-user-msis", "", "prevent deletion of these IDs from the underlying VM/VMSS")
-
 	// Config map for aad-pod-identity
 	flag.StringVar(&cmConfig.Name, "config-map-name", "aad-pod-identity-config", "Configmap name")
 	// Config map details for the type changes in the context of client-go upgrade.
 	flag.StringVar(&typeUpgradeConfig.TypeUpgradeStatusKey, "type-upgrade-status-key", "type-upgrade-status", "Configmap key for type upgrade status")
 	flag.BoolVar(&typeUpgradeConfig.EnableTypeUpgrade, "enable-type-upgrade", true, "Enable type upgrade")
-
-	// Parameters for retrying cloudprovider's UpdateUserMSI function
-	//flag.IntVar(&updateUserMSIConfig.MaxRetry, "update-user-msi-max-retry", 2, "The maximum retry of UpdateUserMSI call")
-	//flag.DurationVar(&updateUserMSIConfig.RetryInterval, "update-user-msi-retry-interval", 1*time.Second, "The duration to wait before retrying UpdateUserMSI")
 
 	// Parameters for reconciling identity assignment on Azure
 	flag.DurationVar(&identityAssignmentReconcileInterval, "identity-assignment-reconcile-interval", 3*time.Minute, "The interval between reconciling identity assignment on Azure based on an existing list of AzureAssignedIdentities")
@@ -111,9 +100,7 @@ func main() {
 		version.PrintVersionAndExit()
 	}
 	klog.Infof("starting mic process. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
-	//if cloudconfig == "" {
-	//	klog.Warningf("--cloudconfig not passed will use aadpodidentity-admin-secret")
-	//}
+
 	if kubeconfig == "" {
 		klog.Warningf("--kubeconfig not passed will use InClusterConfig")
 	}
@@ -137,6 +124,7 @@ func main() {
 	if err != nil {
 		klog.Fatalf("failed to build config from %s, error: %+v", kubeconfig, err)
 	}
+
 	config.UserAgent = version.GetUserAgent("MIC", version.MICVersion)
 
 	forceNamespaced = forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
@@ -146,23 +134,15 @@ func main() {
 	config.Burst = int(clientQPS)
 	klog.Infof("client QPS set to: %v. Burst to: %v", config.QPS, config.Burst)
 
-	//var immutableUserMSIsList []string
-	//if immutableUserMSIs != "" {
-	//	immutableUserMSIsList = strings.Split(immutableUserMSIs, ",")
-	//}
-
 	micConfig := &mic.Config{
-		//CloudCfgPath:                        cloudconfig,
-		RestConfig:          config,
-		IsNamespaced:        forceNamespaced,
-		SyncRetryInterval:   syncRetryDuration,
-		LeaderElectionCfg:   &leaderElectionCfg,
-		EnableScaleFeatures: enableScaleFeatures,
-		CreateDeleteBatch:   createDeleteBatch,
-		//ImmutableUserMSIsList:               immutableUserMSIsList,
-		CMcfg:          &cmConfig,
-		TypeUpgradeCfg: &typeUpgradeConfig,
-		//UpdateUserMSICfg:                    &updateUserMSIConfig,
+		RestConfig:                          config,
+		IsNamespaced:                        forceNamespaced,
+		SyncRetryInterval:                   syncRetryDuration,
+		LeaderElectionCfg:                   &leaderElectionCfg,
+		EnableScaleFeatures:                 enableScaleFeatures,
+		CreateDeleteBatch:                   createDeleteBatch,
+		CMcfg:                               &cmConfig,
+		TypeUpgradeCfg:                      &typeUpgradeConfig,
 		IdentityAssignmentReconcileInterval: identityAssignmentReconcileInterval,
 	}
 
