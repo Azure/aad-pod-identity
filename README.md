@@ -1,3 +1,26 @@
+# Important Note
+
+This is a fork repository of the AAD Pod Identity https://github.com/Azure/aad-pod-identity repository. 
+The default branch "docker-desktop" has been created in an attempt to make contribution or enhancement request https://azure.github.io/aad-pod-identity. 
+See the status of the effort/issue/enhancement https://github.com/Azure/aad-pod-identity/issues/921.
+
+Regardless of all above, the branch "docker-desktop" contains No-Azure (running outside Azure cloud) kubernetes pods, or docker containers and support AAD Pod Identity.
+"MicDocker" module is the light version of the "mic" module,
+and allows todo almost the same, but not calling/depend on Azure cloud provider, i.e. it is running outside Azure.
+You can use the local docker kubernetes containers for development Azure\AKS containers.
+It is much easy then do the similar things in AKS. This was the main goal of development. The version works fine with "service-principal" type of identity,
+others should work too, but you probably not need them.  
+
+The License file has terms of use. 
+
+The prebuilt images are located on the public hub.docker.com container repository. However, you can build, in minutes,
+the own ones. Edit/run build-ks8-docker-images.ps1 script.
+All you need is to set up the recent version of Docker Desktop with  WSL2 and build-in Docker Kubernetes  https://www.docker.com/products/kubernetes.
+
+### Step-by-step setup
+
+Please refer to [Docker-Setup.md](https://github.com/Wallsmedia/aad-pod-identity/blob/docker-desktop/Docker-Setup.md)
+
 # AAD Pod Identity
 
 [![Build Status](https://dev.azure.com/azure/aad-pod-identity/_apis/build/status/aad-pod-identity-nightly?branchName=master)](https://dev.azure.com/azure/aad-pod-identity/_build/latest?definitionId=77&branchName=master)
