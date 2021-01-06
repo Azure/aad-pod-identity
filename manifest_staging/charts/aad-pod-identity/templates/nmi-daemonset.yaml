@@ -117,7 +117,7 @@ spec:
                 fieldPath: spec.nodeName
           {{- if eq .Values.operationMode "standard" }}
           - name: FORCENAMESPACED
-            value: "{{ .Values.forceNameSpaced | default .Values.forceNamespaced }}"
+            value: "{{ .Values.forceNamespaced }}"
           {{- end }}
         {{- if .Values.nmi.prometheusPort }}
         ports:

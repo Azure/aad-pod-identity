@@ -8,8 +8,4 @@ To verify that AAD Pod Identity has started in {{ .Values.operationMode }} mode,
   kubectl --namespace={{ .Release.Namespace }} get pods -l "app.kubernetes.io/component=nmi"
 {{ end }}
 
-{{- if .Values.forceNameSpaced }}
-forceNameSpaced configuration has been DEPRECATED and will be removed in a future release. Please use forceNamespaced instead.
-{{- end }}
-
 Now you can follow the demos to get familiar with AAD Pod Identity: https://azure.github.io/aad-pod-identity/docs/demo/
