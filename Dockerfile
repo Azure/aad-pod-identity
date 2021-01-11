@@ -1,11 +1,22 @@
+ARG BUILDPLATFORM="linux/amd64"
+ARG BUILDERIMAGE="golang:1.15-alpine"
 ARG BASEIMAGE=gcr.io/distroless/static:nonroot
 
-FROM golang:1.15 AS builder
+FROM --platform=$BUILDPLATFORM $BUILDERIMAGE as builder
+
+ARG TARGETPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
+
 WORKDIR /go/src/github.com/Azure/aad-pod-identity
 ADD . .
 RUN go mod download
 ARG IMAGE_VERSION
-RUN make build
+RUN apk add make && \
+    export GOOS=$TARGETOS && \
+    export GOARCH=$TARGETARCH && \
+    GOARM=$(echo ${TARGETPLATFORM} | cut -d / -f3); export GOARM=${GOARM:1} && \
+    make build
 
 FROM k8s.gcr.io/build-image/debian-iptables:buster-v1.4.0 AS nmi
 RUN clean-install ca-certificates
