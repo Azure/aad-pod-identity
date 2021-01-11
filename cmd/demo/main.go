@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	contextTimeout = 80 * time.Second
+	timeout = 80 * time.Second
 )
 
 var (
@@ -49,9 +49,7 @@ func main() {
 	ticker := time.NewTicker(period)
 	defer ticker.Stop()
 
-	for {
-		<-ticker.C
-
+	for ; true; <-ticker.C {
 		curlIMDSMetadataInstanceEndpoint()
 		listVMSSInstances()
 		t1 := getTokenFromIMDS(imdsTokenEndpoint)
@@ -72,7 +70,7 @@ func listVMSSInstances() {
 	vmssClient := compute.NewVirtualMachineScaleSetsClient(subscriptionID)
 	vmssClient.Authorizer = authorizer
 
-	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	vmssList, err := vmssClient.List(ctx, resourceGroup)
@@ -96,7 +94,7 @@ func getTokenFromIMDS(imdsTokenEndpoint string) *adal.Token {
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	if err := spt.RefreshWithContext(ctx); err != nil {
@@ -121,7 +119,7 @@ func getTokenFromIMDSWithUserAssignedID(imdsTokenEndpoint string) *adal.Token {
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	if err := spt.RefreshWithContext(ctx); err != nil {
@@ -141,7 +139,7 @@ func getTokenFromIMDSWithUserAssignedID(imdsTokenEndpoint string) *adal.Token {
 
 func curlIMDSMetadataInstanceEndpoint() {
 	client := &http.Client{
-		Timeout: 2 * time.Second,
+		Timeout: timeout,
 	}
 	req, err := http.NewRequest("GET", "http://169.254.169.254/metadata/instance?api-version=2017-08-01", nil)
 	if err != nil {
