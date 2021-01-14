@@ -22,6 +22,39 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 
 - The `forceNameSpaced` helm configuration variable is deprecated in helm release `3.0.0` and will be removed in the future helm release. Instead use `forceNamespaced` to configure pod identity to run in namespaced mode.
 
+- **(Only apply to app version ≥ v1.7.1 / chart version ≥ 3.0.0)** `azureIdentities` in `values.yaml` is converted to a map instead of a list of identities.
+
+  The following is an example of the required change in `values.yaml` from helm chart 2.x.x to 3.x.x:
+
+  ```diff
+  -azureIdentities:
+  -  - name: "azure-identity"
+  -    # if not defined, then the azure identity will be deployed in the same namespace as the chart
+  -    namespace: ""
+  -    # type 0: MSI, type 1: Service Principal
+  -    type: 0
+  -    # /subscriptions/subscription-id/resourcegroups/resource-group/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name
+  -    resourceID: "resource-id"
+  -    clientID: "client-id"
+  -    binding:
+  -      name: "azure-identity-binding"
+  -      # The selector will also need to be included in labels for app deployment
+  -      selector: "demo"
+  +azureIdentities:
+  +  "azure-identity":
+  +    # if not defined, then the azure identity will be deployed in the same namespace as the chart
+  +    namespace: ""
+  +    # type 0: MSI, type 1: Service Principal
+  +    type: 0
+  +    # /subscriptions/subscription-id/resourcegroups/resource-group/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name
+  +    resourceID: "resource-id"
+  +    clientID: "client-id"
+  +    binding:
+  +      name: "azure-identity-binding"
+  +      # The selector will also need to be included in labels for app deployment
+  +      selector: "demo"
+  ```
+
 ## v1.6.x Breaking Change
 
 With [Azure/aad-pod-identity#398](https://github.com/Azure/aad-pod-identity/pull/398), the [client-go](https://github.com/kubernetes/client-go) library is upgraded to v0.17.2, where CRD [fields are now case sensitive](https://github.com/kubernetes/kubernetes/issues/64612). If you are upgrading MIC and NMI from v1.x.x to v1.6.0, MIC v1.6.0+ will upgrade the fields of existing `AzureIdentity` and `AzureIdentityBinding` on startup to the new format to ensure backward compatibility. A configmap called `aad-pod-identity-config` is created to record and confirm the successful type upgrade.
