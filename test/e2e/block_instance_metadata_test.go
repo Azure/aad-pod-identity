@@ -7,6 +7,7 @@ import (
 
 	"github.com/Azure/aad-pod-identity/test/e2e/framework"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/exec"
+	"github.com/Azure/aad-pod-identity/test/e2e/framework/iptables"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework/pod"
 
 	. "github.com/onsi/ginkgo"
@@ -24,12 +25,16 @@ var _ = Describe("When blocking pods from accessing Instance Metadata Service", 
 		})
 
 		for _, nmiPod := range nmiPods.Items {
+			busyboxPod, namespace := iptables.GetBusyboxPodByNode(iptables.GetBusyboxPodByNodeInput{
+				NodeName: nmiPod.Spec.NodeName,
+			})
+
 			cmd := "clean-install wget"
-			_, err := exec.KubectlExec(kubeconfigPath, nmiPod.Name, framework.NamespaceKubeSystem, strings.Split(cmd, " "))
+			_, err := exec.KubectlExec(kubeconfigPath, busyboxPod.Name, namespace, strings.Split(cmd, " "))
 			Expect(err).To(BeNil())
 
 			cmd = "wget 127.0.0.1:2579/metadata/instance"
-			stdout, err := exec.KubectlExec(kubeconfigPath, nmiPod.Name, framework.NamespaceKubeSystem, strings.Split(cmd, " "))
+			stdout, err := exec.KubectlExec(kubeconfigPath, busyboxPod.Name, namespace, strings.Split(cmd, " "))
 			Expect(err).NotTo(BeNil())
 			Expect(strings.Contains(stdout, "ERROR 403: Forbidden")).To(BeTrue())
 		}

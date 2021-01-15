@@ -147,8 +147,12 @@ spec:
         securityContext:
           runAsUser: 0
           capabilities:
+            drop:
+            - ALL
             add:
+            - DAC_READ_SEARCH
             - NET_ADMIN
+            - NET_RAW
         volumeMounts:
         - mountPath: /run/xtables.lock
           name: iptableslock
