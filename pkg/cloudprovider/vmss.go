@@ -62,6 +62,10 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 
 // UpdateIdentities updates the user assigned identities for the provided node
 func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmss compute.VirtualMachineScaleSet) error {
+	if *vmss.ProvisioningState == string(compute.ProvisioningStateDeleting) {
+		return fmt.Errorf("failed to update identities for %s in %s, vmss is in %s provisioning state", vmssName, rg, *vmss.ProvisioningState)
+	}
+
 	var future compute.VirtualMachineScaleSetsUpdateFuture
 	var err error
 	ctx := context.Background()
@@ -136,7 +140,7 @@ func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMac
 		resp := vmss.Response.Response
 		// Update RetryAfterReader so that no more requests would be sent until RetryAfter expires.
 		c.retryAfterReader = time.Now().Add(getRetryAfter(resp))
-		return vmss, fmt.Errorf("failed to get vmss %s in resource group %s, error: %+v", vmssName, rgName, err)
+		return compute.VirtualMachineScaleSet{}, fmt.Errorf("failed to get vmss %s in resource group %s, error: %+v", vmssName, rgName, err)
 	}
 	stats.Increment(stats.TotalGetCalls, 1)
 	stats.AggregateConcurrent(stats.CloudGet, begin, time.Now())

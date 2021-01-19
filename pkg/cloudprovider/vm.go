@@ -90,7 +90,7 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 		resp := vm.Response.Response
 		// Update RetryAfterReader so that no more requests would be sent until RetryAfter expires.
 		c.retryAfterReader = time.Now().Add(getRetryAfter(resp))
-		return vm, fmt.Errorf("failed to get vm %s in resource group %s, error: %+v", nodeName, rgName, err)
+		return compute.VirtualMachine{}, fmt.Errorf("failed to get vm %s in resource group %s, error: %+v", nodeName, rgName, err)
 	}
 	stats.Increment(stats.TotalGetCalls, 1)
 	stats.AggregateConcurrent(stats.CloudGet, begin, time.Now())
@@ -99,6 +99,10 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 
 // UpdateIdentities updates the user assigned identities for the provided node
 func (c *VMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachine) error {
+	if *vm.ProvisioningState == string(compute.ProvisioningStateDeleting) {
+		return fmt.Errorf("failed to update identities for %s in %s, vm is in '%s' provisioning state", nodeName, rg, *vm.ProvisioningState)
+	}
+
 	var future compute.VirtualMachinesUpdateFuture
 	var err error
 	ctx := context.Background()
