@@ -14,8 +14,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("When blocking pods from accessing Instance Metadata Service", func() {
-	It("should receive a HTTP 403 response when contacting /metadata/instance endpoint", func() {
+var _ = Describe("When sending a request to Instance Metadata Service", func() {
+	It("should receive proper HTTP status code when contacting various endpoints", func() {
 		nmiPods := pod.List(pod.ListInput{
 			Lister:    kubeClient,
 			Namespace: framework.NamespaceKubeSystem,
@@ -37,6 +37,11 @@ var _ = Describe("When blocking pods from accessing Instance Metadata Service", 
 			stdout, err := exec.KubectlExec(kubeconfigPath, busyboxPod.Name, namespace, strings.Split(cmd, " "))
 			Expect(err).NotTo(BeNil())
 			Expect(strings.Contains(stdout, "ERROR 403: Forbidden")).To(BeTrue())
+
+			cmd = "wget 127.0.0.1:2579/doesnotexist"
+			stdout, err = exec.KubectlExec(kubeconfigPath, busyboxPod.Name, namespace, strings.Split(cmd, " "))
+			Expect(err).NotTo(BeNil())
+			Expect(strings.Contains(stdout, "404 Not Found")).To(BeTrue())
 		}
 	})
 })
