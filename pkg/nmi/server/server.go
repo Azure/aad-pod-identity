@@ -93,7 +93,7 @@ func (s *Server) Run() error {
 	if s.BlockInstanceMetadata {
 		mux.Handle("/metadata/instance", http.HandlerFunc(forbiddenHandler))
 	}
-	mux.Handle("/", appHandler(s.defaultPathHandler))
+	mux.Handle("/", http.HandlerFunc(s.defaultPathHandler))
 
 	klog.Infof("listening on port %s", s.NMIPort)
 	if err := http.ListenAndServe("localhost:"+s.NMIPort, mux); err != nil {
@@ -485,7 +485,7 @@ func parseTokenRequest(r *http.Request) (request TokenRequest) {
 }
 
 // defaultPathHandler creates a new request and returns the response body and code
-func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) (ns string) {
+func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) {
 	if s.MetadataHeaderRequired && parseMetadata(r) != "true" {
 		klog.Errorf("metadata header is not specified, req.method=%s reg.path=%s req.remote=%s", r.Method, r.URL.Path, parseRemoteAddr(r.RemoteAddr))
 		metadataNotSpecifiedError(w)
@@ -519,8 +519,9 @@ func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) (ns 
 		klog.Errorf("failed to read response body for %s, error: %+v", req.URL.String(), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	copyHeader(w.Header(), resp.Header)
+	w.WriteHeader(resp.StatusCode)
 	_, _ = w.Write(body)
-	return
 }
 
 // forbiddenHandler responds to any request with HTTP 403 Forbidden
