@@ -7,12 +7,8 @@ RUN go mod download
 ARG IMAGE_VERSION
 RUN make build
 
-FROM us.gcr.io/k8s-artifacts-prod/build-image/debian-iptables-amd64:v12.1.2 AS nmi
-# upgrading apt &libapt-pkg5.0 due to CVE-2020-27350
-# upgrading libssl1.1 due to CVE-2020-1971
-# upgrading libp11-kit0 due to CVE-2020-29362, CVE-2020-29363 and CVE-2020-29361
-RUN apt-mark unhold apt && \
-    clean-install ca-certificates apt libapt-pkg5.0 libssl1.1 libp11-kit0
+FROM k8s.gcr.io/build-image/debian-iptables:buster-v1.4.0 AS nmi
+RUN clean-install ca-certificates
 COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
 RUN useradd -u 10001 nonroot
 USER nonroot
