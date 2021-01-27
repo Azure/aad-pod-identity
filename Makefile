@@ -48,7 +48,7 @@ TOOLS_DIR := $(abspath ./.tools)
 
 # docker env var
 DOCKER_BUILDKIT = 1
-DOCKER_CLI_EXPERIMENTAL=enabled
+DOCKER_CLI_EXPERIMENTAL = enabled
 export DOCKER_BUILDKIT DOCKER_CLI_EXPERIMENTAL
 BUILD_PLATFORMS ?= linux/amd64,linux/arm64,linux/arm/v7
 # Output type of docker buildx build
@@ -129,8 +129,8 @@ deepcopy-gen:
 .PHONY: docker-buildx-builder
 docker-buildx-builder:
 	docker run --rm --privileged docker/binfmt:820fdd95a9972a5308930a2bdfb8573dd4447ad3
-	if ! DOCKER_CLI_EXPERIMENTAL=enabled docker buildx ls | grep -q container-builder; then\
-		DOCKER_CLI_EXPERIMENTAL=enabled docker buildx create --name container-builder --use;\
+	if ! docker buildx ls | grep -q container-builder; then \
+		DOCKER_CLI_EXPERIMENTAL=enabled docker buildx create --name container-builder --use; \
 	fi
 
 .PHONY: image-nmi
