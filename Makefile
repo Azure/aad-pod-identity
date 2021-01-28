@@ -48,7 +48,11 @@ TOOLS_DIR := $(abspath ./.tools)
 
 # docker env var
 DOCKER_BUILDKIT = 1
-export DOCKER_BUILDKIT
+DOCKER_CLI_EXPERIMENTAL = enabled
+export DOCKER_BUILDKIT DOCKER_CLI_EXPERIMENTAL
+BUILD_PLATFORMS ?= linux/amd64,linux/arm64,linux/arm/v7
+# Output type of docker buildx build
+OUTPUT_TYPE ?= registry
 
 $(TOOLS_DIR)/golangci-lint: $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
 	cd $(TOOLS_MOD_DIR) && \
@@ -106,7 +110,7 @@ build-demo: clean-demo
 	PKG_NAME=github.com/Azure/$(PROJECT_NAME)/cmd/$(DEMO_BINARY_NAME) ${MAKE} bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME)
 
 bin/%:
-	GOOS=$(GOOS) GOARCH=amd64 go build $(GO_BUILD_OPTIONS) -o "$(@)" "$(PKG_NAME)"
+	GOOS=$(GOOS) go build $(GO_BUILD_OPTIONS) -o "$(@)" "$(PKG_NAME)"
 
 .PHONY: build-identity-validator
 build-identity-validator: clean-identity-validator
@@ -122,33 +126,48 @@ precommit: build unit-test lint
 deepcopy-gen:
 	deepcopy-gen -i ./pkg/apis/aadpodidentity/v1/ -o . -O aadpodidentity_deepcopy_generated -p aadpodidentity
 
+.PHONY: docker-buildx-builder
+docker-buildx-builder:
+	docker run --rm --privileged docker/binfmt:820fdd95a9972a5308930a2bdfb8573dd4447ad3
+	if ! docker buildx ls | grep -q container-builder; then \
+		DOCKER_CLI_EXPERIMENTAL=enabled docker buildx create --name container-builder --use; \
+	fi
+
 .PHONY: image-nmi
 image-nmi:
-	docker build \
+	docker buildx build \
 		--target nmi \
 		--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
+		--platform "$(BUILD_PLATFORMS)" \
+		--output=type=$(OUTPUT_TYPE) \
 		-t $(REGISTRY)/$(NMI_IMAGE) .
 
 .PHONY: image-mic
 image-mic:
-	docker build \
+	docker buildx build \
 		--target mic \
 		--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
+		--platform "$(BUILD_PLATFORMS)" \
+		--output=type=$(OUTPUT_TYPE) \
 		-t "$(REGISTRY)/$(MIC_IMAGE)" .
 
 .PHONY: image-demo
 image-demo:
-	docker build \
-		--target demo \
-		--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
-		-t "$(REGISTRY)/$(DEMO_IMAGE)" .
+	docker buildx build \
+	 	--target demo \
+	  	--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
+		--platform "$(BUILD_PLATFORMS)" \
+		--output=type=$(OUTPUT_TYPE) \
+	    -t "$(REGISTRY)/$(DEMO_IMAGE)" .
 
 .PHONY: image-identity-validator
 image-identity-validator:
-	docker build \
-		--target identityvalidator \
-		--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
-		-t "$(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE)" .
+	docker buildx build \
+	 	--target identityvalidator \
+	 	--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
+		--platform "$(BUILD_PLATFORMS)" \
+		--output=type=$(OUTPUT_TYPE) \
+	   	-t "$(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE)" .
 
 .PHONY: images
 images: image-nmi image-mic image-demo image-identity-validator

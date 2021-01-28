@@ -2,6 +2,8 @@ steps:
   - script: |
       export REGISTRY="e2e"
       export IMAGE_VERSION="test"
+      export OUTPUT_TYPE="docker"
+      export BUILD_PLATFORMS="linux/amd64"
       make images
 
       wget https://github.com/aquasecurity/trivy/releases/download/v0.11.0/trivy_0.11.0_Linux-64bit.tar.gz

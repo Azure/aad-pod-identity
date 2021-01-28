@@ -25,5 +25,5 @@ steps:
       echo "Image version: ${IMAGE_VERSION}"
 
       az acr login -n $(REGISTRY_NAME)
-      make images push
+      make docker-buildx-builder images
     displayName: "Build and push MIC, NMI and identity-validator images"
