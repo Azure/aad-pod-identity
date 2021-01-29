@@ -1,5 +1,5 @@
 ARG BUILDPLATFORM="linux/amd64"
-ARG BUILDERIMAGE="golang:1.15-alpine"
+ARG BUILDERIMAGE="golang:1.15"
 ARG BASEIMAGE=gcr.io/distroless/static:nonroot
 
 FROM --platform=$BUILDPLATFORM $BUILDERIMAGE as builder
@@ -12,8 +12,7 @@ WORKDIR /go/src/github.com/Azure/aad-pod-identity
 ADD . .
 RUN go mod download
 ARG IMAGE_VERSION
-RUN apk add make && \
-    export GOOS=$TARGETOS && \
+RUN export GOOS=$TARGETOS && \
     export GOARCH=$TARGETARCH && \
     export GOARM=$(echo ${TARGETPLATFORM} | cut -d / -f3 | tr -d 'v') && \
     make build
