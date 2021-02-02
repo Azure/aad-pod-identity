@@ -123,7 +123,7 @@ spec:
           path: /etc/default/kubelet
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.7.1"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.7.2"
         imagePullPolicy: Always
         args:
           - "--node=$(NODE_NAME)"
@@ -147,8 +147,12 @@ spec:
         securityContext:
           runAsUser: 0
           capabilities:
+            drop:
+            - ALL
             add:
+            - DAC_READ_SEARCH
             - NET_ADMIN
+            - NET_RAW
         volumeMounts:
         - mountPath: /run/xtables.lock
           name: iptableslock
@@ -250,7 +254,7 @@ spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.7.1"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.7.2"
         imagePullPolicy: Always
         args:
           - "--logtostderr"

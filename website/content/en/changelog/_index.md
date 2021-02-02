@@ -7,10 +7,48 @@ menu:
     weight: 10
 ---
 
+## v1.7.2
+
+### Breaking Change
+- If upgrading from versions 1.5.x to 1.7.x of pod-identity, please carefully review this [doc](https://azure.github.io/aad-pod-identity/docs/#v16x-breaking-change) before upgrade.
+- Pod Identity is disabled by default for Clusters with Kubenet. Please review this [doc](https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/) before upgrade.
+- Helm chart contains breaking changes. Please review this [doc](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#300) before upgrade.
+
+
+### Features
+
+- feat: add arm64 build ([#950](https://github.com/Azure/aad-pod-identity/pull/950))
+
+### Bug Fixes
+
+- fix: fix typos in stats variables ([#919](https://github.com/Azure/aad-pod-identity/pull/919))
+- fix: drop all unnecessary root capabilities for NMI ([#940](https://github.com/Azure/aad-pod-identity/pull/940))
+- fix: copy response header and status code to http.ResponseWriter ([#946](https://github.com/Azure/aad-pod-identity/pull/946))
+
+### Security
+
+- dockerfile: fix CVE-2020-29362, CVE-2020-29363, CVE-2020-29361 ([#924](https://github.com/Azure/aad-pod-identity/pull/924))
+- dockerfile: upgrade debian-iptables to buster-v1.4.0 ([#948](https://github.com/Azure/aad-pod-identity/pull/948))
+
+### Helm
+
+- helm: remove deprecated forceNameSpaced from values.yaml ([#927](https://github.com/Azure/aad-pod-identity/pull/927))
+- helm: skip MIC exception installation when using managed mode ([#936](https://github.com/Azure/aad-pod-identity/pull/936))
+
+### Documentation
+
+- docs: document breaking change on `azureIdentities` ([#944](https://github.com/Azure/aad-pod-identity/pull/944))
+
+### Other Improvements
+
+- chore: update github pr template ([#925](https://github.com/Azure/aad-pod-identity/pull/925))
+- cleanup: refactor demo code ([#930](https://github.com/Azure/aad-pod-identity/pull/930))
+- chore: switch to using golang builder ([#952](https://github.com/Azure/aad-pod-identity/pull/952))
+
 ## v1.7.1
 
 ### Breaking Change
-- If upgrading from versions 1.5.x to 1.7.x of pod-identity, please carefully review this [doc](http://localhost:1313/aad-pod-identity/docs/#v160-breaking-change) before upgrade.
+- If upgrading from versions 1.5.x to 1.7.x of pod-identity, please carefully review this [doc](https://azure.github.io/aad-pod-identity/docs/#v16x-breaking-change) before upgrade.
 - Pod Identity is disabled by default for Clusters with Kubenet. Please review this [doc](https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/) before upgrade.
 - Helm chart contains breaking changes. Please review this [doc](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#300) before upgrade.
 
@@ -47,7 +85,7 @@ menu:
 ## v1.7.0
 
 ### Breaking Change
-- If upgrading from versions 1.5.x to 1.7.x of pod-identity, please carefully review this [doc](http://localhost:1313/aad-pod-identity/docs/#v160-breaking-change) before upgrade.
+- If upgrading from versions 1.5.x to 1.7.x of pod-identity, please carefully review this [doc](https://azure.github.io/aad-pod-identity/docs/#v16x-breaking-change) before upgrade.
 - Pod Identity is disabled by default for Clusters with Kubenet. Please review this [doc](https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/) before upgrade.
 
 ### Features
@@ -83,14 +121,14 @@ menu:
 - remove --ignore-unfixed for trivy ([#854](https://github.com/Azure/aad-pod-identity/pull/854))
 
 {{% alert title="Warning" color="warning" %}}
-v1.6.0+ contains breaking changes. Please carefully review this [doc](README.md#v160-breaking-change) before upgrade from 1.x.x versions of pod-identity.
+v1.6.0+ contains breaking changes. Please carefully review this [doc](README.md#v16x-breaking-change) before upgrade from 1.x.x versions of pod-identity.
 {{% /alert %}}
 
 ## v1.6.3
 
 ### Breaking Change
 
-v1.6.0+ contains breaking changes. Please carefully review this [doc](http://localhost:1313/aad-pod-identity/docs/#v160-breaking-change) before upgrading from 1.x.x versions of pod-identity.
+v1.6.0+ contains breaking changes. Please carefully review this [doc](https://azure.github.io/aad-pod-identity/docs/#v16x-breaking-change) before upgrading from 1.x.x versions of pod-identity.
 
 ### Features
 
