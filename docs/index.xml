@@ -356,11 +356,11 @@ helm install aad-pod-identity aad-pod-identity/aad-pod-identity
 &lt;/span>&lt;span style="color:#4e9a06">spec:
 &lt;/span>&lt;span style="color:#4e9a06"> containers:
 &lt;/span>&lt;span style="color:#4e9a06"> - name: demo
-&lt;/span>&lt;span style="color:#4e9a06"> image: mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.7.1
+&lt;/span>&lt;span style="color:#4e9a06"> image: mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.7.2
 &lt;/span>&lt;span style="color:#4e9a06"> args:
-&lt;/span>&lt;span style="color:#4e9a06"> - --subscriptionid=${SUBSCRIPTION_ID}
-&lt;/span>&lt;span style="color:#4e9a06"> - --clientid=${IDENTITY_CLIENT_ID}
-&lt;/span>&lt;span style="color:#4e9a06"> - --resourcegroup=${IDENTITY_RESOURCE_GROUP}
+&lt;/span>&lt;span style="color:#4e9a06"> - --subscription-id=${SUBSCRIPTION_ID}
+&lt;/span>&lt;span style="color:#4e9a06"> - --resource-group=${IDENTITY_RESOURCE_GROUP}
+&lt;/span>&lt;span style="color:#4e9a06"> - --identity-client-id=${IDENTITY_CLIENT_ID}
 &lt;/span>&lt;span style="color:#4e9a06"> env:
 &lt;/span>&lt;span style="color:#4e9a06"> - name: MY_POD_NAME
 &lt;/span>&lt;span style="color:#4e9a06"> valueFrom:
@@ -378,17 +378,16 @@ helm install aad-pod-identity aad-pod-identity/aad-pod-identity
 &lt;/span>&lt;span style="color:#4e9a06"> kubernetes.io/os: linux
 &lt;/span>&lt;span style="color:#4e9a06">EOF&lt;/span>
 &lt;/code>&lt;/pre>&lt;/div>&lt;blockquote>
-&lt;p>&lt;code>mcr.microsoft.com/oss/azure/aad-pod-identity/demo&lt;/code> is an image that demostrates the use of AAD pod identity. The source code can be found &lt;a href="https://github.com/Azure/aad-pod-identity/blob/master/cmd/demo/main.go">here&lt;/a>.&lt;/p>
+&lt;p>&lt;code>mcr.microsoft.com/oss/azure/aad-pod-identity/demo&lt;/code> is an image that demonstrates the use of AAD pod identity. The source code can be found &lt;a href="https://github.com/Azure/aad-pod-identity/blob/master/cmd/demo/main.go">here&lt;/a>.&lt;/p>
 &lt;/blockquote>
 &lt;p>To verify that the pod is indeed using the identity correctly:&lt;/p>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">kubectl logs demo
 &lt;/code>&lt;/pre>&lt;/div>&lt;p>If successful, the log output would be similar to the following output:&lt;/p>
-&lt;pre>&lt;code class="language-log" data-lang="log">...
-successfully doARMOperations vm count 1
-successfully acquired a token using the MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token)
-successfully acquired a token, userAssignedID MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token) clientID(xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
-successfully made GET on instance metadata
-...
+&lt;pre>&lt;code class="language-log" data-lang="log">I0107 23:54:23.215900 1 main.go:42] starting aad-pod-identity demo pod (namespace: default, name: demo, IP: 10.244.0.73)
+I0107 23:56:03.223398 1 main.go:167] curl -H Metadata:true &amp;quot;http://169.254.169.254/metadata/instance?api-version=2017-08-01&amp;quot;: {&amp;quot;compute&amp;quot;:{&amp;quot;location&amp;quot;:&amp;quot;westus2&amp;quot;,&amp;quot;name&amp;quot;:&amp;quot;aks-nodepool1-55282659-0&amp;quot;,&amp;quot;offer&amp;quot;:&amp;quot;aks&amp;quot;,&amp;quot;osType&amp;quot;:&amp;quot;Linux&amp;quot;,&amp;quot;placementGroupId&amp;quot;:&amp;quot;&amp;quot;,&amp;quot;platformFaultDomain&amp;quot;:&amp;quot;0&amp;quot;,&amp;quot;platformUpdateDomain&amp;quot;:&amp;quot;0&amp;quot;,&amp;quot;publisher&amp;quot;:&amp;quot;microsoft-aks&amp;quot;,&amp;quot;resourceGroupName&amp;quot;:&amp;quot;MC_chuwon-aks_chuwon_westus2&amp;quot;,&amp;quot;sku&amp;quot;:&amp;quot;aks-ubuntu-1604-202004&amp;quot;,&amp;quot;subscriptionId&amp;quot;:&amp;quot;2d31b5ab-0ddc-4991-bf8d-61b6ad196f5a&amp;quot;,&amp;quot;tags&amp;quot;:&amp;quot;aksEngineVersion:aks-release-v0.47.0-1-aks;creationSource:aks-aks-nodepool1-55282659-0;orchestrator:Kubernetes:1.15.10;poolName:nodepool1;resourceNameSuffix:55282659&amp;quot;,&amp;quot;version&amp;quot;:&amp;quot;2020.04.16&amp;quot;,&amp;quot;vmId&amp;quot;:&amp;quot;33b6a978-a2ad-4bbe-8331-f7e08c48e175&amp;quot;,&amp;quot;vmSize&amp;quot;:&amp;quot;Standard_DS2_v2&amp;quot;},&amp;quot;network&amp;quot;:{&amp;quot;interface&amp;quot;:[{&amp;quot;ipv4&amp;quot;:{&amp;quot;ipAddress&amp;quot;:[{&amp;quot;privateIpAddress&amp;quot;:&amp;quot;10.240.0.4&amp;quot;,&amp;quot;publicIpAddress&amp;quot;:&amp;quot;&amp;quot;}],&amp;quot;subnet&amp;quot;:[{&amp;quot;address&amp;quot;:&amp;quot;10.240.0.0&amp;quot;,&amp;quot;prefix&amp;quot;:&amp;quot;16&amp;quot;}]},&amp;quot;ipv6&amp;quot;:{&amp;quot;ipAddress&amp;quot;:[]},&amp;quot;macAddress&amp;quot;:&amp;quot;000D3AC47E7D&amp;quot;}]}}
+I0107 23:56:03.816403 1 main.go:90] successfully listed VMSS instances from ARM via AAD Pod Identity: []
+I0107 23:56:03.825676 1 main.go:114] successfully acquired a service principal token from http://169.254.169.254/metadata/identity/oauth2/token
+I0107 23:56:03.834516 1 main.go:139] successfully acquired a service principal token from http://169.254.169.254/metadata/identity/oauth2/token using a user-assigned identity (91ff0ee7-35fc-46d0-9cd0-51a7ea9ec7f2)
 &lt;/code>&lt;/pre>&lt;p>Once you are done with the demo, clean up your resources:&lt;/p>
 &lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-bash" data-lang="bash">kubectl delete pod demo
 kubectl delete azureidentity &lt;span style="color:#4e9a06">${&lt;/span>&lt;span style="color:#000">IDENTITY_NAME&lt;/span>&lt;span style="color:#4e9a06">}&lt;/span>
@@ -668,7 +667,7 @@ Running aad-pod-identity in a cluster with Kubenet is not a recommended configur
 &lt;p>The secret will be injected as an environment variable into &lt;code>mic&lt;/code> upon pod creation and cannot be updated during the lifecycle of &lt;code>mic&lt;/code>. However, redeploying &lt;code>mic&lt;/code> should pick up the updated service principal&amp;rsquo;s information should they change.&lt;/p></description></item><item><title>Docs: Installation</title><link>https://azure.github.io/aad-pod-identity/docs/getting-started/installation/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/getting-started/installation/</guid><description>
 &lt;h2 id="quick-install">Quick Install&lt;/h2>
 &lt;p>To install/upgrade AAD Pod Identity on RBAC-enabled clusters:&lt;/p>
-&lt;pre>&lt;code>kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.7.1/deploy/infra/deployment-rbac.yaml
+&lt;pre>&lt;code>kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.7.2/deploy/infra/deployment-rbac.yaml
 &lt;/code>&lt;/pre>&lt;details>
 &lt;summary>Result&lt;/summary>
 &lt;pre>&lt;code>serviceaccount/aad-pod-id-nmi-service-account created
@@ -685,7 +684,7 @@ clusterrolebinding.rbac.authorization.k8s.io/aad-pod-id-mic-binding created
 deployment.apps/mic created
 &lt;/code>&lt;/pre>&lt;/details>&lt;br/>
 &lt;p>To install/upgrade aad-pod-identity on RBAC-disabled clusters:&lt;/p>
-&lt;pre>&lt;code>kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.7.1/deploy/infra/deployment.yaml
+&lt;pre>&lt;code>kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.7.2/deploy/infra/deployment.yaml
 &lt;/code>&lt;/pre>&lt;details>
 &lt;summary>Result&lt;/summary>
 &lt;pre>&lt;code>customresourcedefinition.apiextensions.k8s.io/azureassignedidentities.aadpodidentity.k8s.io created
@@ -696,7 +695,7 @@ daemonset.apps/nmi created
 deployment.apps/mic created
 &lt;/code>&lt;/pre>&lt;/details>&lt;br/>
 &lt;p>For AKS clusters, you will have to allow MIC and AKS add-ons to access IMDS without being intercepted by NMI:&lt;/p>
-&lt;pre>&lt;code>kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.7.1/deploy/infra/mic-exception.yaml
+&lt;pre>&lt;code>kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.7.2/deploy/infra/mic-exception.yaml
 &lt;/code>&lt;/pre>
 &lt;div class="alert alert-warning" role="alert">
 &lt;h4 class="alert-heading">Warning&lt;/h4>
