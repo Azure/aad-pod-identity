@@ -81,7 +81,7 @@ spec:
           path: /etc/default/kubelet
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.7.1"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.7.2"
         imagePullPolicy: Always
         args:
           - "--node=$(NODE_NAME)"
@@ -98,8 +98,12 @@ spec:
         securityContext:
           runAsUser: 0
           capabilities:
+            drop:
+            - ALL
             add:
+            - DAC_READ_SEARCH
             - NET_ADMIN
+            - NET_RAW
         resources:
           limits:
             cpu: 200m
@@ -141,7 +145,7 @@ spec:
     spec:
       containers:
       - name: mic
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.7.1"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.7.2"
         imagePullPolicy: Always
         args:
           - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"

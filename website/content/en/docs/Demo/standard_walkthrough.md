@@ -130,11 +130,11 @@ metadata:
 spec:
   containers:
   - name: demo
-    image: mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.7.1
+    image: mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.7.2
     args:
-      - --subscriptionid=${SUBSCRIPTION_ID}
-      - --clientid=${IDENTITY_CLIENT_ID}
-      - --resourcegroup=${IDENTITY_RESOURCE_GROUP}
+      - --subscription-id=${SUBSCRIPTION_ID}
+      - --resource-group=${IDENTITY_RESOURCE_GROUP}
+      - --identity-client-id=${IDENTITY_CLIENT_ID}
     env:
       - name: MY_POD_NAME
         valueFrom:
@@ -153,7 +153,7 @@ spec:
 EOF
 ```
 
-> `mcr.microsoft.com/oss/azure/aad-pod-identity/demo` is an image that demostrates the use of AAD pod identity. The source code can be found [here](https://github.com/Azure/aad-pod-identity/blob/master/cmd/demo/main.go).
+> `mcr.microsoft.com/oss/azure/aad-pod-identity/demo` is an image that demonstrates the use of AAD pod identity. The source code can be found [here](https://github.com/Azure/aad-pod-identity/blob/master/cmd/demo/main.go).
 
 To verify that the pod is indeed using the identity correctly:
 
@@ -164,12 +164,11 @@ kubectl logs demo
 If successful, the log output would be similar to the following output:
 
 ```log
-...
-successfully doARMOperations vm count 1
-successfully acquired a token using the MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token)
-successfully acquired a token, userAssignedID MSI, msiEndpoint(http://169.254.169.254/metadata/identity/oauth2/token) clientID(xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
-successfully made GET on instance metadata
-...
+I0107 23:54:23.215900       1 main.go:42] starting aad-pod-identity demo pod (namespace: default, name: demo, IP: 10.244.0.73)
+I0107 23:56:03.223398       1 main.go:167] curl -H Metadata:true "http://169.254.169.254/metadata/instance?api-version=2017-08-01": {"compute":{"location":"westus2","name":"aks-nodepool1-55282659-0","offer":"aks","osType":"Linux","placementGroupId":"","platformFaultDomain":"0","platformUpdateDomain":"0","publisher":"microsoft-aks","resourceGroupName":"MC_chuwon-aks_chuwon_westus2","sku":"aks-ubuntu-1604-202004","subscriptionId":"2d31b5ab-0ddc-4991-bf8d-61b6ad196f5a","tags":"aksEngineVersion:aks-release-v0.47.0-1-aks;creationSource:aks-aks-nodepool1-55282659-0;orchestrator:Kubernetes:1.15.10;poolName:nodepool1;resourceNameSuffix:55282659","version":"2020.04.16","vmId":"33b6a978-a2ad-4bbe-8331-f7e08c48e175","vmSize":"Standard_DS2_v2"},"network":{"interface":[{"ipv4":{"ipAddress":[{"privateIpAddress":"10.240.0.4","publicIpAddress":""}],"subnet":[{"address":"10.240.0.0","prefix":"16"}]},"ipv6":{"ipAddress":[]},"macAddress":"000D3AC47E7D"}]}}
+I0107 23:56:03.816403       1 main.go:90] successfully listed VMSS instances from ARM via AAD Pod Identity: []
+I0107 23:56:03.825676       1 main.go:114] successfully acquired a service principal token from http://169.254.169.254/metadata/identity/oauth2/token
+I0107 23:56:03.834516       1 main.go:139] successfully acquired a service principal token from http://169.254.169.254/metadata/identity/oauth2/token using a user-assigned identity (91ff0ee7-35fc-46d0-9cd0-51a7ea9ec7f2)
 ```
 
 Once you are done with the demo, clean up your resources:
