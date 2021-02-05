@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: demo
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.7.2"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.7.3"
         imagePullPolicy: Always
         args:
           - "--subscriptionid=SUBSCRIPTION_ID"
