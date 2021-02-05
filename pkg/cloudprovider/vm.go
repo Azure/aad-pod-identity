@@ -99,7 +99,8 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 
 // UpdateIdentities updates the user assigned identities for the provided node
 func (c *VMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachine) error {
-	if *vm.ProvisioningState == string(compute.ProvisioningStateDeleting) {
+	// if provisioning state is nil, we keep backward compatibility and proceed with the operation
+	if vm.ProvisioningState != nil && *vm.ProvisioningState == string(compute.ProvisioningStateDeleting) {
 		return fmt.Errorf("failed to update identities for %s in %s, vm is in '%s' provisioning state", nodeName, rg, *vm.ProvisioningState)
 	}
 

@@ -62,7 +62,8 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 
 // UpdateIdentities updates the user assigned identities for the provided node
 func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmss compute.VirtualMachineScaleSet) error {
-	if *vmss.ProvisioningState == string(compute.ProvisioningStateDeleting) {
+	// if provisioning state is nil, we keep backward compatibility and proceed with the operation
+	if vmss.ProvisioningState != nil && *vmss.ProvisioningState == string(compute.ProvisioningStateDeleting) {
 		return fmt.Errorf("failed to update identities for %s in %s, vmss is in %s provisioning state", vmssName, rg, *vmss.ProvisioningState)
 	}
 
