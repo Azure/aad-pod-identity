@@ -7,6 +7,17 @@ menu:
     weight: 10
 ---
 
+## v1.7.3
+
+### Breaking Change
+- If upgrading from versions 1.5.x to 1.7.x of pod-identity, please carefully review this [doc](https://azure.github.io/aad-pod-identity/docs/#v16x-breaking-change) before upgrade.
+- Pod Identity is disabled by default for Clusters with Kubenet. Please review this [doc](https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/) before upgrade.
+- Helm chart contains breaking changes. Please review this [doc](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#300) before upgrade.
+
+### Bug Fixes
+
+- fix: check if provisioning state is not nil ([#960](https://github.com/Azure/aad-pod-identity/pull/960))
+
 ## v1.7.2
 
 ### Breaking Change
