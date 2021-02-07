@@ -61,6 +61,8 @@ mic:
 
   podAnnotations: {}
 
+  podLabels: {}
+
   ## Node labels for pod assignment
   ## aad-pod-identity is currently only supported on linux
   nodeSelector:
@@ -156,6 +158,8 @@ nmi:
       memory: 256Mi
 
   podAnnotations: {}
+
+  podLabels: {}
 
   ## Node labels for pod assignment
   ## aad-pod-identity is currently only supported on linux

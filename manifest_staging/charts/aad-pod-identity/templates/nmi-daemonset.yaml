@@ -20,6 +20,9 @@ spec:
         {{- include "aad-pod-identity.labels" . | nindent 8 }}
         app.kubernetes.io/component: nmi
         tier: node
+      {{- if .Values.nmi.podLabels }}
+      {{- toYaml .Values.nmi.podLabels | nindent 8 }}
+      {{- end }}
 {{- if .Values.nmi.podAnnotations }}
       annotations:
 {{ toYaml .Values.nmi.podAnnotations | indent 8 }}
