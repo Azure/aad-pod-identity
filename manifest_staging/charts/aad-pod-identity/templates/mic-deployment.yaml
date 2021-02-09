@@ -20,6 +20,9 @@ spec:
       labels:
         {{- include "aad-pod-identity.labels" . | nindent 8 }}
         app.kubernetes.io/component: mic
+      {{- if .Values.mic.podLabels }}
+      {{- toYaml .Values.mic.podLabels | nindent 8 }}
+      {{- end }}
 {{- if .Values.mic.podAnnotations }}
       annotations:
 {{ toYaml .Values.mic.podAnnotations | indent 8 }}
