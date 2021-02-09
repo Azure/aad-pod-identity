@@ -1,26 +1,32 @@
 package version
 
 import (
+	"flag"
 	"fmt"
 	"os"
 )
 
-// BuildDate is the date when the binary was built
-var BuildDate string
+var (
+	// BuildDate is the date when the binary was built
+	BuildDate string
+	// GitCommit is the commit hash when the binary was built
+	GitCommit string
+	// MICVersion is the version of the MIC component
+	MICVersion string
+	// NMIVersion is the version of the NMI component
+	NMIVersion string
 
-// GitCommit is the commit hash when the binary was built
-var GitCommit string
-
-// MICVersion is the version of the MIC component
-var MICVersion string
-
-// NMIVersion is the version of the NMI component
-var NMIVersion string
+	// custom user agent to append for adal and arm calls
+	customUserAgent = flag.String("custom-user-agent", "", "User agent to append in addition to pod identity component and versions.")
+)
 
 // GetUserAgent is used to get the user agent string which is then provided to adal
 // to use as the extended user agent header.
 // The format is: aad-pod-identity/<component - either NMI or MIC>/<Version of component>/<Git commit>/<Build date>
 func GetUserAgent(component, version string) string {
+	if *customUserAgent != "" {
+		return fmt.Sprintf("aad-pod-identity/%s/%s/%s/%s %s", component, version, GitCommit, BuildDate, *customUserAgent)
+	}
 	return fmt.Sprintf("aad-pod-identity/%s/%s/%s/%s", component, version, GitCommit, BuildDate)
 }
 

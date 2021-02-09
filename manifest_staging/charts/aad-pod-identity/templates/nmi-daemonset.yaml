@@ -107,6 +107,9 @@ spec:
           {{- if semverCompare ">= 1.7.0-0" .Values.nmi.tag }}
           - --kubelet-config={{ .Values.nmi.kubeletConfig }}
           {{- end }}
+          {{- if .Values.customUserAgent }}
+          - --custom-user-agent={{ .Values.customUserAgent }}
+          {{- end }}
         env:
           {{- if semverCompare "<= 1.6.1-0" .Values.nmi.tag }}
           - name: HOST_IP

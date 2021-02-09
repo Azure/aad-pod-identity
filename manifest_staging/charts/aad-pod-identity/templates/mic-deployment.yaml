@@ -89,6 +89,9 @@ spec:
           {{- if .Values.mic.identityAssignmentReconcileInterval }}
           - --identity-assignment-reconcile-interval={{ .Values.mic.identityAssignmentReconcileInterval }}
           {{- end }}
+          {{- if .Values.customUserAgent }}
+          - --custom-user-agent={{ .Values.customUserAgent }}
+          {{- end }}
         {{- if not .Values.adminsecret }}
         securityContext:
           runAsUser: 0
