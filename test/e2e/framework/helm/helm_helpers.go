@@ -12,6 +12,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"golang.org/x/mod/semver"
 )
 
 const (
@@ -99,6 +100,11 @@ func generateValueArgs(config *framework.Config) []string {
 		fmt.Sprintf("--set=image.repository=%s", config.Registry),
 		fmt.Sprintf("--set=mic.tag=%s", config.MICVersion),
 		fmt.Sprintf("--set=nmi.tag=%s", config.NMIVersion),
+	}
+
+	// TODO (aramase) bump this to compare against v1.7.3 after next release
+	if semver.Compare(config.MICVersion, "v1.7.2") > 1 && semver.Compare(config.NMIVersion, "v1.7.2") > 1 {
+		args = append(args, fmt.Sprintf("--set=customUserAgent=pi-e2e"))
 	}
 
 	if config.ImmutableUserMSIs != "" {
