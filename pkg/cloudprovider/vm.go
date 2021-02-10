@@ -68,15 +68,15 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 
 	defer func() {
 		if err != nil {
-			err = c.reporter.ReportCloudProviderOperationError(metrics.GetVMOperationName)
-			if err != nil {
-				klog.Warningf("failed to report metrics, error: %+v", err)
+			merr := c.reporter.ReportCloudProviderOperationError(metrics.GetVMOperationName)
+			if merr != nil {
+				klog.Warningf("failed to report metrics, error: %+v", merr)
 			}
 			return
 		}
-		err = c.reporter.ReportCloudProviderOperationDuration(metrics.GetVMOperationName, time.Since(begin))
-		if err != nil {
-			klog.Warningf("failed to report metrics, error: %+v", err)
+		merr := c.reporter.ReportCloudProviderOperationDuration(metrics.GetVMOperationName, time.Since(begin))
+		if merr != nil {
+			klog.Warningf("failed to report metrics, error: %+v", merr)
 		}
 	}()
 
@@ -111,15 +111,15 @@ func (c *VMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachi
 
 	defer func() {
 		if err != nil {
-			err = c.reporter.ReportCloudProviderOperationError(metrics.UpdateVMOperationName)
-			if err != nil {
-				klog.Warningf("failed to report metrics, error: %+v", err)
+			merr := c.reporter.ReportCloudProviderOperationError(metrics.UpdateVMOperationName)
+			if merr != nil {
+				klog.Warningf("failed to report metrics, error: %+v", merr)
 			}
 			return
 		}
-		err = c.reporter.ReportCloudProviderOperationDuration(metrics.UpdateVMOperationName, time.Since(begin))
-		if err != nil {
-			klog.Warningf("failed to report metrics, error: %+v", err)
+		merr := c.reporter.ReportCloudProviderOperationDuration(metrics.UpdateVMOperationName, time.Since(begin))
+		if merr != nil {
+			klog.Warningf("failed to report metrics, error: %+v", merr)
 		}
 	}()
 

@@ -479,9 +479,9 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 
 	defer func() {
 		if err != nil {
-			err = c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityDeletionOperationName)
-			if err != nil {
-				klog.Warningf("failed to report metrics, error: %+v", err)
+			merr := c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityDeletionOperationName)
+			if merr != nil {
+				klog.Warningf("failed to report metrics, error: %+v", merr)
 			}
 			return
 		}
@@ -517,9 +517,9 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 
 	defer func() {
 		if err != nil {
-			err = c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityAdditionOperationName)
-			if err != nil {
-				klog.Warningf("failed to report metrics, error: %+v", err)
+			merr := c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityAdditionOperationName)
+			if merr != nil {
+				klog.Warningf("failed to report metrics, error: %+v", merr)
 			}
 			return
 		}
@@ -551,8 +551,8 @@ func (c *Client) UpdateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 
 	defer func() {
 		if err != nil {
-			err = c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityUpdateOperationName)
-			klog.Warningf("failed to report metrics, error: %+v", err)
+			merr := c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityUpdateOperationName)
+			klog.Warningf("failed to report metrics, error: %+v", merr)
 			return
 		}
 		c.reporter.Report(
@@ -783,9 +783,9 @@ func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.Az
 
 	defer func() {
 		if err != nil {
-			err = c.reporter.ReportKubernetesAPIOperationError(metrics.UpdateAzureAssignedIdentityStatusOperationName)
-			if err != nil {
-				klog.Warningf("failed to report metrics, error: %+v", err)
+			merr := c.reporter.ReportKubernetesAPIOperationError(metrics.UpdateAzureAssignedIdentityStatusOperationName)
+			if merr != nil {
+				klog.Warningf("failed to report metrics, error: %+v", merr)
 			}
 		}
 	}()
