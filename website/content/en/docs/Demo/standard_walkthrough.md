@@ -130,7 +130,7 @@ metadata:
 spec:
   containers:
   - name: demo
-    image: mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.7.3
+    image: mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.7.4
     args:
       - --subscription-id=${SUBSCRIPTION_ID}
       - --resource-group=${IDENTITY_RESOURCE_GROUP}

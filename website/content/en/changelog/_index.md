@@ -7,24 +7,32 @@ menu:
     weight: 10
 ---
 
-## v1.7.3
+## v1.7.4
 
 ### Breaking Change
 - If upgrading from versions 1.5.x to 1.7.x of pod-identity, please carefully review this [doc](https://azure.github.io/aad-pod-identity/docs/#v16x-breaking-change) before upgrade.
 - Pod Identity is disabled by default for Clusters with Kubenet. Please review this [doc](https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/) before upgrade.
 - Helm chart contains breaking changes. Please review this [doc](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#300) before upgrade.
+
+### Helm
+
+- helm: add podLabels parameter ([#963](https://github.com/Azure/aad-pod-identity/pull/963))
+
+### Bug Fixes
+
+- fix: prevent errors from being overwritten by metric report function ([#967](https://github.com/Azure/aad-pod-identity/pull/967))
+
+### Features
+
+- feat: add configuration for custom user agent ([#965](https://github.com/Azure/aad-pod-identity/pull/965))
+
+## v1.7.3
 
 ### Bug Fixes
 
 - fix: check if provisioning state is not nil ([#960](https://github.com/Azure/aad-pod-identity/pull/960))
 
 ## v1.7.2
-
-### Breaking Change
-- If upgrading from versions 1.5.x to 1.7.x of pod-identity, please carefully review this [doc](https://azure.github.io/aad-pod-identity/docs/#v16x-breaking-change) before upgrade.
-- Pod Identity is disabled by default for Clusters with Kubenet. Please review this [doc](https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/) before upgrade.
-- Helm chart contains breaking changes. Please review this [doc](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#300) before upgrade.
-
 
 ### Features
 
@@ -58,11 +66,6 @@ menu:
 
 ## v1.7.1
 
-### Breaking Change
-- If upgrading from versions 1.5.x to 1.7.x of pod-identity, please carefully review this [doc](https://azure.github.io/aad-pod-identity/docs/#v16x-breaking-change) before upgrade.
-- Pod Identity is disabled by default for Clusters with Kubenet. Please review this [doc](https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/) before upgrade.
-- Helm chart contains breaking changes. Please review this [doc](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#300) before upgrade.
-
 ### Bug Fixes
 - allow overwriting NODE_RESOURCE_GROUP in role-assignment.sh ([#873](https://github.com/Azure/aad-pod-identity/pull/873))
 
@@ -94,10 +97,6 @@ menu:
 - less error-prone identityvalidator ([#901](https://github.com/Azure/aad-pod-identity/pull/901))
 
 ## v1.7.0
-
-### Breaking Change
-- If upgrading from versions 1.5.x to 1.7.x of pod-identity, please carefully review this [doc](https://azure.github.io/aad-pod-identity/docs/#v16x-breaking-change) before upgrade.
-- Pod Identity is disabled by default for Clusters with Kubenet. Please review this [doc](https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/) before upgrade.
 
 ### Features
 - support JSON logging format ([#839](https://github.com/Azure/aad-pod-identity/pull/839))
