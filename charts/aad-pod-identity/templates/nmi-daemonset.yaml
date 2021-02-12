@@ -20,6 +20,9 @@ spec:
         {{- include "aad-pod-identity.labels" . | nindent 8 }}
         app.kubernetes.io/component: nmi
         tier: node
+      {{- if .Values.nmi.podLabels }}
+      {{- toYaml .Values.nmi.podLabels | nindent 8 }}
+      {{- end }}
 {{- if .Values.nmi.podAnnotations }}
       annotations:
 {{ toYaml .Values.nmi.podAnnotations | indent 8 }}
@@ -103,6 +106,9 @@ spec:
           {{- end }}
           {{- if semverCompare ">= 1.7.0-0" .Values.nmi.tag }}
           - --kubelet-config={{ .Values.nmi.kubeletConfig }}
+          {{- end }}
+          {{- if .Values.customUserAgent }}
+          - --custom-user-agent={{ .Values.customUserAgent }}
           {{- end }}
         env:
           {{- if semverCompare "<= 1.6.1-0" .Values.nmi.tag }}

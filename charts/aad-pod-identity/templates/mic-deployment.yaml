@@ -20,6 +20,9 @@ spec:
       labels:
         {{- include "aad-pod-identity.labels" . | nindent 8 }}
         app.kubernetes.io/component: mic
+      {{- if .Values.mic.podLabels }}
+      {{- toYaml .Values.mic.podLabels | nindent 8 }}
+      {{- end }}
 {{- if .Values.mic.podAnnotations }}
       annotations:
 {{ toYaml .Values.mic.podAnnotations | indent 8 }}
@@ -85,6 +88,9 @@ spec:
           {{- end }}
           {{- if .Values.mic.identityAssignmentReconcileInterval }}
           - --identity-assignment-reconcile-interval={{ .Values.mic.identityAssignmentReconcileInterval }}
+          {{- end }}
+          {{- if .Values.customUserAgent }}
+          - --custom-user-agent={{ .Values.customUserAgent }}
           {{- end }}
         {{- if not .Values.adminsecret }}
         securityContext:
