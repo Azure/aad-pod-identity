@@ -356,7 +356,7 @@ helm install aad-pod-identity aad-pod-identity/aad-pod-identity
 &lt;/span>&lt;span style="color:#4e9a06">spec:
 &lt;/span>&lt;span style="color:#4e9a06"> containers:
 &lt;/span>&lt;span style="color:#4e9a06"> - name: demo
-&lt;/span>&lt;span style="color:#4e9a06"> image: mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.7.3
+&lt;/span>&lt;span style="color:#4e9a06"> image: mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.7.4
 &lt;/span>&lt;span style="color:#4e9a06"> args:
 &lt;/span>&lt;span style="color:#4e9a06"> - --subscription-id=${SUBSCRIPTION_ID}
 &lt;/span>&lt;span style="color:#4e9a06"> - --resource-group=${IDENTITY_RESOURCE_GROUP}
@@ -667,7 +667,7 @@ Running aad-pod-identity in a cluster with Kubenet is not a recommended configur
 &lt;p>The secret will be injected as an environment variable into &lt;code>mic&lt;/code> upon pod creation and cannot be updated during the lifecycle of &lt;code>mic&lt;/code>. However, redeploying &lt;code>mic&lt;/code> should pick up the updated service principal&amp;rsquo;s information should they change.&lt;/p></description></item><item><title>Docs: Installation</title><link>https://azure.github.io/aad-pod-identity/docs/getting-started/installation/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/getting-started/installation/</guid><description>
 &lt;h2 id="quick-install">Quick Install&lt;/h2>
 &lt;p>To install/upgrade AAD Pod Identity on RBAC-enabled clusters:&lt;/p>
-&lt;pre>&lt;code>kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.7.3/deploy/infra/deployment-rbac.yaml
+&lt;pre>&lt;code>kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.7.4/deploy/infra/deployment-rbac.yaml
 &lt;/code>&lt;/pre>&lt;details>
 &lt;summary>Result&lt;/summary>
 &lt;pre>&lt;code>serviceaccount/aad-pod-id-nmi-service-account created
@@ -684,7 +684,7 @@ clusterrolebinding.rbac.authorization.k8s.io/aad-pod-id-mic-binding created
 deployment.apps/mic created
 &lt;/code>&lt;/pre>&lt;/details>&lt;br/>
 &lt;p>To install/upgrade aad-pod-identity on RBAC-disabled clusters:&lt;/p>
-&lt;pre>&lt;code>kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.7.3/deploy/infra/deployment.yaml
+&lt;pre>&lt;code>kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.7.4/deploy/infra/deployment.yaml
 &lt;/code>&lt;/pre>&lt;details>
 &lt;summary>Result&lt;/summary>
 &lt;pre>&lt;code>customresourcedefinition.apiextensions.k8s.io/azureassignedidentities.aadpodidentity.k8s.io created
@@ -695,7 +695,7 @@ daemonset.apps/nmi created
 deployment.apps/mic created
 &lt;/code>&lt;/pre>&lt;/details>&lt;br/>
 &lt;p>For AKS clusters, you will have to allow MIC and AKS add-ons to access IMDS without being intercepted by NMI:&lt;/p>
-&lt;pre>&lt;code>kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.7.3/deploy/infra/mic-exception.yaml
+&lt;pre>&lt;code>kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.7.4/deploy/infra/mic-exception.yaml
 &lt;/code>&lt;/pre>
 &lt;div class="alert alert-warning" role="alert">
 &lt;h4 class="alert-heading">Warning&lt;/h4>
