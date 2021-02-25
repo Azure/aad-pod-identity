@@ -305,10 +305,10 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 		if err != nil {
 			s.Reporter.ReportOperationAndStatusForWorkload(
 				operationType, tokenRequest.Resource, podns, podname, strconv.Itoa(stausCode), metrics.NMITokenOperationFailureCountM.M(1))
-			return
 		}
 		s.Reporter.ReportOperationAndStatusForWorkload(
 			operationType, tokenRequest.Resource, podns, podname, strconv.Itoa(stausCode), metrics.NMITokenOperationCountM.M(1))
+		return
 	}()
 
 	if s.MetadataHeaderRequired && parseMetadata(r) != "true" {
