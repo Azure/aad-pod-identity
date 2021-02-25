@@ -38,9 +38,13 @@ func ApplyEndpointRoutePolicy(podIP string, metadataIP string, metadataPort stri
 
 	if err != nil {
 		if endpointPolicyError, ok := err.(*endpointPolicyError); ok {
-			return fmt.Errorf("Get endpoint for Pod IP - %s. Error: %w", podIP, endpointPolicyError.err)
+			if endpointPolicyError.errType == InvalidOperation {
+				return fmt.Errorf("Get endpoint for Pod IP - %s. Error: %w", podIP, endpointPolicyError.err)
+			} else if endpointPolicyError.errType == NotFound {
+				klog.Infof("No applying action: no endpoint found for Pod IP - %s.", podIP)
+				return nil
+			}
 		}
-
 		return fmt.Errorf("Get endpoint for Pod IP - %s. Error: %w", podIP, err)
 	}
 
@@ -81,31 +85,45 @@ func DeleteEndpointRoutePolicy(podIP string, metadataIP string) error {
 }
 
 func getEndpointByIP(ip string) (*v1.HNSEndpoint, error) {
-	klog.Infof("Getting endpoint for IP %s\n", ip)
-
 	request := msg.HNSRequest{
 		Entity:    msg.EndpointV1,
 		Operation: msg.Enumerate,
 		Request:   nil,
 	}
 
-	klog.Info("Enumerating all endpoints\n")
-	response, err := callHcnProxyAgent(request)
-	if err != nil {
-		return nil, &endpointPolicyError{InvalidOperation, err}
-	}
+	retryCount := 1
+	maxRetryCount := 4
+	var sleepFactor time.Duration = 1
 
-	var endpoints []v1.HNSEndpoint
-	err = json.Unmarshal(response, &endpoints)
-	if err != nil {
-		return nil, &endpointPolicyError{InvalidOperation, err}
-	}
-
-	for _, ep := range endpoints {
-		if ep.IPAddress.String() == ip {
-			klog.Infof("Got endpoint for IP with id %s\n", ep.Id)
-			return &ep, nil
+	for {
+		klog.Infof("Getting endpoint for IP %s\n", ip)
+		response, err := callHcnProxyAgent(request)
+		if err != nil {
+			return nil, &endpointPolicyError{InvalidOperation, err}
 		}
+
+		var endpoints []v1.HNSEndpoint
+		err = json.Unmarshal(response, &endpoints)
+		if err != nil {
+			return nil, &endpointPolicyError{InvalidOperation, err}
+		}
+
+		for _, ep := range endpoints {
+			if ep.IPAddress.String() == ip {
+				klog.Infof("Got endpoint for IP with id %s\n", ep.Id)
+				return &ep, nil
+			}
+		}
+
+		if retryCount > maxRetryCount {
+			break
+		}
+
+		klog.Infof("Getting endpoint for IP %s failed, will retry in %s", ip, sleepFactor)
+		time.Sleep(sleepFactor * time.Second)
+		sleepFactor = sleepFactor * 2
+		retryCount++
+		continue
 	}
 
 	return nil, &endpointPolicyError{NotFound, fmt.Errorf("No endpoint found for Pod IP - %s.", ip)}
