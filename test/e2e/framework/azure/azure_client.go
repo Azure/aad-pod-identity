@@ -19,7 +19,7 @@ import (
 // Client defines the behavior of a type that acts as an intermediary with ARM.
 type Client interface {
 	// GetIdentityClientID returns the client ID of a user-assigned identity.
-	GetIdentityClientID(identityName string) string
+	GetIdentityClientID(resourceGroup, identityName string) string
 
 	// ListUserAssignedIdentities returns a list of user-assigned identities assigned to the node.
 	ListUserAssignedIdentities(providerID string) map[string]bool
@@ -75,12 +75,12 @@ func NewClient(config *framework.Config) Client {
 }
 
 // GetIdentityClientID returns the client ID of a user-assigned identity.
-func (c *client) GetIdentityClientID(identityName string) string {
+func (c *client) GetIdentityClientID(resourceGroup, identityName string) string {
 	if clientID, ok := c.identityClientIDMap[identityName]; ok {
 		return clientID
 	}
 
-	result, err := c.msiClient.Get(context.TODO(), c.config.IdentityResourceGroup, identityName)
+	result, err := c.msiClient.Get(context.TODO(), resourceGroup, identityName)
 	if err != nil {
 		// Dummy client ID
 		return "00000000-0000-0000-0000-000000000000"

@@ -76,7 +76,7 @@ type UpdateUserMSIConfig struct {
 }
 
 // Client has the required pointers to talk to the api server
-// and interact with the CRD related datastructure.
+// and interact with the CRD related data structure.
 type Client struct {
 	CRDClient                           crd.ClientInt
 	CloudClient                         cloudprovider.ClientInt
@@ -93,7 +93,7 @@ type Client struct {
 	ImmutableUserMSIsMap                map[string]bool
 	identityAssignmentReconcileInterval time.Duration
 
-	syncing int32 // protect against conucrrent sync's
+	syncing int32 // protect against concurrent sync's
 
 	leaderElector *leaderelection.LeaderElector
 	*LeaderElectionConfig
@@ -134,7 +134,7 @@ type trackUserAssignedMSIIds struct {
 	isvmss                   bool
 }
 
-// NewMICClient returnes new mic client
+// NewMICClient returns new mic client
 func NewMICClient(cfg *Config) (*Client, error) {
 	klog.Infof("starting to create the pod identity client. Version: %v. Build date: %v", version.MICVersion, version.BuildDate)
 
@@ -187,16 +187,20 @@ func NewMICClient(cfg *Config) (*Client, error) {
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: clientSet.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: aadpodid.CRDGroup})
 
-	var immutableUserMSIsMap map[string]bool
-
+	immutableUserMSIsMap := make(map[string]bool)
 	if len(cfg.ImmutableUserMSIsList) > 0 {
-		// this map contains list of identities that are configured by user as immutable.
-		immutableUserMSIsMap = make(map[string]bool)
 		for _, item := range cfg.ImmutableUserMSIsList {
 			immutableUserMSIsMap[strings.ToLower(item)] = true
 		}
 	}
-
+	// Cluster identity used for cloud provider operations is also immutable.
+	// For clusters created with managed identity, the cluster identity is used for all
+	// cloud provider operations and is also used by MIC. If the user configures the cluster
+	// identity to be used by pod, we should not delete it when all pods are deleted.
+	clusterIdentity := cloudClient.GetClusterIdentity()
+	if clusterIdentity != "" {
+		immutableUserMSIsMap[clusterIdentity] = true
+	}
 	var cmClient typedcorev1.ConfigMapInterface
 	if cfg.TypeUpgradeCfg.EnableTypeUpgrade {
 		cmClient = clientSet.CoreV1().ConfigMaps(cfg.CMcfg.Namespace)

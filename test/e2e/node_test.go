@@ -75,9 +75,9 @@ var _ = Describe("When managing identities from the underlying nodes", func() {
 	It("should not delete a user-assigned identity that is being used by a different pod", func() {
 		// This test is specifically testing VMSS behavior
 		// As such we'll look through the cluster to see if there are nodes assigned
-		// to a VMSS, and if any of thoe VMSS's have more than one node.
+		// to a VMSS, and if any of those VMSS's have more than one node.
 		//
-		// We cannot do the test if there is not at least1 VMSS with at least 2 nodes
+		// We cannot do the test if there is not at least 1 VMSS with at least 2 nodes
 		// attach to it.
 		var vmssNodes []corev1.Node
 		if vmssNodes = getVMSSNodes(nodes); len(vmssNodes) < 2 {
@@ -101,7 +101,7 @@ var _ = Describe("When managing identities from the underlying nodes", func() {
 		})
 
 		userAssignedIdentities := azureClient.ListUserAssignedIdentities(vmssNodes[0].Spec.ProviderID)
-		Expect(isUserAssignedIdentityExist(userAssignedIdentities, keyvaultIdentity)).To(BeTrue())
+		Expect(isUserAssignedIdentityExist(userAssignedIdentities, config.IdentityResourceGroup, keyvaultIdentity)).To(BeTrue())
 
 		// Create a second identity-validator with the same AzureIdentity
 		// and AzureIdentityBinding but different VMSS node
@@ -122,7 +122,7 @@ var _ = Describe("When managing identities from the underlying nodes", func() {
 		})
 
 		userAssignedIdentities = azureClient.ListUserAssignedIdentities(vmssNodes[1].Spec.ProviderID)
-		Expect(isUserAssignedIdentityExist(userAssignedIdentities, keyvaultIdentity)).To(BeTrue())
+		Expect(isUserAssignedIdentityExist(userAssignedIdentities, config.IdentityResourceGroup, keyvaultIdentity)).To(BeTrue())
 
 		identityvalidator.Delete(identityvalidator.DeleteInput{
 			Deleter:           kubeClient,
@@ -136,7 +136,7 @@ var _ = Describe("When managing identities from the underlying nodes", func() {
 
 		By(fmt.Sprintf("Ensuring %s is still assigned to the VMSS", keyvaultIdentity))
 		userAssignedIdentities = azureClient.ListUserAssignedIdentities(vmssNodes[0].Spec.ProviderID)
-		Expect(isUserAssignedIdentityExist(userAssignedIdentities, keyvaultIdentity)).To(BeTrue())
+		Expect(isUserAssignedIdentityExist(userAssignedIdentities, config.IdentityResourceGroup, keyvaultIdentity)).To(BeTrue())
 	})
 
 	It("should be able to delete AzureAssignedIdentity when the user-assigned is un-assigned from the underlying node", func() {
@@ -271,8 +271,8 @@ var _ = Describe("When managing identities from the underlying nodes", func() {
 
 		By(fmt.Sprintf("Ensuring both keyvault-identity and cluster-identity are assigned to %s", node.Name))
 		userAssignedIdentities := azureClient.ListUserAssignedIdentities(node.Spec.ProviderID)
-		Expect(isUserAssignedIdentityExist(userAssignedIdentities, keyvaultIdentity)).To(BeTrue())
-		Expect(isUserAssignedIdentityExist(userAssignedIdentities, clusterIdentity)).To(BeTrue())
+		Expect(isUserAssignedIdentityExist(userAssignedIdentities, config.IdentityResourceGroup, keyvaultIdentity)).To(BeTrue())
+		Expect(isUserAssignedIdentityExist(userAssignedIdentities, config.IdentityResourceGroup, clusterIdentity)).To(BeTrue())
 
 		identityvalidator.Delete(identityvalidator.DeleteInput{
 			Deleter:           kubeClient,
@@ -286,7 +286,7 @@ var _ = Describe("When managing identities from the underlying nodes", func() {
 
 		By(fmt.Sprintf("Ensuring cluster-identity is still assigned to %s after deleting identity-validator", node.Name))
 		userAssignedIdentities = azureClient.ListUserAssignedIdentities(node.Spec.ProviderID)
-		Expect(isUserAssignedIdentityExist(userAssignedIdentities, clusterIdentity)).To(BeTrue())
+		Expect(isUserAssignedIdentityExist(userAssignedIdentities, config.IdentityResourceGroup, clusterIdentity)).To(BeTrue())
 	})
 
 	It("should not delete the Immutable Identity from VMSS when the deployment is deleted", func() {
@@ -348,7 +348,7 @@ var _ = Describe("When managing identities from the underlying nodes", func() {
 
 		By(fmt.Sprintf("Ensuring %s is still assigned to %s", immutableIdentity, node.Name))
 		userAssignedIdentities := azureClient.ListUserAssignedIdentities(node.Spec.ProviderID)
-		Expect(isUserAssignedIdentityExist(userAssignedIdentities, immutableIdentity)).To(BeTrue())
+		Expect(isUserAssignedIdentityExist(userAssignedIdentities, config.IdentityResourceGroup, immutableIdentity)).To(BeTrue())
 	})
 
 	It("should reconcile identity assignment on Azure if the user-assigned identity is manually unassigned from the underlying node", func() {
@@ -385,13 +385,13 @@ var _ = Describe("When managing identities from the underlying nodes", func() {
 			err := azureClient.UnassignUserAssignedIdentity(node.Spec.ProviderID, keyvaultIdentity)
 			Expect(err).To(BeNil())
 			userAssignedIdentities := azureClient.ListUserAssignedIdentities(node.Spec.ProviderID)
-			return !isUserAssignedIdentityExist(userAssignedIdentities, keyvaultIdentity)
+			return !isUserAssignedIdentityExist(userAssignedIdentities, config.IdentityResourceGroup, keyvaultIdentity)
 		}, framework.Timeout, framework.Polling).Should(BeTrue())
 
 		By(fmt.Sprintf("Waiting for identity assignment of \"%s\" to be reconciled", keyvaultIdentity))
 		Eventually(func() bool {
 			userAssignedIdentities := azureClient.ListUserAssignedIdentities(node.Spec.ProviderID)
-			return isUserAssignedIdentityExist(userAssignedIdentities, keyvaultIdentity)
+			return isUserAssignedIdentityExist(userAssignedIdentities, config.IdentityResourceGroup, keyvaultIdentity)
 		}, framework.Timeout, framework.Polling).Should(BeTrue())
 
 		identityvalidator.Validate(identityvalidator.ValidateInput{
@@ -403,6 +403,70 @@ var _ = Describe("When managing identities from the underlying nodes", func() {
 			IdentityClientID:   azureIdentity.Spec.ClientID,
 			IdentityResourceID: azureIdentity.Spec.ResourceID,
 		})
+	})
+
+	It("should not delete the Cluster Identity from VMSS when the deployment is deleted", func() {
+		var vmssNodes []corev1.Node
+		if vmssNodes = getVMSSNodes(nodes); len(vmssNodes) < 1 {
+			Skip("Skipping since there is no VMSS node")
+		}
+
+		// Schedule identity-validator to this node
+		node := vmssNodes[0]
+		userAssignedIdentities := azureClient.ListUserAssignedIdentities(node.Spec.ProviderID)
+		clusterIdentityName := getClusterIdentityName(userAssignedIdentities)
+		if clusterIdentityName == "" {
+			Skip("Skipping since there is no cluster identity with suffix agentpool")
+		}
+
+		azureIdentity = azureidentity.Update(azureidentity.UpdateInput{
+			Updater:             kubeClient,
+			Config:              config,
+			AzureClient:         azureClient,
+			AzureIdentity:       azureIdentity,
+			UpdatedIdentityName: clusterIdentityName,
+			ClusterIdentity:     true,
+		})
+
+		identityValidator := identityvalidator.Create(identityvalidator.CreateInput{
+			Creator:         kubeClient,
+			Config:          config,
+			Namespace:       ns.Name,
+			IdentityBinding: azureIdentityBinding.Spec.Selector,
+			NodeName:        node.Name,
+		})
+
+		azureassignedidentity.Wait(azureassignedidentity.WaitInput{
+			Getter:            kubeClient,
+			PodName:           identityValidator.Name,
+			Namespace:         ns.Name,
+			AzureIdentityName: azureIdentity.Name,
+			StateToWaitFor:    aadpodv1.AssignedIDAssigned,
+		})
+
+		identityvalidator.Validate(identityvalidator.ValidateInput{
+			Getter:             kubeClient,
+			Config:             config,
+			KubeconfigPath:     kubeconfigPath,
+			PodName:            identityValidator.Name,
+			Namespace:          ns.Name,
+			IdentityClientID:   azureIdentity.Spec.ClientID,
+			IdentityResourceID: azureIdentity.Spec.ResourceID,
+		})
+
+		identityvalidator.Delete(identityvalidator.DeleteInput{
+			Deleter:           kubeClient,
+			IdentityValidator: identityValidator,
+		})
+
+		azureassignedidentity.WaitForLen(azureassignedidentity.WaitForLenInput{
+			Lister: kubeClient,
+			Len:    0,
+		})
+
+		By(fmt.Sprintf("Ensuring cluster identity %s is still assigned to %s", immutableIdentity, node.Name))
+		userAssignedIdentities = azureClient.ListUserAssignedIdentities(node.Spec.ProviderID)
+		Expect(isUserAssignedIdentityExist(userAssignedIdentities, config.NodeResourceGroup, clusterIdentityName)).To(BeTrue())
 	})
 })
 
@@ -420,8 +484,20 @@ func getVMSSNodes(nodes *corev1.NodeList) []corev1.Node {
 	return vmssNodes
 }
 
-func isUserAssignedIdentityExist(identities map[string]bool, identityToCheck string) bool {
-	resourceID := fmt.Sprintf(azure.ResourceIDTemplate, config.SubscriptionID, config.IdentityResourceGroup, identityToCheck)
+func isUserAssignedIdentityExist(identities map[string]bool, resourceGroup, identityToCheck string) bool {
+	resourceID := fmt.Sprintf(azure.ResourceIDTemplate, config.SubscriptionID, resourceGroup, identityToCheck)
 	_, ok := identities[strings.ToLower(resourceID)]
 	return ok
+}
+
+// getClusterIdentityName returns the name of cluster identity that
+// contains the agentpool suffix
+func getClusterIdentityName(identities map[string]bool) string {
+	for resourceID := range identities {
+		if strings.HasSuffix(resourceID, "-agentpool") {
+			split := strings.Split(resourceID, "/")
+			return split[len(split)-1]
+		}
+	}
+	return ""
 }

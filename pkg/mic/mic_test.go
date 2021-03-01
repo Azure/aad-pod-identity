@@ -1618,7 +1618,7 @@ func TestSyncExit(t *testing.T) {
 	micClient.testRunSync()(t)
 }
 
-func TestMicAddDelVMSSwithImmutableIdentities(t *testing.T) {
+func TestMicAddDelVMSSWithImmutableIdentities(t *testing.T) {
 	eventCh := make(chan internalaadpodid.EventType, 100)
 	cloudClient := NewTestCloudClient(config.AzureConfig{VMType: "vmss"})
 	crdClient := NewTestCrdClient(nil)

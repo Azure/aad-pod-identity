@@ -579,3 +579,49 @@ func TestGetRetryAfter(t *testing.T) {
 		})
 	}
 }
+
+func TestGetClusterIdentity(t *testing.T) {
+	cases := []struct {
+		desc             string
+		config           config.AzureConfig
+		expectedClientID string
+	}{
+		{
+			desc: "cluster using service principal",
+			config: config.AzureConfig{
+				ClientID:               "clientid",
+				ClientSecret:           "clientsecret",
+				UserAssignedIdentityID: "",
+			},
+			expectedClientID: "",
+		},
+		{
+			desc: "cluster using system-assigned managed identity",
+			config: config.AzureConfig{
+				ClientID:               "msi",
+				ClientSecret:           "msi",
+				UserAssignedIdentityID: "",
+			},
+			expectedClientID: "",
+		},
+		{
+			desc: "cluster using user-assigned managed identity",
+			config: config.AzureConfig{
+				ClientID:               "msi",
+				ClientSecret:           "msi",
+				UserAssignedIdentityID: "userAssignedIdentityID",
+			},
+			expectedClientID: "userAssignedIdentityID",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			client := NewTestCloudClient(tc.config)
+			actualClientID := client.GetClusterIdentity()
+			if tc.expectedClientID != actualClientID {
+				t.Fatalf("expected clientID: %s, got: %s", tc.expectedClientID, actualClientID)
+			}
+		})
+	}
+}
