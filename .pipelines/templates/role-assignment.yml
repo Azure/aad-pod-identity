@@ -1,0 +1,34 @@
+parameters:
+  - name: resource_group
+    type: string
+    default: $(RESOURCE_GROUP)
+  - name: identity_resource_group
+    type: string
+    default: ""
+  - name: node_resource_group
+    type: string
+    default: $(NODE_RESOURCE_GROUP)
+  - name: acr_resource_group
+    type: string
+    default: k8sbuildci
+  - name: subscription_id
+    type: string
+    default: $(SUBSCRIPTION_ID)
+  - name: registry_name
+    type: string
+    default: $(REGISTRY_NAME)
+
+steps:
+  - script: |
+      ASSIGNEE_OBJECT_ID="$(az identity show -g ${{ parameters.node_resource_group }} -n ${{ parameters.resource_group }}-agentpool --query principalId -otsv)"
+      az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "Virtual Machine Contributor" --scope "/subscriptions/${{ parameters.subscription_id }}/resourcegroups/${{ parameters.node_resource_group }}"
+      az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "Managed Identity Operator" --scope "/subscriptions/${{ parameters.subscription_id }}/resourcegroups/${{ parameters.node_resource_group }}"
+
+      if [[ -n "${{ parameters.identity_resource_group }}" ]]; then
+        az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "Managed Identity Operator" --scope "/subscriptions/${{ parameters.subscription_id }}/resourcegroups/${{ parameters.identity_resource_group }}"
+      fi
+
+      if [[ -n "${{ parameters.registry_name }}" ]]; then
+        az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "AcrPull" --scope "/subscriptions/$(SUBSCRIPTION_ID)/resourceGroups/${{ parameters.acr_resource_group }}/providers/Microsoft.ContainerRegistry/registries/${{ parameters.registry_name }}"
+      fi
+    displayName: "Add role assignment"

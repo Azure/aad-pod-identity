@@ -6,7 +6,7 @@ jobs:
   - ${{ each operationMode in parameters.operationModes }}:
     - job:
       displayName: ${{ format('load/{0}', operationMode) }}
-      dependsOn: unit_tests
+      dependsOn: unit_test
       strategy:
         matrix:
           test-pod-2000:
@@ -27,47 +27,44 @@ jobs:
       - name: OPERATION_MODE
         value: ${{ format('{0}', operationMode) }}
       steps:
-        - task: GoTool@0
-          inputs:
-            version: 1.15
-
         - bash: |
             git clone -b $(checkout.branch) $(checkout.repo) $(perf-tests.repo.path)
           displayName: Checkout $(checkout.repo) @ $(checkout.branch)
 
+        - template: az-login.yml
+          parameters:
+            subscription_id: $(LOAD_TEST_SUBSCRIPTION_ID)
+
+        - template: install-helm.yml
+
         - template: build-images.yml
 
         - script: |
-            az account set -s=$(LOAD_TEST_SUBSCRIPTION_ID)
-          displayName: "Set subscription for load tests"
-
-        - script: |
-            export RESOURCE_GROUP="pi-load-e2e-$(openssl rand -hex 6)"
+            export RESOURCE_GROUP="aad-pod-identity-load-$(openssl rand -hex 2)"
             echo "##vso[task.setvariable variable=RESOURCE_GROUP]${RESOURCE_GROUP}"
           displayName: "Generate resource group name"
 
         - template: deploy-aks-cluster.yml
 
+        - template: role-assignment.yml
+          parameters:
+            subscription_id: $(LOAD_TEST_SUBSCRIPTION_ID)
+
         - script: |
             # Create assigned identity to be used for test
-            POD_IDENTITY_CLIENT_ID=$(az identity create -n ${POD_IDENTITY_ID_NAME} -g MC_${RESOURCE_GROUP}_${RESOURCE_GROUP}_${LOCATION} --query clientId -otsv)
+            POD_IDENTITY_CLIENT_ID=$(az identity create -n ${POD_IDENTITY_ID_NAME} -g ${NODE_RESOURCE_GROUP} --query clientId -otsv)
             echo "##vso[task.setvariable variable=POD_IDENTITY_CLIENT_ID]${POD_IDENTITY_CLIENT_ID}"
 
             if [[ $OPERATION_MODE == "managed" ]]; then
-              VMSS_NAME=$(az vmss list -g MC_${RESOURCE_GROUP}_${RESOURCE_GROUP}_$(LOCATION) --query "[].name" -o tsv)
-              echo "Assigning /subscriptions/$(LOAD_TEST_SUBSCRIPTION_ID)/resourcegroups/MC_${RESOURCE_GROUP}_${RESOURCE_GROUP}_$(LOCATION)/providers/Microsoft.ManagedIdentity/userAssignedIdentities/${POD_IDENTITY_ID_NAME} to ${VMSS_NAME}"
+              VMSS_NAME=$(az vmss list -g ${NODE_RESOURCE_GROUP} --query "[].name" -o tsv)
+              echo "Assigning /subscriptions/$(LOAD_TEST_SUBSCRIPTION_ID)/resourcegroups/${NODE_RESOURCE_GROUP}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/${POD_IDENTITY_ID_NAME} to ${VMSS_NAME}"
 
               # Assign user assigned identity to the VMSS
-              az vmss identity assign -g MC_${RESOURCE_GROUP}_${RESOURCE_GROUP}_$(LOCATION) -n $VMSS_NAME \
-                --identities /subscriptions/$(LOAD_TEST_SUBSCRIPTION_ID)/resourcegroups/MC_${RESOURCE_GROUP}_${RESOURCE_GROUP}_$(LOCATION)/providers/Microsoft.ManagedIdentity/userAssignedIdentities/${POD_IDENTITY_ID_NAME} >> /dev/null
+              az vmss identity assign -g ${NODE_RESOURCE_GROUP} -n ${VMSS_NAME} \
+                --identities /subscriptions/$(LOAD_TEST_SUBSCRIPTION_ID)/resourcegroups/${NODE_RESOURCE_GROUP}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/${POD_IDENTITY_ID_NAME} >> /dev/null
             fi
           displayName: "Create and assign identity to AKS cluster"
           workingDirectory: "$(System.DefaultWorkingDirectory)"
-
-        - script: |
-            echo "Installing helm..."
-            curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
-          displayName: "Install helm"
 
         - script: |
             kubectl wait --for=condition=ready node --all
@@ -154,6 +151,7 @@ jobs:
         - script: |
             az aks delete -g ${RESOURCE_GROUP} -n ${RESOURCE_GROUP} --yes --no-wait
             az group delete -g ${RESOURCE_GROUP} --yes --no-wait
+            sudo rm -rf $(GOPATH)
           displayName: "Delete resource group"
           condition: always()
 

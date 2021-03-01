@@ -104,7 +104,7 @@ func generateValueArgs(config *framework.Config) []string {
 
 	// TODO (aramase) bump this to compare against v1.7.3 after next release
 	if semver.Compare(config.MICVersion, "v1.7.2") > 1 && semver.Compare(config.NMIVersion, "v1.7.2") > 1 {
-		args = append(args, fmt.Sprintf("--set=customUserAgent=pi-e2e"))
+		args = append(args, fmt.Sprintf("--set=customUserAgent=pi-e2e", "--set=mic.logVerbosity=9"))
 	}
 
 	if config.ImmutableUserMSIs != "" {

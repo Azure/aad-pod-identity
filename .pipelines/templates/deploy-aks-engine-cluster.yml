@@ -14,31 +14,18 @@ steps:
       envsubst < test/e2e/cluster_configs/$(CLUSTER_CONFIG).json > kubernetes.json
       cat kubernetes.json
     displayName: "Generate API model"
-    env:
-      AZURE_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
 
   - script: |
-      aks-engine deploy \
-        --api-model kubernetes.json \
-        --location $(LOCATION) \
-        --subscription-id $(SUBSCRIPTION_ID) \
-        --client-id $(AZURE_CLIENT_ID) \
-        --client-secret $(AZURE_CLIENT_SECRET)
+      aks-engine generate -m kubernetes.json
+      az group create -n "${RESOURCE_GROUP}" -l "$(LOCATION)" > /dev/null
+      az deployment group create -g "${RESOURCE_GROUP}" -f "_output/${RESOURCE_GROUP}/azuredeploy.json" -p @_output/${RESOURCE_GROUP}/azuredeploy.parameters.json > /dev/null
 
-      export KUBECONFIG="$(pwd)/_output/${RESOURCE_GROUP}/kubeconfig/kubeconfig.$(LOCATION).json"
+      KUBECONFIG="$(pwd)/_output/${RESOURCE_GROUP}/kubeconfig/kubeconfig.$(LOCATION).json"
       echo "##vso[task.setvariable variable=KUBECONFIG]${KUBECONFIG}"
 
       # set NODE_RESOURCE_GROUP for e2e test config
-      export NODE_RESOURCE_GROUP="${RESOURCE_GROUP}"
-      echo "##vso[task.setvariable variable=NODE_RESOURCE_GROUP]${NODE_RESOURCE_GROUP}"
+      echo "##vso[task.setvariable variable=NODE_RESOURCE_GROUP]${RESOURCE_GROUP}"
 
       # Sleep for 120 seconds to wait for nodes and pods to become ready
       sleep 120
     displayName: "Deploy an aks-engine cluster"
-
-  - script: |
-      echo "Installing kubectl..."
-      curl -LO https://storage.googleapis.com/kubernetes-release/release/v$(AKS_ENGINE_CLUSTER_VERSION)/bin/linux/amd64/kubectl
-      chmod +x kubectl
-      sudo mv kubectl /usr/local/bin/
-    displayName: "Install kubectl"

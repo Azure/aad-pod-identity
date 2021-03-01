@@ -1,0 +1,10 @@
+parameters:
+  - name: subscription_id
+    type: string
+    default: $(SUBSCRIPTION_ID)
+
+steps:
+  - script: |
+      az login -i > /dev/null
+      az account set -s ${{ parameters.subscription_id }}
+    displayName: "az login"

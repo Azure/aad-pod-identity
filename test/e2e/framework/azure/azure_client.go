@@ -10,9 +10,9 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/msi/mgmt/msi"
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
-	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/adal"
 	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/go-autorest/autorest/azure/auth"
 	. "github.com/onsi/gomega"
 )
 
@@ -50,19 +50,17 @@ type client struct {
 
 // NewClient returns an implementation of Client given a test configuration.
 func NewClient(config *framework.Config) Client {
-	oauthConfig, err := getOAuthConfig(azure.PublicCloud, config.SubscriptionID, config.AzureTenantID)
-	Expect(err).To(BeNil())
-
-	armSpt, err := adal.NewServicePrincipalToken(*oauthConfig, config.AzureClientID, config.AzureClientSecret, azure.PublicCloud.ServiceManagementEndpoint)
-	Expect(err).To(BeNil())
-
 	c := &client{
 		config:              config,
 		identityClientIDMap: make(map[string]string),
 		msiClient:           msi.NewUserAssignedIdentitiesClient(config.SubscriptionID),
 	}
 
-	authorizer := autorest.NewBearerAuthorizer(armSpt)
+	// use managed identity or fall back to service principal if
+	// AZURE_CLIENT_ID, AZURE_CLIENT_SECRET and AZURE_TENANT_ID in config are defined
+	authorizer, err := auth.NewAuthorizerFromEnvironment()
+	Expect(err).To(BeNil())
+
 	c.msiClient.Authorizer = authorizer
 
 	vmClient := compute.NewVirtualMachinesClient(config.SubscriptionID)
