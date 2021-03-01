@@ -6,7 +6,7 @@ jobs:
   - ${{ each clusterConfig in parameters.clusterConfigs }}:
     - job:
       displayName: ${{ format('{0}', clusterConfig) }}
-      dependsOn: unit_tests
+      dependsOn: unit_test
       timeoutInMinutes: 120
       cancelTimeoutInMinutes: 5
       workspace:
@@ -16,14 +16,14 @@ jobs:
         - name: CLUSTER_CONFIG
           value: ${{ format('{0}', clusterConfig) }}
       steps:
-        - task: GoTool@0
-          inputs:
-            version: 1.15
+        - template: az-login.yml
+
+        - template: install-helm.yml
 
         - template: build-images.yml
 
         - script: |
-            export RESOURCE_GROUP="aad-pod-identity-e2e-$(openssl rand -hex 2)"
+            RESOURCE_GROUP="aad-pod-identity-e2e-$(openssl rand -hex 2)"
             echo "##vso[task.setvariable variable=RESOURCE_GROUP]${RESOURCE_GROUP}"
           displayName: "Generate resource group name"
 
@@ -41,6 +41,10 @@ jobs:
         - ${{ if not(eq(clusterConfig, 'aks')) }}:
           - template: deploy-aks-engine-cluster.yml
 
+        - template: role-assignment.yml
+          parameters:
+            identity_resource_group: $(IDENTITY_RESOURCE_GROUP)
+
         - script: |
             kubectl wait --for=condition=ready node --all
             kubectl wait pod -n kube-system --for=condition=Ready --all
@@ -55,10 +59,7 @@ jobs:
             export IDENTITY_VALIDATOR_VERSION="${IMAGE_VERSION}"
             make e2e
           env:
-            SUBSCRIPTION_ID: $(SUBSCRIPTION_ID)
-            AZURE_CLIENT_ID: $(AZURE_CLIENT_ID)
-            AZURE_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
-            AZURE_TENANT_ID: $(AZURE_TENANT_ID)
+            # used by 'When deploying service principal should pass the identity validation' test case
             SERVICE_PRINCIPAL_CLIENT_ID: $(SERVICE_PRINCIPAL_CLIENT_ID)
             SERVICE_PRINCIPAL_CLIENT_SECRET: $(SERVICE_PRINCIPAL_CLIENT_SECRET)
           displayName: "Run E2E tests"

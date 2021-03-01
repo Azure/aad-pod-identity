@@ -1,13 +1,10 @@
 jobs:
-  - job: unit_tests
+  - job: unit_test
     timeoutInMinutes: 20
     cancelTimeoutInMinutes: 5
     workspace:
       clean: all
     steps:
-      - task: GoTool@0
-        inputs:
-          version: 1.15
       - script: make unit-test
         displayName: Run unit tests
       - script: bash <(curl -s https://codecov.io/bash)

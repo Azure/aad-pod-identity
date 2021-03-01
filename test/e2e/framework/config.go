@@ -25,7 +25,6 @@ type Config struct {
 	NMIVersion                   string        `envconfig:"NMI_VERSION" default:"v1.7.4"`
 	Registry                     string        `envconfig:"REGISTRY" default:"mcr.microsoft.com/oss/azure/aad-pod-identity"`
 	IdentityValidatorVersion     string        `envconfig:"IDENTITY_VALIDATOR_VERSION" default:"v1.7.4"`
-	SystemMSICluster             bool          `envconfig:"SYSTEM_MSI_CLUSTER" default:"false"`
 	EnableScaleFeatures          bool          `envconfig:"ENABLE_SCALE_FEATURES" default:"false"`
 	ImmutableUserMSIs            string        `envconfig:"IMMUTABLE_IDENTITY_CLIENT_ID"`
 	NMIMode                      string        `envconfig:"NMI_MODE" default:"standard"`
@@ -52,7 +51,6 @@ func (c *Config) DeepCopy() *Config {
 	copy.NMIVersion = c.NMIVersion
 	copy.Registry = c.Registry
 	copy.IdentityValidatorVersion = c.IdentityValidatorVersion
-	copy.SystemMSICluster = c.SystemMSICluster
 	copy.EnableScaleFeatures = c.EnableScaleFeatures
 	copy.ImmutableUserMSIs = c.ImmutableUserMSIs
 	copy.NMIMode = c.NMIMode

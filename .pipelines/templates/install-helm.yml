@@ -1,0 +1,8 @@
+parameters:
+  version: v3.5.2
+
+steps:
+  - bash: |
+      export DESIRED_VERSION="${{ parameters.version }}"
+      sudo curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+    displayName: Install Helm

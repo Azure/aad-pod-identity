@@ -8,12 +8,11 @@ pr:
     exclude:
       - docs/*
 
-pool:
-  vmImage: ubuntu-latest
+pool: Upstream Pool
 
 jobs:
-  - template: unit-tests-template.yml
-  - template: e2e-tests-template.yml
+  - template: templates/unit-test.yml
+  - template: templates/e2e-test.yml
     parameters:
       clusterConfigs:
         - "aks"
