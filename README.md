@@ -1,6 +1,6 @@
 # AAD Pod Identity
 
-[![Build Status](https://dev.azure.com/azure/aad-pod-identity/_apis/build/status/aad-pod-identity-nightly?branchName=master)](https://dev.azure.com/azure/aad-pod-identity/_build/latest?definitionId=77&branchName=master)
+[![Build Status](https://dev.azure.com/AzureContainerUpstream/AAD%20Pod%20Identity/_apis/build/status/AAD%20Pod%20Identity%20Nightly?branchName=master)](https://dev.azure.com/AzureContainerUpstream/AAD%20Pod%20Identity/_build/latest?definitionId=295&branchName=master)
 [![codecov](https://codecov.io/gh/Azure/aad-pod-identity/branch/master/graph/badge.svg)](https://codecov.io/gh/Azure/aad-pod-identity)
 [![GoDoc](https://godoc.org/github.com/Azure/aad-pod-identity?status.svg)](https://godoc.org/github.com/Azure/aad-pod-identity)
 [![Go Report Card](https://goreportcard.com/badge/github.com/Azure/aad-pod-identity)](https://goreportcard.com/report/github.com/Azure/aad-pod-identity)
