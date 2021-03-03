@@ -1,6 +1,6 @@
 module github.com/Azure/aad-pod-identity/test/e2e
 
-go 1.15
+go 1.16
 
 require (
 	github.com/Azure/aad-pod-identity v1.6.1

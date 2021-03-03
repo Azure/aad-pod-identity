@@ -3,7 +3,6 @@
 package e2e
 
 import (
-	"io/ioutil"
 	"os"
 	"time"
 
@@ -93,7 +92,7 @@ var _ = Describe("When using AAD Pod Identity with Gatekeeper", func() {
 		}()
 
 		By("Applying AzureIdentity gatekeeper format")
-		azureIdentityFormatTemplateFile, err = ioutil.TempFile("", "")
+		azureIdentityFormatTemplateFile, err = os.CreateTemp("", "")
 		Expect(err).To(BeNil())
 		defer os.Remove(azureIdentityFormatTemplateFile.Name())
 
@@ -112,7 +111,7 @@ var _ = Describe("When using AAD Pod Identity with Gatekeeper", func() {
 		time.Sleep(60 * time.Second)
 
 		By("Applying AzureIdentity gatekeeper constraint")
-		azureIdentityConstraintFile, err = ioutil.TempFile("", "")
+		azureIdentityConstraintFile, err = os.CreateTemp("", "")
 		Expect(err).To(BeNil())
 		defer os.Remove(azureIdentityConstraintFile.Name())
 

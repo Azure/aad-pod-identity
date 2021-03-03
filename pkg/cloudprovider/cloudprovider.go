@@ -2,7 +2,6 @@ package cloudprovider
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -70,7 +69,7 @@ func (c *Client) Init() error {
 	c.Config = config.AzureConfig{}
 	if c.configFile != "" {
 		klog.V(6).Info("populating AzureConfig from azure.json")
-		bytes, err := ioutil.ReadFile(c.configFile)
+		bytes, err := os.ReadFile(c.configFile)
 		if err != nil {
 			return fmt.Errorf("failed to config file %s, error: %+v", c.configFile, err)
 		}

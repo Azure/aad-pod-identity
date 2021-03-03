@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"flag"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -155,7 +155,7 @@ func curlIMDSMetadataInstanceEndpoint() {
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		klog.Errorf("failed to read response body, error: %+v", err)
 		return
