@@ -364,3 +364,9 @@ func getRetryAfter(resp *http.Response) time.Duration {
 	}
 	return dur
 }
+
+// GetClusterIdentity returns the cluster identity that MIC will use for all
+// cloud provider operations. This is userAssignedIdentityID configured in the azure.json
+func (c *Client) GetClusterIdentity() string {
+	return c.Config.UserAssignedIdentityID
+}

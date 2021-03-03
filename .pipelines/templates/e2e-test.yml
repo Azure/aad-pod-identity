@@ -44,6 +44,7 @@ jobs:
         - template: role-assignment.yml
           parameters:
             identity_resource_group: $(IDENTITY_RESOURCE_GROUP)
+            keyvault_resource_group: $(IDENTITY_RESOURCE_GROUP)
 
         - script: |
             kubectl wait --for=condition=ready node --all

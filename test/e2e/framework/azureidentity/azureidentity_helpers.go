@@ -53,7 +53,7 @@ func Create(input CreateInput) *aadpodv1.AzureIdentity {
 
 	By(fmt.Sprintf("Creating AzureIdentity \"%s\"", input.Name))
 
-	identityClientID := input.AzureClient.GetIdentityClientID(input.IdentityName)
+	identityClientID := input.AzureClient.GetIdentityClientID(input.Config.IdentityResourceGroup, input.IdentityName)
 	azureIdentity := &aadpodv1.AzureIdentity{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      input.Name,
@@ -106,7 +106,7 @@ func CreateOld(input CreateInput) (string, string) {
 
 	By(fmt.Sprintf("Creating old AzureIdentity \"%s\"", input.Name))
 
-	identityClientID := input.AzureClient.GetIdentityClientID(input.IdentityName)
+	identityClientID := input.AzureClient.GetIdentityClientID(input.Config.IdentityResourceGroup, input.IdentityName)
 	azureIdentity := azureIdentityOld{
 		APIVersion: apiVersion,
 		Kind:       kind,
@@ -153,6 +153,7 @@ type UpdateInput struct {
 	AzureClient         azure.Client
 	AzureIdentity       *aadpodv1.AzureIdentity
 	UpdatedIdentityName string
+	ClusterIdentity     bool
 }
 
 // Update updates an AzureIdentity resource.
@@ -165,11 +166,15 @@ func Update(input UpdateInput) *aadpodv1.AzureIdentity {
 
 	By(fmt.Sprintf("Updating AzureIdentity \"%s\" to use \"%s\"", input.AzureIdentity.Name, input.UpdatedIdentityName))
 
-	identityClientID := input.AzureClient.GetIdentityClientID(input.UpdatedIdentityName)
+	resourceGroup := input.Config.IdentityResourceGroup
+	if input.ClusterIdentity {
+		resourceGroup = input.Config.NodeResourceGroup
+	}
+	identityClientID := input.AzureClient.GetIdentityClientID(resourceGroup, input.UpdatedIdentityName)
 	Expect(identityClientID).NotTo(BeEmpty(), "identityClientID is required for AzureIdentity.Update")
 
 	input.AzureIdentity.Spec.ClientID = identityClientID
-	input.AzureIdentity.Spec.ResourceID = fmt.Sprintf(azure.ResourceIDTemplate, input.Config.SubscriptionID, input.Config.IdentityResourceGroup, input.UpdatedIdentityName)
+	input.AzureIdentity.Spec.ResourceID = fmt.Sprintf(azure.ResourceIDTemplate, input.Config.SubscriptionID, resourceGroup, input.UpdatedIdentityName)
 
 	Expect(input.Updater.Update(context.TODO(), input.AzureIdentity)).Should(Succeed())
 

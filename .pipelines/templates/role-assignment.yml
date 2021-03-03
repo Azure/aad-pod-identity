@@ -17,12 +17,23 @@ parameters:
   - name: registry_name
     type: string
     default: $(REGISTRY_NAME)
+  - name: keyvault_name
+    type: string
+    default: $(KEYVAULT_NAME)
+  - name: keyvault_resource_group
+    type: string
+    default: ""
 
 steps:
   - script: |
       ASSIGNEE_OBJECT_ID="$(az identity show -g ${{ parameters.node_resource_group }} -n ${{ parameters.resource_group }}-agentpool --query principalId -otsv)"
       az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "Virtual Machine Contributor" --scope "/subscriptions/${{ parameters.subscription_id }}/resourcegroups/${{ parameters.node_resource_group }}"
       az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "Managed Identity Operator" --scope "/subscriptions/${{ parameters.subscription_id }}/resourcegroups/${{ parameters.node_resource_group }}"
+
+      if [[ -n "${{ parameters.keyvault_resource_group }}" ]]; then
+        az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "Reader" --scope "/subscriptions/${{ parameters.subscription_id }}/resourcegroups/${{ parameters.keyvault_resource_group }}/providers/Microsoft.KeyVault/vaults/${{ parameters.keyvault_name }}"
+        az keyvault set-policy -n ${{ parameters.keyvault_name }} --secret-permissions get --object-id "${ASSIGNEE_OBJECT_ID}"
+      fi
 
       if [[ -n "${{ parameters.identity_resource_group }}" ]]; then
         az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "Managed Identity Operator" --scope "/subscriptions/${{ parameters.subscription_id }}/resourcegroups/${{ parameters.identity_resource_group }}"

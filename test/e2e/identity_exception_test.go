@@ -65,7 +65,7 @@ var _ = Describe("When deploying AzurePodIdentityException", func() {
 			PodLabels: podLabels,
 		})
 
-		identityClientID := azureClient.GetIdentityClientID(keyvaultIdentity)
+		identityClientID := azureClient.GetIdentityClientID(config.IdentityResourceGroup, keyvaultIdentity)
 		identityValidator := identityvalidator.Create(identityvalidator.CreateInput{
 			Creator:   kubeClient,
 			Config:    config,
