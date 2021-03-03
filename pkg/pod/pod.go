@@ -28,7 +28,7 @@ type ClientInt interface {
 }
 
 // NewPodClient returns new pod client
-func NewPodClient(i informers.SharedInformerFactory, eventCh chan aadpodid.EventType) (c ClientInt) {
+func NewPodClient(i informers.SharedInformerFactory, eventCh chan aadpodid.EventType) ClientInt {
 	podInformer := i.Core().V1().Pods()
 	addPodHandler(podInformer, eventCh)
 
@@ -80,7 +80,7 @@ func (c *Client) Start(exit <-chan struct{}) {
 }
 
 // GetPods returns list of all pods
-func (c *Client) GetPods() (pods []*v1.Pod, err error) {
+func (c *Client) GetPods() ([]*v1.Pod, error) {
 	begin := time.Now()
 	crdReq, err := labels.NewRequirement(aadpodid.CRDLabelKey, selection.Exists, nil)
 	if err != nil {

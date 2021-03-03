@@ -22,10 +22,8 @@ const (
 var reporter *metrics.Reporter
 
 // GetServicePrincipalTokenFromMSI return the token for the assigned user
-func GetServicePrincipalTokenFromMSI(resource string) (*adal.Token, error) {
+func GetServicePrincipalTokenFromMSI(resource string) (_ *adal.Token, err error) {
 	begin := time.Now()
-	var err error
-
 	defer func() {
 		if err != nil {
 			merr := reporter.ReportIMDSOperationError(metrics.AdalTokenFromMSIOperationName)
@@ -59,10 +57,8 @@ func GetServicePrincipalTokenFromMSI(resource string) (*adal.Token, error) {
 }
 
 // GetServicePrincipalTokenFromMSIWithUserAssignedID return the token for the assigned user
-func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string) (*adal.Token, error) {
+func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string) (_ *adal.Token, err error) {
 	begin := time.Now()
-	var err error
-
 	defer func() {
 		if err != nil {
 			merr := reporter.ReportIMDSOperationError(metrics.AdalTokenFromMSIWithUserAssignedIDOperationName)
@@ -99,10 +95,8 @@ func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string
 }
 
 // GetServicePrincipalToken return the token for the assigned user with client secret
-func GetServicePrincipalToken(adEndpointFromSpec, tenantID, clientID, secret, resource string, auxiliaryTenantIDs []string) ([]*adal.Token, error) {
+func GetServicePrincipalToken(adEndpointFromSpec, tenantID, clientID, secret, resource string, auxiliaryTenantIDs []string) (_ []*adal.Token, err error) {
 	begin := time.Now()
-	var err error
-
 	defer func() {
 		if err != nil {
 			merr := reporter.ReportIMDSOperationError(metrics.AdalTokenOperationName)
@@ -179,10 +173,8 @@ func newMultiTenantServicePrincipalToken(activeDirectoryEndpoint, primaryTenantI
 }
 
 // GetServicePrincipalTokenWithCertificate return the token for the assigned user with certificate
-func GetServicePrincipalTokenWithCertificate(adEndpointFromSpec, tenantID, clientID string, certificate []byte, password, resource string) (*adal.Token, error) {
+func GetServicePrincipalTokenWithCertificate(adEndpointFromSpec, tenantID, clientID string, certificate []byte, password, resource string) (_ *adal.Token, err error) {
 	begin := time.Now()
-	var err error
-
 	defer func() {
 		if err != nil {
 			merr := reporter.ReportIMDSOperationError(metrics.AdalTokenOperationName)

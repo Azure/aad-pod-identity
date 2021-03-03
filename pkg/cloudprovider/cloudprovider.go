@@ -51,7 +51,7 @@ const (
 )
 
 // NewCloudProvider returns a azure cloud provider client
-func NewCloudProvider(configFile string, updateUserMSIMaxRetry int, updateUseMSIRetryInterval time.Duration) (c *Client, e error) {
+func NewCloudProvider(configFile string, updateUserMSIMaxRetry int, updateUseMSIRetryInterval time.Duration) (*Client, error) {
 	client := &Client{
 		configFile: configFile,
 	}
@@ -242,7 +242,7 @@ func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs [
 	return nil
 }
 
-func (c *Client) getIdentityResource(name string, isvmss bool) (idH IdentityHolder, update func() error, retErr error) {
+func (c *Client) getIdentityResource(name string, isvmss bool) (IdentityHolder, func() error, error) {
 	rg := c.Config.ResourceGroupName
 
 	if isvmss {
@@ -251,10 +251,10 @@ func (c *Client) getIdentityResource(name string, isvmss bool) (idH IdentityHold
 			return nil, nil, fmt.Errorf("failed to get vmss %s in resource group %s, error: %+v", name, rg, err)
 		}
 
-		update = func() error {
+		update := func() error {
 			return c.VMSSClient.UpdateIdentities(rg, name, vmss)
 		}
-		idH = &vmssIdentityHolder{&vmss}
+		idH := &vmssIdentityHolder{&vmss}
 		return idH, update, nil
 	}
 
@@ -262,10 +262,10 @@ func (c *Client) getIdentityResource(name string, isvmss bool) (idH IdentityHold
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get vm %s in resource group %s, error: %+v", name, rg, err)
 	}
-	update = func() error {
+	update := func() error {
 		return c.VMClient.UpdateIdentities(rg, name, vm)
 	}
-	idH = &vmIdentityHolder{&vm}
+	idH := &vmIdentityHolder{&vm}
 	return idH, update, nil
 }
 

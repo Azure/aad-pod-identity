@@ -22,7 +22,7 @@ var (
 	podLabels      = map[string]string{"testkey1": "testval1", "testkey2": "testval2"}
 )
 
-func CreateV1Binding() (retV1Binding AzureIdentityBinding) {
+func CreateV1Binding() AzureIdentityBinding {
 	return AzureIdentityBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: objectMetaName,
@@ -42,7 +42,7 @@ func CreateV1Binding() (retV1Binding AzureIdentityBinding) {
 	}
 }
 
-func CreateV1Identity() (retV1Identity AzureIdentity) {
+func CreateV1Identity() AzureIdentity {
 	return AzureIdentity{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: objectMetaName,
@@ -62,7 +62,7 @@ func CreateV1Identity() (retV1Identity AzureIdentity) {
 	}
 }
 
-func CreateV1AssignedIdentity() (retV1AssignedIdentity AzureAssignedIdentity) {
+func CreateV1AssignedIdentity() AzureAssignedIdentity {
 	v1Identity := CreateV1Identity()
 	v1Binding := CreateV1Binding()
 
@@ -86,7 +86,7 @@ func CreateV1AssignedIdentity() (retV1AssignedIdentity AzureAssignedIdentity) {
 	}
 }
 
-func CreateInternalBinding() (retV1Binding aadpodid.AzureIdentityBinding) {
+func CreateInternalBinding() aadpodid.AzureIdentityBinding {
 	return aadpodid.AzureIdentityBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: objectMetaName,
@@ -106,7 +106,7 @@ func CreateInternalBinding() (retV1Binding aadpodid.AzureIdentityBinding) {
 	}
 }
 
-func CreateInternalIdentity() (retInternalIdentity aadpodid.AzureIdentity) {
+func CreateInternalIdentity() aadpodid.AzureIdentity {
 	return aadpodid.AzureIdentity{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: objectMetaName,
@@ -126,7 +126,7 @@ func CreateInternalIdentity() (retInternalIdentity aadpodid.AzureIdentity) {
 	}
 }
 
-func CreateInternalAssignedIdentity() (retInternalAssignedIdentity aadpodid.AzureAssignedIdentity) {
+func CreateInternalAssignedIdentity() aadpodid.AzureAssignedIdentity {
 	internalIdentity := CreateInternalIdentity()
 	internalBinding := CreateInternalBinding()
 
@@ -150,7 +150,7 @@ func CreateInternalAssignedIdentity() (retInternalAssignedIdentity aadpodid.Azur
 	}
 }
 
-func CreateInternalPodIdentityException() (retPodIdentityException aadpodid.AzurePodIdentityException) {
+func CreateInternalPodIdentityException() aadpodid.AzurePodIdentityException {
 	return aadpodid.AzurePodIdentityException{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: objectMetaName,
@@ -162,7 +162,7 @@ func CreateInternalPodIdentityException() (retPodIdentityException aadpodid.Azur
 	}
 }
 
-func CreateV1PodIdentityException() (retPodIdentityException AzurePodIdentityException) {
+func CreateV1PodIdentityException() AzurePodIdentityException {
 	return AzurePodIdentityException{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: objectMetaName,
