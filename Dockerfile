@@ -1,5 +1,5 @@
 ARG BUILDPLATFORM="linux/amd64"
-ARG BUILDERIMAGE="golang:1.15"
+ARG BUILDERIMAGE="golang:1.16"
 ARG BASEIMAGE=gcr.io/distroless/static:nonroot
 
 FROM --platform=$BUILDPLATFORM $BUILDERIMAGE as builder
@@ -19,7 +19,8 @@ RUN export GOOS=$TARGETOS && \
 
 FROM k8s.gcr.io/build-image/debian-iptables:buster-v1.5.0 AS nmi
 # upgrading libssl1.1 due to CVE-2021-23840 and CVE-2021-23841
-RUN clean-install ca-certificates libssl1.1
+# upgrading libzstd1 due to CVE-2021-24032
+RUN clean-install ca-certificates libssl1.1 libzstd1
 COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
 RUN useradd -u 10001 nonroot
 USER nonroot

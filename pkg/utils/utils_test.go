@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -91,7 +90,7 @@ KUBELET_NODE_LABELS=kubernetes.azure.com/role=agent,agentpool=agentpool,storagep
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			tmpFile, err := ioutil.TempFile("", "ut")
+			tmpFile, err := os.CreateTemp("", "ut")
 			if err != nil {
 				t.Fatalf("expected err to be nil, got: %+v", err)
 			}

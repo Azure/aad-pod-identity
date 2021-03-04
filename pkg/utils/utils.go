@@ -2,7 +2,7 @@ package utils
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -30,7 +30,7 @@ func ValidateResourceID(resourceID string) error {
 func IsKubenetCNI(kubeletConfig string) (bool, error) {
 	var isKubenet bool
 	// read the kubelet config
-	bytes, err := ioutil.ReadFile(kubeletConfig)
+	bytes, err := os.ReadFile(kubeletConfig)
 	if err != nil {
 		return isKubenet, err
 	}
