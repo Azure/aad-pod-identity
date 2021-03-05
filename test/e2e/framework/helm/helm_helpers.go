@@ -100,6 +100,7 @@ func generateValueArgs(config *framework.Config) []string {
 		fmt.Sprintf("--set=image.repository=%s", config.Registry),
 		fmt.Sprintf("--set=mic.tag=%s", config.MICVersion),
 		fmt.Sprintf("--set=nmi.tag=%s", config.NMIVersion),
+		fmt.Sprintf("--set=mic.syncRetryDuration=%s", config.MICSyncInterval),
 	}
 
 	// TODO (aramase) bump this to compare against v1.7.3 after next release

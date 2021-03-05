@@ -80,6 +80,9 @@ spec:
           {{- if .Values.mic.prometheusPort }}
           - --prometheus-port={{ .Values.mic.prometheusPort }}
           {{- end }}
+          {{- if.Values.mic.syncRetryDuration }}
+          - --syncRetryDuration={{ .Values.mic.syncRetryDuration }}
+          {{- end}}
           {{- if .Values.mic.updateUserMSIMaxRetry }}
           - --update-user-msi-max-retry={{ .Values.mic.updateUserMSIMaxRetry }}
           {{- end }}

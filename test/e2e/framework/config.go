@@ -33,6 +33,7 @@ type Config struct {
 	IdentityReconcileInterval    time.Duration `envconfig:"IDENTITY_RECONCILE_INTERVAL" default:"2m"`
 	ServicePrincipalClientID     string        `envconfig:"SERVICE_PRINCIPAL_CLIENT_ID"`
 	ServicePrincipalClientSecret string        `envconfig:"SERVICE_PRINCIPAL_CLIENT_SECRET"`
+	MICSyncInterval              time.Duration `envconfig:"MIC_SYNC_INTERVAL" default:"30s"`
 }
 
 func (c *Config) DeepCopy() *Config {
@@ -57,6 +58,7 @@ func (c *Config) DeepCopy() *Config {
 	copy.BlockInstanceMetadata = c.BlockInstanceMetadata
 	copy.ServicePrincipalClientID = c.ServicePrincipalClientID
 	copy.ServicePrincipalClientSecret = c.ServicePrincipalClientSecret
+	copy.MICSyncInterval = c.MICSyncInterval
 
 	return copy
 }
