@@ -97,7 +97,7 @@ func Create(input CreateInput) *corev1.Pod {
 				Command: []string{
 					"sh",
 					"-c",
-					"az login --identity",
+					"az login --identity --allow-no-subscriptions",
 				},
 			},
 		}
