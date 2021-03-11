@@ -61,7 +61,7 @@ type ClientInt interface {
 }
 
 // NewCRDClientLite returns a new CRD lite client and error if any.
-func NewCRDClientLite(config *rest.Config, nodeName string, scale, isStandardMode bool) (crdClient *Client, err error) {
+func NewCRDClientLite(config *rest.Config, nodeName string, scale, isStandardMode bool) (*Client, error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func NewCRDClientLite(config *rest.Config, nodeName string, scale, isStandardMod
 }
 
 // NewCRDClient returns a new CRD client and error if any.
-func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClient *Client, err error) {
+func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (*Client, error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
 		return nil, err
@@ -151,7 +151,7 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 	}, nil
 }
 
-func newRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
+func newRestClient(config *rest.Config) (*rest.RESTClient, error) {
 	crdconfig := *config
 	crdconfig.GroupVersion = &schema.GroupVersion{Group: aadpodv1.CRDGroup, Version: aadpodv1.CRDVersion}
 	crdconfig.APIPath = "/apis"
@@ -476,7 +476,6 @@ func (c *Client) SyncCacheAll(exit <-chan struct{}, initial bool) {
 func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
 	klog.V(6).Infof("deleting assigned id %s/%s", assignedIdentity.Namespace, assignedIdentity.Name)
 	begin := time.Now()
-
 	defer func() {
 		if err != nil {
 			merr := c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityDeletionOperationName)
@@ -488,7 +487,6 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 		c.reporter.Report(
 			metrics.AssignedIdentityDeletionCountM.M(1),
 			metrics.AssignedIdentityDeletionDurationM.M(metrics.SinceInSeconds(begin)))
-
 	}()
 
 	var res aadpodv1.AzureAssignedIdentity
@@ -514,7 +512,6 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
 	klog.Infof("creating assigned id %s/%s", assignedIdentity.Namespace, assignedIdentity.Name)
 	begin := time.Now()
-
 	defer func() {
 		if err != nil {
 			merr := c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityAdditionOperationName)
@@ -526,7 +523,6 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 		c.reporter.Report(
 			metrics.AssignedIdentityAdditionCountM.M(1),
 			metrics.AssignedIdentityAdditionDurationM.M(metrics.SinceInSeconds(begin)))
-
 	}()
 
 	var res aadpodv1.AzureAssignedIdentity
@@ -548,7 +544,6 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 func (c *Client) UpdateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
 	klog.Infof("updating assigned id %s/%s", assignedIdentity.Namespace, assignedIdentity.Name)
 	begin := time.Now()
-
 	defer func() {
 		if err != nil {
 			merr := c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityUpdateOperationName)
@@ -558,7 +553,6 @@ func (c *Client) UpdateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 		c.reporter.Report(
 			metrics.AssignedIdentityUpdateCountM.M(1),
 			metrics.AssignedIdentityUpdateDurationM.M(metrics.SinceInSeconds(begin)))
-
 	}()
 
 	v1AssignedID := aadpodv1.ConvertInternalAssignedIdentityToV1AssignedIdentity(*assignedIdentity)
@@ -573,7 +567,7 @@ func (c *Client) UpdateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 }
 
 // ListBindings returns a list of azureidentitybindings
-func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
+func (c *Client) ListBindings() (*[]aadpodid.AzureIdentityBinding, error) {
 	begin := time.Now()
 
 	var resList []aadpodid.AzureIdentityBinding
@@ -602,7 +596,7 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 }
 
 // ListAssignedIDs returns a list of azureassignedidentities
-func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
+func (c *Client) ListAssignedIDs() (*[]aadpodid.AzureAssignedIdentity, error) {
 	begin := time.Now()
 
 	var resList []aadpodid.AzureAssignedIdentity
@@ -659,7 +653,7 @@ func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdenti
 }
 
 // ListIds returns a list of azureidentities
-func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
+func (c *Client) ListIds() (*[]aadpodid.AzureIdentity, error) {
 	begin := time.Now()
 
 	var resList []aadpodid.AzureIdentity
@@ -688,7 +682,7 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 }
 
 // ListPodIdentityExceptions returns list of azurepodidentityexceptions
-func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error) {
+func (c *Client) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodIdentityException, error) {
 	begin := time.Now()
 
 	var resList []aadpodid.AzurePodIdentityException
@@ -780,7 +774,6 @@ type patchStatusOps struct {
 // UpdateAzureAssignedIdentityStatus updates the status field in AzureAssignedIdentity to indicate current status
 func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) (err error) {
 	klog.Infof("updating AzureAssignedIdentity %s/%s status to %s", assignedIdentity.Namespace, assignedIdentity.Name, status)
-
 	defer func() {
 		if err != nil {
 			merr := c.reporter.ReportKubernetesAPIOperationError(metrics.UpdateAzureAssignedIdentityStatusOperationName)

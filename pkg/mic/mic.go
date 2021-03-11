@@ -248,7 +248,7 @@ func (c *Client) Run() {
 }
 
 // NewLeaderElector - does the required leader election initialization
-func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder record.EventRecorder, leaderElectionConfig *LeaderElectionConfig) (leaderElector *leaderelection.LeaderElector, err error) {
+func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder record.EventRecorder, leaderElectionConfig *LeaderElectionConfig) (*leaderelection.LeaderElector, error) {
 	c.LeaderElectionConfig = leaderElectionConfig
 	resourceLock, err := resourcelock.New(resourcelock.EndpointsResourceLock,
 		c.Namespace,
@@ -278,7 +278,7 @@ func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder reco
 		Lock: resourceLock,
 	}
 
-	leaderElector, err = leaderelection.NewLeaderElector(config)
+	leaderElector, err := leaderelection.NewLeaderElector(config)
 	if err != nil {
 		return nil, err
 	}
@@ -724,7 +724,7 @@ func (c *Client) shouldRemoveID(assignedID aadpodid.AzureAssignedIdentity,
 	return nil
 }
 
-func (c *Client) matchAssignedID(x aadpodid.AzureAssignedIdentity, y aadpodid.AzureAssignedIdentity) (ret bool) {
+func (c *Client) matchAssignedID(x aadpodid.AzureAssignedIdentity, y aadpodid.AzureAssignedIdentity) bool {
 	bindingX := x.Spec.AzureBindingRef
 	bindingY := y.Spec.AzureBindingRef
 
@@ -838,7 +838,7 @@ func (c *Client) getAzureAssignedIdentitiesToUpdate(add, del map[string]aadpodid
 	return beforeUpdate, afterUpdate
 }
 
-func (c *Client) makeAssignedIDs(azID aadpodid.AzureIdentity, azBinding aadpodid.AzureIdentityBinding, podName, podNameSpace, nodeName string) (res *aadpodid.AzureAssignedIdentity, err error) {
+func (c *Client) makeAssignedIDs(azID aadpodid.AzureIdentity, azBinding aadpodid.AzureIdentityBinding, podName, podNameSpace, nodeName string) (*aadpodid.AzureAssignedIdentity, error) {
 	binding := azBinding
 	id := azID
 
@@ -940,8 +940,8 @@ func getIDKey(ns, name string) string {
 	return strings.Join([]string{ns, name}, "/")
 }
 
-func (c *Client) convertIDListToMap(azureIdentities []aadpodid.AzureIdentity) (m map[string]aadpodid.AzureIdentity, err error) {
-	m = make(map[string]aadpodid.AzureIdentity, len(azureIdentities))
+func (c *Client) convertIDListToMap(azureIdentities []aadpodid.AzureIdentity) (map[string]aadpodid.AzureIdentity, error) {
+	m := make(map[string]aadpodid.AzureIdentity, len(azureIdentities))
 	for _, azureIdentity := range azureIdentities {
 		// validate the resourceID in azure identity for type 0 (UserAssignedMSI) to ensure format is as expected
 		if c.checkIfUserAssignedMSI(azureIdentity) {
@@ -1343,7 +1343,7 @@ func (c *Client) checkIfIdentityImmutable(id string) bool {
 
 // generateIdentityAssignmentState generates the current and desired state of each node's identity
 // assignments based on an existing list of AzureAssignedIdentity as the source of truth.
-func (c *Client) generateIdentityAssignmentState() (currentState map[string]map[string]bool, desiredState map[string]map[string]bool, isVMSSMap map[string]bool, err error) {
+func (c *Client) generateIdentityAssignmentState() (map[string]map[string]bool, map[string]map[string]bool, map[string]bool, error) {
 	type nodeMetadata struct {
 		nodeName string
 		isVMSS   bool
@@ -1355,9 +1355,9 @@ func (c *Client) generateIdentityAssignmentState() (currentState map[string]map[
 	}
 
 	nodeMetadataCache := make(map[string]nodeMetadata)
-	isVMSSMap = make(map[string]bool)
-	currentState = make(map[string]map[string]bool)
-	desiredState = make(map[string]map[string]bool)
+	isVMSSMap := make(map[string]bool)
+	currentState := make(map[string]map[string]bool)
+	desiredState := make(map[string]map[string]bool)
 	for _, assignedID := range *assignedIDs {
 		if _, ok := nodeMetadataCache[assignedID.Spec.NodeName]; !ok {
 			node, err := c.NodeClient.Get(assignedID.Spec.NodeName)

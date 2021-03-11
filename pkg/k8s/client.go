@@ -143,7 +143,7 @@ func (c *KubeClient) GetPod(namespace, name string) (v1.Pod, error) {
 }
 
 // GetPodInfo get pod ns,name from apiserver
-func (c *KubeClient) GetPodInfo(podip string) (podns, poddname, rsName string, labels *metav1.LabelSelector, err error) {
+func (c *KubeClient) GetPodInfo(podip string) (string, string, string, *metav1.LabelSelector, error) {
 	if podip == "" {
 		return "", "", "", nil, fmt.Errorf("pod IP is empty")
 	}

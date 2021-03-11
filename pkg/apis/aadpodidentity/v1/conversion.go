@@ -9,7 +9,7 @@ import (
 )
 
 // ConvertV1BindingToInternalBinding converts v1.AzureIdentityBinding to an internal AzureIdentityBinding type.
-func ConvertV1BindingToInternalBinding(identityBinding AzureIdentityBinding) (resIdentityBinding aadpodid.AzureIdentityBinding) {
+func ConvertV1BindingToInternalBinding(identityBinding AzureIdentityBinding) aadpodid.AzureIdentityBinding {
 	return aadpodid.AzureIdentityBinding{
 		TypeMeta:   identityBinding.TypeMeta,
 		ObjectMeta: identityBinding.ObjectMeta,
@@ -24,7 +24,7 @@ func ConvertV1BindingToInternalBinding(identityBinding AzureIdentityBinding) (re
 }
 
 // ConvertV1IdentityToInternalIdentity converts v1.AzureIdentity to an internal AzureIdentity type.
-func ConvertV1IdentityToInternalIdentity(identity AzureIdentity) (resIdentity aadpodid.AzureIdentity) {
+func ConvertV1IdentityToInternalIdentity(identity AzureIdentity) aadpodid.AzureIdentity {
 	return aadpodid.AzureIdentity{
 		TypeMeta:   identity.TypeMeta,
 		ObjectMeta: identity.ObjectMeta,
@@ -45,7 +45,7 @@ func ConvertV1IdentityToInternalIdentity(identity AzureIdentity) (resIdentity aa
 }
 
 // ConvertV1AssignedIdentityToInternalAssignedIdentity converts v1.AzureAssignedIdentity to an internal AzureAssignedIdentity type.
-func ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIdentity AzureAssignedIdentity) (resAssignedIdentity aadpodid.AzureAssignedIdentity) {
+func ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIdentity AzureAssignedIdentity) aadpodid.AzureAssignedIdentity {
 	var retIdentity aadpodid.AzureIdentity
 	var retBinding aadpodid.AzureIdentityBinding
 	if assignedIdentity.Spec.AzureIdentityRef != nil {
@@ -72,7 +72,7 @@ func ConvertV1AssignedIdentityToInternalAssignedIdentity(assignedIdentity AzureA
 }
 
 // ConvertV1PodIdentityExceptionToInternalPodIdentityException converts v1.AzurePodIdentityException to an internal AzurePodIdentityException type.
-func ConvertV1PodIdentityExceptionToInternalPodIdentityException(idException AzurePodIdentityException) (residException aadpodid.AzurePodIdentityException) {
+func ConvertV1PodIdentityExceptionToInternalPodIdentityException(idException AzurePodIdentityException) aadpodid.AzurePodIdentityException {
 	return aadpodid.AzurePodIdentityException{
 		TypeMeta:   idException.TypeMeta,
 		ObjectMeta: idException.ObjectMeta,
@@ -85,7 +85,7 @@ func ConvertV1PodIdentityExceptionToInternalPodIdentityException(idException Azu
 }
 
 // ConvertInternalBindingToV1Binding converts an internal AzureIdentityBinding type to v1.AzureIdentityBinding.
-func ConvertInternalBindingToV1Binding(identityBinding aadpodid.AzureIdentityBinding) (resIdentityBinding AzureIdentityBinding) {
+func ConvertInternalBindingToV1Binding(identityBinding aadpodid.AzureIdentityBinding) AzureIdentityBinding {
 	out := AzureIdentityBinding{
 		TypeMeta:   identityBinding.TypeMeta,
 		ObjectMeta: identityBinding.ObjectMeta,
@@ -107,7 +107,7 @@ func ConvertInternalBindingToV1Binding(identityBinding aadpodid.AzureIdentityBin
 }
 
 // ConvertInternalIdentityToV1Identity converts an internal AzureIdentity type to v1.AzureIdentity.
-func ConvertInternalIdentityToV1Identity(identity aadpodid.AzureIdentity) (resIdentity AzureIdentity) {
+func ConvertInternalIdentityToV1Identity(identity aadpodid.AzureIdentity) AzureIdentity {
 	out := AzureIdentity{
 		TypeMeta:   identity.TypeMeta,
 		ObjectMeta: identity.ObjectMeta,
@@ -135,7 +135,7 @@ func ConvertInternalIdentityToV1Identity(identity aadpodid.AzureIdentity) (resId
 }
 
 // ConvertInternalAssignedIdentityToV1AssignedIdentity converts an internal AzureAssignedIdentity type to v1.AzureAssignedIdentity.
-func ConvertInternalAssignedIdentityToV1AssignedIdentity(assignedIdentity aadpodid.AzureAssignedIdentity) (resAssignedIdentity AzureAssignedIdentity) {
+func ConvertInternalAssignedIdentityToV1AssignedIdentity(assignedIdentity aadpodid.AzureAssignedIdentity) AzureAssignedIdentity {
 	retIdentity := ConvertInternalIdentityToV1Identity(*assignedIdentity.Spec.AzureIdentityRef)
 	retBinding := ConvertInternalBindingToV1Binding(*assignedIdentity.Spec.AzureBindingRef)
 

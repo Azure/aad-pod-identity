@@ -295,8 +295,8 @@ func (c *TestVMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualM
 	return nil
 }
 
-func (c *TestVMClient) ListMSI() (ret map[string]*[]string) {
-	ret = make(map[string]*[]string)
+func (c *TestVMClient) ListMSI() map[string]*[]string {
+	ret := make(map[string]*[]string)
 
 	for key, val := range c.nodeMap {
 		var ids []string
@@ -387,8 +387,8 @@ func (c *TestVMSSClient) UpdateIdentities(rg, nodeName string, vmss compute.Virt
 	return nil
 }
 
-func (c *TestVMSSClient) ListMSI() (ret map[string]*[]string) {
-	ret = make(map[string]*[]string)
+func (c *TestVMSSClient) ListMSI() map[string]*[]string {
+	ret := make(map[string]*[]string)
 
 	for key, val := range c.nodeMap {
 		var ids []string
@@ -426,7 +426,7 @@ func (c *TestVMSSClient) CompareMSI(nodeName string, expectedUserIDs []string) b
 	return isSliceEqual(actualUserIDs, expectedUserIDs)
 }
 
-func (c *TestCloudClient) ListMSI() (ret map[string]*[]string) {
+func (c *TestCloudClient) ListMSI() map[string]*[]string {
 	vmssLs := c.testVMSSClient.ListMSI()
 	vmLs := c.testVMClient.ListMSI()
 
@@ -437,23 +437,21 @@ func (c *TestCloudClient) ListMSI() (ret map[string]*[]string) {
 		return vmssLs
 	}
 
-	ret = vmssLs
-
 	for k, v := range vmLs {
 		if v == nil {
 			continue
 		}
-		orig := ret[k]
+		orig := vmssLs[k]
 		if orig == nil {
-			ret[k] = v
+			vmssLs[k] = v
 			continue
 		}
 
 		updated := *orig
 		updated = append(updated, *v...)
-		ret[k] = &updated
+		vmssLs[k] = &updated
 	}
-	return ret
+	return vmssLs
 }
 
 func (c *TestCloudClient) CompareMSI(name string, isvmss bool, userIDs []string) bool {

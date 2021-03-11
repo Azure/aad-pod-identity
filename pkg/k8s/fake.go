@@ -20,7 +20,7 @@ func NewFakeClient() (Client, error) {
 }
 
 // GetPodInfo returns fake pod name, namespace and replicaset
-func (c *FakeClient) GetPodInfo(podip string) (podns, podname, rsName string, selectors *metav1.LabelSelector, err error) {
+func (c *FakeClient) GetPodInfo(podip string) (string, string, string, *metav1.LabelSelector, error) {
 	return "ns", "podname", "rsName", nil, nil
 }
 

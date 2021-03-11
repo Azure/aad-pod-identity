@@ -106,11 +106,11 @@ func (c *TestVMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualM
 	return nil
 }
 
-func (c *TestVMClient) ListMSI() (ret map[string]*[]string) {
+func (c *TestVMClient) ListMSI() map[string]*[]string {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	ret = make(map[string]*[]string)
+	ret := make(map[string]*[]string)
 
 	for key, val := range c.nodeMap {
 		var ids []string
@@ -220,8 +220,8 @@ func (c *TestVMSSClient) UpdateIdentities(rg, nodeName string, vmss compute.Virt
 	return nil
 }
 
-func (c *TestVMSSClient) ListMSI() (ret map[string]*[]string) {
-	ret = make(map[string]*[]string)
+func (c *TestVMSSClient) ListMSI() map[string]*[]string {
+	ret := make(map[string]*[]string)
 
 	for key, val := range c.nodeMap {
 		var ids []string
@@ -282,7 +282,7 @@ func (c *TestCloudClient) GetUserMSIs(name string, isvmss bool) ([]string, error
 	return ret, nil
 }
 
-func (c *TestCloudClient) ListMSI() (ret map[string]*[]string) {
+func (c *TestCloudClient) ListMSI() map[string]*[]string {
 	if c.Client.Config.VMType == "vmss" {
 		return c.testVMSSClient.ListMSI()
 	}
@@ -464,7 +464,7 @@ func (c *TestCrdClient) SyncCacheAll(exit <-chan struct{}, initial bool) {
 
 }
 
-func (c *TestCrdClient) CreateCrdWatchers(eventCh chan internalaadpodid.EventType) (err error) {
+func (c *TestCrdClient) CreateCrdWatchers(eventCh chan internalaadpodid.EventType) error {
 	return nil
 }
 
@@ -544,7 +544,7 @@ func (c *TestCrdClient) CreateID(idName, ns string, t aadpodid.IdentityType, rID
 	c.mu.Unlock()
 }
 
-func (c *TestCrdClient) ListIds() (res *[]internalaadpodid.AzureIdentity, err error) {
+func (c *TestCrdClient) ListIds() (*[]internalaadpodid.AzureIdentity, error) {
 	idList := make([]internalaadpodid.AzureIdentity, 0)
 	c.mu.Lock()
 	for _, v := range c.idMap {
@@ -555,7 +555,7 @@ func (c *TestCrdClient) ListIds() (res *[]internalaadpodid.AzureIdentity, err er
 	return &idList, nil
 }
 
-func (c *TestCrdClient) ListBindings() (res *[]internalaadpodid.AzureIdentityBinding, err error) {
+func (c *TestCrdClient) ListBindings() (*[]internalaadpodid.AzureIdentityBinding, error) {
 	bindingList := make([]internalaadpodid.AzureIdentityBinding, 0)
 	c.mu.Lock()
 	for _, v := range c.bindingMap {
@@ -566,7 +566,7 @@ func (c *TestCrdClient) ListBindings() (res *[]internalaadpodid.AzureIdentityBin
 	return &bindingList, nil
 }
 
-func (c *TestCrdClient) ListAssignedIDs() (res *[]internalaadpodid.AzureAssignedIdentity, err error) {
+func (c *TestCrdClient) ListAssignedIDs() (*[]internalaadpodid.AzureAssignedIdentity, error) {
 	assignedIDList := make([]internalaadpodid.AzureAssignedIdentity, 0)
 	c.mu.Lock()
 	for _, v := range c.assignedIDMap {
@@ -576,7 +576,7 @@ func (c *TestCrdClient) ListAssignedIDs() (res *[]internalaadpodid.AzureAssigned
 	return &assignedIDList, nil
 }
 
-func (c *TestCrdClient) ListAssignedIDsInMap() (res map[string]internalaadpodid.AzureAssignedIdentity, err error) {
+func (c *TestCrdClient) ListAssignedIDsInMap() (map[string]internalaadpodid.AzureAssignedIdentity, error) {
 	assignedIDMap := make(map[string]internalaadpodid.AzureAssignedIdentity)
 	c.mu.Lock()
 	for k, v := range c.assignedIDMap {

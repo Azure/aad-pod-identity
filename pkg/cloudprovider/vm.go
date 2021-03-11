@@ -34,7 +34,7 @@ type VMClientInt interface {
 }
 
 // NewVirtualMachinesClient creates a new vm client.
-func NewVirtualMachinesClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (c *VMClient, e error) {
+func NewVirtualMachinesClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (*VMClient, error) {
 	client := compute.NewVirtualMachinesClient(config.SubscriptionID)
 
 	azureEnv, err := azure.EnvironmentFromName(config.Cloud)
@@ -61,11 +61,9 @@ func NewVirtualMachinesClient(config config.AzureConfig, spt *adal.ServicePrinci
 }
 
 // Get gets the passed in vm.
-func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, error) {
+func (c *VMClient) Get(rgName string, nodeName string) (_ compute.VirtualMachine, err error) {
 	ctx := context.Background()
 	begin := time.Now()
-	var err error
-
 	defer func() {
 		if err != nil {
 			merr := c.reporter.ReportCloudProviderOperationError(metrics.GetVMOperationName)
@@ -98,17 +96,15 @@ func (c *VMClient) Get(rgName string, nodeName string) (compute.VirtualMachine, 
 }
 
 // UpdateIdentities updates the user assigned identities for the provided node
-func (c *VMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachine) error {
+func (c *VMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualMachine) (err error) {
 	// if provisioning state is nil, we keep backward compatibility and proceed with the operation
 	if vm.ProvisioningState != nil && *vm.ProvisioningState == string(compute.ProvisioningStateDeleting) {
 		return fmt.Errorf("failed to update identities for %s in %s, vm is in '%s' provisioning state", nodeName, rg, *vm.ProvisioningState)
 	}
 
 	var future compute.VirtualMachinesUpdateFuture
-	var err error
 	ctx := context.Background()
 	begin := time.Now()
-
 	defer func() {
 		if err != nil {
 			merr := c.reporter.ReportCloudProviderOperationError(metrics.UpdateVMOperationName)

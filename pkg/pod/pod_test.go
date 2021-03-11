@@ -18,7 +18,7 @@ func (c TestPodClient) Start(exit <-chan struct{}) {
 	klog.Info("start called from the test interface")
 }
 
-func (c TestPodClient) GetPods() (pods []*corev1.Pod, err error) {
+func (c TestPodClient) GetPods() ([]*corev1.Pod, error) {
 	// TODO: Add label matching. For now we add only pods which we want to add.
 	return c.pods, nil
 }

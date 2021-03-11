@@ -34,7 +34,7 @@ type VMSSClientInt interface {
 }
 
 // NewVMSSClient creates a new vmss client.
-func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (c *VMSSClient, e error) {
+func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (*VMSSClient, error) {
 	client := compute.NewVirtualMachineScaleSetsClient(config.SubscriptionID)
 
 	azureEnv, err := azure.EnvironmentFromName(config.Cloud)
@@ -61,21 +61,19 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 }
 
 // UpdateIdentities updates the user assigned identities for the provided node
-func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmss compute.VirtualMachineScaleSet) error {
+func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmss compute.VirtualMachineScaleSet) (err error) {
 	// if provisioning state is nil, we keep backward compatibility and proceed with the operation
 	if vmss.ProvisioningState != nil && *vmss.ProvisioningState == string(compute.ProvisioningStateDeleting) {
 		return fmt.Errorf("failed to update identities for %s in %s, vmss is in %s provisioning state", vmssName, rg, *vmss.ProvisioningState)
 	}
 
 	var future compute.VirtualMachineScaleSetsUpdateFuture
-	var err error
 	ctx := context.Background()
 	begin := time.Now()
-
 	defer func() {
 		if err != nil {
 			merr := c.reporter.ReportCloudProviderOperationError(metrics.UpdateVMSSOperationName)
-			if err != nil {
+			if merr != nil {
 				klog.Warningf("failed to report metrics, error: %+v", merr)
 			}
 			return
@@ -113,10 +111,9 @@ func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmss compute.VirtualM
 }
 
 // Get gets the passed in vmss.
-func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMachineScaleSet, err error) {
+func (c *VMSSClient) Get(rgName string, vmssName string) (_ compute.VirtualMachineScaleSet, err error) {
 	ctx := context.Background()
 	begin := time.Now()
-
 	defer func() {
 		if err != nil {
 			merr := c.reporter.ReportCloudProviderOperationError(metrics.GetVmssOperationName)
