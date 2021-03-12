@@ -69,8 +69,18 @@ mic:
     kubernetes.io/os: linux
 
   tolerations: []
+    # - key: "CriticalAddonsOnly"
+    #   operator: "Exists"
 
   affinity: {}
+    # nodeAffinity:
+    #   preferredDuringSchedulingIgnoredDuringExecution:
+    #     - preference:
+    #       matchExpressions:
+    #         - key: kubernetes.azure.com/mode
+    #           operator: In
+    #           values:
+    #             - system
 
   # Topology spread constraints rely on node labels to identify the topology domain(s) that each Node is in.
   # ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
@@ -167,8 +177,18 @@ nmi:
     kubernetes.io/os: linux
 
   tolerations: []
+    # - key: "CriticalAddonsOnly"
+    #   operator: "Exists"
 
   affinity: {}
+    # nodeAffinity:
+    #   preferredDuringSchedulingIgnoredDuringExecution:
+    #     - preference:
+    #       matchExpressions:
+    #         - key: kubernetes.azure.com/mode
+    #           operator: In
+    #           values:
+    #             - system
 
   # Override iptables update interval in seconds (default is 60)
   ipTableUpdateTimeIntervalInSeconds: ""

@@ -47,17 +47,16 @@ You could run the following commands to validate your identity setup (assuming y
 kubectl run azure-cli -it --image=mcr.microsoft.com/azure-cli --labels=aadpodidbinding=<selector defined in AzureIdentityBinding> /bin/bash
 
 # within the azure-cli shell
-az login -i --debug
+az login --identity --allow-no-subscriptions --debug
 ```
 
-`az login -i` will use the Azure identity bound to the `azure-cli` pod and perform a login to Azure via Azure CLI. If succeeded, you would have an output as below:
+`az login --identity` will use the Azure identity bound to the `azure-cli` pod and perform a login to Azure via Azure CLI. If succeeded, you would have an output as below:
 
 ```log
 urllib3.connectionpool : Starting new HTTP connection (1): 169.254.169.254:80
 urllib3.connectionpool : http://169.254.169.254:80 "GET /metadata/identity/oauth2/token?resource=https%3A%2F%2Fmanagement.core.windows.net%2F&api-version=2018-02-01 HTTP/1.1" 200 1667
 msrestazure.azure_active_directory : MSI: Retrieving a token from http://169.254.169.254/metadata/identity/oauth2/token, with payload {'resource': 'https://management.core.windows.net/', 'api-version': '2018-02-01'}
 msrestazure.azure_active_directory : MSI: Token retrieved
-MSI: token was retrieved. Now trying to initialize local accounts...
 ...
 [
   {
@@ -170,3 +169,17 @@ spec:
 Past issues:
 - https://github.com/Azure/aad-pod-identity/issues/716
 - https://github.com/Azure/aad-pod-identity/issues/821
+
+### Spark jobs failed to acquire tokens
+
+Spark jobs that use AAD Pod Identity as a way to acquire tokens should add the following configurations (assuming `AzureIdentity` and `AzureIdentityBinding` are deployed beforehand):
+
+```bash
+...
+--conf spark.kubernetes.driver.label.aadpodidbinding=<AzureIdentityBinding selector> \
+--conf spark.kubernetes.executor.label.aadpodidbinding=<AzureIdentityBinding selector> \
+...
+```
+
+Past issues:
+- https://github.com/Azure/aad-pod-identity/issues/947

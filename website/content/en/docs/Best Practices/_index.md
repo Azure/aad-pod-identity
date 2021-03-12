@@ -34,7 +34,7 @@ initContainers:
   command:
     - sh
     - -c
-    - az login --identity --debug
+    - az login --identity --allow-no-subscriptions --debug
 ...
 ```
 
@@ -138,7 +138,7 @@ spec:
         command:
           - sh
           - -c
-          - az login --identity --debug
+          - az login --identity --allow-no-subscriptions --debug
 ```
 
 ### [DaemonSet](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/)
@@ -164,7 +164,7 @@ spec:
         command:
           - sh
           - -c
-          - az login --identity --debug
+          - az login --identity --allow-no-subscriptions --debug
 ```
 
 ### [Job](https://kubernetes.io/docs/concepts/workloads/controllers/job/)
@@ -186,7 +186,7 @@ spec:
         command:
           - sh
           - -c
-          - az login --identity --debug
+          - az login --identity --allow-no-subscriptions --debug
       restartPolicy: Never
   backoffLimit: 4
 ```
@@ -213,6 +213,6 @@ spec:
             command:
             - sh
             - -c
-            - az login --identity --debug
+            - az login --identity --allow-no-subscriptions --debug
           restartPolicy: OnFailure
 ```
