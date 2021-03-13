@@ -45,6 +45,7 @@ mic:
   image: mic
   tag: v1.7.4
 
+  # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
 
   # log level. Uses V logs (klog)
@@ -155,6 +156,7 @@ nmi:
   image: nmi
   tag: v1.7.4
 
+  # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
 
   # log level. Uses V logs (klog)
