@@ -180,6 +180,12 @@ func (c *Client) GetUserMSIs(name string, isvmss bool) ([]string, error) {
 
 // UpdateUserMSI will batch process the removal and addition of ids
 func (c *Client) UpdateUserMSI(addUserAssignedMSIIDs, removeUserAssignedMSIIDs []string, name string, isvmss bool) error {
+	// if there are no identities to be assigned and un-assigned, then we should not
+	// invoke an additional GET or PATCH request.
+	if len(addUserAssignedMSIIDs) == 0 && len(removeUserAssignedMSIIDs) == 0 {
+		klog.Infof("No identities to assign or un-assign")
+		return nil
+	}
 	idH, updateFunc, err := c.getIdentityResource(name, isvmss)
 	if err != nil {
 		return fmt.Errorf("failed to get identity resource, error: %v", err)
