@@ -45,6 +45,7 @@ mic:
   image: mic
   tag: v1.7.4
 
+  # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
 
   # log level. Uses V logs (klog)
@@ -72,15 +73,17 @@ mic:
     # - key: "CriticalAddonsOnly"
     #   operator: "Exists"
 
+  # ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity
   affinity: {}
     # nodeAffinity:
     #   preferredDuringSchedulingIgnoredDuringExecution:
-    #     - preference:
-    #       matchExpressions:
-    #         - key: kubernetes.azure.com/mode
-    #           operator: In
-    #           values:
-    #             - system
+    #     - weight 1
+    #       preference:
+    #         matchExpressions:
+    #           - key: kubernetes.azure.com/mode
+    #             operator: In
+    #             values:
+    #               - system
 
   # Topology spread constraints rely on node labels to identify the topology domain(s) that each Node is in.
   # ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
@@ -153,6 +156,7 @@ nmi:
   image: nmi
   tag: v1.7.4
 
+  # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
 
   # log level. Uses V logs (klog)
@@ -180,15 +184,17 @@ nmi:
     # - key: "CriticalAddonsOnly"
     #   operator: "Exists"
 
+  # ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity
   affinity: {}
     # nodeAffinity:
     #   preferredDuringSchedulingIgnoredDuringExecution:
-    #     - preference:
-    #       matchExpressions:
-    #         - key: kubernetes.azure.com/mode
-    #           operator: In
-    #           values:
-    #             - system
+    #     - weight 1
+    #       preference:
+    #         matchExpressions:
+    #           - key: kubernetes.azure.com/mode
+    #             operator: In
+    #             values:
+    #               - system
 
   # Override iptables update interval in seconds (default is 60)
   ipTableUpdateTimeIntervalInSeconds: ""
