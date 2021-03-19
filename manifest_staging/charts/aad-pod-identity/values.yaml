@@ -269,9 +269,6 @@ azureIdentities:
   #     # The selector will also need to be included in labels for app deployment
   #     selector: "demo"
 
-# If true, install necessary custom resources.
-installCRDs: false
-
 # If provided, the userAgent string will be appended to the pod identity user agents for all
 # ADAL, ARM and Kube API server requests.
 customUserAgent: ""

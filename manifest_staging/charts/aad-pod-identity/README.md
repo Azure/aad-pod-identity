@@ -9,29 +9,27 @@ helm repo add aad-pod-identity https://raw.githubusercontent.com/Azure/aad-pod-i
 
 # Helm 3
 helm install aad-pod-identity aad-pod-identity/aad-pod-identity
-
-# Helm 2
-helm install aad-pod-identity/aad-pod-identity --set=installCRDs=true
 ```
 
 ## Helm chart and aad-pod-identity versions
 
-| Helm Chart Version | AAD Pod Identity Version |
-| ------------------ | ------------------------ |
-| `1.5.2`            | `1.5.2`                  |
-| `1.5.3`            | `1.5.3`                  |
-| `1.5.4`            | `1.5.4`                  |
-| `1.5.5`            | `1.5.5`                  |
-| `1.5.6`            | `1.5.5`                  |
-| `1.6.0`            | `1.6.0`                  |
-| `2.0.0`            | `1.6.1`                  |
-| `2.0.1`            | `1.6.2`                  |
-| `2.0.2`            | `1.6.3`                  |
-| `2.1.0`            | `1.7.0`                  |
-| `3.0.0`            | `1.7.1`                  |
-| `3.0.1`            | `1.7.2`                  |
-| `3.0.2`            | `1.7.3`                  |
-| `3.0.3`            | `1.7.4`                  |
+| Helm Chart Version | AAD Pod Identity Version | Compatible with Helm 2 |
+|--------------------|--------------------------|------------------------|
+| `1.5.2`            | `1.5.2`                  | ✔️                      |
+| `1.5.3`            | `1.5.3`                  | ✔️                      |
+| `1.5.4`            | `1.5.4`                  | ✔️                      |
+| `1.5.5`            | `1.5.5`                  | ✔️                      |
+| `1.5.6`            | `1.5.5`                  | ✔️                      |
+| `1.6.0`            | `1.6.0`                  | ✔️                      |
+| `2.0.0`            | `1.6.1`                  | ✔️                      |
+| `2.0.1`            | `1.6.2`                  | ✔️                      |
+| `2.0.2`            | `1.6.3`                  | ✔️                      |
+| `2.1.0`            | `1.7.0`                  | ✔️                      |
+| `3.0.0`            | `1.7.1`                  | ✔️                      |
+| `3.0.1`            | `1.7.2`                  | ✔️                      |
+| `3.0.2`            | `1.7.3`                  | ✔️                      |
+| `3.0.3`            | `1.7.4`                  | ✔️                      |
+| `3.1.0`            | `1.7.5`                  | ✕                      |
 
 ## Introduction
 
@@ -58,7 +56,7 @@ The following steps will help you create a new Azure identity ([Managed Service 
 * [Azure CLI 2.0](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest)
 * [git](https://git-scm.com/downloads)
 
-> It is recommended to use [Helm 3](https://v3.helm.sh/) for installation and uninstallation, however, [Helm 2](https://v2.helm.sh/) is also supported.
+> It is recommended to use [Helm 3](https://v3.helm.sh/) for installation and uninstallation, however, [Helm 2](https://v2.helm.sh/) is also supported until chart version 3.0.3.
 
 <details>
 <summary><strong>[Optional] Creating user identity</strong></summary>
@@ -289,7 +287,6 @@ The following tables list the configurable parameters of the aad-pod-identity ch
 | `rbac.enabled`                            | Create and use RBAC for all aad-pod-identity resources                                                                                                                                                                                                                                                                        | `true`                                                         |
 | `rbac.allowAccessToSecrets`               | NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity. If using only MSI (type: 0) in AzureIdentity, secret get permission can be disabled by setting this to false.                                                                                                              | `true`                                                         |
 | `azureIdentities`                         | Map of azure identities and azure identity bindings resources to create. The map key is the `AzureIdentity` name.                                                                                                                                                                                                             | `{}`                                                           |
-| `installCRDs`                             | If true, install necessary custom resources                                                                                                                                                                                                                                                                                   | `false`                                                        |
 | `customUserAgent`                         | Custom user agent to add to ADAL, ARM and Kubernetes API server requests                                                                                                                                                                                                                                                      | `""`                                                           |
 
 ## Troubleshooting
