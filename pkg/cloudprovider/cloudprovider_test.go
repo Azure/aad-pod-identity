@@ -184,6 +184,18 @@ func TestSimple(t *testing.T) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
+
+			// when no add or remove identities, then GET and PATCH should be skipped
+			err = cloudClient.UpdateUserMSI(nil, nil, node4.Name, true)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+
+			testMSI = []string{"ID4", "ID3"}
+			if !cloudClient.CompareMSI(node4.Name, true, testMSI) {
+				cloudClient.PrintMSI(t)
+				t.Error("MSI mismatch")
+			}
 		})
 	}
 }
