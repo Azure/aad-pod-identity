@@ -31,9 +31,6 @@ import (
 
 const (
 	localhost = "127.0.0.1"
-)
-
-var (
 	// "/metadata" portion is case-insensitive in IMDS
 	tokenPathPrefix     = "/{type:(?i:metadata)}/identity/oauth2/token" // #nosec
 	hostTokenPathPrefix = "/host/token"
