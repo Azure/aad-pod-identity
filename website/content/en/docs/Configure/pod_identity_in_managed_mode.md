@@ -41,7 +41,7 @@ az vm identity assign -g <VM resource group name> -n <VM name> --identities <res
 To assign the identity to VMSS, run the following command -
 
 ```shell
-az vmss identity assign -g <VM resource group name> -n <VM name> --identities <resource ID of managed identity>
+az vmss identity assign -g <VM resource group name> -n <VMSS name> --identities <resource ID of managed identity>
 ```
 
 ## Why use Managed mode
