@@ -8,17 +8,19 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/gorilla/mux"
 )
 
 var (
-	mux       *http.ServeMux
+	rtr       *mux.Router
 	server    *httptest.Server
-	tokenPath = "/metadata/identity/oauth2/token"
+	tokenPath = "/metadata/identity/oauth2/token/"
 )
 
 func setup() {
-	mux = http.NewServeMux()
-	server = httptest.NewServer(mux)
+	rtr = mux.NewRouter()
+	server = httptest.NewServer(rtr)
 }
 
 func teardown() {
@@ -32,7 +34,7 @@ func TestMsiHandler_NoMetadataHeader(t *testing.T) {
 	s := &Server{
 		MetadataHeaderRequired: true,
 	}
-	mux.Handle(tokenPath, appHandler(s.msiHandler))
+	rtr.PathPrefix("/{type:(?i:metadata)}/identity/oauth2/token/").Handler(appHandler(s.msiHandler))
 
 	req, err := http.NewRequest(http.MethodGet, tokenPath, nil)
 	if err != nil {
@@ -40,7 +42,7 @@ func TestMsiHandler_NoMetadataHeader(t *testing.T) {
 	}
 
 	recorder := httptest.NewRecorder()
-	mux.ServeHTTP(recorder, req)
+	rtr.ServeHTTP(recorder, req)
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Errorf("Unexpected status code %d", recorder.Code)
@@ -67,7 +69,7 @@ func TestMsiHandler_NoRemoteAddress(t *testing.T) {
 	s := &Server{
 		MetadataHeaderRequired: false,
 	}
-	mux.Handle(tokenPath, appHandler(s.msiHandler))
+	rtr.PathPrefix("/{type:(?i:metadata)}/identity/oauth2/token/").Handler(appHandler(s.msiHandler))
 
 	req, err := http.NewRequest(http.MethodGet, tokenPath, nil)
 	if err != nil {
@@ -75,7 +77,7 @@ func TestMsiHandler_NoRemoteAddress(t *testing.T) {
 	}
 
 	recorder := httptest.NewRecorder()
-	mux.ServeHTTP(recorder, req)
+	rtr.ServeHTTP(recorder, req)
 
 	if recorder.Code != http.StatusInternalServerError {
 		t.Errorf("Unexpected status code %d", recorder.Code)
@@ -146,4 +148,118 @@ func TestTokenRequest_ValidateResourceParamExists(t *testing.T) {
 	if tr.ValidateResourceParamExists() {
 		t.Error("ValidateResourceParamExists should have returned false when the resource is unset")
 	}
+}
+
+func TestRouterPathPrefix(t *testing.T) {
+	tests := []struct {
+		name               string
+		url                string
+		expectedStatusCode int
+		expectedBody       string
+	}{
+		{
+			name:               "token request",
+			url:                "/metadata/identity/oauth2/token/",
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "token_request_handler",
+		},
+		{
+			name:               "token request without / suffix",
+			url:                "/metadata/identity/oauth2/token",
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "token_request_handler",
+		},
+		{
+			name:               "token request with upper case metadata",
+			url:                "/Metadata/identity/oauth2/token/",
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "token_request_handler",
+		},
+		{
+			name:               "token request with upper case identity",
+			url:                "/metadata/Identity/oauth2/token/",
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "default_handler",
+		},
+		{
+			name:               "host token request",
+			url:                "/host/token/",
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "host_token_request_handler",
+		},
+		{
+			name:               "host token request without / suffix",
+			url:                "/host/token",
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "host_token_request_handler",
+		},
+		{
+			name:               "instance metadata request",
+			url:                "/metadata/instance",
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "instance_request_handler",
+		},
+		{
+			name:               "instance metadata request with upper case metadata",
+			url:                "/Metadata/instance",
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "instance_request_handler",
+		},
+		{
+			name:               "instance metadata request / suffix",
+			url:                "/Metadata/instance/",
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "instance_request_handler",
+		},
+		{
+			name:               "default metadata request",
+			url:                "/metadata/",
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "default_handler",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			setup()
+			defer teardown()
+
+			rtr.PathPrefix(tokenPathPrefix).HandlerFunc(testTokenHandler)
+			rtr.PathPrefix(hostTokenPathPrefix).HandlerFunc(testHostTokenHandler)
+			rtr.PathPrefix(instancePathPrefix).HandlerFunc(testInstanceHandler)
+			rtr.PathPrefix("/").HandlerFunc(testDefaultHandler)
+
+			req, err := http.NewRequest(http.MethodGet, test.url, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			recorder := httptest.NewRecorder()
+			rtr.ServeHTTP(recorder, req)
+
+			if recorder.Code != test.expectedStatusCode {
+				t.Errorf("unexpected status code %d", recorder.Code)
+			}
+
+			if test.expectedBody != strings.TrimSpace(recorder.Body.String()) {
+				t.Errorf("unexpected response body %s", recorder.Body.String())
+			}
+		})
+	}
+}
+
+func testTokenHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "token_request_handler\n")
+}
+
+func testHostTokenHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "host_token_request_handler\n")
+}
+
+func testInstanceHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "instance_request_handler\n")
+}
+
+func testDefaultHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "default_handler\n")
 }
