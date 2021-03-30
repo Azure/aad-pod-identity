@@ -243,6 +243,7 @@ rbac:
   # NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity.
   # If using only MSI (type: 0) in AzureIdentity, secret get permission can be disabled by setting this to false.
   allowAccessToSecrets: true
+  pspEnabled: false
 
 # Create azure identities and bindings
 # This is a map with the AzureIdentityName being the key and the rest of the blob as value in accordance
