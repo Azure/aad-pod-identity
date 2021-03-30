@@ -137,6 +137,7 @@ docker-buildx-builder:
 image-nmi:
 	docker buildx build \
 		--target nmi \
+		--no-cache \
 		--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
 		--platform "$(BUILD_PLATFORMS)" \
 		--output=type=$(OUTPUT_TYPE) \
@@ -146,6 +147,7 @@ image-nmi:
 image-mic:
 	docker buildx build \
 		--target mic \
+		--no-cache \
 		--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
 		--platform "$(BUILD_PLATFORMS)" \
 		--output=type=$(OUTPUT_TYPE) \
@@ -155,6 +157,7 @@ image-mic:
 image-demo:
 	docker buildx build \
 	 	--target demo \
+		--no-cache \
 	  	--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
 		--platform "$(BUILD_PLATFORMS)" \
 		--output=type=$(OUTPUT_TYPE) \
@@ -164,6 +167,7 @@ image-demo:
 image-identity-validator:
 	docker buildx build \
 	 	--target identityvalidator \
+		--no-cache \
 	 	--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
 		--platform "$(BUILD_PLATFORMS)" \
 		--output=type=$(OUTPUT_TYPE) \

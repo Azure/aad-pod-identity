@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/Azure/go-autorest/autorest/adal"
+	"github.com/gorilla/mux"
 	"k8s.io/klog/v2"
 
 	"github.com/Azure/aad-pod-identity/pkg/auth"
@@ -30,6 +31,11 @@ import (
 
 const (
 	localhost = "127.0.0.1"
+	// "/metadata" portion is case-insensitive in IMDS
+	tokenPathPrefix     = "/{type:(?i:metadata)}/identity/oauth2/token" // #nosec
+	hostTokenPathPrefix = "/host/token"
+	// "/metadata" portion is case-insensitive in IMDS
+	instancePathPrefix = "/{type:(?i:metadata)}/instance" // #nosec
 )
 
 // Server encapsulates all of the parameters necessary for starting up
@@ -85,18 +91,16 @@ func NewServer(micNamespace string, blockInstanceMetadata bool, metadataHeaderRe
 func (s *Server) Run() error {
 	go s.updateIPTableRules()
 
-	mux := http.NewServeMux()
-	mux.Handle("/metadata/identity/oauth2/token", appHandler(s.msiHandler))
-	mux.Handle("/metadata/identity/oauth2/token/", appHandler(s.msiHandler))
-	mux.Handle("/host/token", appHandler(s.hostHandler))
-	mux.Handle("/host/token/", appHandler(s.hostHandler))
+	rtr := mux.NewRouter()
+	rtr.PathPrefix(tokenPathPrefix).Handler(appHandler(s.msiHandler))
+	rtr.PathPrefix(hostTokenPathPrefix).Handler(appHandler(s.hostHandler))
 	if s.BlockInstanceMetadata {
-		mux.Handle("/metadata/instance", http.HandlerFunc(forbiddenHandler))
+		rtr.PathPrefix(instancePathPrefix).HandlerFunc(forbiddenHandler)
 	}
-	mux.Handle("/", http.HandlerFunc(s.defaultPathHandler))
+	rtr.PathPrefix("/").HandlerFunc(s.defaultPathHandler)
 
 	klog.Infof("listening on port %s", s.NMIPort)
-	if err := http.ListenAndServe("localhost:"+s.NMIPort, mux); err != nil {
+	if err := http.ListenAndServe("localhost:"+s.NMIPort, rtr); err != nil {
 		klog.Fatalf("error creating http server: %+v", err)
 	}
 	return nil
