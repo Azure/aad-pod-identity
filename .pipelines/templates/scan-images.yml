@@ -14,7 +14,7 @@ steps:
       ./trivy "${REGISTRY}/nmi:${IMAGE_VERSION}"
       ./trivy "${REGISTRY}/identityvalidator:${IMAGE_VERSION}"
       ./trivy "${REGISTRY}/demo:${IMAGE_VERSION}"
-      
+
       ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL "${REGISTRY}/mic:${IMAGE_VERSION}" || exit 1
       ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL "${REGISTRY}/nmi:${IMAGE_VERSION}" || exit 1
       ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL "${REGISTRY}/identityvalidator:${IMAGE_VERSION}" || exit 1

@@ -1,6 +1,9 @@
 parameters:
   - name: clusterConfigs
     type: object
+  - name: buildPlatforms
+    type: string
+    default: linux/amd64,linux/arm64,linux/arm/v7
 
 jobs:
   - ${{ each clusterConfig in parameters.clusterConfigs }}:
@@ -15,6 +18,8 @@ jobs:
         - group: aad-pod-identity
         - name: CLUSTER_CONFIG
           value: ${{ format('{0}', clusterConfig) }}
+        - name: BUILD_PLATFORMS
+          value: ${{ parameters.buildPlatforms }}
       steps:
         - template: az-login.yml
 
