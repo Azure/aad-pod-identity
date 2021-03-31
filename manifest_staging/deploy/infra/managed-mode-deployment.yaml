@@ -108,6 +108,7 @@ spec:
       - name: kubelet-config
         hostPath:
           path: /etc/default/kubelet
+          type: FileOrCreate
       containers:
       - name: nmi
         image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.7.4"
