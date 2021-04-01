@@ -98,6 +98,7 @@ func (m *vmssManager) UnassignUserAssignedIdentity(vmssName, identityToUnassign 
 			vmss.Identity.UserAssignedIdentities[identity] = nil
 			continue
 		}
+		vmss.Identity.UserAssignedIdentities[identity] = &compute.VirtualMachineScaleSetIdentityUserAssignedIdentitiesValue{}
 		hasOtherIdentitiesAssigned = true
 	}
 
