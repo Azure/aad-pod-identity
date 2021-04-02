@@ -49,6 +49,7 @@ spec:
       - name: kubelet-config
         hostPath:
           path: {{ .Values.nmi.kubeletConfig }}
+          type: FileOrCreate
       {{- end }}
       containers:
       - name: nmi
