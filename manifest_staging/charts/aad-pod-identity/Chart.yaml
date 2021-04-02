@@ -1,8 +1,8 @@
 apiVersion: v2
 description: Deploy components for aad-pod-identity
 name: aad-pod-identity
-version: 3.0.3
-appVersion: 1.7.4
+version: 4.0.0
+appVersion: 1.7.5
 home: https://github.com/Azure/aad-pod-identity
 sources:
   - https://github.com/Azure/aad-pod-identity

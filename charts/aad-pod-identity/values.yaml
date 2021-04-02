@@ -43,8 +43,9 @@ operationMode: "standard"
 
 mic:
   image: mic
-  tag: v1.7.4
+  tag: v1.7.5
 
+  # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
 
   # log level. Uses V logs (klog)
@@ -69,8 +70,20 @@ mic:
     kubernetes.io/os: linux
 
   tolerations: []
+    # - key: "CriticalAddonsOnly"
+    #   operator: "Exists"
 
+  # ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity
   affinity: {}
+    # nodeAffinity:
+    #   preferredDuringSchedulingIgnoredDuringExecution:
+    #     - weight 1
+    #       preference:
+    #         matchExpressions:
+    #           - key: kubernetes.azure.com/mode
+    #             operator: In
+    #             values:
+    #               - system
 
   # Topology spread constraints rely on node labels to identify the topology domain(s) that each Node is in.
   # ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
@@ -141,8 +154,9 @@ mic:
 
 nmi:
   image: nmi
-  tag: v1.7.4
+  tag: v1.7.5
 
+  # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
 
   # log level. Uses V logs (klog)
@@ -167,8 +181,20 @@ nmi:
     kubernetes.io/os: linux
 
   tolerations: []
+    # - key: "CriticalAddonsOnly"
+    #   operator: "Exists"
 
+  # ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity
   affinity: {}
+    # nodeAffinity:
+    #   preferredDuringSchedulingIgnoredDuringExecution:
+    #     - weight 1
+    #       preference:
+    #         matchExpressions:
+    #           - key: kubernetes.azure.com/mode
+    #             operator: In
+    #             values:
+    #               - system
 
   # Override iptables update interval in seconds (default is 60)
   ipTableUpdateTimeIntervalInSeconds: ""
@@ -217,6 +243,7 @@ rbac:
   # NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity.
   # If using only MSI (type: 0) in AzureIdentity, secret get permission can be disabled by setting this to false.
   allowAccessToSecrets: true
+  pspEnabled: false
 
 # Create azure identities and bindings
 # This is a map with the AzureIdentityName being the key and the rest of the blob as value in accordance
@@ -242,9 +269,6 @@ azureIdentities:
   #     name: "azure-identity-binding"
   #     # The selector will also need to be included in labels for app deployment
   #     selector: "demo"
-
-# If true, install necessary custom resources.
-installCRDs: false
 
 # If provided, the userAgent string will be appended to the pod identity user agents for all
 # ADAL, ARM and Kube API server requests.

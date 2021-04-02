@@ -57,6 +57,8 @@ Using Kubernetes primitives, administrators configure identities and bindings to
   +      selector: "demo"
   ```
 
+- **(Only apply to app version ≥ v1.7.5 / chart version ≥ 4.0.0)** AAD Pod Identity has dropped Helm 2 starting from chart version 4.0.0/app version 1.7.5. To install or upgrade to the latest version of AAD Pod Identity, please use Helm 3 instead. Refer to this [guide](https://helm.sh/blog/migrate-from-helm-v2-to-helm-v3/) on how to migrate from Helm 2 to Helm 3.
+
 ## v1.6.x Breaking Change
 
 With [Azure/aad-pod-identity#398](https://github.com/Azure/aad-pod-identity/pull/398), the [client-go](https://github.com/kubernetes/client-go) library is upgraded to v0.17.2, where CRD [fields are now case sensitive](https://github.com/kubernetes/kubernetes/issues/64612). If you are upgrading MIC and NMI from v1.x.x to v1.6.0, MIC v1.6.0+ will upgrade the fields of existing `AzureIdentity` and `AzureIdentityBinding` on startup to the new format to ensure backward compatibility. A configmap called `aad-pod-identity-config` is created to record and confirm the successful type upgrade.

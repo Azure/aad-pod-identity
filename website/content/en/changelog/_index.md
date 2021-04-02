@@ -7,12 +7,54 @@ menu:
     weight: 10
 ---
 
-## v1.7.4
+## v1.7.5
 
 ### Breaking Change
 - If upgrading from versions 1.5.x to 1.7.x of pod-identity, please carefully review this [doc](https://azure.github.io/aad-pod-identity/docs/#v16x-breaking-change) before upgrade.
 - Pod Identity is disabled by default for Clusters with Kubenet. Please review this [doc](https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/) before upgrade.
-- Helm chart contains breaking changes. Please review this [doc](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#300) before upgrade.
+- Helm chart contains breaking changes. Please review the following docs:
+  - [Upgrading to helm chart 4.0.0+](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#400)
+  - [Upgrading to helm chart 3.0.0+](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#300)
+
+
+### Helm
+
+- helm: Add missing `weight` key in node affinity example ([#996](https://github.com/Azure/aad-pod-identity/pull/996))
+- helm: Added Pod Security Policy ([#998](https://github.com/Azure/aad-pod-identity/pull/998))
+- helm: remove helm 2 support ([#1001](https://github.com/Azure/aad-pod-identity/pull/1001))
+
+### Features
+
+- feat: add cluster identity to immutable list ([#981](https://github.com/Azure/aad-pod-identity/pull/981))
+
+### Bug Fixes
+
+- fix: skip kubenet check if allowed is true ([#999](https://github.com/Azure/aad-pod-identity/pull/999))
+- fix: skip PATCH call if no identities to assign or un-assign ([#1007](https://github.com/Azure/aad-pod-identity/pull/1007))
+- fix: add case insensitive handler pattern ([#1021](https://github.com/Azure/aad-pod-identity/pull/1021))
+- fix: add FileOrCreate to kubelet config file ([#1024](https://github.com/Azure/aad-pod-identity/pull/1024))
+
+### Documentation
+
+- docs: add note about system-assigned not supported ([#973](https://github.com/Azure/aad-pod-identity/pull/973))
+- docs: improve documentations on multiple areas ([#991](https://github.com/Azure/aad-pod-identity/pull/991))
+- docs: vmss typo ([#1016](https://github.com/Azure/aad-pod-identity/pull/1016))
+
+### Test Improvements
+
+- ci: switch from service principal to managed identity for e2e test ([#974](https://github.com/Azure/aad-pod-identity/pull/974))
+- ci: use Upstream Pool for soak & load test ([#982](https://github.com/Azure/aad-pod-identity/pull/982))
+- test: make backward compat test deterministic ([#986](https://github.com/Azure/aad-pod-identity/pull/986))
+- flake: change mic sync interval from 1h to 30s ([#989](https://github.com/Azure/aad-pod-identity/pull/989))
+- test: use kubectl to get vmss name ([#1027](https://github.com/Azure/aad-pod-identity/pull/1027))
+
+### Other Improvements
+
+- chore: update to go 1.16 ([#983](https://github.com/Azure/aad-pod-identity/pull/983))
+- chore: update k8s lib versions ([#1010](https://github.com/Azure/aad-pod-identity/pull/1010))
+- chore(deps): bump y18n from 4.0.0 to 4.0.1 in /website ([#1028](https://github.com/Azure/aad-pod-identity/pull/1028))
+
+## v1.7.4
 
 ### Helm
 

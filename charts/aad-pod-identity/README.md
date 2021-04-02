@@ -9,29 +9,27 @@ helm repo add aad-pod-identity https://raw.githubusercontent.com/Azure/aad-pod-i
 
 # Helm 3
 helm install aad-pod-identity aad-pod-identity/aad-pod-identity
-
-# Helm 2
-helm install aad-pod-identity/aad-pod-identity --set=installCRDs=true
 ```
 
 ## Helm chart and aad-pod-identity versions
 
-| Helm Chart Version | AAD Pod Identity Version |
-| ------------------ | ------------------------ |
-| `1.5.2`            | `1.5.2`                  |
-| `1.5.3`            | `1.5.3`                  |
-| `1.5.4`            | `1.5.4`                  |
-| `1.5.5`            | `1.5.5`                  |
-| `1.5.6`            | `1.5.5`                  |
-| `1.6.0`            | `1.6.0`                  |
-| `2.0.0`            | `1.6.1`                  |
-| `2.0.1`            | `1.6.2`                  |
-| `2.0.2`            | `1.6.3`                  |
-| `2.1.0`            | `1.7.0`                  |
-| `3.0.0`            | `1.7.1`                  |
-| `3.0.1`            | `1.7.2`                  |
-| `3.0.2`            | `1.7.3`                  |
-| `3.0.3`            | `1.7.4`                  |
+| Helm Chart Version | AAD Pod Identity Version | Compatible with Helm 2 |
+|--------------------|--------------------------|------------------------|
+| `1.5.2`            | `1.5.2`                  | ✔️                      |
+| `1.5.3`            | `1.5.3`                  | ✔️                      |
+| `1.5.4`            | `1.5.4`                  | ✔️                      |
+| `1.5.5`            | `1.5.5`                  | ✔️                      |
+| `1.5.6`            | `1.5.5`                  | ✔️                      |
+| `1.6.0`            | `1.6.0`                  | ✔️                      |
+| `2.0.0`            | `1.6.1`                  | ✔️                      |
+| `2.0.1`            | `1.6.2`                  | ✔️                      |
+| `2.0.2`            | `1.6.3`                  | ✔️                      |
+| `2.1.0`            | `1.7.0`                  | ✔️                      |
+| `3.0.0`            | `1.7.1`                  | ✔️                      |
+| `3.0.1`            | `1.7.2`                  | ✔️                      |
+| `3.0.2`            | `1.7.3`                  | ✔️                      |
+| `3.0.3`            | `1.7.4`                  | ✔️                      |
+| `4.0.0`            | `1.7.5`                  | ✕                      |
 
 ## Introduction
 
@@ -58,7 +56,7 @@ The following steps will help you create a new Azure identity ([Managed Service 
 * [Azure CLI 2.0](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest)
 * [git](https://git-scm.com/downloads)
 
-> It is recommended to use [Helm 3](https://v3.helm.sh/) for installation and uninstallation, however, [Helm 2](https://v2.helm.sh/) is also supported.
+> It is recommended to use [Helm 3](https://v3.helm.sh/) for installation and uninstallation, however, [Helm 2](https://v2.helm.sh/) is also supported until chart version 3.0.3.
 
 <details>
 <summary><strong>[Optional] Creating user identity</strong></summary>
@@ -158,6 +156,10 @@ Once this is done, the helm upgrade command will succeed.
 
 A major chart version change (like v1.6.0 -> v2.0.0) indicates that there is a backward-incompatible (breaking) change needing manual actions.
 
+#### 4.0.0
+
+AAD Pod Identity has dropped Helm 2 starting from chart version 4.0.0/app version 1.7.5. To install or upgrade to the latest version of AAD Pod Identity, please use Helm 3 instead. Refer to this [guide](https://helm.sh/blog/migrate-from-helm-v2-to-helm-v3/) on how to migrate from Helm 2 to Helm 3.
+
 #### 3.0.0
 
 Accessing the identities in the list is harder for the user to figure out and prone to errors if the order is changed. This version updates the `azureIdentities` to be a map instead of a list of identities.
@@ -246,7 +248,7 @@ The following tables list the configurable parameters of the aad-pod-identity ch
 | `adminsecret.useMSI`                      | Set to `true` when using a user managed identity                                                                                                                                                                                                                                                                              | ` `                                                            |
 | `adminsecret.userAssignedMSIClientID`     | Azure user managed identity client ID                                                                                                                                                                                                                                                                                         | ` `                                                            |
 | `mic.image`                               | MIC image name                                                                                                                                                                                                                                                                                                                | `mic`                                                          |
-| `mic.tag`                                 | MIC image tag                                                                                                                                                                                                                                                                                                                 | `v1.7.4`                                                       |
+| `mic.tag`                                 | MIC image tag                                                                                                                                                                                                                                                                                                                 | `v1.7.5`                                                       |
 | `mic.priorityClassName`                   | MIC priority class (can only be set when deploying to kube-system namespace)                                                                                                                                                                                                                                                  |                                                                |
 | `mic.logVerbosity`                        | Log level. Uses V logs (klog)                                                                                                                                                                                                                                                                                                 | `0`                                                            |
 | `mic.loggingFormat`                       | Log format. One of (text \| json)                                                                                                                                                                                                                                                                                             | `text`                                                         |
@@ -269,7 +271,7 @@ The following tables list the configurable parameters of the aad-pod-identity ch
 | `mic.updateUserMSIRetryInterval`          | The duration to wait before retrying UpdateUserMSI (batch assigning/un-assigning identity from VM/VMSS) in case of errors                                                                                                                                                                                                     | If not provided, default value is `1s`                         |
 | `mic.identityAssignmentReconcileInterval` | The interval between reconciling identity assignment on Azure based on an existing list of AzureAssignedIdentities                                                                                                                                                                                                            | If not provided, default value is `3m`                         |
 | `nmi.image`                               | NMI image name                                                                                                                                                                                                                                                                                                                | `nmi`                                                          |
-| `nmi.tag`                                 | NMI image tag                                                                                                                                                                                                                                                                                                                 | `v1.7.4`                                                       |
+| `nmi.tag`                                 | NMI image tag                                                                                                                                                                                                                                                                                                                 | `v1.7.5`                                                       |
 | `nmi.priorityClassName`                   | NMI priority class (can only be set when deploying to kube-system namespace)                                                                                                                                                                                                                                                  |                                                                |
 | `nmi.logVerbosity`                        | Log level. Uses V logs (klog)                                                                                                                                                                                                                                                                                                 | `0`                                                            |
 | `nmi.loggingFormat`                       | Log format. One of (text \| json)                                                                                                                                                                                                                                                                                             | `text`                                                         |
@@ -287,9 +289,9 @@ The following tables list the configurable parameters of the aad-pod-identity ch
 | `nmi.allowNetworkPluginKubenet`           | Allow running aad-pod-identity in cluster with kubenet                                                                                                                                                                                                                                                                        | `false`                                                        |
 | `nmi.kubeletConfig`                       | Path to kubelet default config                                                                                                                                                                                                                                                                                                | `/etc/default/kubelet`                                         |
 | `rbac.enabled`                            | Create and use RBAC for all aad-pod-identity resources                                                                                                                                                                                                                                                                        | `true`                                                         |
+| `rbac.pspEnabled`                         | If `true`, create and use a restricted pod security policy for AAD Pod Identity pod(s)                                                                                                                                                                                                                                        | `false`                                                        |
 | `rbac.allowAccessToSecrets`               | NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity. If using only MSI (type: 0) in AzureIdentity, secret get permission can be disabled by setting this to false.                                                                                                              | `true`                                                         |
 | `azureIdentities`                         | Map of azure identities and azure identity bindings resources to create. The map key is the `AzureIdentity` name.                                                                                                                                                                                                             | `{}`                                                           |
-| `installCRDs`                             | If true, install necessary custom resources                                                                                                                                                                                                                                                                                   | `false`                                                        |
 | `customUserAgent`                         | Custom user agent to add to ADAL, ARM and Kubernetes API server requests                                                                                                                                                                                                                                                      | `""`                                                           |
 
 ## Troubleshooting
