@@ -27,19 +27,25 @@ parameters:
 steps:
   - script: |
       ASSIGNEE_OBJECT_ID="$(az identity show -g ${{ parameters.node_resource_group }} -n ${{ parameters.resource_group }}-agentpool --query principalId -otsv)"
+      ROLE_ASSIGNMENT_IDS=""
+
       az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "Virtual Machine Contributor" --scope "/subscriptions/${{ parameters.subscription_id }}/resourcegroups/${{ parameters.node_resource_group }}"
       az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "Managed Identity Operator" --scope "/subscriptions/${{ parameters.subscription_id }}/resourcegroups/${{ parameters.node_resource_group }}"
 
       if [[ -n "${{ parameters.keyvault_resource_group }}" ]]; then
-        az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "Reader" --scope "/subscriptions/${{ parameters.subscription_id }}/resourcegroups/${{ parameters.keyvault_resource_group }}/providers/Microsoft.KeyVault/vaults/${{ parameters.keyvault_name }}"
+        ID="$(az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "Reader" --scope "/subscriptions/${{ parameters.subscription_id }}/resourcegroups/${{ parameters.keyvault_resource_group }}/providers/Microsoft.KeyVault/vaults/${{ parameters.keyvault_name }}" --query id -otsv)"
+        ROLE_ASSIGNMENT_IDS+="${ID} "
         az keyvault set-policy -n ${{ parameters.keyvault_name }} --secret-permissions get --object-id "${ASSIGNEE_OBJECT_ID}"
       fi
 
       if [[ -n "${{ parameters.identity_resource_group }}" ]]; then
-        az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "Managed Identity Operator" --scope "/subscriptions/${{ parameters.subscription_id }}/resourcegroups/${{ parameters.identity_resource_group }}"
+        ID="$(az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "Managed Identity Operator" --scope "/subscriptions/${{ parameters.subscription_id }}/resourcegroups/${{ parameters.identity_resource_group }}" --query id -otsv)"
+        ROLE_ASSIGNMENT_IDS+="${ID} "
       fi
 
       if [[ -n "${{ parameters.registry_name }}" ]]; then
-        az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "AcrPull" --scope "/subscriptions/$(SUBSCRIPTION_ID)/resourceGroups/${{ parameters.acr_resource_group }}/providers/Microsoft.ContainerRegistry/registries/${{ parameters.registry_name }}"
+        ID="$(az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "AcrPull" --scope "/subscriptions/$(SUBSCRIPTION_ID)/resourceGroups/${{ parameters.acr_resource_group }}/providers/Microsoft.ContainerRegistry/registries/${{ parameters.registry_name }}" --query id -otsv)"
+        ROLE_ASSIGNMENT_IDS+="${ID} "
       fi
+      echo "##vso[task.setvariable variable=ROLE_ASSIGNMENT_IDS]${ROLE_ASSIGNMENT_IDS}"
     displayName: "Add role assignment"

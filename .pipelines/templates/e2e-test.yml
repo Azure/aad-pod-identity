@@ -71,11 +71,12 @@ jobs:
           displayName: "Run E2E tests"
 
         - script: |
+            az role assignment delete --ids ${ROLE_ASSIGNMENT_IDS} || true
             if [[ "${CLUSTER_CONFIG}" == "aks" ]]; then
               az aks delete -g ${RESOURCE_GROUP} -n ${RESOURCE_GROUP} --yes --no-wait
             fi
             az group delete -g ${RESOURCE_GROUP} --yes --no-wait
           condition: always()
-          displayName: "Delete resource group"
+          displayName: "Delete resource group and role assignments"
 
         - template: cleanup-images.yml

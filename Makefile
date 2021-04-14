@@ -54,18 +54,31 @@ BUILD_PLATFORMS ?= linux/amd64,linux/arm64,linux/arm/v7
 # Output type of docker buildx build
 OUTPUT_TYPE ?= registry
 
-$(TOOLS_DIR)/golangci-lint: $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
+CONTROLLER_GEN := $(TOOLS_DIR)/controller-gen
+GOLANGCI_LINT := $(TOOLS_DIR)/golangci-lint
+KUSTOMIZE := $(TOOLS_DIR)/kustomize
+MISSPELL := $(TOOLS_DIR)/misspell
+
+$(CONTROLLER_GEN): $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
+	cd $(TOOLS_MOD_DIR) && \
+		go build -o $(TOOLS_DIR)/controller-gen sigs.k8s.io/controller-tools/cmd/controller-gen
+
+$(GOLANGCI_LINT): $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
 	cd $(TOOLS_MOD_DIR) && \
 	go build -o $(TOOLS_DIR)/golangci-lint github.com/golangci/golangci-lint/cmd/golangci-lint
 
-$(TOOLS_DIR)/misspell: $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
+$(KUSTOMIZE): $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
+	cd $(TOOLS_MOD_DIR) && \
+		go build -o $(TOOLS_DIR)/kustomize sigs.k8s.io/kustomize/kustomize/v3
+
+$(MISSPELL): $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
 	cd $(TOOLS_MOD_DIR) && \
 	go build -o $(TOOLS_DIR)/misspell github.com/client9/misspell/cmd/misspell
 
 .PHONY: lint
-lint: $(TOOLS_DIR)/golangci-lint $(TOOLS_DIR)/misspell
-	$(TOOLS_DIR)/golangci-lint run --timeout=5m
-	$(TOOLS_DIR)/misspell -w $(ALL_DOCS)
+lint: $(GOLANGCI_LINT) $(MISSPELL)
+	$(GOLANGCI_LINT) run --timeout=5m
+	$(MISSPELL) -w $(ALL_DOCS)
 	$(MAKE) check-mod
 
 .PHONY: clean-nmi
@@ -225,3 +238,9 @@ helm-lint:
 	curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 	# run lint on helm charts
 	helm lint --strict manifest_staging/charts/aad-pod-identity
+
+.PHONY: generate-crds
+generate-crds: $(CONTROLLER_GEN) $(KUSTOMIZE)
+	$(CONTROLLER_GEN) crd:trivialVersions=true paths=./pkg/apis/aadpodidentity/v1/...
+	$(KUSTOMIZE) build config/crd > config/crd/aadpodidentity.k8s.io.yaml
+	rm -rf config/crd/aadpodidentity.k8s.io_*
