@@ -406,7 +406,6 @@ spec:
       containers:
       - name: nmi
         image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.7.5"
-        imagePullPolicy: Always
         args:
           - "--node=$(NODE_NAME)"
           - "--http-probe-port=8085"
@@ -484,7 +483,6 @@ spec:
       containers:
       - name: mic
         image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.7.5"
-        imagePullPolicy: Always
         args:
           - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"
           - "--logtostderr"
