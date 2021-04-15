@@ -7,10 +7,8 @@ jobs:
     steps:
       - script: make unit-test
         displayName: Run unit tests
-      - script: bash <(curl -s https://codecov.io/bash)
+      - script: bash <(curl -s https://codecov.io/bash) -C $(Build.SourceVersion)
         displayName: Upload coverage to codecov
-        env:
-          CODECOV_TOKEN: $(CODECOV_TOKEN)
       - script: make lint
         displayName: Run lint
       - script: make helm-lint
