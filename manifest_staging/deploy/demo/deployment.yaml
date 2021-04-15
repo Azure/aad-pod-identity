@@ -24,21 +24,5 @@ spec:
           - "--subscriptionid=SUBSCRIPTION_ID"
           - "--clientid=CLIENT_ID"
           - "--resourcegroup=RESOURCE_GROUP"
-          # TO SPECIFY NAME OF RESOURCE TO GRANT TOKEN ADD --aad-resourcename
-          # this demo defaults aad-resourcename to https://management.azure.com/
-          # e.g. - "--aad-resourcename=https://vault.azure.net"
-        env:
-        - name: MY_POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: MY_POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        - name: MY_POD_IP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
       nodeSelector:
         kubernetes.io/os: linux

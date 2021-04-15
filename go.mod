@@ -7,7 +7,7 @@ require (
 	github.com/Azure/azure-sdk-for-go v40.4.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.11.1
 	github.com/Azure/go-autorest/autorest/adal v0.9.5
-	github.com/Azure/go-autorest/autorest/azure/auth v0.1.0
+	github.com/Azure/go-autorest/autorest/azure/auth v0.1.0 // indirect
 	github.com/Azure/go-autorest/autorest/to v0.2.0 // indirect
 	github.com/Azure/go-autorest/autorest/validation v0.1.0 // indirect
 	github.com/coreos/go-iptables v0.3.0

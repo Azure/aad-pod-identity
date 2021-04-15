@@ -5,13 +5,10 @@ import (
 	"flag"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	"github.com/Azure/go-autorest/autorest/adal"
-	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"k8s.io/klog/v2"
 )
 
@@ -35,12 +32,6 @@ func main() {
 	flag.StringVar(&identityClientID, "identity-client-id", "", "The user-assigned identity client ID")
 	flag.Parse()
 
-	podname := os.Getenv("MY_POD_NAME")
-	podnamespace := os.Getenv("MY_POD_NAMESPACE")
-	podip := os.Getenv("MY_POD_IP")
-
-	klog.Infof("starting aad-pod-identity demo pod (namespace: %s, name: %s, IP: %s)", podnamespace, podname, podip)
-
 	imdsTokenEndpoint, err := adal.GetMSIVMEndpoint()
 	if err != nil {
 		klog.Fatalf("failed to get IMDS token endpoint, error: %+v", err)
@@ -51,40 +42,13 @@ func main() {
 
 	for ; true; <-ticker.C {
 		curlIMDSMetadataInstanceEndpoint()
-		listVMSSInstances()
 		t1 := getTokenFromIMDS(imdsTokenEndpoint)
 		t2 := getTokenFromIMDSWithUserAssignedID(imdsTokenEndpoint)
 		if t1 == nil || t2 == nil || !strings.EqualFold(t1.AccessToken, t2.AccessToken) {
 			klog.Error("Tokens acquired from IMDS with and without identity client ID do not match")
 		}
+		klog.Infof("Try decoding your token %s at https://jwt.io", t1.AccessToken)
 	}
-}
-
-func listVMSSInstances() {
-	authorizer, err := auth.NewAuthorizerFromEnvironment()
-	if err != nil {
-		klog.Errorf("failed to get authorizer from environment, error: %+v", err)
-		return
-	}
-
-	vmssClient := compute.NewVirtualMachineScaleSetsClient(subscriptionID)
-	vmssClient.Authorizer = authorizer
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	vmssList, err := vmssClient.List(ctx, resourceGroup)
-	if err != nil {
-		klog.Errorf("failed to list all VMSS instances, error: %+v", err)
-		return
-	}
-
-	vmssNames := []string{}
-	for _, vmss := range vmssList.Values() {
-		vmssNames = append(vmssNames, *vmss.Name)
-	}
-
-	klog.Infof("successfully listed VMSS instances via ARM with AAD Pod Identity: %+v", vmssNames)
 }
 
 func getTokenFromIMDS(imdsTokenEndpoint string) *adal.Token {
