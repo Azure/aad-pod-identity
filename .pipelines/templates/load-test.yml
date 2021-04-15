@@ -149,6 +149,7 @@ jobs:
         - template: publish-load-test-result.yml
 
         - script: |
+            az role assignment delete --ids ${ROLE_ASSIGNMENT_IDS} || true
             az aks delete -g ${RESOURCE_GROUP} -n ${RESOURCE_GROUP} --yes --no-wait
             az group delete -g ${RESOURCE_GROUP} --yes --no-wait
             sudo rm -rf $(GOPATH)

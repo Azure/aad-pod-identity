@@ -51,6 +51,7 @@ func Create(input CreateInput) *aadpodv1.AzureIdentityBinding {
 			Selector:      input.Selector,
 		},
 	}
+	azureIdentityBinding.TypeMeta = framework.TypeMeta(azureIdentityBinding)
 
 	Expect(input.Creator.Create(context.TODO(), azureIdentityBinding)).Should(Succeed())
 

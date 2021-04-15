@@ -3,6 +3,9 @@
 package framework
 
 import (
+	"fmt"
+	"reflect"
+
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -48,4 +51,12 @@ func TryAddDefaultSchemes(scheme *runtime.Scheme) {
 		&aadpodv1.AzurePodIdentityExceptionList{},
 	)
 	metav1.AddToGroupVersion(scheme, aadPodIdentityGroupVersion)
+}
+
+// TypeMeta returns the TypeMeta struct of a given runtime object.
+func TypeMeta(i runtime.Object) metav1.TypeMeta {
+	return metav1.TypeMeta{
+		APIVersion: fmt.Sprintf("%s/%s", aadpodv1.CRDGroup, aadpodv1.CRDVersion),
+		Kind:       reflect.ValueOf(i).Elem().Type().Name(),
+	}
 }
