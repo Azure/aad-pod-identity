@@ -7,7 +7,7 @@ fullnameOverride: ""
 
 image:
   repository: mcr.microsoft.com/oss/azure/aad-pod-identity
-  imagePullPolicy: Always
+  imagePullPolicy: IfNotPresent
 
 # One or more secrets to be used when pulling images
 # imagePullSecrets:
@@ -246,8 +246,8 @@ rbac:
   # If using only MSI (type: 0) in AzureIdentity, secret get permission can be disabled by setting this to false.
   allowAccessToSecrets: true
   pspEnabled: false
-  # If set to true, then view and edit cluster roles will be created with annotations 
-  # that agrigate to the admin, edit and view built-in cluster roles. These roles will 
+  # If set to true, then view and edit cluster roles will be created with annotations
+  # that agrigate to the admin, edit and view built-in cluster roles. These roles will
   # be able to create the necessary resources to allow pod identity binding on pods.
   createUserFacingClusterRoles: false
 
