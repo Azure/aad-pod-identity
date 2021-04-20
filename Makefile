@@ -244,3 +244,17 @@ generate-crds: $(CONTROLLER_GEN) $(KUSTOMIZE)
 	$(CONTROLLER_GEN) crd:trivialVersions=true paths=./pkg/apis/aadpodidentity/v1/...
 	$(KUSTOMIZE) build config/crd > config/crd/aadpodidentity.k8s.io.yaml
 	rm -rf config/crd/aadpodidentity.k8s.io_*
+
+.PHONY: promote-staging-manifest
+promote-staging-manifest:
+	@gsed -i "s/version: .*/version: ${NEW_CHART_VERSION}/g" manifest_staging/charts/aad-pod-identity/Chart.yaml
+	@gsed -i "s/appVersion: .*/appVersion: ${NEW_APP_VERSION}/g" manifest_staging/charts/aad-pod-identity/Chart.yaml
+	@gsed -i "s/tag: .*/tag: v${NEW_APP_VERSION}/g" manifest_staging/charts/aad-pod-identity/values.yaml
+	@rm -rf deploy charts/aad-pod-identity
+	@cp -r manifest_staging/deploy .
+	@cp -r manifest_staging/charts .
+	@mkdir -p ./charts/tmp
+	@helm package ./charts/aad-pod-identity -d ./charts/tmp/
+	@helm repo index ./charts/tmp --url https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts --merge ./charts/index.yaml
+	@mv ./charts/tmp/* ./charts
+	@rm -rf ./charts/tmp
