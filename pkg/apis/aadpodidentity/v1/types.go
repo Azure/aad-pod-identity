@@ -6,12 +6,6 @@ import (
 )
 
 const (
-	// CRDGroup is the group name of aad-pod-identity CRDs.
-	CRDGroup = "aadpodidentity.k8s.io"
-
-	// CRDVersion is the version of the CRD group.
-	CRDVersion = "v1"
-
 	// CRDLabelKey is the
 	CRDLabelKey = "aadpodidbinding"
 

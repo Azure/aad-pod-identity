@@ -99,8 +99,8 @@ func ConvertInternalBindingToV1Binding(identityBinding aadpodid.AzureIdentityBin
 	}
 
 	out.TypeMeta.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   CRDGroup,
-		Version: CRDVersion,
+		Group:   SchemeGroupVersion.Group,
+		Version: SchemeGroupVersion.Version,
 		Kind:    reflect.TypeOf(out).Name()})
 
 	return out
@@ -127,8 +127,8 @@ func ConvertInternalIdentityToV1Identity(identity aadpodid.AzureIdentity) AzureI
 	}
 
 	out.TypeMeta.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   CRDGroup,
-		Version: CRDVersion,
+		Group:   SchemeGroupVersion.Group,
+		Version: SchemeGroupVersion.Version,
 		Kind:    reflect.TypeOf(out).Name()})
 
 	return out
@@ -155,8 +155,8 @@ func ConvertInternalAssignedIdentityToV1AssignedIdentity(assignedIdentity aadpod
 	}
 
 	out.TypeMeta.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   CRDGroup,
-		Version: CRDVersion,
+		Group:   SchemeGroupVersion.Group,
+		Version: SchemeGroupVersion.Version,
 		Kind:    reflect.TypeOf(out).Name()})
 
 	return out
