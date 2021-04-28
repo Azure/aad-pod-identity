@@ -153,22 +153,14 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (*Client
 
 func newRestClient(config *rest.Config) (*rest.RESTClient, error) {
 	crdconfig := *config
-	crdconfig.GroupVersion = &schema.GroupVersion{Group: aadpodv1.CRDGroup, Version: aadpodv1.CRDVersion}
+	crdconfig.GroupVersion = &aadpodv1.SchemeGroupVersion
 	crdconfig.APIPath = "/apis"
 	crdconfig.ContentType = runtime.ContentTypeJSON
 	scheme := runtime.NewScheme()
 
-	scheme.AddKnownTypes(*crdconfig.GroupVersion,
-		&aadpodv1.AzureIdentity{},
-		&aadpodv1.AzureIdentityList{},
-		&aadpodv1.AzureIdentityBinding{},
-		&aadpodv1.AzureIdentityBindingList{},
-		&aadpodv1.AzureAssignedIdentity{},
-		&aadpodv1.AzureAssignedIdentityList{},
-		&aadpodv1.AzurePodIdentityException{},
-		&aadpodv1.AzurePodIdentityExceptionList{},
-	)
-
+	if err := aadpodv1.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
 	if err := clientgoscheme.AddToScheme(scheme); err != nil {
 		return nil, err
 	}
@@ -581,8 +573,8 @@ func (c *Client) ListBindings() (*[]aadpodid.AzureIdentityBinding, error) {
 		// Note: List items returned from cache have empty Kind and API version..
 		// Work around this issue since we need that for event recording to work.
 		o.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   aadpodv1.CRDGroup,
-			Version: aadpodv1.CRDVersion,
+			Group:   aadpodv1.SchemeGroupVersion.Group,
+			Version: aadpodv1.SchemeGroupVersion.Version,
 			Kind:    reflect.TypeOf(*o).String()})
 
 		internalBinding := aadpodv1.ConvertV1BindingToInternalBinding(*o)
@@ -610,8 +602,8 @@ func (c *Client) ListAssignedIDs() (*[]aadpodid.AzureAssignedIdentity, error) {
 		// Note: List items returned from cache have empty Kind and API version..
 		// Work around this issue since we need that for event recording to work.
 		o.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   aadpodv1.CRDGroup,
-			Version: aadpodv1.CRDVersion,
+			Group:   aadpodv1.SchemeGroupVersion.Group,
+			Version: aadpodv1.SchemeGroupVersion.Version,
 			Kind:    reflect.TypeOf(*o).String()})
 		out := aadpodv1.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o)
 		resList = append(resList, out)
@@ -638,8 +630,8 @@ func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdenti
 		// Note: List items returned from cache have empty Kind and API version..
 		// Work around this issue since we need that for event recording to work.
 		o.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   aadpodv1.CRDGroup,
-			Version: aadpodv1.CRDVersion,
+			Group:   aadpodv1.SchemeGroupVersion.Group,
+			Version: aadpodv1.SchemeGroupVersion.Version,
 			Kind:    reflect.TypeOf(*o).String()})
 
 		out := aadpodv1.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o)
@@ -667,8 +659,8 @@ func (c *Client) ListIds() (*[]aadpodid.AzureIdentity, error) {
 		// Note: List items returned from cache have empty Kind and API version..
 		// Work around this issue since we need that for event recording to work.
 		o.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   aadpodv1.CRDGroup,
-			Version: aadpodv1.CRDVersion,
+			Group:   aadpodv1.SchemeGroupVersion.Group,
+			Version: aadpodv1.SchemeGroupVersion.Version,
 			Kind:    reflect.TypeOf(*o).String()})
 
 		out := aadpodv1.ConvertV1IdentityToInternalIdentity(*o)
@@ -697,8 +689,8 @@ func (c *Client) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodIdent
 			// Note: List items returned from cache have empty Kind and API version..
 			// Work around this issue since we need that for event recording to work.
 			o.SetGroupVersionKind(schema.GroupVersionKind{
-				Group:   aadpodv1.CRDGroup,
-				Version: aadpodv1.CRDVersion,
+				Group:   aadpodv1.SchemeGroupVersion.Group,
+				Version: aadpodv1.SchemeGroupVersion.Version,
 				Kind:    reflect.TypeOf(*o).String()})
 			out := aadpodv1.ConvertV1PodIdentityExceptionToInternalPodIdentityException(*o)
 

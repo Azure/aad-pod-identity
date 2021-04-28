@@ -3,7 +3,6 @@
 package framework
 
 import (
-	"fmt"
 	"reflect"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
@@ -15,7 +14,6 @@ import (
 	apiextensionsv1beta "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
@@ -39,24 +37,13 @@ func TryAddDefaultSchemes(scheme *runtime.Scheme) {
 	_ = rbacv1.AddToScheme(scheme)
 
 	// Add aadpodidentity v1 to the scheme.
-	aadPodIdentityGroupVersion := schema.GroupVersion{Group: aadpodv1.CRDGroup, Version: aadpodv1.CRDVersion}
-	scheme.AddKnownTypes(aadPodIdentityGroupVersion,
-		&aadpodv1.AzureIdentity{},
-		&aadpodv1.AzureIdentityList{},
-		&aadpodv1.AzureIdentityBinding{},
-		&aadpodv1.AzureIdentityBindingList{},
-		&aadpodv1.AzureAssignedIdentity{},
-		&aadpodv1.AzureAssignedIdentityList{},
-		&aadpodv1.AzurePodIdentityException{},
-		&aadpodv1.AzurePodIdentityExceptionList{},
-	)
-	metav1.AddToGroupVersion(scheme, aadPodIdentityGroupVersion)
+	_ = aadpodv1.AddToScheme(scheme)
 }
 
 // TypeMeta returns the TypeMeta struct of a given runtime object.
 func TypeMeta(i runtime.Object) metav1.TypeMeta {
 	return metav1.TypeMeta{
-		APIVersion: fmt.Sprintf("%s/%s", aadpodv1.CRDGroup, aadpodv1.CRDVersion),
+		APIVersion: aadpodv1.SchemeGroupVersion.String(),
 		Kind:       reflect.ValueOf(i).Elem().Type().Name(),
 	}
 }
