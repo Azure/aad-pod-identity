@@ -182,6 +182,8 @@ The following is a basic example of the required change in the user-supplied val
 -      selector: "demo"
 +azureIdentities:
 +  "azure-identity":
++    # if not defined, then the name of azure identity will be the same as the key
++    name: ""
 +    # if not defined, then the azure identity will be deployed in the same namespace as the chart
 +    namespace: ""
 +    # type 0: MSI, type 1: Service Principal
