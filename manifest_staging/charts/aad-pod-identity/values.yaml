@@ -258,6 +258,8 @@ azureIdentities:
   # "azure-identity":
   #   # if not defined, then the azure identity will be deployed in the same namespace as the chart
   #   namespace: ""
+  #   # if not defined, then the name of azure identity will be the same as the key
+  #   name: ""
   #   # type 0: User-assigned identity, type 1: Service Principal, type 2: Service principal with certificate
   #   type: 0
   #   # /subscriptions/subscription-id/resourcegroups/resource-group/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name
