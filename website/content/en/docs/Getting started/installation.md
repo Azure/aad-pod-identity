@@ -78,16 +78,9 @@ azurepodidentityexception.aadpodidentity.k8s.io/aks-addon-exception created
 
 AAD Pod Identity allows users to customize their installation via Helm.
 
-> Although AAD Pod Identity helm chart is backward with Helm 2, it is recommended to use Helm 3 instead.
-
 ```
 helm repo add aad-pod-identity https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts
-
-# Helm 3
 helm install aad-pod-identity aad-pod-identity/aad-pod-identity
-
-# Helm 2
-helm install aad-pod-identity/aad-pod-identity --set=installCRDs=true
 ```
 
 ### Values

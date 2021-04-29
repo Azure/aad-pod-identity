@@ -8,6 +8,8 @@ description: >
 
 > Available from 1.6.0 release
 
+> NOTE: The AKS pod-managed identities add-on installs AAD Pod Identity in Managed mode.
+
 ## Introduction
 
 Starting from 1.6.0 release, 2 modes of operation are supported for pod-identity
@@ -31,6 +33,20 @@ kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master
 ```
 
 **NOTE** Managed mode is only supported in namespaced mode. This ensures pods in namespace are only matched with `AzureIdentity` and `AzureIdentityBinding` in the same namespace.
+
+#### Helm
+
+AAD Pod Identity allows users to customize their installation via Helm.
+
+```
+helm repo add aad-pod-identity https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts
+helm install aad-pod-identity aad-pod-identity/aad-pod-identity --set operationMode=managed
+```
+
+##### Values
+
+For a list of customizable values that can be injected when invoking `helm install`, please see the [Helm chart configurations](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#configuration).
+
 
 To assign the identity to the VM, run the following command -
 
