@@ -8,7 +8,7 @@ menu:
 
 AAD Pod Identity enables Kubernetes applications to access cloud resources securely with [Azure Active Directory](https://azure.microsoft.com/en-us/services/active-directory/) using User-assigned managed identity and Service Principal.
 
-> Note: System-assigned managed identity isn't supported with AAD Pod Identity.
+> Note: Configuring system-assigned managed identity with AAD Pod Identity to access cloud resources is not supported.
 
 Using Kubernetes primitives, administrators configure identities and bindings to match pods. Then without any code modifications, your containerized applications can leverage any resource in the cloud that depends on AAD as an identity provider.
 
