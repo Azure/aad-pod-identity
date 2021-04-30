@@ -151,13 +151,7 @@ azurepodidentityexception.aadpodidentity.k8s.io/aks-addon-exception created
 &lt;/code>&lt;/pre>&lt;/details>
 &lt;h2 id="helm">Helm&lt;/h2>
 &lt;p>AAD Pod Identity allows users to customize their installation via Helm.&lt;/p>
-&lt;blockquote>
-&lt;p>Although AAD Pod Identity helm chart is backward with Helm 2, it is recommended to use Helm 3 instead.&lt;/p>
-&lt;/blockquote>
 &lt;pre>&lt;code>helm repo add aad-pod-identity https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts
-# Helm 3
 helm install aad-pod-identity aad-pod-identity/aad-pod-identity
-# Helm 2
-helm install aad-pod-identity/aad-pod-identity --set=installCRDs=true
 &lt;/code>&lt;/pre>&lt;h3 id="values">Values&lt;/h3>
 &lt;p>For a list of customizable values that can be injected when invoking &lt;code>helm install&lt;/code>, please see the &lt;a href="https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#configuration">Helm chart configurations&lt;/a>.&lt;/p></description></item></channel></rss>
