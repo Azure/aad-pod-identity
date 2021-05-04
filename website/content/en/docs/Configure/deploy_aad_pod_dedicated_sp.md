@@ -3,14 +3,14 @@ title: "Deploy AAD Pod Identity with a Dedicated Service Principal"
 linkTitle: "Deploy AAD Pod Identity with a Dedicated Service Principal"
 weight: 2
 description: >
-  To enable user to use a separate service principal (aad-pod-identity admin service principal) other than the cluster service princial and to move away from /etc/kubernetes/azure.json.
+  To enable user to use a separate service principal (aad-pod-identity admin service principal) other than the cluster service principal and to move away from /etc/kubernetes/azure.json.
 ---
 
 > Available from 1.5 release
 
 ## The why
 
-Goal: To enable user to use a separate service principal (aad-pod-identity admin service principal) other than the cluster service princial and to move away from `/etc/kubernetes/azure.json`.
+Goal: To enable user to use a separate service principal (aad-pod-identity admin service principal) other than the cluster service principal and to move away from `/etc/kubernetes/azure.json`.
 
 Users now have the option to deploy aad-pod-identity with a separate service principal which is together with its secret and other configurations stored in a Kubernetes secret object.
 
@@ -20,7 +20,7 @@ The permission of the admin service principal needs to be 'Contributor' role ove
 
 Create a new service principal with the permission:
 
-```
+```shell
 az ad sp create-for-rbac -n "<sp_name>" --role "Contributor" --scopes "/subscriptions/<subscription-id>/resourceGroups/<MC_node_resource_group>"
 ```
 
@@ -28,13 +28,13 @@ az ad sp create-for-rbac -n "<sp_name>" --role "Contributor" --scopes "/subscrip
 
 Or assign the permission for an existing service principal:
 
-```
+```shell
 az role assignment create --role "Contributor" --assignee <sp_id> --scope "/subscriptions/<subscription-id>/resourceGroups/<MC_node_resource_group>"
 ```
 
 For any subsequent user assigned managed identity that's intended for a pod, it's also required to grant the service principal 'Managed Identity Operator' permission (also stated [here](../../getting-started/role-assignment/)):
 
-```
+```shell
 az role assignment create --role "Managed Identity Operator" --assignee <sp_id> --scope <resource id of the managed identity>
 ```
 
