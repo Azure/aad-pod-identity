@@ -81,20 +81,20 @@ Running aad-pod-identity in a cluster with Kubenet is not a recommended configur
 &lt;p>Available from 1.5 release&lt;/p>
 &lt;/blockquote>
 &lt;h2 id="the-why">The why&lt;/h2>
-&lt;p>Goal: To enable user to use a separate service principal (aad-pod-identity admin service principal) other than the cluster service princial and to move away from &lt;code>/etc/kubernetes/azure.json&lt;/code>.&lt;/p>
+&lt;p>Goal: To enable user to use a separate service principal (aad-pod-identity admin service principal) other than the cluster service principal and to move away from &lt;code>/etc/kubernetes/azure.json&lt;/code>.&lt;/p>
 &lt;p>Users now have the option to deploy aad-pod-identity with a separate service principal which is together with its secret and other configurations stored in a Kubernetes secret object.&lt;/p>
 &lt;h2 id="permissions">Permissions&lt;/h2>
 &lt;p>The permission of the admin service principal needs to be &amp;lsquo;Contributor&amp;rsquo; role over the scope of node resource group starting with &amp;ldquo;MC_&amp;rdquo;.&lt;/p>
 &lt;p>Create a new service principal with the permission:&lt;/p>
-&lt;pre>&lt;code>az ad sp create-for-rbac -n &amp;quot;&amp;lt;sp_name&amp;gt;&amp;quot; --role &amp;quot;Contributor&amp;quot; --scopes &amp;quot;/subscriptions/&amp;lt;subscription-id&amp;gt;/resourceGroups/&amp;lt;MC_node_resource_group&amp;gt;&amp;quot;
-&lt;/code>&lt;/pre>&lt;blockquote>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-shell" data-lang="shell">az ad sp create-for-rbac -n &lt;span style="color:#4e9a06">&amp;#34;&amp;lt;sp_name&amp;gt;&amp;#34;&lt;/span> --role &lt;span style="color:#4e9a06">&amp;#34;Contributor&amp;#34;&lt;/span> --scopes &lt;span style="color:#4e9a06">&amp;#34;/subscriptions/&amp;lt;subscription-id&amp;gt;/resourceGroups/&amp;lt;MC_node_resource_group&amp;gt;&amp;#34;&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;blockquote>
 &lt;p>Note the &lt;code>appId&lt;/code> (client id), &lt;code>password&lt;/code> (secret) and &lt;code>tenant&lt;/code> from the resulting json, which will be used in creating the admin secret.&lt;/p>
 &lt;/blockquote>
 &lt;p>Or assign the permission for an existing service principal:&lt;/p>
-&lt;pre>&lt;code>az role assignment create --role &amp;quot;Contributor&amp;quot; --assignee &amp;lt;sp_id&amp;gt; --scope &amp;quot;/subscriptions/&amp;lt;subscription-id&amp;gt;/resourceGroups/&amp;lt;MC_node_resource_group&amp;gt;&amp;quot;
-&lt;/code>&lt;/pre>&lt;p>For any subsequent user assigned managed identity that&amp;rsquo;s intended for a pod, it&amp;rsquo;s also required to grant the service principal &amp;lsquo;Managed Identity Operator&amp;rsquo; permission (also stated &lt;a href="../../getting-started/role-assignment/">here&lt;/a>):&lt;/p>
-&lt;pre>&lt;code>az role assignment create --role &amp;quot;Managed Identity Operator&amp;quot; --assignee &amp;lt;sp_id&amp;gt; --scope &amp;lt;resource id of the managed identity&amp;gt;
-&lt;/code>&lt;/pre>&lt;h2 id="create-the-admin-secret">Create the admin secret&lt;/h2>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-shell" data-lang="shell">az role assignment create --role &lt;span style="color:#4e9a06">&amp;#34;Contributor&amp;#34;&lt;/span> --assignee &amp;lt;sp_id&amp;gt; --scope &lt;span style="color:#4e9a06">&amp;#34;/subscriptions/&amp;lt;subscription-id&amp;gt;/resourceGroups/&amp;lt;MC_node_resource_group&amp;gt;&amp;#34;&lt;/span>
+&lt;/code>&lt;/pre>&lt;/div>&lt;p>For any subsequent user assigned managed identity that&amp;rsquo;s intended for a pod, it&amp;rsquo;s also required to grant the service principal &amp;lsquo;Managed Identity Operator&amp;rsquo; permission (also stated &lt;a href="../../getting-started/role-assignment/">here&lt;/a>):&lt;/p>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-shell" data-lang="shell">az role assignment create --role &lt;span style="color:#4e9a06">&amp;#34;Managed Identity Operator&amp;#34;&lt;/span> --assignee &amp;lt;sp_id&amp;gt; --scope &amp;lt;resource id of the managed identity&amp;gt;
+&lt;/code>&lt;/pre>&lt;/div>&lt;h2 id="create-the-admin-secret">Create the admin secret&lt;/h2>
 &lt;p>The &lt;code>aadpodidentity-admin-secret&lt;/code> contains the following fields:&lt;/p>
 &lt;ul>
 &lt;li>Cloud: &lt;code>&amp;lt;base64-encoded-cloud&amp;gt;&lt;/code>
@@ -128,7 +128,35 @@ Running aad-pod-identity in a cluster with Kubenet is not a recommended configur
 &lt;blockquote>
 &lt;p>Note that if not use the above yaml&amp;rsquo;s, &lt;code>aadpodidentity-admin-secret&lt;/code> must be created before deploying &lt;code>mic&lt;/code> and &lt;code>mic&lt;/code> must reference the secret as shown in the yaml&amp;rsquo;s.&lt;/p>
 &lt;/blockquote>
-&lt;p>The secret will be injected as an environment variable into &lt;code>mic&lt;/code> upon pod creation and cannot be updated during the lifecycle of &lt;code>mic&lt;/code>. However, redeploying &lt;code>mic&lt;/code> should pick up the updated service principal&amp;rsquo;s information should they change.&lt;/p></description></item><item><title>Docs: Disable AAD Pod Identity for a specific Pod/Application</title><link>https://azure.github.io/aad-pod-identity/docs/configure/application_exception/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/application_exception/</guid><description>
+&lt;p>The secret will be injected as an environment variable into &lt;code>mic&lt;/code> upon pod creation and cannot be updated during the lifecycle of &lt;code>mic&lt;/code>. However, redeploying &lt;code>mic&lt;/code> should pick up the updated service principal&amp;rsquo;s information should they change.&lt;/p></description></item><item><title>Docs: Setup AAD Pod Identity on Azure RedHat OpenShift (ARO)</title><link>https://azure.github.io/aad-pod-identity/docs/configure/deploy_in_openshift/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/deploy_in_openshift/</guid><description>
+&lt;h3 id="installation">Installation&lt;/h3>
+&lt;h4 id="standard-mode">Standard mode&lt;/h4>
+&lt;p>The MIC component by default relies on &lt;code>/etc/kubernetes/azure.json&lt;/code> to get cluster configuration and credentials. Since the &lt;code>/etc/kubernetes/azure.json&lt;/code> doesn&amp;rsquo;t exist in ARO clusters, the AAD Pod Identity components will need to be deployed with a dedicated SP/managed identity to provide access to Azure.&lt;/p>
+&lt;h5 id="helm">Helm&lt;/h5>
+&lt;div class="highlight">&lt;pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4">&lt;code class="language-shell" data-lang="shell">helm repo add aad-pod-identity https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts
+&lt;span style="color:#8f5902;font-style:italic"># Helm 3&lt;/span>
+&lt;span style="color:#8f5902;font-style:italic"># If using managed identity to provide MIC access to Azure, then set adminsecret.clientID=msi and adminsecret.clientSecret=msi&lt;/span>
+&lt;span style="color:#8f5902;font-style:italic"># Set adminsecret.useMSI=false if using service principal to provide MIC access to Azure&lt;/span>
+helm install aad-pod-identity aad-pod-identity/aad-pod-identity &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --set adminsecret.cloud&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&amp;lt;azure cloud name&amp;gt; &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --set adminsecret.subscriptionID&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&amp;lt;subscription id&amp;gt; &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --set adminsecret.resourceGroup&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&amp;lt;node resource group&amp;gt; &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --set adminsecret.vmType&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>vmss &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --set adminsecret.tenantID&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&amp;lt;tenant id&amp;gt; &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --set adminsecret.clientID&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&amp;lt;service principal clientID&amp;gt; &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --set adminsecret.clientSecret&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&amp;lt;service principal clientSecret&amp;gt; &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --set-string adminsecret.useMSI&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&lt;span style="color:#204a87">false&lt;/span> &lt;span style="color:#4e9a06">\
+&lt;/span>&lt;span style="color:#4e9a06">&lt;/span> --set adminsecret.userAssignedMSIClientID&lt;span style="color:#ce5c00;font-weight:bold">=&lt;/span>&amp;lt;ClientID from identity&amp;gt;
+&lt;/code>&lt;/pre>&lt;/div>&lt;h5 id="using-deployment-yamls">Using deployment yamls&lt;/h5>
+&lt;p>If deploying using deployment yamls, refer to the &lt;a href="../deploy_aad_pod_dedicated_sp">doc here&lt;/a>.&lt;/p>
+&lt;h4 id="managed-mode">Managed mode&lt;/h4>
+&lt;p>Follow the &lt;a href="../pod_identity_in_managed_mode">docs here&lt;/a> on how to install AAD Pod Identity in managed mode.&lt;/p>
+&lt;h3 id="validate-pod-identity-components-are-running">Validate pod identity components are running&lt;/h3>
+&lt;ol>
+&lt;li>If deploying in standard mode, check the MIC pods are up and running.&lt;/li>
+&lt;li>Check if NMI is running on all nodes.&lt;/li>
+&lt;li>Follow the &lt;a href="../../troubleshooting/#ensure-that-iptables-rule-exists">doc here&lt;/a> to ensure the iptables rules exist.&lt;/li>
+&lt;/ol></description></item><item><title>Docs: Disable AAD Pod Identity for a specific Pod/Application</title><link>https://azure.github.io/aad-pod-identity/docs/configure/application_exception/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/application_exception/</guid><description>
 &lt;blockquote>
 &lt;p>Available from 1.5 release&lt;/p>
 &lt;/blockquote>
