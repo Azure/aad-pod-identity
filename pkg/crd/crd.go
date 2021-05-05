@@ -15,6 +15,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -346,12 +347,20 @@ func (c *Client) Upgrade(resource string, i runtime.Object) (map[string]runtime.
 			if err != nil {
 				return m, err
 			}
+			obj.TypeMeta = metav1.TypeMeta{
+				APIVersion: aadpodv1.SchemeGroupVersion.String(),
+				Kind:       reflect.ValueOf(i).Elem().Type().Name(),
+			}
 			m[getMapKey(o.GetNamespace(), o.GetName())] = &obj
 		case aadpodv1.AzureIDBindingResource:
 			var obj aadpodv1.AzureIdentityBinding
 			err = c.setObject(resource, o.GetNamespace(), o.GetName(), o, &obj)
 			if err != nil {
 				return m, err
+			}
+			obj.TypeMeta = metav1.TypeMeta{
+				APIVersion: aadpodv1.SchemeGroupVersion.String(),
+				Kind:       reflect.ValueOf(i).Elem().Type().Name(),
 			}
 			m[getMapKey(o.GetNamespace(), o.GetName())] = &obj
 		default:
