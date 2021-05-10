@@ -7,7 +7,7 @@ fullnameOverride: ""
 
 image:
   repository: mcr.microsoft.com/oss/azure/aad-pod-identity
-  imagePullPolicy: Always
+  imagePullPolicy: IfNotPresent
 
 # One or more secrets to be used when pulling images
 # imagePullSecrets:
@@ -43,7 +43,7 @@ operationMode: "standard"
 
 mic:
   image: mic
-  tag: v1.7.5
+  tag: v1.8.0
 
   # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
@@ -51,6 +51,8 @@ mic:
   # log level. Uses V logs (klog)
   logVerbosity: 0
   loggingFormat: ""
+
+  replicas: 2
 
   resources:
     limits:
@@ -154,7 +156,7 @@ mic:
 
 nmi:
   image: nmi
-  tag: v1.7.5
+  tag: v1.8.0
 
   # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
@@ -244,6 +246,10 @@ rbac:
   # If using only MSI (type: 0) in AzureIdentity, secret get permission can be disabled by setting this to false.
   allowAccessToSecrets: true
   pspEnabled: false
+  # If set to true, then view and edit cluster roles will be created with annotations
+  # that agrigate to the admin, edit and view built-in cluster roles. These roles will
+  # be able to create the necessary resources to allow pod identity binding on pods.
+  createUserFacingClusterRoles: false
 
 # Create azure identities and bindings
 # This is a map with the AzureIdentityName being the key and the rest of the blob as value in accordance
@@ -252,6 +258,8 @@ azureIdentities:
   # "azure-identity":
   #   # if not defined, then the azure identity will be deployed in the same namespace as the chart
   #   namespace: ""
+  #   # if not defined, then the name of azure identity will be the same as the key
+  #   name: ""
   #   # type 0: User-assigned identity, type 1: Service Principal, type 2: Service principal with certificate
   #   type: 0
   #   # /subscriptions/subscription-id/resourcegroups/resource-group/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name

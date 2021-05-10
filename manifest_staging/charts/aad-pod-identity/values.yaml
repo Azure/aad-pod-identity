@@ -43,7 +43,7 @@ operationMode: "standard"
 
 mic:
   image: mic
-  tag: v1.7.5
+  tag: v1.8.0
 
   # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
@@ -156,7 +156,7 @@ mic:
 
 nmi:
   image: nmi
-  tag: v1.7.5
+  tag: v1.8.0
 
   # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
