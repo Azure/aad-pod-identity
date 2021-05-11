@@ -24,7 +24,7 @@ Using Kubernetes primitives, administrators configure identities and bindings to
   kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts/aad-pod-identity/crds/crd.yaml
   ```
 
-  With [managed mode](./Configure/pod_identity_in_managed_mode.md) enabled, you can remove the unused AzureAssignedIdentity CRD if you wish.
+  With [managed mode](./configure/pod_identity_in_managed_mode) enabled, you can remove the unused AzureAssignedIdentity CRD if you wish.
 
   ```bash
   # MANAGED MODE ONLY!
