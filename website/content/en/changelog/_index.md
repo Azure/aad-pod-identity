@@ -26,7 +26,7 @@ menu:
   kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts/aad-pod-identity/crds/crd.yaml
   ```
 
-  With [managed mode](./Configure/pod_identity_in_managed_mode.md) enabled, you can remove the unused AzureAssignedIdentity CRD if you wish.
+  With [managed mode](../docs/configure/pod_identity_in_managed_mode) enabled, you can remove the unused AzureAssignedIdentity CRD if you wish.
 
   ```bash
   # MANAGED MODE ONLY!
@@ -40,7 +40,7 @@ menu:
 ### Documentations
 
 - docs: add standard to managed mode migration doc ([#1055](https://github.com/Azure/aad-pod-identity/pull/1055))
-- docs: add installation steps for Azure RedHat Openshift ([#1056](]https://github.com/Azure/aad-pod-identity/pull/1056))
+- docs: add installation steps for Azure RedHat Openshift ([#1056](https://github.com/Azure/aad-pod-identity/pull/1056))
 
 ### Bug Fixes
 
