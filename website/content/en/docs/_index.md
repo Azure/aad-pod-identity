@@ -12,6 +12,25 @@ AAD Pod Identity enables Kubernetes applications to access cloud resources secur
 
 Using Kubernetes primitives, administrators configure identities and bindings to match pods. Then without any code modifications, your containerized applications can leverage any resource in the cloud that depends on AAD as an identity provider.
 
+## v1.8.x Breaking Change
+
+- The API version of Pod Identity's CRDs (`AzureIdentity`, `AzureIdentityBinding`, `AzureAssignedIdentity`, `AzurePodIdentityException`) have been upgraded from `apiextensions.k8s.io/v1beta1` to `apiextensions.k8s.io/v1`. For Kubernetes clsuters with < 1.16, `apiextensions.k8s.io/v1` CRDs would not work. You can either:
+  1. Continue using AAD Pod Identity v1.7.5 or
+  2. Upgrade your cluster to 1.16+, then upgrade AAD Pod Identity.
+
+  If AAD Pod Identity was previously installed using Helm, subsequent `helm install` or `helm upgrade` would not upgrade the CRD API version from `apiextensions.k8s.io/v1beta1` to `apiextensions.k8s.io/v1` (although `kubectl get crd -oyaml` would display `apiextensions.k8s.io/v1` since the API server internally converts v1beta1 CRDs to v1, it lacks a [structural schema](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#specifying-a-structural-schema), which is what AAD Pod Identity introduced in v1.8.0). If you wish to upgrade to the official v1 CRDs for AAD Pod Identity:
+
+  ```bash
+  kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts/aad-pod-identity/crds/crd.yaml
+  ```
+
+  With [managed mode](./Configure/pod_identity_in_managed_mode.md) enabled, you can remove the unused AzureAssignedIdentity CRD if you wish.
+
+  ```bash
+  # MANAGED MODE ONLY!
+  kubectl delete crd azureassignedidentities.aadpodidentity.k8s.io
+  ```
+
 ## v1.7.x Breaking Change
 
 - With [Azure/aad-pod-identity#842](https://github.com/Azure/aad-pod-identity/pull/842), aad-pod-identity no longer works on clusters with kubenet as the network plugin. For more details, please see [Deploy AAD Pod Identity in a Cluster with Kubenet](configure/aad_pod_identity_on_kubenet/).

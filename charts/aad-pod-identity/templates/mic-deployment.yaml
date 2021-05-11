@@ -10,7 +10,7 @@ metadata:
   annotations:
     description: {{ .Chart.Description }}
 spec:
-  replicas: 2
+  replicas: {{ .Values.mic.replicas }}
   selector:
     matchLabels:
       {{- include "aad-pod-identity.selectors" . | nindent 6 }}

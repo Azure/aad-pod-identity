@@ -1,0 +1,33 @@
+{{- if and (.Values.rbac.enabled) (.Values.rbac.createUserFacingClusterRoles) }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ template "aad-pod-identity.fullname" . }}-view
+  labels:
+    {{- include "aad-pod-identity.labels" . | nindent 4 }}
+    rbac.authorization.k8s.io/aggregate-to-view: "true"
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+rules:
+  - apiGroups: ["aadpodidentity.k8s.io"]
+    resources: ["azureidentitybindings", "azureidentities", "azurepodidentityexceptions"]
+    verbs: ["get", "list", "watch"]
+{{- if eq .Values.operationMode "standard" }}
+  - apiGroups: ["aadpodidentity.k8s.io"]
+    resources: ["azureassignedidentities"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ template "aad-pod-identity.fullname" . }}-edit
+  labels:
+    {{- include "aad-pod-identity.labels" . | nindent 4 }}
+    rbac.authorization.k8s.io/aggregate-to-edit: "true"
+    rbac.authorization.k8s.io/aggregate-to-admin: "true"
+rules:
+  - apiGroups: ["aadpodidentity.k8s.io"]
+    resources: ["azureidentitybindings", "azureidentities", "azurepodidentityexceptions"]
+    verbs: ["create", "delete", "deletecollection", "patch", "update"]
+{{- end }}

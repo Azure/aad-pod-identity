@@ -7,6 +7,66 @@ menu:
     weight: 10
 ---
 
+## v1.8.0
+
+### Breaking Change
+
+- If upgrading from versions 1.5.x to 1.7.x of pod-identity, please carefully review this [doc](https://azure.github.io/aad-pod-identity/docs/#v16x-breaking-change) before upgrade.
+- Pod Identity is disabled by default for Clusters with Kubenet. Please review this [doc](https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/) before upgrade.
+- Helm chart contains breaking changes. Please review the following docs:
+  - [Upgrading to helm chart 4.0.0+](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#400)
+  - [Upgrading to helm chart 3.0.0+](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#300)
+- The API version of Pod Identity's CRDs (`AzureIdentity`, `AzureIdentityBinding`, `AzureAssignedIdentity`, `AzurePodIdentityException`) have been upgraded from `apiextensions.k8s.io/v1beta1` to `apiextensions.k8s.io/v1`. For Kubernetes clsuters with < 1.16, `apiextensions.k8s.io/v1` CRDs would not work. You can either:
+  1. Continue using AAD Pod Identity v1.7.5 or
+  2. Upgrade your cluster to 1.16+, then upgrade AAD Pod Identity.
+
+  If AAD Pod Identity was previously installed using Helm, subsequent `helm install` or `helm upgrade` would not upgrade the CRD API version from `apiextensions.k8s.io/v1beta1` to `apiextensions.k8s.io/v1` (although `kubectl get crd -oyaml` would display `apiextensions.k8s.io/v1` since the API server internally converts v1beta1 CRDs to v1, it lacks a [structural schema](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#specifying-a-structural-schema), which is what AAD Pod Identity introduced in v1.8.0). If you wish to upgrade to the official v1 CRDs for AAD Pod Identity:
+
+  ```bash
+  kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts/aad-pod-identity/crds/crd.yaml
+  ```
+
+  With [managed mode](./Configure/pod_identity_in_managed_mode.md) enabled, you can remove the unused AzureAssignedIdentity CRD if you wish.
+
+  ```bash
+  # MANAGED MODE ONLY!
+  kubectl delete crd azureassignedidentities.aadpodidentity.k8s.io
+  ```
+
+### Features
+
+- feat: add register.go to add crds to scheme ([#1053](https://github.com/Azure/aad-pod-identity/pull/1053))
+
+### Documentations
+
+- docs: add standard to managed mode migration doc ([#1055](https://github.com/Azure/aad-pod-identity/pull/1055))
+- docs: add installation steps for Azure RedHat Openshift ([#1056](]https://github.com/Azure/aad-pod-identity/pull/1056))
+
+### Bug Fixes
+
+- fix: remove ImagePullPolicy: Always ([#1046](https://github.com/Azure/aad-pod-identity/pull/1046))
+- fix: inject TypeMeta during type upgrade ([#1057](https://github.com/Azure/aad-pod-identity/pull/1057))
+
+### Helm
+
+- helm: ability to add AzureIdentities with the same name across different namespaces ([#1036](https://github.com/Azure/aad-pod-identity/pull/1036))
+- helm: ability to parameterize the number replicas MIC deployment ([#1041](https://github.com/Azure/aad-pod-identity/pull/1041))
+- helm: create optional user roles for AAD Pod Identity ([#1043](https://github.com/Azure/aad-pod-identity/pull/1043))
+
+### Security
+
+- dockerfile: upgrade debian-iptables to buster-v1.6.0 ([#1038](https://github.com/Azure/aad-pod-identity/pull/1038))
+- migrate from satori uuid ([#1062](https://github.com/Azure/aad-pod-identity/pull/1062))
+- chore(deps): bump lodash from 4.17.20 to 4.17.21 in /website ([#1063](https://github.com/Azure/aad-pod-identity/pull/1063))
+
+### Other Improvements
+
+- chore: add stale.yml ([#1032](https://github.com/Azure/aad-pod-identity/pull/1032))
+- chore: promote crd to apiextensions.k8s.io/v1 and remove role assignments after e2e test ([#1035](https://github.com/Azure/aad-pod-identity/pull/1035))
+- chore: remove vmss list from demo ([#1037](https://github.com/Azure/aad-pod-identity/pull/1037))
+- ci: remove CODECOV_TOKEN env var ([#1045](https://github.com/Azure/aad-pod-identity/pull/1045))
+- ci: create a make target to automate manifest promotion ([#1047](https://github.com/Azure/aad-pod-identity/pull/1047))
+
 ## v1.7.5
 
 ### Breaking Change
@@ -15,7 +75,6 @@ menu:
 - Helm chart contains breaking changes. Please review the following docs:
   - [Upgrading to helm chart 4.0.0+](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#400)
   - [Upgrading to helm chart 3.0.0+](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#300)
-
 
 ### Helm
 
