@@ -20,6 +20,9 @@ spec:
       labels:
         {{- include "aad-pod-identity.labels" . | nindent 8 }}
         app.kubernetes.io/component: mic
+      {{- if .Values.mic.podLabels }}
+      {{- toYaml .Values.mic.podLabels | nindent 8 }}
+      {{- end }}
 {{- if .Values.mic.podAnnotations }}
       annotations:
 {{ toYaml .Values.mic.podAnnotations | indent 8 }}
@@ -77,6 +80,9 @@ spec:
           {{- if .Values.mic.prometheusPort }}
           - --prometheus-port={{ .Values.mic.prometheusPort }}
           {{- end }}
+          {{- if.Values.mic.syncRetryDuration }}
+          - --syncRetryDuration={{ .Values.mic.syncRetryDuration }}
+          {{- end}}
           {{- if .Values.mic.updateUserMSIMaxRetry }}
           - --update-user-msi-max-retry={{ .Values.mic.updateUserMSIMaxRetry }}
           {{- end }}
@@ -85,6 +91,9 @@ spec:
           {{- end }}
           {{- if .Values.mic.identityAssignmentReconcileInterval }}
           - --identity-assignment-reconcile-interval={{ .Values.mic.identityAssignmentReconcileInterval }}
+          {{- end }}
+          {{- if .Values.customUserAgent }}
+          - --custom-user-agent={{ .Values.customUserAgent }}
           {{- end }}
         {{- if not .Values.adminsecret }}
         securityContext:
@@ -96,7 +105,7 @@ spec:
               fieldRef:
                 fieldPath: metadata.namespace
           - name: FORCENAMESPACED
-            value: "{{ .Values.forceNameSpaced }}"
+            value: "{{ .Values.forceNamespaced }}"
           {{- if .Values.adminsecret }}
           - name: CLOUD
             valueFrom:
@@ -188,6 +197,10 @@ spec:
 {{- end }}
 {{- with .Values.mic.tolerations }}
       tolerations:
+{{ toYaml . | indent 8 }}
+{{- end }}
+{{- with .Values.mic.topologySpreadConstraints }}
+      topologySpreadConstraints:
 {{ toYaml . | indent 8 }}
 {{- end }}
 {{- end -}}

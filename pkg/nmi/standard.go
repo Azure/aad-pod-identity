@@ -166,7 +166,7 @@ func (sc *StandardClient) listPodIDsWithRetry(ctx context.Context, podns, podnam
 }
 
 // GetTokens returns ADAL tokens based on the request and its pod identity.
-func (sc *StandardClient) GetTokens(ctx context.Context, rqClientID, rqResource string, azureID aadpodid.AzureIdentity) (tokens []*adal.Token, err error) {
+func (sc *StandardClient) GetTokens(ctx context.Context, rqClientID, rqResource string, azureID aadpodid.AzureIdentity) ([]*adal.Token, error) {
 	rqHasClientID := len(rqClientID) != 0
 	clientID := azureID.Spec.ClientID
 

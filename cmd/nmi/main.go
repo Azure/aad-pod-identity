@@ -14,6 +14,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/nmi"
 	"github.com/Azure/aad-pod-identity/pkg/nmi/server"
 	"github.com/Azure/aad-pod-identity/pkg/probes"
+	"github.com/Azure/aad-pod-identity/pkg/utils"
 	"github.com/Azure/aad-pod-identity/version"
 
 	"github.com/spf13/pflag"
@@ -37,7 +38,6 @@ var (
 	nmiPort                            = pflag.String("nmi-port", defaultNmiPort, "NMI application port")
 	metadataIP                         = pflag.String("metadata-ip", defaultMetadataIP, "instance metadata host ip")
 	metadataPort                       = pflag.String("metadata-port", defaultMetadataPort, "instance metadata host ip")
-	hostIP                             = pflag.String("host-ip", "", "host IP address")
 	nodename                           = pflag.String("node", "", "node name")
 	ipTableUpdateTimeIntervalInSeconds = pflag.Int("ipt-update-interval-sec", defaultIPTableUpdateTimeIntervalInSeconds, "update interval of iptables")
 	forceNamespaced                    = pflag.Bool("forceNamespaced", false, "Forces mic to namespace identities, binding, and assignment")
@@ -52,7 +52,6 @@ var (
 	metadataHeaderRequired             = pflag.Bool("metadata-header-required", false, "Metadata header required for querying Azure Instance Metadata service")
 	prometheusPort                     = pflag.String("prometheus-port", "9090", "Prometheus port for metrics")
 	operationMode                      = pflag.String("operation-mode", "standard", "NMI operation mode")
-	kubeconfig                         = pflag.String("kubeconfig", "", "Path to the kube config")
 	allowNetworkPluginKubenet          = pflag.Bool("allow-network-plugin-kubenet", false, "Allow running aad-pod-identity in cluster with kubenet")
 	kubeletConfig                      = pflag.String("kubelet-config", "/etc/default/kubelet", "Path to kubelet default config")
 )
@@ -81,9 +80,18 @@ func main() {
 		version.PrintVersionAndExit()
 	}
 
+	// check if the cni is kubenet from the --network-plugin defined in kubelet config
+	if !*allowNetworkPluginKubenet {
+		isKubenet, err := utils.IsKubenetCNI(*kubeletConfig)
+		if err != nil {
+			klog.Fatalf("failed to check if CNI plugin is kubenet, error: %+v", err)
+		}
+		if isKubenet {
+			klog.Fatalf("AAD Pod Identity is not supported for Kubenet. Review https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/ for more details.")
+		}
+	}
+
 	klog.Infof("starting nmi process. Version: %v. Build date: %v.", version.NMIVersion, version.BuildDate)
-	// Bug tracks removal of this delay: https://o365exchange.visualstudio.com/O365%20Core/_workitems/edit/1739605
-	time.Sleep(nmiStatupDelay)
 
 	if *enableProfile {
 		profilePort := "6060"
@@ -99,23 +107,12 @@ func main() {
 		klog.Infof("features for scale clusters enabled")
 	}
 
-	// Register and expose metrics views
-	if err := metrics.RegisterAndExport(*prometheusPort); err != nil {
-		klog.Fatalf("failed to register and export metrics on port %s, error: %+v", *prometheusPort, err)
-	}
-
 	// normalize operation mode
 	*operationMode = strings.ToLower(*operationMode)
 
 	client, err := nmi.GetKubeClient(*nodename, *operationMode, *enableScaleFeatures)
 	if err != nil {
 		klog.Fatalf("failed to get kube client, error: %+v", err)
-	}
-
-	klog.Infof("Build kubeconfig (%s)", kubeconfig)
-	config, err := buildConfig(*kubeconfig)
-	if err != nil {
-		klog.Fatalf("Could not read config properly. Check the k8s config file, %+v", err)
 	}
 
 	exit := make(<-chan struct{})
@@ -128,7 +125,6 @@ func main() {
 	s.MetadataIP = *metadataIP
 	s.MetadataPort = *metadataPort
 	s.NMIPort = *nmiPort
-	s.HostIP = *hostIP
 	s.NodeName = *nodename
 	s.IPTableUpdateTimeIntervalInSeconds = *ipTableUpdateTimeIntervalInSeconds
 
@@ -161,6 +157,11 @@ func main() {
 		// will report "Active" once the iptables rules are set
 		probes.InitAndStart(*httpProbePort, &s.Initialized)
 		redirector = server.LinuxRedirector(s, subRoutineDone)
+	}
+
+	// Register and expose metrics views
+	if err = metrics.RegisterAndExport(*prometheusPort); err != nil {
+		klog.Fatalf("failed to register and export metrics on port %s, error: %+v", *prometheusPort, err)
 	}
 
 	go redirector(s, subRoutineDone, mainRoutineDone)

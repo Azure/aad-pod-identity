@@ -23,7 +23,7 @@ func (c *TestCrdClient) Start(exit <-chan struct{}) {
 func (c *TestCrdClient) SyncCache(exit <-chan struct{}) {
 }
 
-func (c *TestCrdClient) CreateCrdWatchers(eventCh chan internalaadpodid.EventType) (err error) {
+func (c *TestCrdClient) CreateCrdWatchers(eventCh chan internalaadpodid.EventType) error {
 	return nil
 }
 
@@ -69,7 +69,7 @@ func (c *TestCrdClient) CreateID(idName string, t aadpodid.IdentityType, rID str
 	c.idMap[idName] = id
 }
 
-func (c *TestCrdClient) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
+func (c *TestCrdClient) ListIds() (*[]aadpodid.AzureIdentity, error) {
 	idList := make([]aadpodid.AzureIdentity, 0)
 	for _, v := range c.idMap {
 		idList = append(idList, *v)
@@ -77,7 +77,7 @@ func (c *TestCrdClient) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 	return &idList, nil
 }
 
-func (c *TestCrdClient) ListBindings() (res *[]internalaadpodid.AzureIdentityBinding, err error) {
+func (c *TestCrdClient) ListBindings() (*[]internalaadpodid.AzureIdentityBinding, error) {
 	bindingList := make([]internalaadpodid.AzureIdentityBinding, 0)
 	for _, v := range c.bindingMap {
 		newBinding := aadpodid.ConvertV1BindingToInternalBinding(*v)
@@ -86,7 +86,7 @@ func (c *TestCrdClient) ListBindings() (res *[]internalaadpodid.AzureIdentityBin
 	return &bindingList, nil
 }
 
-func (c *TestCrdClient) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
+func (c *TestCrdClient) ListAssignedIDs() (*[]aadpodid.AzureAssignedIdentity, error) {
 	assignedIDList := make([]aadpodid.AzureAssignedIdentity, 0)
 	for _, v := range c.assignedIDMap {
 		assignedIDList = append(assignedIDList, *v)

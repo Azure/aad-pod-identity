@@ -184,6 +184,18 @@ func TestSimple(t *testing.T) {
 				cloudClient.PrintMSI(t)
 				t.Error("MSI mismatch")
 			}
+
+			// when no add or remove identities, then GET and PATCH should be skipped
+			err = cloudClient.UpdateUserMSI(nil, nil, node4.Name, true)
+			if err != nil {
+				t.Errorf("Couldn't update MSI: %v", err)
+			}
+
+			testMSI = []string{"ID4", "ID3"}
+			if !cloudClient.CompareMSI(node4.Name, true, testMSI) {
+				cloudClient.PrintMSI(t)
+				t.Error("MSI mismatch")
+			}
 		})
 	}
 }
@@ -295,8 +307,8 @@ func (c *TestVMClient) UpdateIdentities(rg, nodeName string, vm compute.VirtualM
 	return nil
 }
 
-func (c *TestVMClient) ListMSI() (ret map[string]*[]string) {
-	ret = make(map[string]*[]string)
+func (c *TestVMClient) ListMSI() map[string]*[]string {
+	ret := make(map[string]*[]string)
 
 	for key, val := range c.nodeMap {
 		var ids []string
@@ -387,8 +399,8 @@ func (c *TestVMSSClient) UpdateIdentities(rg, nodeName string, vmss compute.Virt
 	return nil
 }
 
-func (c *TestVMSSClient) ListMSI() (ret map[string]*[]string) {
-	ret = make(map[string]*[]string)
+func (c *TestVMSSClient) ListMSI() map[string]*[]string {
+	ret := make(map[string]*[]string)
 
 	for key, val := range c.nodeMap {
 		var ids []string
@@ -426,7 +438,7 @@ func (c *TestVMSSClient) CompareMSI(nodeName string, expectedUserIDs []string) b
 	return isSliceEqual(actualUserIDs, expectedUserIDs)
 }
 
-func (c *TestCloudClient) ListMSI() (ret map[string]*[]string) {
+func (c *TestCloudClient) ListMSI() map[string]*[]string {
 	vmssLs := c.testVMSSClient.ListMSI()
 	vmLs := c.testVMClient.ListMSI()
 
@@ -437,23 +449,21 @@ func (c *TestCloudClient) ListMSI() (ret map[string]*[]string) {
 		return vmssLs
 	}
 
-	ret = vmssLs
-
 	for k, v := range vmLs {
 		if v == nil {
 			continue
 		}
-		orig := ret[k]
+		orig := vmssLs[k]
 		if orig == nil {
-			ret[k] = v
+			vmssLs[k] = v
 			continue
 		}
 
 		updated := *orig
 		updated = append(updated, *v...)
-		ret[k] = &updated
+		vmssLs[k] = &updated
 	}
-	return ret
+	return vmssLs
 }
 
 func (c *TestCloudClient) CompareMSI(name string, isvmss bool, userIDs []string) bool {
@@ -575,6 +585,52 @@ func TestGetRetryAfter(t *testing.T) {
 			retryAfterDuration := getRetryAfter(tc.resp)
 			if tc.expectedRetryAfter != retryAfterDuration.Round(time.Minute) {
 				t.Fatalf("expected retry after to be: %v, got: %v", tc.expectedRetryAfter, retryAfterDuration)
+			}
+		})
+	}
+}
+
+func TestGetClusterIdentity(t *testing.T) {
+	cases := []struct {
+		desc             string
+		config           config.AzureConfig
+		expectedClientID string
+	}{
+		{
+			desc: "cluster using service principal",
+			config: config.AzureConfig{
+				ClientID:               "clientid",
+				ClientSecret:           "clientsecret",
+				UserAssignedIdentityID: "",
+			},
+			expectedClientID: "",
+		},
+		{
+			desc: "cluster using system-assigned managed identity",
+			config: config.AzureConfig{
+				ClientID:               "msi",
+				ClientSecret:           "msi",
+				UserAssignedIdentityID: "",
+			},
+			expectedClientID: "",
+		},
+		{
+			desc: "cluster using user-assigned managed identity",
+			config: config.AzureConfig{
+				ClientID:               "msi",
+				ClientSecret:           "msi",
+				UserAssignedIdentityID: "userAssignedIdentityID",
+			},
+			expectedClientID: "userAssignedIdentityID",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.desc, func(t *testing.T) {
+			client := NewTestCloudClient(tc.config)
+			actualClientID := client.GetClusterIdentity()
+			if tc.expectedClientID != actualClientID {
+				t.Fatalf("expected clientID: %s, got: %s", tc.expectedClientID, actualClientID)
 			}
 		})
 	}

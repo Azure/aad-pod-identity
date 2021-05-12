@@ -3,7 +3,7 @@
 package e2e
 
 import (
-	"io/ioutil"
+	"encoding/json"
 	"os"
 	"time"
 
@@ -93,7 +93,7 @@ var _ = Describe("When using AAD Pod Identity with Gatekeeper", func() {
 		}()
 
 		By("Applying AzureIdentity gatekeeper format")
-		azureIdentityFormatTemplateFile, err = ioutil.TempFile("", "")
+		azureIdentityFormatTemplateFile, err = os.CreateTemp("", "")
 		Expect(err).To(BeNil())
 		defer os.Remove(azureIdentityFormatTemplateFile.Name())
 
@@ -112,7 +112,7 @@ var _ = Describe("When using AAD Pod Identity with Gatekeeper", func() {
 		time.Sleep(60 * time.Second)
 
 		By("Applying AzureIdentity gatekeeper constraint")
-		azureIdentityConstraintFile, err = ioutil.TempFile("", "")
+		azureIdentityConstraintFile, err = os.CreateTemp("", "")
 		Expect(err).To(BeNil())
 		defer os.Remove(azureIdentityConstraintFile.Name())
 
@@ -130,7 +130,7 @@ var _ = Describe("When using AAD Pod Identity with Gatekeeper", func() {
 		time.Sleep(60 * time.Second)
 
 		By("Creating an AzureIdentity with invalid ResourceID and ensuring an error has occurred")
-		azureidentity.Create(azureidentity.CreateInput{
+		azureIdentity := azureidentity.Create(azureidentity.CreateInput{
 			Creator:           kubeClient,
 			Config:            config,
 			AzureClient:       azureClient,
@@ -140,6 +140,20 @@ var _ = Describe("When using AAD Pod Identity with Gatekeeper", func() {
 			IdentityName:      keyvaultIdentity,
 			InvalidResourceID: true,
 		})
+
+		b, err := json.Marshal(azureIdentity)
+		azureIdentityFile, err := os.CreateTemp("", "")
+		Expect(err).To(BeNil())
+		defer os.Remove(azureIdentityFile.Name())
+
+		_, err = azureIdentityFile.Write(b)
+		Expect(err).To(BeNil())
+
+		err = exec.KubectlApply(kubeconfigPath, ns.Name, []string{"-f", azureIdentityFile.Name()})
+		Expect(err).NotTo(BeNil())
+		defer func() {
+			_ = exec.KubectlDelete(kubeconfigPath, ns.Name, []string{"-f", azureIdentityFile.Name()})
+		}()
 
 		By("Creating an AzureIdentity with valid ResourceID and ensuring no error has occurred")
 		azureidentity.Create(azureidentity.CreateInput{

@@ -45,14 +45,14 @@ func TestAggregateConcurrent(t *testing.T) {
 			defer wg.Done()
 			begin := time.Now()
 			time.Sleep(time.Millisecond * 10)
-			AggregateConcurrent(CreateAzureAssignedIdentiy, begin, time.Now())
+			AggregateConcurrent(CreateAzureAssignedIdentity, begin, time.Now())
 		}()
 	}
 	wg.Wait()
 	PrintSync()
 
 	totalDuration := time.Since(begin)
-	if totalDuration < globalStats[CreateAzureAssignedIdentiy] {
-		t.Fatalf("Expected the total duration to be shorter than %s, but got %s", totalDuration, globalStats[CreateAzureAssignedIdentiy])
+	if totalDuration < globalStats[CreateAzureAssignedIdentity] {
+		t.Fatalf("Expected the total duration to be shorter than %s, but got %s", totalDuration, globalStats[CreateAzureAssignedIdentity])
 	}
 }

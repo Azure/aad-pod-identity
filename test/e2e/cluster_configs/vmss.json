@@ -5,6 +5,8 @@
             "orchestratorType": "Kubernetes",
             "orchestratorVersion": "${AKS_ENGINE_CLUSTER_VERSION}",
             "kubernetesConfig": {
+                "useManagedIdentity": true,
+                "userAssignedID": "${RESOURCE_GROUP}-agentpool",
                 "addons": [
                     {
                         "name": "aad-pod-identity",
@@ -38,10 +40,6 @@
                     }
                 ]
             }
-        },
-        "servicePrincipalProfile": {
-            "clientID": "${AZURE_CLIENT_ID}",
-            "secret": "${AZURE_CLIENT_SECRET}"
         }
     }
 }

@@ -6,7 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
@@ -51,6 +51,7 @@ func Create(input CreateInput) *aadpodv1.AzureIdentityBinding {
 			Selector:      input.Selector,
 		},
 	}
+	azureIdentityBinding.TypeMeta = framework.TypeMeta(azureIdentityBinding)
 
 	Expect(input.Creator.Create(context.TODO(), azureIdentityBinding)).Should(Succeed())
 
@@ -89,7 +90,7 @@ func CreateOld(input CreateInput) string {
 		},
 	}
 
-	tmpFile, err := ioutil.TempFile("", "")
+	tmpFile, err := os.CreateTemp("", "")
 	Expect(err).To(BeNil())
 
 	a, err := json.Marshal(azureIdentityBinding)

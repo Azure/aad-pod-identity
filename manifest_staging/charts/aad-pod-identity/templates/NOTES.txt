@@ -1,0 +1,11 @@
+You have successfully installed AAD Pod Identity in your Kubernetes cluster!
+
+To verify that AAD Pod Identity has started in {{ .Values.operationMode }} mode, run:
+{{- if eq .Values.operationMode "managed" }}
+  kubectl --namespace={{ .Release.Namespace }} get pods -l "app.kubernetes.io/component=nmi"
+{{- else }}
+  kubectl --namespace={{ .Release.Namespace }} get pods -l "app.kubernetes.io/component=mic"
+  kubectl --namespace={{ .Release.Namespace }} get pods -l "app.kubernetes.io/component=nmi"
+{{ end }}
+
+Now you can follow the demos to get familiar with AAD Pod Identity: https://azure.github.io/aad-pod-identity/docs/demo/

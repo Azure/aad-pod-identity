@@ -22,21 +22,19 @@ const (
 var reporter *metrics.Reporter
 
 // GetServicePrincipalTokenFromMSI return the token for the assigned user
-func GetServicePrincipalTokenFromMSI(resource string) (*adal.Token, error) {
+func GetServicePrincipalTokenFromMSI(resource string) (_ *adal.Token, err error) {
 	begin := time.Now()
-	var err error
-
 	defer func() {
 		if err != nil {
-			err = reporter.ReportIMDSOperationError(metrics.AdalTokenFromMSIOperationName)
-			if err != nil {
-				klog.Warningf("failed to report metrics, error: %+v", err)
+			merr := reporter.ReportIMDSOperationError(metrics.AdalTokenFromMSIOperationName)
+			if merr != nil {
+				klog.Warningf("failed to report metrics, error: %+v", merr)
 			}
 			return
 		}
-		err = reporter.ReportIMDSOperationDuration(metrics.AdalTokenFromMSIOperationName, time.Since(begin))
-		if err != nil {
-			klog.Warningf("failed to report metrics, error: %+v", err)
+		merr := reporter.ReportIMDSOperationDuration(metrics.AdalTokenFromMSIOperationName, time.Since(begin))
+		if merr != nil {
+			klog.Warningf("failed to report metrics, error: %+v", merr)
 		}
 	}()
 
@@ -59,21 +57,19 @@ func GetServicePrincipalTokenFromMSI(resource string) (*adal.Token, error) {
 }
 
 // GetServicePrincipalTokenFromMSIWithUserAssignedID return the token for the assigned user
-func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string) (*adal.Token, error) {
+func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string) (_ *adal.Token, err error) {
 	begin := time.Now()
-	var err error
-
 	defer func() {
 		if err != nil {
-			err = reporter.ReportIMDSOperationError(metrics.AdalTokenFromMSIWithUserAssignedIDOperationName)
-			if err != nil {
-				klog.Warningf("failed to report metrics, error: %+v", err)
+			merr := reporter.ReportIMDSOperationError(metrics.AdalTokenFromMSIWithUserAssignedIDOperationName)
+			if merr != nil {
+				klog.Warningf("failed to report metrics, error: %+v", merr)
 			}
 			return
 		}
-		err = reporter.ReportIMDSOperationDuration(metrics.AdalTokenFromMSIWithUserAssignedIDOperationName, time.Since(begin))
-		if err != nil {
-			klog.Warningf("failed to report metrics, error: %+v", err)
+		merr := reporter.ReportIMDSOperationDuration(metrics.AdalTokenFromMSIWithUserAssignedIDOperationName, time.Since(begin))
+		if merr != nil {
+			klog.Warningf("failed to report metrics, error: %+v", merr)
 		}
 	}()
 
@@ -99,21 +95,19 @@ func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string
 }
 
 // GetServicePrincipalToken return the token for the assigned user with client secret
-func GetServicePrincipalToken(adEndpointFromSpec, tenantID, clientID, secret, resource string, auxiliaryTenantIDs []string) ([]*adal.Token, error) {
+func GetServicePrincipalToken(adEndpointFromSpec, tenantID, clientID, secret, resource string, auxiliaryTenantIDs []string) (_ []*adal.Token, err error) {
 	begin := time.Now()
-	var err error
-
 	defer func() {
 		if err != nil {
-			err = reporter.ReportIMDSOperationError(metrics.AdalTokenOperationName)
-			if err != nil {
-				klog.Warningf("failed to report metrics, error: %+v", err)
+			merr := reporter.ReportIMDSOperationError(metrics.AdalTokenOperationName)
+			if merr != nil {
+				klog.Warningf("failed to report metrics, error: %+v", merr)
 			}
 			return
 		}
-		err = reporter.ReportIMDSOperationDuration(metrics.AdalTokenOperationName, time.Since(begin))
-		if err != nil {
-			klog.Warningf("failed to report metrics, error: %+v", err)
+		merr := reporter.ReportIMDSOperationDuration(metrics.AdalTokenOperationName, time.Since(begin))
+		if merr != nil {
+			klog.Warningf("failed to report metrics, error: %+v", merr)
 		}
 	}()
 
@@ -179,21 +173,19 @@ func newMultiTenantServicePrincipalToken(activeDirectoryEndpoint, primaryTenantI
 }
 
 // GetServicePrincipalTokenWithCertificate return the token for the assigned user with certificate
-func GetServicePrincipalTokenWithCertificate(adEndpointFromSpec, tenantID, clientID string, certificate []byte, password, resource string) (*adal.Token, error) {
+func GetServicePrincipalTokenWithCertificate(adEndpointFromSpec, tenantID, clientID string, certificate []byte, password, resource string) (_ *adal.Token, err error) {
 	begin := time.Now()
-	var err error
-
 	defer func() {
 		if err != nil {
-			err = reporter.ReportIMDSOperationError(metrics.AdalTokenOperationName)
-			if err != nil {
-				klog.Warningf("failed to report metrics, error: %+v", err)
+			merr := reporter.ReportIMDSOperationError(metrics.AdalTokenOperationName)
+			if merr != nil {
+				klog.Warningf("failed to report metrics, error: %+v", merr)
 			}
 			return
 		}
-		err = reporter.ReportIMDSOperationDuration(metrics.AdalTokenOperationName, time.Since(begin))
-		if err != nil {
-			klog.Warningf("failed to report metrics, error: %+v", err)
+		merr := reporter.ReportIMDSOperationDuration(metrics.AdalTokenOperationName, time.Since(begin))
+		if merr != nil {
+			klog.Warningf("failed to report metrics, error: %+v", merr)
 		}
 	}()
 

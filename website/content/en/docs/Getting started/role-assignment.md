@@ -6,20 +6,22 @@ description: >
   Your cluster will need the correct role assignment configuration to perform Azure-related operations.
 ---
 
-Your cluster will need the correct role assignment configuration to perform Azure-related operations such as assigning and un-assigning the identity on the underlying VM/VMSS. You can run the following commands to help you set up the appropriate role assignments for your cluster identity before deploying aad-pod-identity (assuming you are running an AKS cluster).
+Your cluster will need the correct role assignment configuration to perform Azure-related operations such as assigning and un-assigning the identity on the underlying VM/VMSS. You can run the following commands to help you set up the appropriate role assignments for your cluster identity before deploying aad-pod-identity.
 
-AKS and aks-engine clusters require an identity to communicate with Azure. This identity can be either a **managed identity** (in the form of system-assigned identity or user-assigned identity) or a **service principal**. This section explains various role assignments that need to be performed before using AAD Pod Identity. Without the proper role assignments, your Azure cluster will not have the correct permission to assign and un-assign identities from the underlying virtual machines (VM) or virtual machine scale sets (VMSS).
+AKS and aks-engine clusters require an identity to communicate with Azure. This identity can be either a **managed identity** (in the form of system-assigned identity or user-assigned identity) or a **service principal**. This section explains various role assignments that need to be performed before using AAD Pod Identity. Without the proper role assignments, your Azure cluster will not have the correct permission to assign and un-assign identities from the underlying virtual machines (VM) or virtual machine scale sets (VMSS). 
+
+In the case of self-managed clusters (manual installation of Kubernetes on Azure VMs), you'll need to assign a **user-assigned managed identity** to the VM or VMSS or use a **service principal**. This is required for MIC to perform Azure-related operations for assigning/un-assigning the identity required for applications.
 
 ```bash
 export SUBSCRIPTION_ID="<SubscriptionID>"
 export RESOURCE_GROUP="<AKSResourceGroup>"
 export CLUSTER_NAME="<AKSClusterName>"
-export CLUSTER_LOCATION="<AKSClusterLocation>"
 
-# if you are planning to deploy your user-assigned identities in a separate resource group
+# Optional: if you are planning to deploy your user-assigned identities
+# in a separate resource group instead of your node resource group
 export IDENTITY_RESOURCE_GROUP="<IdentityResourceGroup>"
 
-./hack/role-assignment.sh
+curl -s https://raw.githubusercontent.com/Azure/aad-pod-identity/master/hack/role-assignment.sh | bash
 ```
 
 > Note: `<AKSResourceGroup>` is where your AKS cluster is deployed to.
@@ -81,6 +83,29 @@ To enable fine-grained control on which user-assigned identity the cluster has a
 ```bash
 az role assignment create --role "Managed Identity Operator" --assignee <ID>  --scope /subscriptions/<SubscriptionID>/resourcegroups/<IdentityResourceGroup>/providers/Microsoft.ManagedIdentity/userAssignedIdentities/<IdentityName>
 ```
+
+## User-assigned managed identities for self-managed clusters
+
+If you deploy the VMs and install Kubernetes instead of using tools like [aks-engine](https://github.com/Azure/aks-engine) or [capz](https://github.com/kubernetes-sigs/cluster-api-provider-azure), you'll need to assign the user-assigned managed identity to the underlying VMs.
+
+### For VMSS
+
+```bash 
+az vmss identity assign -n <VMSS name> -g <rg> --identities <IdentityResourceID>
+```
+
+### For VMs
+
+```bash
+az vm identity assign -n <VM name> -g <rg> --identities <IdentityResourceID>
+```
+Repeat for all your worker node VMs.
+
+## Reducing number of role assignments
+
+Currently there's a limit of [2000 role assignments](https://docs.microsoft.com/en-us/azure/role-based-access-control/troubleshooting#azure-role-assignments-limit) allowed within an Azure subscription. Once you've hit this limit, you will not be able to assign new roles.
+
+To reduce the number of role assignments, one thing you could do is instead of assigning the `Managed Identity Operator` role to managed identities individually, you could assign the `Managed Identity Operator` role to the resource group the managed identities belong to. Resources will inherit roles from the resource group, meaning you can create as many managed identities as you need and not affect the subscription's overall role assignment count.
 
 ## Useful links
 

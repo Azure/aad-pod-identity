@@ -4,10 +4,7 @@ package azureidentity
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"strings"
 
 	aadpodv1 "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity/v1"
 	"github.com/Azure/aad-pod-identity/test/e2e/framework"
@@ -21,9 +18,6 @@ import (
 
 const (
 	invalidResourceIDTemplate = "/subscriptions/%s/providers/Microsoft.ManagedIdentity/userAssignedIdentities/%s"
-
-	apiVersion = "aadpodidentity.k8s.io/v1"
-	kind       = "AzureIdentity"
 )
 
 // CreateInput is the input for Create and CreateOld.
@@ -53,13 +47,14 @@ func Create(input CreateInput) *aadpodv1.AzureIdentity {
 
 	By(fmt.Sprintf("Creating AzureIdentity \"%s\"", input.Name))
 
-	identityClientID := input.AzureClient.GetIdentityClientID(input.IdentityName)
+	identityClientID := input.AzureClient.GetIdentityClientID(input.Config.IdentityResourceGroup, input.IdentityName)
 	azureIdentity := &aadpodv1.AzureIdentity{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      input.Name,
 			Namespace: input.Namespace,
 		},
 	}
+	azureIdentity.TypeMeta = framework.TypeMeta(azureIdentity)
 
 	if input.IdentityType == aadpodv1.UserAssignedMSI {
 		azureIdentity.Spec = aadpodv1.AzureIdentitySpec{
@@ -79,71 +74,15 @@ func Create(input CreateInput) *aadpodv1.AzureIdentity {
 	// For gatekeeper test case
 	if input.InvalidResourceID {
 		azureIdentity.Spec.ResourceID = fmt.Sprintf(invalidResourceIDTemplate, input.Config.SubscriptionID, input.IdentityName)
-		Expect(input.Creator.Create(context.TODO(), azureIdentity)).ShouldNot(Succeed())
+		// Expect(input.Creator.Create(context.TODO(), azureIdentity)).ShouldNot(Succeed())
+		// With https://github.com/Azure/aad-pod-identity/pull/1035 input.Creator.Create does not return
+		// an error when deploying an AzureIdentity with invalid Resource ID to a gatekeeper-enabled cluster
+		// For now, use json.Marshal and exec.KubectlApply
 	} else {
 		Expect(input.Creator.Create(context.TODO(), azureIdentity)).Should(Succeed())
 	}
 
 	return azureIdentity
-}
-
-// CreateOldInput creates an old AzureIdentity resource.
-// The JSON fields of old AzureIdentity have their first letter capitalized, which we do not support for v1.6.0 and onward.
-// However, we provide support to update existing outdated AzureIdentity.
-func CreateOld(input CreateInput) (string, string) {
-	type azureIdentityOld struct {
-		APIVersion string `json:"apiVersion"`
-		Kind       string `json:"kind"`
-		*aadpodv1.AzureIdentity
-	}
-
-	Expect(input.Config).NotTo(BeNil(), "input.Config is required for AzureIdentity.CreateOld")
-	Expect(input.AzureClient).NotTo(BeNil(), "input.AzureClient is required for AzureIdentity.CreateOld")
-	Expect(input.Name).NotTo(BeEmpty(), "input.Name is required for AzureIdentity.CreateOld")
-	Expect(input.Namespace).NotTo(BeEmpty(), "input.Namespace is required for AzureIdentity.CreateOld")
-	Expect(input.IdentityName).NotTo(BeEmpty(), "input.IdentityName is required for AzureIdentity.CreateOld")
-	Expect(input.IdentityType).NotTo(BeNil(), "input.IdentityType is required for AzureIdentity.CreateOld")
-
-	By(fmt.Sprintf("Creating old AzureIdentity \"%s\"", input.Name))
-
-	identityClientID := input.AzureClient.GetIdentityClientID(input.IdentityName)
-	azureIdentity := azureIdentityOld{
-		APIVersion: apiVersion,
-		Kind:       kind,
-		AzureIdentity: &aadpodv1.AzureIdentity{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      input.Name,
-				Namespace: input.Namespace,
-			},
-			Spec: aadpodv1.AzureIdentitySpec{
-				Type:       input.IdentityType,
-				ResourceID: fmt.Sprintf(azure.ResourceIDTemplate, input.Config.SubscriptionID, input.Config.IdentityResourceGroup, input.IdentityName),
-				ClientID:   identityClientID,
-			},
-		},
-	}
-
-	tmpFile, err := ioutil.TempFile("", "")
-	Expect(err).To(BeNil())
-
-	a, err := json.Marshal(azureIdentity)
-	Expect(err).To(BeNil())
-
-	// Outdated JSON fields start with a capitalized letter
-	converion := map[string]string{
-		"\"clientID\"":   "\"ClientID\"",
-		"\"resourceID\"": "\"ResourceID\"",
-	}
-
-	converted := string(a)
-	for original, replacement := range converion {
-		converted = strings.Replace(converted, original, replacement, -1)
-	}
-
-	_, err = tmpFile.Write([]byte(converted))
-	Expect(err).To(BeNil())
-
-	return tmpFile.Name(), identityClientID
 }
 
 // UpdateInput is the input for Update.
@@ -153,6 +92,7 @@ type UpdateInput struct {
 	AzureClient         azure.Client
 	AzureIdentity       *aadpodv1.AzureIdentity
 	UpdatedIdentityName string
+	ClusterIdentity     bool
 }
 
 // Update updates an AzureIdentity resource.
@@ -165,11 +105,15 @@ func Update(input UpdateInput) *aadpodv1.AzureIdentity {
 
 	By(fmt.Sprintf("Updating AzureIdentity \"%s\" to use \"%s\"", input.AzureIdentity.Name, input.UpdatedIdentityName))
 
-	identityClientID := input.AzureClient.GetIdentityClientID(input.UpdatedIdentityName)
+	resourceGroup := input.Config.IdentityResourceGroup
+	if input.ClusterIdentity {
+		resourceGroup = input.Config.NodeResourceGroup
+	}
+	identityClientID := input.AzureClient.GetIdentityClientID(resourceGroup, input.UpdatedIdentityName)
 	Expect(identityClientID).NotTo(BeEmpty(), "identityClientID is required for AzureIdentity.Update")
 
 	input.AzureIdentity.Spec.ClientID = identityClientID
-	input.AzureIdentity.Spec.ResourceID = fmt.Sprintf(azure.ResourceIDTemplate, input.Config.SubscriptionID, input.Config.IdentityResourceGroup, input.UpdatedIdentityName)
+	input.AzureIdentity.Spec.ResourceID = fmt.Sprintf(azure.ResourceIDTemplate, input.Config.SubscriptionID, resourceGroup, input.UpdatedIdentityName)
 
 	Expect(input.Updater.Update(context.TODO(), input.AzureIdentity)).Should(Succeed())
 

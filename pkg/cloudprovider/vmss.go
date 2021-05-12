@@ -34,7 +34,7 @@ type VMSSClientInt interface {
 }
 
 // NewVMSSClient creates a new vmss client.
-func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (c *VMSSClient, e error) {
+func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (*VMSSClient, error) {
 	client := compute.NewVirtualMachineScaleSetsClient(config.SubscriptionID)
 
 	azureEnv, err := azure.EnvironmentFromName(config.Cloud)
@@ -61,23 +61,26 @@ func NewVMSSClient(config config.AzureConfig, spt *adal.ServicePrincipalToken) (
 }
 
 // UpdateIdentities updates the user assigned identities for the provided node
-func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmss compute.VirtualMachineScaleSet) error {
+func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmss compute.VirtualMachineScaleSet) (err error) {
+	// if provisioning state is nil, we keep backward compatibility and proceed with the operation
+	if vmss.ProvisioningState != nil && *vmss.ProvisioningState == string(compute.ProvisioningStateDeleting) {
+		return fmt.Errorf("failed to update identities for %s in %s, vmss is in %s provisioning state", vmssName, rg, *vmss.ProvisioningState)
+	}
+
 	var future compute.VirtualMachineScaleSetsUpdateFuture
-	var err error
 	ctx := context.Background()
 	begin := time.Now()
-
 	defer func() {
 		if err != nil {
-			err = c.reporter.ReportCloudProviderOperationError(metrics.UpdateVMSSOperationName)
-			if err != nil {
-				klog.Warningf("failed to report metrics, error: %+v", err)
+			merr := c.reporter.ReportCloudProviderOperationError(metrics.UpdateVMSSOperationName)
+			if merr != nil {
+				klog.Warningf("failed to report metrics, error: %+v", merr)
 			}
 			return
 		}
-		err = c.reporter.ReportCloudProviderOperationDuration(metrics.UpdateVMSSOperationName, time.Since(begin))
-		if err != nil {
-			klog.Warningf("failed to report metrics, error: %+v", err)
+		merr := c.reporter.ReportCloudProviderOperationDuration(metrics.UpdateVMSSOperationName, time.Since(begin))
+		if merr != nil {
+			klog.Warningf("failed to report metrics, error: %+v", merr)
 		}
 	}()
 
@@ -108,21 +111,20 @@ func (c *VMSSClient) UpdateIdentities(rg, vmssName string, vmss compute.VirtualM
 }
 
 // Get gets the passed in vmss.
-func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMachineScaleSet, err error) {
+func (c *VMSSClient) Get(rgName string, vmssName string) (_ compute.VirtualMachineScaleSet, err error) {
 	ctx := context.Background()
 	begin := time.Now()
-
 	defer func() {
 		if err != nil {
-			err = c.reporter.ReportCloudProviderOperationError(metrics.GetVmssOperationName)
-			if err != nil {
-				klog.Warningf("failed to report metrics, error: %+v", err)
+			merr := c.reporter.ReportCloudProviderOperationError(metrics.GetVmssOperationName)
+			if merr != nil {
+				klog.Warningf("failed to report metrics, error: %+v", merr)
 			}
 			return
 		}
-		err = c.reporter.ReportCloudProviderOperationDuration(metrics.GetVmssOperationName, time.Since(begin))
-		if err != nil {
-			klog.Warningf("failed to report metrics, error: %+v", err)
+		merr := c.reporter.ReportCloudProviderOperationDuration(metrics.GetVmssOperationName, time.Since(begin))
+		if merr != nil {
+			klog.Warningf("failed to report metrics, error: %+v", merr)
 		}
 	}()
 
@@ -136,7 +138,7 @@ func (c *VMSSClient) Get(rgName string, vmssName string) (ret compute.VirtualMac
 		resp := vmss.Response.Response
 		// Update RetryAfterReader so that no more requests would be sent until RetryAfter expires.
 		c.retryAfterReader = time.Now().Add(getRetryAfter(resp))
-		return vmss, fmt.Errorf("failed to get vmss %s in resource group %s, error: %+v", vmssName, rgName, err)
+		return compute.VirtualMachineScaleSet{}, fmt.Errorf("failed to get vmss %s in resource group %s, error: %+v", vmssName, rgName, err)
 	}
 	stats.Increment(stats.TotalGetCalls, 1)
 	stats.AggregateConcurrent(stats.CloudGet, begin, time.Now())

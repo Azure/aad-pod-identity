@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"regexp"
 	"runtime"
@@ -16,11 +19,13 @@ import (
 
 	"time"
 
-	aadpodid "github.com/Azure/aad-pod-identity/pkg/apis/aadpodidentity"
-	auth "github.com/Azure/aad-pod-identity/pkg/auth"
-	k8s "github.com/Azure/aad-pod-identity/pkg/k8s"
+	"github.com/gorilla/mux"
+
+	"github.com/Azure/aad-pod-identity/pkg/auth"
+	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/nmi"
+	iptables "github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 	"github.com/Azure/go-autorest/autorest/adal"
 	v1 "k8s.io/api/core/v1"
@@ -32,6 +37,11 @@ import (
 
 const (
 	localhost = "127.0.0.1"
+	// "/metadata" portion is case-insensitive in IMDS
+	tokenPathPrefix     = "/{type:(?i:metadata)}/identity/oauth2/token" // #nosec
+	hostTokenPathPrefix = "/host/token"
+	// "/metadata" portion is case-insensitive in IMDS
+	instancePathPrefix = "/{type:(?i:metadata)}/instance" // #nosec
 )
 
 // Server encapsulates all of the parameters necessary for starting up
@@ -43,7 +53,6 @@ type Server struct {
 	NMIPort                            string
 	MetadataIP                         string
 	MetadataPort                       string
-	HostIP                             string
 	NodeName                           string
 	IPTableUpdateTimeIntervalInSeconds int
 	MICNamespace                       string
@@ -96,21 +105,61 @@ func NewServer(micNamespace string, blockInstanceMetadata bool, metadataHeaderRe
 }
 
 func (s *Server) Run() error {
-	mux := http.NewServeMux()
-	mux.Handle("/metadata/identity/oauth2/token", appHandler(s.msiHandler))
-	mux.Handle("/metadata/identity/oauth2/token/", appHandler(s.msiHandler))
-	mux.Handle("/host/token", appHandler(s.hostHandler))
-	mux.Handle("/host/token/", appHandler(s.hostHandler))
+	go s.updateIPTableRules()
+
+	rtr := mux.NewRouter()
+	rtr.PathPrefix(tokenPathPrefix).Handler(appHandler(s.msiHandler))
+	rtr.PathPrefix(hostTokenPathPrefix).Handler(appHandler(s.hostHandler))
 	if s.BlockInstanceMetadata {
-		mux.Handle("/metadata/instance", http.HandlerFunc(forbiddenHandler))
+		rtr.PathPrefix(instancePathPrefix).HandlerFunc(forbiddenHandler)
 	}
-	mux.Handle("/", appHandler(s.defaultPathHandler))
+	rtr.PathPrefix("/").HandlerFunc(s.defaultPathHandler)
 
 	klog.Infof("listening on port %s", s.NMIPort)
-	if err := http.ListenAndServe(":"+s.NMIPort, mux); err != nil {
+	if err := http.ListenAndServe("localhost:"+s.NMIPort, rtr); err != nil {
 		klog.Fatalf("error creating http server: %+v", err)
 	}
 	return nil
+}
+
+func (s *Server) updateIPTableRulesInternal() {
+	klog.V(5).Infof("node(%s) ip(%s) metadata address(%s:%s) nmi port(%s)", s.NodeName, localhost, s.MetadataIP, s.MetadataPort, s.NMIPort)
+
+	if err := iptables.AddCustomChain(s.MetadataIP, s.MetadataPort, localhost, s.NMIPort); err != nil {
+		klog.Fatalf("%s", err)
+	}
+	if err := iptables.LogCustomChain(); err != nil {
+		klog.Fatalf("%s", err)
+	}
+}
+
+// updateIPTableRules ensures the correct iptable rules are set
+// such that metadata requests are received by nmi assigned port
+// NOT originating from HostIP destined to metadata endpoint are
+// routed to NMI endpoint
+func (s *Server) updateIPTableRules() {
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT)
+
+	ticker := time.NewTicker(time.Second * time.Duration(s.IPTableUpdateTimeIntervalInSeconds))
+	defer ticker.Stop()
+
+	// Run once before the waiting on ticker for the rules to take effect
+	// immediately.
+	s.updateIPTableRulesInternal()
+	s.Initialized = true
+
+loop:
+	for {
+		select {
+		case <-signalChan:
+			handleTermination()
+			break loop
+
+		case <-ticker.C:
+			s.updateIPTableRulesInternal()
+		}
+	}
 }
 
 type appHandler func(http.ResponseWriter, *http.Request) string
@@ -318,7 +367,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	}
 
 	podIP := parseRemoteAddr(r.RemoteAddr)
-	tokenRequest = parseTokenRequest(r)
+	tokenRequest := parseTokenRequest(r)
 
 	if podIP == "" {
 		klog.Error("request remote address is empty")
@@ -336,8 +385,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	podns, podname, rsName, selectors, err := s.KubeClient.GetPodInfo(podIP)
 	if err != nil {
 		klog.Errorf("failed to get pod info from pod IP: %s, error: %+v", podIP, err)
-		stausCode = http.StatusInternalServerError
-		http.Error(w, err.Error(), stausCode)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	// set ns for using in metrics
@@ -345,20 +393,17 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	var exceptionList *[]aadpodid.AzurePodIdentityException
 	exceptionList, err = s.KubeClient.ListPodIdentityExceptions(podns)
 	if err != nil {
-		klog.Errorf("getting list of azurepodidentityexception in %s namespace failed with error: %+v", podns, err)
-		stausCode = http.StatusInternalServerError
-		http.Error(w, err.Error(), stausCode)
+		klog.Errorf("getting list of AzurePodIdentityException in %s namespace failed with error: %+v", podns, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// If its mic, then just directly get the token and pass back.
 	if pod.IsPodExcepted(selectors.MatchLabels, *exceptionList) || s.isMIC(podns, rsName) {
 		klog.Infof("exception pod %s/%s token handling", podns, podname)
-		operationType = metrics.HostTokenOperationType
 		response, errorCode, err := s.getTokenForExceptedPod(tokenRequest.ClientID, tokenRequest.Resource)
 		if err != nil {
 			klog.Errorf("failed to get service principal token for pod:%s/%s with error code %d, error: %+v", podns, podname, errorCode, err)
-			stausCode = errorCode
 			http.Error(w, err.Error(), errorCode)
 			return
 		}
@@ -369,8 +414,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, tokenRequest.ClientID, tokenRequest.ResourceID)
 	if err != nil {
 		klog.Errorf("failed to get matching identities for pod: %s/%s, error: %+v", podns, podname, err)
-		stausCode = http.StatusNotFound
-		http.Error(w, err.Error(), stausCode)
+		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
@@ -489,7 +533,7 @@ func parseTokenRequest(r *http.Request) (request TokenRequest) {
 }
 
 // defaultPathHandler creates a new request and returns the response body and code
-func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) (ns string) {
+func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) {
 	if s.MetadataHeaderRequired && parseMetadata(r) != "true" {
 		klog.Errorf("metadata header is not specified, req.method=%s reg.path=%s req.remote=%s", r.Method, r.URL.Path, parseRemoteAddr(r.RemoteAddr))
 		metadataNotSpecifiedError(w)
@@ -518,13 +562,14 @@ func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) (ns 
 	}
 	defer resp.Body.Close()
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		klog.Errorf("failed to read response body for %s, error: %+v", req.URL.String(), err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	copyHeader(w.Header(), resp.Header)
+	w.WriteHeader(resp.StatusCode)
 	_, _ = w.Write(body)
-	return
 }
 
 // forbiddenHandler responds to any request with HTTP 403 Forbidden
@@ -540,13 +585,20 @@ func copyHeader(dst, src http.Header) {
 	}
 }
 
-func validateResourceParamExists(resource string) bool {
-	// check if resource exists in the request
-	// if resource doesn't exist in the request, then adal libraries will return the same error
-	// IMDS also returns an error with 400 response code if resource parameter is empty
-	// this is done to emulate same behavior observed while requesting token from IMDS
-	if len(resource) == 0 {
-		return false
+func handleTermination() {
+	klog.Info("received SIGTERM, shutting down")
+
+	exitCode := 0
+	// clean up iptables
+	if err := iptables.DeleteCustomChain(); err != nil {
+		klog.Errorf("failed to clean up during shutdown, error: %+v", err)
+		exitCode = 1
 	}
-	return true
+
+	// wait for pod to delete
+	klog.Info("handled termination, awaiting pod deletion")
+	time.Sleep(10 * time.Second)
+
+	klog.Infof("exiting with %v", exitCode)
+	os.Exit(exitCode)
 }

@@ -40,6 +40,7 @@ func KubectlExec(kubeconfigPath, podName, namespace string, args []string) (stri
 		"exec",
 		fmt.Sprintf("--kubeconfig=%s", kubeconfigPath),
 		fmt.Sprintf("--namespace=%s", namespace),
+		fmt.Sprintf("--request-timeout=5s"),
 		podName,
 		"--",
 	}, args...)

@@ -1,7 +1,6 @@
 package filewatcher
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 	"time"
@@ -11,7 +10,7 @@ import (
 )
 
 func TestFileWatcher(t *testing.T) {
-	tempFile, err := ioutil.TempFile("", "")
+	tempFile, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}

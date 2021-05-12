@@ -36,7 +36,6 @@ By default, AAD Pod Identity matches pods to identities across namespaces. To ma
           containers:
           - name: mic
             image: "mcr.microsoft.com/k8s/aad-pod-identity/mic:1.3"
-            imagePullPolicy: Always
             args:
               - "--cloudconfig=/etc/kubernetes/azure.json"
               - "--logtostderr"

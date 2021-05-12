@@ -143,7 +143,7 @@ func (c *KubeClient) GetPod(namespace, name string) (v1.Pod, error) {
 }
 
 // GetPodInfo get pod ns,name from apiserver
-func (c *KubeClient) GetPodInfo(podip string) (podns, poddname, rsName string, labels *metav1.LabelSelector, err error) {
+func (c *KubeClient) GetPodInfo(podip string) (string, string, string, *metav1.LabelSelector, error) {
 	if podip == "" {
 		return "", "", "", nil, fmt.Errorf("pod IP is empty")
 	}
@@ -198,9 +198,9 @@ func (c *KubeClient) getPodListRetry(podip string, retries int, sleeptime time.D
 			c.reporter.ReportKubernetesAPIOperationsDuration(metrics.GetPodListOperationName, time.Since(start))
 			return podList, nil
 		}
-		metricErr := c.reporter.ReportKubernetesAPIOperationError(metrics.GetPodListOperationName)
-		if metricErr != nil {
-			klog.Warningf("failed to report metrics, error: %+v", metricErr)
+		merr := c.reporter.ReportKubernetesAPIOperationError(metrics.GetPodListOperationName)
+		if merr != nil {
+			klog.Warningf("failed to report metrics, error: %+v", merr)
 		}
 
 		if i >= retries {
@@ -249,14 +249,6 @@ func (c *KubeClient) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodI
 
 // GetSecret returns secret the secretRef represents
 func (c *KubeClient) GetSecret(secretRef *v1.SecretReference) (*v1.Secret, error) {
-	start := time.Now()
-
-	defer func() {
-		if c.reporter != nil {
-			c.reporter.ReportKubernetesAPIOperationsDuration(metrics.GetSecretOperationName, time.Since(start))
-		}
-	}()
-
 	secret, err := c.ClientSet.CoreV1().Secrets(secretRef.Namespace).Get(context.TODO(), secretRef.Name, metav1.GetOptions{})
 	if err != nil {
 		merr := c.reporter.ReportKubernetesAPIOperationError(metrics.GetSecretOperationName)

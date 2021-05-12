@@ -61,7 +61,7 @@ type ClientInt interface {
 }
 
 // NewCRDClientLite returns a new CRD lite client and error if any.
-func NewCRDClientLite(config *rest.Config, nodeName string, scale, isStandardMode bool) (crdClient *Client, err error) {
+func NewCRDClientLite(config *rest.Config, nodeName string, scale, isStandardMode bool) (*Client, error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func NewCRDClientLite(config *rest.Config, nodeName string, scale, isStandardMod
 }
 
 // NewCRDClient returns a new CRD client and error if any.
-func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClient *Client, err error) {
+func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (*Client, error) {
 	restClient, err := newRestClient(config)
 	if err != nil {
 		return nil, err
@@ -151,9 +151,9 @@ func NewCRDClient(config *rest.Config, eventCh chan aadpodid.EventType) (crdClie
 	}, nil
 }
 
-func newRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
+func newRestClient(config *rest.Config) (*rest.RESTClient, error) {
 	crdconfig := *config
-	crdconfig.GroupVersion = &schema.GroupVersion{Group: aadpodv1.CRDGroup, Version: aadpodv1.CRDVersion}
+	crdconfig.GroupVersion = &aadpodv1.SchemeGroupVersion
 	crdconfig.APIPath = "/apis"
 	crdconfig.ContentType = runtime.ContentTypeJSON
 	scheme := runtime.NewScheme()
@@ -169,6 +169,9 @@ func newRestClient(config *rest.Config) (r *rest.RESTClient, err error) {
 		&aadpodv1.AzurePodIdentityExceptionList{},
 	)
 
+	if err := aadpodv1.AddToScheme(scheme); err != nil {
+		return nil, err
+	}
 	if err := clientgoscheme.AddToScheme(scheme); err != nil {
 		return nil, err
 	}
@@ -476,19 +479,17 @@ func (c *Client) SyncCacheAll(exit <-chan struct{}, initial bool) {
 func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
 	klog.V(6).Infof("deleting assigned id %s/%s", assignedIdentity.Namespace, assignedIdentity.Name)
 	begin := time.Now()
-
 	defer func() {
 		if err != nil {
-			err = c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityDeletionOperationName)
-			if err != nil {
-				klog.Warningf("failed to report metrics, error: %+v", err)
+			merr := c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityDeletionOperationName)
+			if merr != nil {
+				klog.Warningf("failed to report metrics, error: %+v", merr)
 			}
 			return
 		}
 		c.reporter.Report(
 			metrics.AssignedIdentityDeletionCountM.M(1),
 			metrics.AssignedIdentityDeletionDurationM.M(metrics.SinceInSeconds(begin)))
-
 	}()
 
 	var res aadpodv1.AzureAssignedIdentity
@@ -514,19 +515,17 @@ func (c *Client) RemoveAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
 	klog.Infof("creating assigned id %s/%s", assignedIdentity.Namespace, assignedIdentity.Name)
 	begin := time.Now()
-
 	defer func() {
 		if err != nil {
-			err = c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityAdditionOperationName)
-			if err != nil {
-				klog.Warningf("failed to report metrics, error: %+v", err)
+			merr := c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityAdditionOperationName)
+			if merr != nil {
+				klog.Warningf("failed to report metrics, error: %+v", merr)
 			}
 			return
 		}
 		c.reporter.Report(
 			metrics.AssignedIdentityAdditionCountM.M(1),
 			metrics.AssignedIdentityAdditionDurationM.M(metrics.SinceInSeconds(begin)))
-
 	}()
 
 	var res aadpodv1.AzureAssignedIdentity
@@ -540,7 +539,7 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 	}
 
 	klog.V(5).Infof("time taken to create %s/%s: %v", assignedIdentity.Namespace, assignedIdentity.Name, time.Since(begin))
-	stats.AggregateConcurrent(stats.CreateAzureAssignedIdentiy, begin, time.Now())
+	stats.AggregateConcurrent(stats.CreateAzureAssignedIdentity, begin, time.Now())
 	return nil
 }
 
@@ -548,17 +547,15 @@ func (c *Client) CreateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 func (c *Client) UpdateAssignedIdentity(assignedIdentity *aadpodid.AzureAssignedIdentity) (err error) {
 	klog.Infof("updating assigned id %s/%s", assignedIdentity.Namespace, assignedIdentity.Name)
 	begin := time.Now()
-
 	defer func() {
 		if err != nil {
-			err = c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityUpdateOperationName)
-			klog.Warningf("failed to report metrics, error: %+v", err)
+			merr := c.reporter.ReportKubernetesAPIOperationError(metrics.AssignedIdentityUpdateOperationName)
+			klog.Warningf("failed to report metrics, error: %+v", merr)
 			return
 		}
 		c.reporter.Report(
 			metrics.AssignedIdentityUpdateCountM.M(1),
 			metrics.AssignedIdentityUpdateDurationM.M(metrics.SinceInSeconds(begin)))
-
 	}()
 
 	v1AssignedID := aadpodv1.ConvertInternalAssignedIdentityToV1AssignedIdentity(*assignedIdentity)
@@ -573,7 +570,7 @@ func (c *Client) UpdateAssignedIdentity(assignedIdentity *aadpodid.AzureAssigned
 }
 
 // ListBindings returns a list of azureidentitybindings
-func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error) {
+func (c *Client) ListBindings() (*[]aadpodid.AzureIdentityBinding, error) {
 	begin := time.Now()
 
 	var resList []aadpodid.AzureIdentityBinding
@@ -587,8 +584,8 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 		// Note: List items returned from cache have empty Kind and API version..
 		// Work around this issue since we need that for event recording to work.
 		o.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   aadpodv1.CRDGroup,
-			Version: aadpodv1.CRDVersion,
+			Group:   aadpodv1.SchemeGroupVersion.Group,
+			Version: aadpodv1.SchemeGroupVersion.Version,
 			Kind:    reflect.TypeOf(*o).String()})
 
 		internalBinding := aadpodv1.ConvertV1BindingToInternalBinding(*o)
@@ -602,7 +599,7 @@ func (c *Client) ListBindings() (res *[]aadpodid.AzureIdentityBinding, err error
 }
 
 // ListAssignedIDs returns a list of azureassignedidentities
-func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err error) {
+func (c *Client) ListAssignedIDs() (*[]aadpodid.AzureAssignedIdentity, error) {
 	begin := time.Now()
 
 	var resList []aadpodid.AzureAssignedIdentity
@@ -616,8 +613,8 @@ func (c *Client) ListAssignedIDs() (res *[]aadpodid.AzureAssignedIdentity, err e
 		// Note: List items returned from cache have empty Kind and API version..
 		// Work around this issue since we need that for event recording to work.
 		o.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   aadpodv1.CRDGroup,
-			Version: aadpodv1.CRDVersion,
+			Group:   aadpodv1.SchemeGroupVersion.Group,
+			Version: aadpodv1.SchemeGroupVersion.Version,
 			Kind:    reflect.TypeOf(*o).String()})
 		out := aadpodv1.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o)
 		resList = append(resList, out)
@@ -644,8 +641,8 @@ func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdenti
 		// Note: List items returned from cache have empty Kind and API version..
 		// Work around this issue since we need that for event recording to work.
 		o.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   aadpodv1.CRDGroup,
-			Version: aadpodv1.CRDVersion,
+			Group:   aadpodv1.SchemeGroupVersion.Group,
+			Version: aadpodv1.SchemeGroupVersion.Version,
 			Kind:    reflect.TypeOf(*o).String()})
 
 		out := aadpodv1.ConvertV1AssignedIdentityToInternalAssignedIdentity(*o)
@@ -659,7 +656,7 @@ func (c *Client) ListAssignedIDsInMap() (map[string]aadpodid.AzureAssignedIdenti
 }
 
 // ListIds returns a list of azureidentities
-func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
+func (c *Client) ListIds() (*[]aadpodid.AzureIdentity, error) {
 	begin := time.Now()
 
 	var resList []aadpodid.AzureIdentity
@@ -673,8 +670,8 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 		// Note: List items returned from cache have empty Kind and API version..
 		// Work around this issue since we need that for event recording to work.
 		o.SetGroupVersionKind(schema.GroupVersionKind{
-			Group:   aadpodv1.CRDGroup,
-			Version: aadpodv1.CRDVersion,
+			Group:   aadpodv1.SchemeGroupVersion.Group,
+			Version: aadpodv1.SchemeGroupVersion.Version,
 			Kind:    reflect.TypeOf(*o).String()})
 
 		out := aadpodv1.ConvertV1IdentityToInternalIdentity(*o)
@@ -688,7 +685,7 @@ func (c *Client) ListIds() (res *[]aadpodid.AzureIdentity, err error) {
 }
 
 // ListPodIdentityExceptions returns list of azurepodidentityexceptions
-func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodIdentityException, err error) {
+func (c *Client) ListPodIdentityExceptions(ns string) (*[]aadpodid.AzurePodIdentityException, error) {
 	begin := time.Now()
 
 	var resList []aadpodid.AzurePodIdentityException
@@ -703,8 +700,8 @@ func (c *Client) ListPodIdentityExceptions(ns string) (res *[]aadpodid.AzurePodI
 			// Note: List items returned from cache have empty Kind and API version..
 			// Work around this issue since we need that for event recording to work.
 			o.SetGroupVersionKind(schema.GroupVersionKind{
-				Group:   aadpodv1.CRDGroup,
-				Version: aadpodv1.CRDVersion,
+				Group:   aadpodv1.SchemeGroupVersion.Group,
+				Version: aadpodv1.SchemeGroupVersion.Version,
 				Kind:    reflect.TypeOf(*o).String()})
 			out := aadpodv1.ConvertV1PodIdentityExceptionToInternalPodIdentityException(*o)
 
@@ -780,12 +777,11 @@ type patchStatusOps struct {
 // UpdateAzureAssignedIdentityStatus updates the status field in AzureAssignedIdentity to indicate current status
 func (c *Client) UpdateAzureAssignedIdentityStatus(assignedIdentity *aadpodid.AzureAssignedIdentity, status string) (err error) {
 	klog.Infof("updating AzureAssignedIdentity %s/%s status to %s", assignedIdentity.Namespace, assignedIdentity.Name, status)
-
 	defer func() {
 		if err != nil {
-			err = c.reporter.ReportKubernetesAPIOperationError(metrics.UpdateAzureAssignedIdentityStatusOperationName)
-			if err != nil {
-				klog.Warningf("failed to report metrics, error: %+v", err)
+			merr := c.reporter.ReportKubernetesAPIOperationError(metrics.UpdateAzureAssignedIdentityStatusOperationName)
+			if merr != nil {
+				klog.Warningf("failed to report metrics, error: %+v", merr)
 			}
 		}
 	}()

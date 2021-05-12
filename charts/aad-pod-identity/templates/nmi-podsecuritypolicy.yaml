@@ -1,0 +1,35 @@
+{{- if .Values.rbac.pspEnabled }}
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: {{ template "aad-pod-identity-psp.nmi.fullname" . }}
+  labels:
+  {{- include "aad-pod-identity.labels" . | nindent 4 }}
+spec:
+  hostNetwork: true
+  privileged: false
+  allowPrivilegeEscalation: false
+  fsGroup:
+    ranges:
+      - max: 65535
+        min: 1
+    rule: MustRunAs
+  supplementalGroups:
+    ranges:
+      - max: 65535
+        min: 1
+    rule: MustRunAs
+  requiredDropCapabilities:
+    - ALL
+  allowedCapabilities:
+    - NET_ADMIN
+    - DAC_READ_SEARCH
+    - NET_RAW
+  volumes:
+    - hostPath
+    - secret
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  {{- end }}

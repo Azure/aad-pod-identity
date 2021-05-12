@@ -47,17 +47,16 @@ You could run the following commands to validate your identity setup (assuming y
 kubectl run azure-cli -it --image=mcr.microsoft.com/azure-cli --labels=aadpodidbinding=<selector defined in AzureIdentityBinding> /bin/bash
 
 # within the azure-cli shell
-az login -i --debug
+az login --identity --allow-no-subscriptions --debug
 ```
 
-`az login -i` will use the Azure identity bound to the `azure-cli` pod and perform a login to Azure via Azure CLI. If succeeded, you would have an output as below:
+`az login --identity` will use the Azure identity bound to the `azure-cli` pod and perform a login to Azure via Azure CLI. If succeeded, you would have an output as below:
 
 ```log
 urllib3.connectionpool : Starting new HTTP connection (1): 169.254.169.254:80
 urllib3.connectionpool : http://169.254.169.254:80 "GET /metadata/identity/oauth2/token?resource=https%3A%2F%2Fmanagement.core.windows.net%2F&api-version=2018-02-01 HTTP/1.1" 200 1667
 msrestazure.azure_active_directory : MSI: Retrieving a token from http://169.254.169.254/metadata/identity/oauth2/token, with payload {'resource': 'https://management.core.windows.net/', 'api-version': '2018-02-01'}
 msrestazure.azure_active_directory : MSI: Token retrieved
-MSI: token was retrieved. Now trying to initialize local accounts...
 ...
 [
   {
@@ -139,3 +138,48 @@ kubectl delete azureassignedidentity <name> -n <namespace>
 
 Past issues:
 - https://github.com/Azure/aad-pod-identity/issues/644
+
+### Token requests calls fail with i/o timeout
+
+If you received the following or similar error in your application:
+
+```log
+azure.BearerAuthorizer#WithAuthorization: Failed to refresh the Token for request to https://management.azure.com/subscriptions/subId/resourceGroups/rg/providers/Microsoft.Network/dnsZones?api-version=2018-05-01: StatusCode=0 -- Original Error: adal: Failed to execute the refresh request. Error = 'Get \"http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https%3A%2F%2Fmanagement.core.windows.net%2F\": dial tcp 169.254.169.254:80: i/o timeout'
+```
+
+It means there is a network policy blocking egress traffic to `169.254.169.254` from the host. NMI pods run on `hostNetwork` and listen on `127.0.0.1:2579`. Please ensure there is a network policy that allows traffic to `127.0.0.1:2579`. Example `GlobalNetworPolicy` configuration for Calico:
+
+```yaml
+kind: GlobalNetworkPolicy
+apiVersion: crd.projectcalico.org/v1
+metadata:
+  name: egress-localhost
+spec:
+  types:
+    - Egress
+  egress:
+    - action: Allow
+      protocol: TCP
+      destination:
+        nets:
+          - 127.0.0.1
+        port: [2579]
+```
+
+Past issues:
+- https://github.com/Azure/aad-pod-identity/issues/716
+- https://github.com/Azure/aad-pod-identity/issues/821
+
+### Spark jobs failed to acquire tokens
+
+Spark jobs that use AAD Pod Identity as a way to acquire tokens should add the following configurations (assuming `AzureIdentity` and `AzureIdentityBinding` are deployed beforehand):
+
+```bash
+...
+--conf spark.kubernetes.driver.label.aadpodidbinding=<AzureIdentityBinding selector> \
+--conf spark.kubernetes.executor.label.aadpodidbinding=<AzureIdentityBinding selector> \
+...
+```
+
+Past issues:
+- https://github.com/Azure/aad-pod-identity/issues/947

@@ -123,9 +123,10 @@ spec:
       - name: kubelet-config
         hostPath:
           path: /etc/default/kubelet
+          type: FileOrCreate
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.7.0"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.7.5"
         imagePullPolicy: Always
         args:
           - "--node=$(NODE_NAME)"
@@ -149,8 +150,12 @@ spec:
         securityContext:
           runAsUser: 0
           capabilities:
+            drop:
+            - ALL
             add:
+            - DAC_READ_SEARCH
             - NET_ADMIN
+            - NET_RAW
         volumeMounts:
         - mountPath: /run/xtables.lock
           name: iptableslock
@@ -165,71 +170,6 @@ spec:
           periodSeconds: 5
       nodeSelector:
         kubernetes.io/os: linux
----
-apiVersion: apps/v1
-kind: DaemonSet
-metadata:
-  labels:
-    component: nmi-windows
-    tier: node
-    k8s-app: aad-pod-id
-  name: nmi-windows
-  namespace: default
-spec:
-  updateStrategy:
-    type: RollingUpdate
-  selector:
-    matchLabels:
-      component: nmi-windows
-      tier: node
-  template:
-    metadata:
-      name: nmi-windows
-      labels:
-        component: nmi-windows
-        tier: node
-    spec:
-      serviceAccountName: aad-pod-id-nmi-service-account
-      nodeSelector:
-        "beta.kubernetes.io/os": windows
-      containers:
-      - name: nmi-windows
-        # This will be updated with the official image
-        image: bowuakstest.azurecr.io/bowuwindows:v16
-        imagePullPolicy: Always
-        resources:
-          limits:
-            cpu: 200m
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            memory: 256Mi
-        args:
-          - "--host-ip=$(HOST_IP)"
-          - "--node=$(NODE_NAME)"
-        env:
-          - name: HOST_IP
-            valueFrom:
-              fieldRef:
-                fieldPath: status.podIP
-          - name: NODE_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: spec.nodeName
-        volumeMounts:
-          - mountPath: \\.\pipe\hnspipe
-            name: hns-pipe
-        livenessProbe:
-          httpGet:
-            path: /healthz
-            port: 8080
-          initialDelaySeconds: 10
-          periodSeconds: 5
-      volumes:
-        - name: hns-pipe
-          hostPath:
-            path: \\.\pipe\hnspipe
-            type: null
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -305,7 +245,7 @@ spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.7.0"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.7.5"
         imagePullPolicy: Always
         args:
           - "--cloudconfig=/etc/kubernetes/azure.json"

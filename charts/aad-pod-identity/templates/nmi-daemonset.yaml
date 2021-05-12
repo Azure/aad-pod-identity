@@ -20,6 +20,9 @@ spec:
         {{- include "aad-pod-identity.labels" . | nindent 8 }}
         app.kubernetes.io/component: nmi
         tier: node
+      {{- if .Values.nmi.podLabels }}
+      {{- toYaml .Values.nmi.podLabels | nindent 8 }}
+      {{- end }}
 {{- if .Values.nmi.podAnnotations }}
       annotations:
 {{ toYaml .Values.nmi.podAnnotations | indent 8 }}
@@ -42,9 +45,12 @@ spec:
           path: /run/xtables.lock
           type: FileOrCreate
         name: iptableslock
+      {{- if semverCompare ">= 1.7.0-0" .Values.nmi.tag }}
       - name: kubelet-config
         hostPath:
-          path: /etc/default/kubelet
+          path: {{ .Values.nmi.kubeletConfig }}
+          type: FileOrCreate
+      {{- end }}
       containers:
       - name: nmi
         image: "{{ .Values.image.repository }}/{{ .Values.nmi.image }}:{{ .Values.nmi.tag }}"
@@ -99,6 +105,12 @@ spec:
           {{- if .Values.nmi.allowNetworkPluginKubenet }}
           - --allow-network-plugin-kubenet={{ .Values.nmi.allowNetworkPluginKubenet }}
           {{- end }}
+          {{- if semverCompare ">= 1.7.0-0" .Values.nmi.tag }}
+          - --kubelet-config={{ .Values.nmi.kubeletConfig }}
+          {{- end }}
+          {{- if .Values.customUserAgent }}
+          - --custom-user-agent={{ .Values.customUserAgent }}
+          {{- end }}
         env:
           {{- if semverCompare "<= 1.6.1-0" .Values.nmi.tag }}
           - name: HOST_IP
@@ -112,7 +124,7 @@ spec:
                 fieldPath: spec.nodeName
           {{- if eq .Values.operationMode "standard" }}
           - name: FORCENAMESPACED
-            value: "{{ .Values.forceNameSpaced }}"
+            value: "{{ .Values.forceNamespaced }}"
           {{- end }}
         {{- if .Values.nmi.prometheusPort }}
         ports:
@@ -123,14 +135,20 @@ spec:
         securityContext:
           runAsUser: 0
           capabilities:
+            drop:
+            - ALL
             add:
+            - DAC_READ_SEARCH
             - NET_ADMIN
+            - NET_RAW
         volumeMounts:
         - mountPath: /run/xtables.lock
           name: iptableslock
+        {{- if semverCompare ">= 1.7.0-0" .Values.nmi.tag }}
         - name: kubelet-config
-          mountPath: /etc/default/kubelet
+          mountPath: {{ .Values.nmi.kubeletConfig }}
           readOnly: true
+        {{- end }}
         livenessProbe:
           httpGet:
             path: /healthz

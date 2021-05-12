@@ -34,7 +34,7 @@ initContainers:
   command:
     - sh
     - -c
-    - az login --identity --debug
+    - az login --identity --allow-no-subscriptions --debug
 ...
 ```
 
@@ -100,6 +100,9 @@ metadata:
 ...
 ```
 
+Note: if you do not specify which managed identity to use (e.g. `az login -i`) then one of the managed identities matching the `aadpodidbinding` selector will be selected at random. To make sure the right managed identity is used for a particular workload, make sure you specify the managed identity's `clientId`  (e.g. `az login -i -u <CLIENT ID>`) or `resourceID` (e.g `az login -i -u <RESOURCE ID>`) when authenticating.
+
+
 ## Pods using unauthorized AzureIdentities
 
 By default, aad-pod-identity matches pods with `AzureIdentities` across all namespaces. That means that a malicious pod could assign itself an unauthorized pod identity label and acquire a token with that particular `AzureIdentity`. This scenario can be mitigated by performing the following:
@@ -135,7 +138,7 @@ spec:
         command:
           - sh
           - -c
-          - az login --identity --debug
+          - az login --identity --allow-no-subscriptions --debug
 ```
 
 ### [DaemonSet](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/)
@@ -161,7 +164,7 @@ spec:
         command:
           - sh
           - -c
-          - az login --identity --debug
+          - az login --identity --allow-no-subscriptions --debug
 ```
 
 ### [Job](https://kubernetes.io/docs/concepts/workloads/controllers/job/)
@@ -183,7 +186,7 @@ spec:
         command:
           - sh
           - -c
-          - az login --identity --debug
+          - az login --identity --allow-no-subscriptions --debug
       restartPolicy: Never
   backoffLimit: 4
 ```
@@ -210,6 +213,6 @@ spec:
             command:
             - sh
             - -c
-            - az login --identity --debug
+            - az login --identity --allow-no-subscriptions --debug
           restartPolicy: OnFailure
 ```

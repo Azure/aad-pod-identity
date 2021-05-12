@@ -21,11 +21,10 @@ type Config struct {
 	KeyvaultName                 string        `envconfig:"KEYVAULT_NAME"`
 	KeyvaultSecretName           string        `envconfig:"KEYVAULT_SECRET_NAME"`
 	KeyvaultSecretVersion        string        `envconfig:"KEYVAULT_SECRET_VERSION"`
-	MICVersion                   string        `envconfig:"MIC_VERSION" default:"v1.7.0"`
-	NMIVersion                   string        `envconfig:"NMI_VERSION" default:"v1.7.0"`
+	MICVersion                   string        `envconfig:"MIC_VERSION" default:"v1.7.5"`
+	NMIVersion                   string        `envconfig:"NMI_VERSION" default:"v1.7.5"`
 	Registry                     string        `envconfig:"REGISTRY" default:"mcr.microsoft.com/oss/azure/aad-pod-identity"`
-	IdentityValidatorVersion     string        `envconfig:"IDENTITY_VALIDATOR_VERSION" default:"v1.7.0"`
-	SystemMSICluster             bool          `envconfig:"SYSTEM_MSI_CLUSTER" default:"false"`
+	IdentityValidatorVersion     string        `envconfig:"IDENTITY_VALIDATOR_VERSION" default:"v1.7.5"`
 	EnableScaleFeatures          bool          `envconfig:"ENABLE_SCALE_FEATURES" default:"false"`
 	ImmutableUserMSIs            string        `envconfig:"IMMUTABLE_IDENTITY_CLIENT_ID"`
 	NMIMode                      string        `envconfig:"NMI_MODE" default:"standard"`
@@ -34,6 +33,7 @@ type Config struct {
 	IdentityReconcileInterval    time.Duration `envconfig:"IDENTITY_RECONCILE_INTERVAL" default:"2m"`
 	ServicePrincipalClientID     string        `envconfig:"SERVICE_PRINCIPAL_CLIENT_ID"`
 	ServicePrincipalClientSecret string        `envconfig:"SERVICE_PRINCIPAL_CLIENT_SECRET"`
+	MICSyncInterval              time.Duration `envconfig:"MIC_SYNC_INTERVAL" default:"30s"`
 }
 
 func (c *Config) DeepCopy() *Config {
@@ -52,13 +52,13 @@ func (c *Config) DeepCopy() *Config {
 	copy.NMIVersion = c.NMIVersion
 	copy.Registry = c.Registry
 	copy.IdentityValidatorVersion = c.IdentityValidatorVersion
-	copy.SystemMSICluster = c.SystemMSICluster
 	copy.EnableScaleFeatures = c.EnableScaleFeatures
 	copy.ImmutableUserMSIs = c.ImmutableUserMSIs
 	copy.NMIMode = c.NMIMode
 	copy.BlockInstanceMetadata = c.BlockInstanceMetadata
 	copy.ServicePrincipalClientID = c.ServicePrincipalClientID
 	copy.ServicePrincipalClientSecret = c.ServicePrincipalClientSecret
+	copy.MICSyncInterval = c.MICSyncInterval
 
 	return copy
 }

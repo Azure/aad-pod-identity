@@ -48,20 +48,37 @@ TOOLS_DIR := $(abspath ./.tools)
 
 # docker env var
 DOCKER_BUILDKIT = 1
-export DOCKER_BUILDKIT
+DOCKER_CLI_EXPERIMENTAL = enabled
+export DOCKER_BUILDKIT DOCKER_CLI_EXPERIMENTAL
+BUILD_PLATFORMS ?= linux/amd64,linux/arm64,linux/arm/v7
+# Output type of docker buildx build
+OUTPUT_TYPE ?= registry
 
-$(TOOLS_DIR)/golangci-lint: $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
+CONTROLLER_GEN := $(TOOLS_DIR)/controller-gen
+GOLANGCI_LINT := $(TOOLS_DIR)/golangci-lint
+KUSTOMIZE := $(TOOLS_DIR)/kustomize
+MISSPELL := $(TOOLS_DIR)/misspell
+
+$(CONTROLLER_GEN): $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
+	cd $(TOOLS_MOD_DIR) && \
+		go build -o $(TOOLS_DIR)/controller-gen sigs.k8s.io/controller-tools/cmd/controller-gen
+
+$(GOLANGCI_LINT): $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
 	cd $(TOOLS_MOD_DIR) && \
 	go build -o $(TOOLS_DIR)/golangci-lint github.com/golangci/golangci-lint/cmd/golangci-lint
 
-$(TOOLS_DIR)/misspell: $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
+$(KUSTOMIZE): $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
+	cd $(TOOLS_MOD_DIR) && \
+		go build -o $(TOOLS_DIR)/kustomize sigs.k8s.io/kustomize/kustomize/v3
+
+$(MISSPELL): $(TOOLS_MOD_DIR)/go.mod $(TOOLS_MOD_DIR)/go.sum $(TOOLS_MOD_DIR)/tools.go
 	cd $(TOOLS_MOD_DIR) && \
 	go build -o $(TOOLS_DIR)/misspell github.com/client9/misspell/cmd/misspell
 
 .PHONY: lint
-lint: $(TOOLS_DIR)/golangci-lint $(TOOLS_DIR)/misspell
-	$(TOOLS_DIR)/golangci-lint run --timeout=5m
-	$(TOOLS_DIR)/misspell -w $(ALL_DOCS)
+lint: $(GOLANGCI_LINT) $(MISSPELL)
+	$(GOLANGCI_LINT) run --timeout=5m
+	$(MISSPELL) -w $(ALL_DOCS)
 	$(MAKE) check-mod
 
 .PHONY: clean-nmi
@@ -76,7 +93,7 @@ clean-mic:
 clean-demo:
 	rm -rf bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME)
 
-.PHONY: clean-idenity-validator
+.PHONY: clean-identity-validator
 clean-identity-validator:
 	rm -rf bin/$(PROJECT_NAME)/$(IDENTITY_VALIDATOR_BINARY_NAME)
 
@@ -106,7 +123,7 @@ build-demo: clean-demo
 	PKG_NAME=github.com/Azure/$(PROJECT_NAME)/cmd/$(DEMO_BINARY_NAME) ${MAKE} bin/$(PROJECT_NAME)/$(DEMO_BINARY_NAME)
 
 bin/%:
-	GOOS=$(GOOS) GOARCH=amd64 go build $(GO_BUILD_OPTIONS) -o "$(@)" "$(PKG_NAME)"
+	GOOS=$(GOOS) go build $(GO_BUILD_OPTIONS) -o "$(@)" "$(PKG_NAME)"
 
 .PHONY: build-identity-validator
 build-identity-validator: clean-identity-validator
@@ -122,33 +139,52 @@ precommit: build unit-test lint
 deepcopy-gen:
 	deepcopy-gen -i ./pkg/apis/aadpodidentity/v1/ -o . -O aadpodidentity_deepcopy_generated -p aadpodidentity
 
+.PHONY: docker-buildx-builder
+docker-buildx-builder:
+	docker run --rm --privileged docker/binfmt:820fdd95a9972a5308930a2bdfb8573dd4447ad3
+	if ! docker buildx ls | grep -q container-builder; then \
+		DOCKER_CLI_EXPERIMENTAL=enabled docker buildx create --name container-builder --use; \
+	fi
+
 .PHONY: image-nmi
 image-nmi:
-	docker build \
+	docker buildx build \
 		--target nmi \
+		--no-cache \
 		--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
+		--platform "$(BUILD_PLATFORMS)" \
+		--output=type=$(OUTPUT_TYPE) \
 		-t $(REGISTRY)/$(NMI_IMAGE) .
 
 .PHONY: image-mic
 image-mic:
-	docker build \
+	docker buildx build \
 		--target mic \
+		--no-cache \
 		--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
+		--platform "$(BUILD_PLATFORMS)" \
+		--output=type=$(OUTPUT_TYPE) \
 		-t "$(REGISTRY)/$(MIC_IMAGE)" .
 
 .PHONY: image-demo
 image-demo:
-	docker build \
-		--target demo \
-		--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
-		-t "$(REGISTRY)/$(DEMO_IMAGE)" .
+	docker buildx build \
+	 	--target demo \
+		--no-cache \
+	  	--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
+		--platform "$(BUILD_PLATFORMS)" \
+		--output=type=$(OUTPUT_TYPE) \
+	    -t "$(REGISTRY)/$(DEMO_IMAGE)" .
 
 .PHONY: image-identity-validator
 image-identity-validator:
-	docker build \
-		--target identityvalidator \
-		--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
-		-t "$(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE)" .
+	docker buildx build \
+	 	--target identityvalidator \
+		--no-cache \
+	 	--build-arg IMAGE_VERSION=$(IMAGE_VERSION) \
+		--platform "$(BUILD_PLATFORMS)" \
+		--output=type=$(OUTPUT_TYPE) \
+	   	-t "$(REGISTRY)/$(IDENTITY_VALIDATOR_IMAGE)" .
 
 .PHONY: images
 images: image-nmi image-mic image-demo image-identity-validator
@@ -202,3 +238,23 @@ helm-lint:
 	curl https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
 	# run lint on helm charts
 	helm lint --strict manifest_staging/charts/aad-pod-identity
+
+.PHONY: generate-crds
+generate-crds: $(CONTROLLER_GEN) $(KUSTOMIZE)
+	$(CONTROLLER_GEN) crd:trivialVersions=true paths=./pkg/apis/aadpodidentity/v1/...
+	$(KUSTOMIZE) build config/crd > config/crd/aadpodidentity.k8s.io.yaml
+	rm -rf config/crd/aadpodidentity.k8s.io_*
+
+.PHONY: promote-staging-manifest
+promote-staging-manifest:
+	@gsed -i "s/version: .*/version: ${NEW_CHART_VERSION}/g" manifest_staging/charts/aad-pod-identity/Chart.yaml
+	@gsed -i "s/appVersion: .*/appVersion: ${NEW_APP_VERSION}/g" manifest_staging/charts/aad-pod-identity/Chart.yaml
+	@gsed -i "s/tag: .*/tag: v${NEW_APP_VERSION}/g" manifest_staging/charts/aad-pod-identity/values.yaml
+	@rm -rf deploy charts/aad-pod-identity
+	@cp -r manifest_staging/deploy .
+	@cp -r manifest_staging/charts .
+	@mkdir -p ./charts/tmp
+	@helm package ./charts/aad-pod-identity -d ./charts/tmp/
+	@helm repo index ./charts/tmp --url https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts --merge ./charts/index.yaml
+	@mv ./charts/tmp/* ./charts
+	@rm -rf ./charts/tmp

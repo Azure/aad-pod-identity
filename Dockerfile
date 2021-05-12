@@ -1,13 +1,23 @@
+ARG BUILDPLATFORM="linux/amd64"
+ARG BUILDERIMAGE="golang:1.16"
 ARG BASEIMAGE=gcr.io/distroless/static:nonroot
 
-FROM golang:1.15 AS builder
+FROM --platform=$BUILDPLATFORM $BUILDERIMAGE as builder
+
+ARG TARGETPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
+
 WORKDIR /go/src/github.com/Azure/aad-pod-identity
 ADD . .
 RUN go mod download
 ARG IMAGE_VERSION
-RUN make build
+RUN export GOOS=$TARGETOS && \
+    export GOARCH=$TARGETARCH && \
+    export GOARM=$(echo ${TARGETPLATFORM} | cut -d / -f3 | tr -d 'v') && \
+    make build
 
-FROM us.gcr.io/k8s-artifacts-prod/build-image/debian-iptables-amd64:v12.1.2 AS nmi
+FROM k8s.gcr.io/build-image/debian-iptables:buster-v1.6.0 AS nmi
 RUN clean-install ca-certificates
 COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
 RUN useradd -u 10001 nonroot

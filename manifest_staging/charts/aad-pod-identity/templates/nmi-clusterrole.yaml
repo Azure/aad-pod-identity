@@ -26,4 +26,11 @@ rules:
   resources: ["azureassignedidentities"]
   verbs: ["get", "list", "watch"]
 {{- end -}}
+{{- if .Values.rbac.pspEnabled }}
+- apiGroups: ['policy']
+  resources: ['podsecuritypolicies']
+  verbs:     ['use']
+  resourceNames:
+    - {{ template "aad-pod-identity-psp.nmi.fullname" . }}
+{{- end }}
 {{- end }}

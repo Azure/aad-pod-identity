@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"sync"
@@ -110,7 +109,7 @@ func (t *TestClientSet) SerializeObject(o interface{}) io.ReadCloser {
 	if err != nil {
 		panic(err)
 	}
-	return ioutil.NopCloser(bytes.NewReader([]byte(output)))
+	return io.NopCloser(bytes.NewReader([]byte(output)))
 }
 
 func (t *TestClientSet) GetPodList() io.ReadCloser {
