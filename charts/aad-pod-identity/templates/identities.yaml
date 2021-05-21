@@ -31,7 +31,7 @@ items:
       labels:
         {{- include "aad-pod-identity.labels" $ | nindent 8 }}
     spec:
-      name: {{ default $key $value.name  }}
+      azureIdentity: {{ default $key $value.name }}
       selector: {{ required "binding.selector is required!" $value.binding.selector }}
 {{- end }}
 {{- end -}}
