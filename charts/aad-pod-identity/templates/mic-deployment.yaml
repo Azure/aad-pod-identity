@@ -23,10 +23,11 @@ spec:
       {{- if .Values.mic.podLabels }}
       {{- toYaml .Values.mic.podLabels | nindent 8 }}
       {{- end }}
-{{- if .Values.mic.podAnnotations }}
       annotations:
-{{ toYaml .Values.mic.podAnnotations | indent 8 }}
-{{- end }}
+        checksum/config: {{ include (print $.Template.BasePath "/mic-secret.yaml") . | sha256sum }}
+        {{- if .Values.mic.podAnnotations }}
+        {{ toYaml .Values.mic.podAnnotations | nindent 8 }}
+        {{- end }}
     spec:
       {{- if .Values.imagePullSecrets }}
       imagePullSecrets:
