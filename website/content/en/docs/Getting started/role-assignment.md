@@ -51,11 +51,11 @@ After your cluster is provisioned, depending on your cluster identity configurat
 
 | Cluster configuration                            | Command                                                                                                                                                                     |
 |--------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| AKS cluster with service principal               | `az aks show -g <AKSResourceGroup> -n <AKSClusterName> --query servicePrincipalProfile.clientId -otsv`                                                                      |
-| AKS cluster with managed identity                | `az aks show -g <AKSResourceGroup> -n <AKSClusterName> --query identityProfile.kubeletidentity.clientId -otsv`                                                              |
+| AKS cluster with service principal               | `az aks show -g <AKSResourceGroup> -n <AKSClusterName> --query servicePrincipalProfile.clientId -o tsv`                                                                      |
+| AKS cluster with managed identity                | `az aks show -g <AKSResourceGroup> -n <AKSClusterName> --query identityProfile.kubeletidentity.clientId -o tsv`                                                              |
 | aks-engine cluster with service principal        | Use the client ID of the service principal defined in the API model                                                                                                         |
-| aks-engine cluster with system-assigned identity | `az <vm|vmss> identity show -g <NodeResourceGroup> -n <VM|VMSS Name> --query principalId -otsv`                                                                             |
-| aks-engine cluster with user-assigned identity   | `az <vm|vmss> identity show -g <NodeResourceGroup> -n <VM|VMSS Name> --query userAssignedIdentities -otsv`, then copy the `clientID` of the selected user-assigned identity |
+| aks-engine cluster with system-assigned identity | `az <vm|vmss> identity show -g <NodeResourceGroup> -n <VM|VMSS Name> --query principalId -o tsv`                                                                             |
+| aks-engine cluster with user-assigned identity   | `az <vm|vmss> identity show -g <NodeResourceGroup> -n <VM|VMSS Name> --query userAssignedIdentities -o tsv`, then copy the `clientID` of the selected user-assigned identity |
 
 ## Performing role assignments
 
