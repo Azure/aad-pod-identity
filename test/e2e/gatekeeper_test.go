@@ -30,9 +30,6 @@ spec:
     spec:
       names:
         kind: azureidentityformat
-        listKind: azureidentityformatList
-        plural: azureidentityformat
-        singular: azureidentityformat
   targets:
     - target: admission.k8s.gatekeeper.sh
       rego: |
