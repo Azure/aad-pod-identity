@@ -14,6 +14,8 @@ spec:
     matchLabels:
       {{- include "aad-pod-identity.selectors" . | nindent 6 }}
       app.kubernetes.io/component: nmi
+  updateStrategy:
+    {{ toYaml .Values.nmi.updateStrategy | indent 4 }}
   template:
     metadata:
       labels:
