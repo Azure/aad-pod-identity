@@ -93,7 +93,7 @@ func Create(input CreateInput) *corev1.Pod {
 		pod.Spec.InitContainers = []corev1.Container{
 			{
 				Name:  "init-myservice",
-				Image: "microsoft/azure-cli:latest",
+				Image: "mcr.microsoft.com/azure-cli:latest",
 				Command: []string{
 					"sh",
 					"-c",
