@@ -8,7 +8,7 @@ pr:
     exclude:
       - docs/*
 
-pool: Upstream Pool
+pool: staging-pool
 
 jobs:
   - template: templates/unit-test.yml
