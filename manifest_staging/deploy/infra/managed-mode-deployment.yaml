@@ -20,7 +20,18 @@ spec:
     singular: azureidentity
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.type
+      name: Type
+      type: string
+    - jsonPath: .spec.clientID
+      name: ClientID
+      type: string
+    - description: CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
     schema:
       openAPIV3Schema:
         description: AzureIdentity is the specification of the identity data structure.
@@ -88,6 +99,7 @@ spec:
         type: object
     served: true
     storage: true
+    subresources: {}
 status:
   acceptedNames:
     kind: ""
@@ -111,7 +123,18 @@ spec:
     singular: azureidentitybinding
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.azureIdentity
+      name: AzureIdentity
+      type: string
+    - jsonPath: .spec.selector
+      name: Selector
+      type: string
+    - description: CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
     schema:
       openAPIV3Schema:
         description: AzureIdentityBinding brings together the spec of matching pods and the identity which they can use.
@@ -149,6 +172,7 @@ spec:
         type: object
     served: true
     storage: true
+    subresources: {}
 status:
   acceptedNames:
     kind: ""
@@ -212,7 +236,6 @@ status:
     plural: ""
   conditions: []
   storedVersions: []
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

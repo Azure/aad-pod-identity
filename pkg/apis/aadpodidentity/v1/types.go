@@ -31,6 +31,9 @@ const (
 
 // AzureIdentity is the specification of the identity data structure.
 //+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+//+kubebuilder:printcolumn:name="Type",type="string",JSONPath=".spec.type",description="",priority=0
+//+kubebuilder:printcolumn:name="ClientID",type="string",JSONPath=".spec.clientID",description="",priority=0
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC."
 type AzureIdentity struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -41,6 +44,9 @@ type AzureIdentity struct {
 
 // AzureIdentityBinding brings together the spec of matching pods and the identity which they can use.
 //+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+//+kubebuilder:printcolumn:name="AzureIdentity",type="string",JSONPath=".spec.azureIdentity",description="",priority=0
+//+kubebuilder:printcolumn:name="Selector",type="string",JSONPath=".spec.selector",description="",priority=0
+//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC."
 type AzureIdentityBinding struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
