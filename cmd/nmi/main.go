@@ -50,6 +50,7 @@ var (
 	operationMode                      = pflag.String("operation-mode", "standard", "NMI operation mode")
 	allowNetworkPluginKubenet          = pflag.Bool("allow-network-plugin-kubenet", false, "Allow running aad-pod-identity in cluster with kubenet")
 	kubeletConfig                      = pflag.String("kubelet-config", "/etc/default/kubelet", "Path to kubelet default config")
+	setRetryAfterHeader                = pflag.Bool("set-retry-after-header", false, "Set Retry-After header in NMI responses")
 )
 
 func main() {
@@ -112,7 +113,7 @@ func main() {
 	*forceNamespaced = *forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
 	klog.Infof("running NMI in namespaced mode: %v", *forceNamespaced)
 
-	s := server.NewServer(*micNamespace, *blockInstanceMetadata, *metadataHeaderRequired)
+	s := server.NewServer(*micNamespace, *blockInstanceMetadata, *metadataHeaderRequired, *setRetryAfterHeader)
 	s.KubeClient = client
 	s.MetadataIP = *metadataIP
 	s.MetadataPort = *metadataPort
