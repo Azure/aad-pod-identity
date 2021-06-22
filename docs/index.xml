@@ -1154,12 +1154,13 @@ kubectl delete -f https://raw.githubusercontent.com/Azure/aad-pod-identity/maste
 &lt;/code>&lt;/pre>&lt;/div></description></item><item><title>Docs: Feature Flags</title><link>https://azure.github.io/aad-pod-identity/docs/configure/feature_flags/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/feature_flags/</guid><description>
 &lt;h2 id="enable-scale-features-flag">Enable Scale Features flag&lt;/h2>
 &lt;blockquote>
-&lt;p>Available from 1.5.3 release&lt;/p>
+&lt;p>Available from 1.5.3 release
+This flag is enabled by default starting from v1.8.1 release&lt;/p>
 &lt;/blockquote>
-&lt;p>Aad-pod-identity adds labels to AzureAssignedIdentities which denote the nodename, podname and podnamespace.
-When the optional parameter &lt;code>enableScaleFeatures&lt;/code> is set to &lt;code>true&lt;/code>, the NMI watches for AzureAssignedIdentities will do a label based filtering on
-the nodename label. This approach is taken because currently K8s does not support field selectors in CRD watches. This reduces the load which
-NMIs add on API server. When this flag is enabled, NMI will no longer work for AzureAssignedIdentities which were created before 1.5.3-rc5, since
+&lt;p>AAD Pod Identity adds labels to &lt;code>AzureAssignedIdentities&lt;/code> which denote the nodename, podname and podnamespace.
+When the optional parameter &lt;code>enableScaleFeatures&lt;/code> is set to &lt;code>true&lt;/code>, the NMI watches for &lt;code>AzureAssignedIdentities&lt;/code> will do a label based filtering on
+the nodename label. This approach is taken because currently Kubernetes does not support field selectors in CRD watches. This reduces the load which
+NMIs add on API server. When this flag is enabled, NMI will no longer work for &lt;code>AzureAssignedIdentities&lt;/code> which were created before 1.5.3-rc5, since
 they don&amp;rsquo;t have the labels. Hence please note that this flag renders your setup incompatible with releases before 1.5.3-rc5.&lt;/p>
 &lt;h2 id="batch-create-delete-flag">Batch Create Delete flag&lt;/h2>
 &lt;blockquote>
