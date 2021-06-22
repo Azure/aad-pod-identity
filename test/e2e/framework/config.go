@@ -25,7 +25,7 @@ type Config struct {
 	NMIVersion                   string        `envconfig:"NMI_VERSION" default:"v1.8.0"`
 	Registry                     string        `envconfig:"REGISTRY" default:"mcr.microsoft.com/oss/azure/aad-pod-identity"`
 	IdentityValidatorVersion     string        `envconfig:"IDENTITY_VALIDATOR_VERSION" default:"v1.8.0"`
-	EnableScaleFeatures          bool          `envconfig:"ENABLE_SCALE_FEATURES" default:"false"`
+	EnableScaleFeatures          bool          `envconfig:"ENABLE_SCALE_FEATURES" default:"true"`
 	ImmutableUserMSIs            string        `envconfig:"IMMUTABLE_IDENTITY_CLIENT_ID"`
 	NMIMode                      string        `envconfig:"NMI_MODE" default:"standard"`
 	BlockInstanceMetadata        bool          `envconfig:"BLOCK_INSTANCE_METADATA" default:"true"`

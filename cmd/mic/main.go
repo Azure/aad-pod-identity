@@ -130,7 +130,7 @@ func main() {
 	}
 
 	if enableScaleFeatures {
-		klog.Infof("enabling features for scale clusters")
+		klog.Infof("enableScaleFeatures is DEPRECATED for MIC and isn't required. This flag will be removed in the next release.")
 	}
 
 	klog.Infof("kubeconfig (%s) cloudconfig (%s)", kubeconfig, cloudconfig)
@@ -158,7 +158,6 @@ func main() {
 		IsNamespaced:                        forceNamespaced,
 		SyncRetryInterval:                   syncRetryDuration,
 		LeaderElectionCfg:                   &leaderElectionCfg,
-		EnableScaleFeatures:                 enableScaleFeatures,
 		CreateDeleteBatch:                   createDeleteBatch,
 		ImmutableUserMSIsList:               immutableUserMSIsList,
 		CMcfg:                               &cmConfig,
