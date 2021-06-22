@@ -14,7 +14,7 @@ helm install aad-pod-identity aad-pod-identity/aad-pod-identity
 ## Helm chart and aad-pod-identity versions
 
 | Helm Chart Version | AAD Pod Identity Version | Compatible with Helm 2 |
-|--------------------|--------------------------|------------------------|
+| ------------------ | ------------------------ | ---------------------- |
 | `1.5.2`            | `1.5.2`                  | ✔️                      |
 | `1.5.3`            | `1.5.3`                  | ✔️                      |
 | `1.5.4`            | `1.5.4`                  | ✔️                      |
@@ -234,7 +234,7 @@ The following is a basic example of the required change in the user-supplied val
 The following tables list the configurable parameters of the aad-pod-identity chart and their default values.
 
 | Parameter                                 | Description                                                                                                                                                                                                                                                                                                                   | Default                                                        |
-|-------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
 | `nameOverride`                            | String to partially override aad-pod-identity.fullname template with a string (will prepend the release name)                                                                                                                                                                                                                 | `""`                                                           |
 | `fullnameOverride`                        | String to fully override aad-pod-identity.fullname template with a string                                                                                                                                                                                                                                                     | `""`                                                           |
 | `image.repository`                        | Image repository                                                                                                                                                                                                                                                                                                              | `mcr.microsoft.com/oss/azure/aad-pod-identity`                 |

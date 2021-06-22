@@ -218,8 +218,8 @@ nmi:
   findIdentityRetryIntervalInSeconds: ""
 
   # Enable scale features - https://github.com/Azure/aad-pod-identity/blob/master/docs/readmes/README.featureflags.md#enable-scale-features-flag
-  # Accepted values are true/false. Default is false.
-  enableScaleFeatures: ""
+  # Accepted values are true/false. Default is true for v1.8.1+.
+  enableScaleFeatures: true
 
   # default value is 9090
   # prometheus port for metrics

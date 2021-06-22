@@ -88,7 +88,6 @@ type Client struct {
 	IsNamespaced                        bool
 	SyncLoopStarted                     bool
 	syncRetryInterval                   time.Duration
-	enableScaleFeatures                 bool
 	createDeleteBatch                   int64
 	ImmutableUserMSIsMap                map[string]bool
 	identityAssignmentReconcileInterval time.Duration
@@ -110,7 +109,6 @@ type Config struct {
 	IsNamespaced                        bool
 	SyncRetryInterval                   time.Duration
 	LeaderElectionCfg                   *LeaderElectionConfig
-	EnableScaleFeatures                 bool
 	CreateDeleteBatch                   int64
 	ImmutableUserMSIsList               []string
 	CMcfg                               *CMConfig
@@ -216,7 +214,6 @@ func NewMICClient(cfg *Config) (*Client, error) {
 		NodeClient:                          &NodeClient{informer.Core().V1().Nodes()},
 		IsNamespaced:                        cfg.IsNamespaced,
 		syncRetryInterval:                   cfg.SyncRetryInterval,
-		enableScaleFeatures:                 cfg.EnableScaleFeatures,
 		createDeleteBatch:                   cfg.CreateDeleteBatch,
 		ImmutableUserMSIsMap:                immutableUserMSIsMap,
 		TypeUpgradeCfg:                      cfg.TypeUpgradeCfg,
