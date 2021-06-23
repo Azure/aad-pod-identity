@@ -17,12 +17,8 @@ RUN export GOOS=$TARGETOS && \
     export GOARM=$(echo ${TARGETPLATFORM} | cut -d / -f3 | tr -d 'v') && \
     make build
 
-FROM k8s.gcr.io/build-image/debian-iptables:buster-v1.6.3 AS nmi
-# upgrading libgcrypt20 due to CVE-2021-33560
-# upgrading libgnutls30 due to CVE-2021-20231, CVE-2021-20232, CVE-2020-24659
-# upgrading libhogweed4 due to CVE-2021-20305, CVE-2021-3580
-# upgrading libnettle6 due to CVE-2021-20305, CVE-2021-3580
-RUN clean-install ca-certificates libgcrypt20 libgnutls30 libhogweed4 libnettle6
+FROM k8s.gcr.io/build-image/debian-iptables:buster-v1.6.5 AS nmi
+RUN clean-install ca-certificates
 COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
 RUN useradd -u 10001 nonroot
 USER nonroot
