@@ -25,7 +25,7 @@ type WaitInput struct {
 }
 
 // Wait waits for an AzureAssignedIdentity to reach a desired state.
-func Wait(input WaitInput) {
+func Wait(input WaitInput) *aadpodv1.AzureAssignedIdentity {
 	Expect(input.Getter).NotTo(BeNil(), "input.Getter is required for AzureAssignedIdentity.Wait")
 	Expect(input.PodName).NotTo(BeEmpty(), "input.PodName is required for AzureAssignedIdentity.Wait")
 	Expect(input.Namespace).NotTo(BeEmpty(), "input.Namespace is required for AzureAssignedIdentity.Wait")
@@ -36,8 +36,8 @@ func Wait(input WaitInput) {
 
 	By(fmt.Sprintf("Ensuring that AzureAssignedIdentity \"%s\" is in %s state", name, input.StateToWaitFor))
 
+	azureAssignedIdentity := &aadpodv1.AzureAssignedIdentity{}
 	Eventually(func() bool {
-		azureAssignedIdentity := &aadpodv1.AzureAssignedIdentity{}
 
 		// AzureAssignedIdentity is always in default namespace unless MIC is in namespaced mode
 		if err := input.Getter.Get(context.TODO(), client.ObjectKey{Name: name, Namespace: corev1.NamespaceDefault}, azureAssignedIdentity); err != nil {
@@ -48,6 +48,8 @@ func Wait(input WaitInput) {
 		}
 		return false
 	}, framework.Timeout, framework.Polling).Should(BeTrue())
+
+	return azureAssignedIdentity
 }
 
 // WaitForLenInput is the input for WaitForLen.

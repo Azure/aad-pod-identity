@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -608,6 +609,10 @@ func (c *Client) createDesiredAssignedIdentityList(
 			continue
 		}
 
+		// sort all matching bindings so we can iterate the slice
+		// in an deterministic fashion in different sync cycles
+		sort.Sort(aadpodid.AzureIdentityBindings(matchedBindings))
+
 		for _, binding := range matchedBindings {
 			klog.V(5).Infof("looking up id map: %s/%s", binding.Namespace, binding.Spec.AzureIdentity)
 			if azureID, idPresent := idMap[getIDKey(binding.Namespace, binding.Spec.AzureIdentity)]; idPresent {
@@ -627,7 +632,14 @@ func (c *Client) createDesiredAssignedIdentityList(
 					klog.Errorf("failed to create an AzureAssignedIdentity between pod %s/%s and AzureIdentity %s/%s, error: %+v", pod.Namespace, pod.Name, azureID.Namespace, azureID.Name, err)
 					continue
 				}
-				newAssignedIDs[assignedID.Name] = *assignedID
+
+				if a, ok := newAssignedIDs[assignedID.Name]; ok {
+					// see https://github.com/Azure/aad-pod-identity/issues/1065
+					klog.Warningf("AzureIdentity %s exists in both %s and %s namespace. Considering renaming it or enabling Namespace mode (https://azure.github.io/aad-pod-identity/docs/configure/match_pods_in_namespace)",
+						azureID.Name, a.Spec.AzureIdentityRef.Namespace, azureID.Namespace)
+				} else {
+					newAssignedIDs[assignedID.Name] = *assignedID
+				}
 			} else {
 				// This is the case where the identity has been deleted.
 				// In such a case, we will skip it from matching binding.
