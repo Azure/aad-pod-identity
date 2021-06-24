@@ -35,14 +35,6 @@ jobs:
         - ${{ if eq(clusterConfig, 'aks') }}:
           - template: deploy-aks-cluster.yml
 
-          - script: |
-              if [[ -n "${GINKGO_SKIP:-}" ]]; then
-                GINKGO_SKIP="${GINKGO_SKIP}|"
-              fi
-              GINKGO_SKIP="${GINKGO_SKIP}should.be.backward.compatible.with.old.and.new.version.of.MIC.and.NMI"
-              echo "##vso[task.setvariable variable=GINKGO_SKIP]${GINKGO_SKIP}"
-            displayName: "Disable backward compatibility test case"
-
         - ${{ if not(eq(clusterConfig, 'aks')) }}:
           - template: deploy-aks-engine-cluster.yml
 
