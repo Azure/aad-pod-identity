@@ -312,6 +312,7 @@ spec:
           - "--operation-mode=managed"
           - "--forceNamespaced"
           - "--http-probe-port=8085"
+          - "--enableScaleFeatures=true"
         env:
           - name: HOST_IP
             valueFrom:
