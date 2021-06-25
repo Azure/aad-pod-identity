@@ -509,7 +509,7 @@ spec:
       - name: mic
         image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.8.0"
         args:
-          - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"
+          - "--kubeconfig=/var/lib/kubelet/kubeconfig"
           - "--logtostderr"
         securityContext:
           runAsUser: 0
@@ -561,8 +561,8 @@ spec:
             cpu: 100m
             memory: 256Mi
         volumeMounts:
-          - name: kubeconfig
-            mountPath: /etc/kubernetes/kubeconfig
+          - name: kubelet-config
+            mountPath: /var/lib/kubelet
             readOnly: true
           - name: certificates
             mountPath: /etc/kubernetes/certs
@@ -574,7 +574,7 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 5
       volumes:
-      - name: kubeconfig
+      - name: kubelet-config
         hostPath:
           path: /var/lib/kubelet
       - name: certificates
