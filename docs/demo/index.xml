@@ -74,7 +74,7 @@ helm install aad-pod-identity aad-pod-identity/aad-pod-identity
 &lt;/span>&lt;span style="color:#4e9a06">spec:
 &lt;/span>&lt;span style="color:#4e9a06"> containers:
 &lt;/span>&lt;span style="color:#4e9a06"> - name: demo
-&lt;/span>&lt;span style="color:#4e9a06"> image: mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.8.0
+&lt;/span>&lt;span style="color:#4e9a06"> image: mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.8.1
 &lt;/span>&lt;span style="color:#4e9a06"> args:
 &lt;/span>&lt;span style="color:#4e9a06"> - --subscription-id=${SUBSCRIPTION_ID}
 &lt;/span>&lt;span style="color:#4e9a06"> - --resource-group=${IDENTITY_RESOURCE_GROUP}
