@@ -3,7 +3,7 @@ module github.com/Azure/aad-pod-identity/test/e2e
 go 1.16
 
 require (
-	github.com/Azure/aad-pod-identity v1.8.0
+	github.com/Azure/aad-pod-identity v1.8.1
 	github.com/Azure/azure-sdk-for-go v54.0.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.11.18
 	github.com/Azure/go-autorest/autorest/adal v0.9.13

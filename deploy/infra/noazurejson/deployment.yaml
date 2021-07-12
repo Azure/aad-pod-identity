@@ -31,7 +31,7 @@ spec:
             description: AzureAssignedIdentitySpec contains the relationship between an AzureIdentity and an AzureIdentityBinding.
             properties:
               azureBindingRef:
-                description: AzureIdentityBinding brings together the spec of matching pods and the identity which they can use.
+                description: AzureBindingRef is an embedded resource referencing the AzureIdentityBinding used by the AzureAssignedIdentity, which requires x-kubernetes-embedded-resource fields to be true
                 properties:
                   apiVersion:
                     description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -66,7 +66,7 @@ spec:
                 type: object
                 x-kubernetes-embedded-resource: true
               azureIdentityRef:
-                description: AzureIdentity is the specification of the identity data structure.
+                description: AzureIdentityRef is an embedded resource referencing the AzureIdentity used by the AzureAssignedIdentity, which requires x-kubernetes-embedded-resource fields to be true
                 properties:
                   apiVersion:
                     description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
@@ -180,7 +180,18 @@ spec:
     singular: azureidentity
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.type
+      name: Type
+      type: string
+    - jsonPath: .spec.clientID
+      name: ClientID
+      type: string
+    - description: CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
     schema:
       openAPIV3Schema:
         description: AzureIdentity is the specification of the identity data structure.
@@ -248,6 +259,7 @@ spec:
         type: object
     served: true
     storage: true
+    subresources: {}
 status:
   acceptedNames:
     kind: ""
@@ -271,7 +283,18 @@ spec:
     singular: azureidentitybinding
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.azureIdentity
+      name: AzureIdentity
+      type: string
+    - jsonPath: .spec.selector
+      name: Selector
+      type: string
+    - description: CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC.
+      jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
     schema:
       openAPIV3Schema:
         description: AzureIdentityBinding brings together the spec of matching pods and the identity which they can use.
@@ -309,6 +332,7 @@ spec:
         type: object
     served: true
     storage: true
+    subresources: {}
 status:
   acceptedNames:
     kind: ""
@@ -405,10 +429,11 @@ spec:
           type: FileOrCreate
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.8.0"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.8.1"
         args:
           - "--node=$(NODE_NAME)"
           - "--http-probe-port=8085"
+          - "--enableScaleFeatures=true"
         env:
           - name: HOST_IP
             valueFrom:
@@ -482,9 +507,9 @@ spec:
     spec:
       containers:
       - name: mic
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.8.0"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.8.1"
         args:
-          - "--kubeconfig=/etc/kubernetes/kubeconfig/kubeconfig"
+          - "--kubeconfig=/var/lib/kubelet/kubeconfig"
           - "--logtostderr"
         securityContext:
           runAsUser: 0
@@ -536,8 +561,8 @@ spec:
             cpu: 100m
             memory: 256Mi
         volumeMounts:
-          - name: kubeconfig
-            mountPath: /etc/kubernetes/kubeconfig
+          - name: kubelet-config
+            mountPath: /var/lib/kubelet
             readOnly: true
           - name: certificates
             mountPath: /etc/kubernetes/certs
@@ -549,7 +574,7 @@ spec:
           initialDelaySeconds: 10
           periodSeconds: 5
       volumes:
-      - name: kubeconfig
+      - name: kubelet-config
         hostPath:
           path: /var/lib/kubelet
       - name: certificates

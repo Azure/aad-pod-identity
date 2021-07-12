@@ -18,10 +18,10 @@ spec:
     spec:
       containers:
       - name: demo
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.8.0"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.8.1"
         args:
-          - "--subscriptionid=SUBSCRIPTION_ID"
-          - "--clientid=CLIENT_ID"
-          - "--resourcegroup=RESOURCE_GROUP"
+          - "--subscription-id=SUBSCRIPTION_ID"
+          - "--identity-client-id=CLIENT_ID"
+          - "--resource-group=RESOURCE_GROUP"
       nodeSelector:
         kubernetes.io/os: linux

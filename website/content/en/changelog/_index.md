@@ -7,7 +7,7 @@ menu:
     weight: 10
 ---
 
-## v1.8.0
+## v1.8.1
 
 ### Breaking Change
 
@@ -32,6 +32,47 @@ menu:
   # MANAGED MODE ONLY!
   kubectl delete crd azureassignedidentities.aadpodidentity.k8s.io
   ```
+
+### Features
+
+- Add additional columns to kubectl output ([#1093](https://github.com/Azure/aad-pod-identity/pull/1093))
+
+### Documentations
+
+- docs: fix managed mode URL ([#1066](https://github.com/Azure/aad-pod-identity/pull/1066))
+- Update documentation to use separator between output flag & argument ([#1081](https://github.com/Azure/aad-pod-identity/pull/1081))
+- docs: fix typo in feature flags ([#1083](https://github.com/Azure/aad-pod-identity/pull/1083))
+
+### Helm
+
+- Automatically checksum the mic-secret secret to roll mic deployment ([#1061](https://github.com/Azure/aad-pod-identity/pull/1061))
+- helm: correct spec field for AzureIdentityBinding ([#1069](https://github.com/Azure/aad-pod-identity/pull/1069))
+- release: helm charts 4.1.1 ([#1076](https://github.com/Azure/aad-pod-identity/pull/1076))
+- Adds a default affinity rule to values.yaml ([#1082](https://github.com/Azure/aad-pod-identity/pull/1082))
+
+### Security
+
+- chore: bump golang.org/x/crypto to v0.0.0-20201216223049-8b5274cf687f ([#1073](https://github.com/Azure/aad-pod-identity/pull/1073))
+- dockerfile: fix CVE-2021-3520 ([#1078](https://github.com/Azure/aad-pod-identity/pull/1078))
+- chore(deps): bump browserslist from 4.14.5 to 4.16.6 in /website ([#1080](https://github.com/Azure/aad-pod-identity/pull/1080))
+- chore(deps): bump glob-parent from 5.1.1 to 5.1.2 in /website ([#1091](https://github.com/Azure/aad-pod-identity/pull/1091))
+- chore(deps): bump postcss from 7.0.35 to 7.0.36 in /website ([#1096](https://github.com/Azure/aad-pod-identity/pull/1096))
+- dockerfile: upgrade multiple packages due to CVEs ([#1097](https://github.com/Azure/aad-pod-identity/pull/1097))
+- chore: update debian base to buster-v1.6.5 ([#1101](https://github.com/Azure/aad-pod-identity/pull/1101))
+
+### Bug Fixes
+
+- fix: use correct flags for demo image ([#1087](https://github.com/Azure/aad-pod-identity/pull/1087))
+- fix: Remove incorrect fields from gatekeeper e2e test ([#1090](https://github.com/Azure/aad-pod-identity/pull/1090))
+- fix: prevent overwriting of AzureAssignedIdentity when creating it ([#1100](https://github.com/Azure/aad-pod-identity/pull/1100))
+- fix: mount kubelet config to /var/lib/kubelet for non-rbac deployment ([#1098](https://github.com/Azure/aad-pod-identity/pull/1098))
+
+### Other Improvements
+
+- ci: switch to staging-pool ([#1095](https://github.com/Azure/aad-pod-identity/pull/1095))
+- chore: enable scale features by default ([#1099](https://github.com/Azure/aad-pod-identity/pull/1099))
+
+## v1.8.0
 
 ### Features
 
