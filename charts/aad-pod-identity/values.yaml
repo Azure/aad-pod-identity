@@ -43,7 +43,7 @@ operationMode: "standard"
 
 mic:
   image: mic
-  tag: v1.8.0
+  tag: v1.8.1
 
   # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
@@ -75,17 +75,18 @@ mic:
     # - key: "CriticalAddonsOnly"
     #   operator: "Exists"
 
-  # ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity
-  affinity: {}
-    # nodeAffinity:
-    #   preferredDuringSchedulingIgnoredDuringExecution:
-    #     - weight 1
-    #       preference:
-    #         matchExpressions:
-    #           - key: kubernetes.azure.com/mode
-    #             operator: In
-    #             values:
-    #               - system
+  # Affinity rules to apply to the mic deployment.
+  # Uses an anti-affinity rule to prefer not to co-locate pods on the same node as default.
+  # ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 1
+        podAffinityTerm:
+          topologyKey: kubernetes.io/hostname
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/component: mic
 
   # Topology spread constraints rely on node labels to identify the topology domain(s) that each Node is in.
   # ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/
@@ -156,7 +157,7 @@ mic:
 
 nmi:
   image: nmi
-  tag: v1.8.0
+  tag: v1.8.1
 
   # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
@@ -217,8 +218,8 @@ nmi:
   findIdentityRetryIntervalInSeconds: ""
 
   # Enable scale features - https://github.com/Azure/aad-pod-identity/blob/master/docs/readmes/README.featureflags.md#enable-scale-features-flag
-  # Accepted values are true/false. Default is false.
-  enableScaleFeatures: ""
+  # Accepted values are true/false. Default is true for v1.8.1+.
+  enableScaleFeatures: true
 
   # default value is 9090
   # prometheus port for metrics
