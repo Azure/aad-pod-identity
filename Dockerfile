@@ -18,7 +18,8 @@ RUN export GOOS=$TARGETOS && \
     make build
 
 FROM k8s.gcr.io/build-image/debian-iptables:buster-v1.6.5 AS nmi
-RUN clean-install ca-certificates
+# upgrading libsystemd0 and libudev1 due to CVE-2021-33910
+RUN clean-install ca-certificates libsystemd0 libudev1
 COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
 RUN useradd -u 10001 nonroot
 USER nonroot
