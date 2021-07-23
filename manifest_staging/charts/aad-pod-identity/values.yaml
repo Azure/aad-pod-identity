@@ -241,6 +241,9 @@ nmi:
   # default is /etc/default/kubelet
   kubeletConfig: "/etc/default/kubelet"
 
+  # Set retry-after header in the NMI responses when the identity is still being assigned.
+  setRetryAfterHeader: false
+
 rbac:
   enabled: true
   # NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity.

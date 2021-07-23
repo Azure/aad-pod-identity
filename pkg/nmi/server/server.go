@@ -36,6 +36,7 @@ const (
 	hostTokenPathPrefix = "/host/token"
 	// "/metadata" portion is case-insensitive in IMDS
 	instancePathPrefix = "/{type:(?i:metadata)}/instance" // #nosec
+	headerRetryAfter   = "Retry-After"
 )
 
 // Server encapsulates all of the parameters necessary for starting up
@@ -51,6 +52,7 @@ type Server struct {
 	Initialized                        bool
 	BlockInstanceMetadata              bool
 	MetadataHeaderRequired             bool
+	SetRetryAfterHeader                bool
 	// TokenClient is client that fetches identities and tokens
 	TokenClient nmi.TokenClient
 	Reporter    *metrics.Reporter
@@ -70,7 +72,7 @@ type MetadataResponse struct {
 }
 
 // NewServer will create a new Server with default values.
-func NewServer(micNamespace string, blockInstanceMetadata bool, metadataHeaderRequired bool) *Server {
+func NewServer(micNamespace string, blockInstanceMetadata, metadataHeaderRequired, setRetryAfterHeader bool) *Server {
 	reporter, err := metrics.NewReporter()
 	if err != nil {
 		klog.Errorf("failed to create reporter for metrics, error: %+v", err)
@@ -84,6 +86,7 @@ func NewServer(micNamespace string, blockInstanceMetadata bool, metadataHeaderRe
 		BlockInstanceMetadata:  blockInstanceMetadata,
 		MetadataHeaderRequired: metadataHeaderRequired,
 		Reporter:               reporter,
+		SetRetryAfterHeader:    setRetryAfterHeader,
 	}
 }
 
@@ -373,7 +376,14 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	podID, err := s.TokenClient.GetIdentities(r.Context(), podns, podname, tokenRequest.ClientID, tokenRequest.ResourceID)
 	if err != nil {
 		klog.Errorf("failed to get matching identities for pod: %s/%s, error: %+v", podns, podname, err)
-		http.Error(w, err.Error(), http.StatusNotFound)
+		httpErrorCode := http.StatusNotFound
+		if s.SetRetryAfterHeader {
+			httpErrorCode = http.StatusServiceUnavailable
+			// setting it to 20s to allow MIC to finish processing current cycle and pick up this
+			// pod in the next sync cycle
+			w.Header().Set(headerRetryAfter, "20")
+		}
+		http.Error(w, err.Error(), httpErrorCode)
 		return
 	}
 

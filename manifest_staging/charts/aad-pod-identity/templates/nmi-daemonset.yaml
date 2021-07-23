@@ -111,6 +111,9 @@ spec:
           {{- if .Values.customUserAgent }}
           - --custom-user-agent={{ .Values.customUserAgent }}
           {{- end }}
+          {{- if .Values.nmi.setRetryAfterHeader }}
+          - --set-retry-after-header={{ .Values.nmi.setRetryAfterHeader }}
+          {{- end }}
         env:
           {{- if semverCompare "<= 1.6.1-0" .Values.nmi.tag }}
           - name: HOST_IP

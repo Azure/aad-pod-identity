@@ -101,6 +101,9 @@ func generateValueArgs(config *framework.Config) []string {
 		fmt.Sprintf("--set=mic.tag=%s", config.MICVersion),
 		fmt.Sprintf("--set=nmi.tag=%s", config.NMIVersion),
 		fmt.Sprintf("--set=mic.syncRetryDuration=%s", config.MICSyncInterval),
+		fmt.Sprintf("--set=nmi.retryAttemptsForCreated=%d", config.RetryAttemptsForCreated),
+		fmt.Sprintf("--set=nmi.retryAttemptsForAssigned=%d", config.RetryAttemptsForAssigned),
+		fmt.Sprintf("--set=nmi.findIdentityRetryIntervalInSeconds=%d", config.FindIdentityRetryIntervalInSeconds),
 	}
 
 	// TODO (aramase) bump this to compare against v1.7.3 after next release
@@ -122,6 +125,10 @@ func generateValueArgs(config *framework.Config) []string {
 
 	if config.IdentityReconcileInterval != 0 {
 		args = append(args, fmt.Sprintf("--set=mic.identityAssignmentReconcileInterval=%s", config.IdentityReconcileInterval))
+	}
+
+	if config.SetRetryAfterHeader {
+		args = append(args, fmt.Sprintf("--set=nmi.setRetryAfterHeader=%t", config.SetRetryAfterHeader))
 	}
 
 	return args
