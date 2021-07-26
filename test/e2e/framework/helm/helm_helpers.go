@@ -85,6 +85,7 @@ func Upgrade(input UpgradeInput) {
 		"upgrade",
 		chartName,
 		"manifest_staging/charts/aad-pod-identity",
+		"--reuse-values",
 		"--wait",
 		fmt.Sprintf("--namespace=%s", framework.NamespaceKubeSystem),
 		"--debug",
