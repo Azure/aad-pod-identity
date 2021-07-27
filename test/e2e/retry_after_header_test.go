@@ -28,13 +28,13 @@ var _ = Describe("When SetRetryAfter header is enabled", func() {
 		})
 		// upgrade pod identity to use the feature flag set-retry-after-header and
 		// disable the internal retries.
-		c := *config
+		c := config.DeepCopy()
 		c.RetryAttemptsForCreated = 1
 		c.RetryAttemptsForAssigned = 1
 		c.FindIdentityRetryIntervalInSeconds = 1
 		c.SetRetryAfterHeader = true
 
-		helm.Upgrade(helm.UpgradeInput{Config: &c})
+		helm.Upgrade(helm.UpgradeInput{Config: c})
 	})
 
 	AfterEach(func() {

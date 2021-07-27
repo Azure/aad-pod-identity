@@ -60,6 +60,7 @@ func (c *Config) DeepCopy() *Config {
 	copy.ImmutableUserMSIs = c.ImmutableUserMSIs
 	copy.NMIMode = c.NMIMode
 	copy.BlockInstanceMetadata = c.BlockInstanceMetadata
+	copy.IsSoakTest = c.IsSoakTest
 	copy.ServicePrincipalClientID = c.ServicePrincipalClientID
 	copy.ServicePrincipalClientSecret = c.ServicePrincipalClientSecret
 	copy.MICSyncInterval = c.MICSyncInterval
