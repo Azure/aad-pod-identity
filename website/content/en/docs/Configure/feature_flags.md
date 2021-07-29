@@ -69,3 +69,18 @@ When you query the Instance Metadata Service, you must provide the header `Metad
 This is critical especially when you [acquire an access token](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http) as a mitigation against Server Side Request Forgery (SSRF) attack.
 
 The `metadataHeaderRequired` flag for NMI will block all requests without Metadata header and return an HTTP 400 response. This flag is disabled by default for compatibility, but recommended for users to enable this feature.
+
+## Set Retry-After header in NMI response
+
+> Available from v1.8.2 release
+
+NMI currently has internal retries to handle delays in the identity assignment when the pod requests for a token. In case of clients that have shorter timeouts, the retries can be terminated and the client will not receive a token in the first attempt. This feature flag when enabled will set the `Retry-After` header to 20s in the NMI response to the client and return a HTTP 503 response. The SDK used by the client will retry the request after 20s.
+
+### How to enable this feature
+
+While enabling this feature, you must also disable the internal retries in NMI.
+
+- If using the [yaml](../../getting-started/installation/#quick-install) to deploy aad-pod-identity, you can enable this feature by setting the `--set-retry-after-header=true` flag in the NMI container.
+  - Set `--retry-attempts-for-created=1`, `--retry-attempts-for-assigned=1` and `--find-identity-retry-interval=1` flags in the NMI container to disable the internal retries in NMI.
+- If using [helm](../../getting-started/installation/#helm) to deploy aad-pod-identity, you can enable this feature by setting `nmi.setRetryAfterHeader=true` as part of helm install/upgrade.
+  - Set `nmi.retryAttemptsForCreated=1`, `nmi.retryAttemptsForAssigned=1` and `nmi.findIdentityRetryIntervalInSeconds=1` flags in the helm install/upgrade command to disable the internal retries in NMI.
