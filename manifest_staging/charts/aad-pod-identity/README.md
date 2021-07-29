@@ -33,6 +33,7 @@ helm install aad-pod-identity aad-pod-identity/aad-pod-identity
 | `4.1.0`            | `1.8.0`                  | ✕                      |
 | `4.1.1`            | `1.8.0`                  | ✕                      |
 | `4.1.2`            | `1.8.1`                  | ✕                      |
+| `4.1.3`            | `1.8.2`                  | ✕                      |
 
 ## Introduction
 
