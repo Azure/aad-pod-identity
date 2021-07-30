@@ -43,7 +43,7 @@ operationMode: "standard"
 
 mic:
   image: mic
-  tag: v1.8.1
+  tag: v1.8.2
 
   # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
@@ -157,7 +157,7 @@ mic:
 
 nmi:
   image: nmi
-  tag: v1.8.1
+  tag: v1.8.2
 
   # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
@@ -240,6 +240,9 @@ nmi:
   # Path to kubelet default config.
   # default is /etc/default/kubelet
   kubeletConfig: "/etc/default/kubelet"
+
+  # Set retry-after header in the NMI responses when the identity is still being assigned.
+  setRetryAfterHeader: false
 
 rbac:
   enabled: true

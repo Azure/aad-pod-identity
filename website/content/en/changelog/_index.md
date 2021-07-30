@@ -7,7 +7,7 @@ menu:
     weight: 10
 ---
 
-## v1.8.1
+## v1.8.2
 
 ### Breaking Change
 
@@ -32,6 +32,30 @@ menu:
   # MANAGED MODE ONLY!
   kubectl delete crd azureassignedidentities.aadpodidentity.k8s.io
   ```
+
+### Security
+
+- dockerfile: fix CVE-2021-33910 ([#1116](https://github.com/Azure/aad-pod-identity/pull/1116))
+
+### Other Improvements
+
+- Create stale.yml ([b2fdbfde42c5fa8da68622f87d023c7dcf2dddfd](https://github.com/Azure/aad-pod-identity/commit/b2fdbfde42c5fa8da68622f87d023c7dcf2dddfd))
+- chore: update .github/stale.yml ([#1117](https://github.com/Azure/aad-pod-identity/pull/1117))
+- chore: switch from probot/stale to actions/stale ([#1118](https://github.com/Azure/aad-pod-identity/pull/1118))
+
+### Bug Fixes
+
+- fix: change stale bot trigger frequency to every day ([#1119](https://github.com/Azure/aad-pod-identity/pull/1119))
+
+### Features
+
+- feat: option to set Retry-After in NMI responses ([#1114](https://github.com/Azure/aad-pod-identity/pull/1114))
+
+### Test Improvements
+
+- test: reuse helm values during helm upgrade ([#1121](https://github.com/Azure/aad-pod-identity/pull/1121))
+
+## v1.8.1
 
 ### Features
 
