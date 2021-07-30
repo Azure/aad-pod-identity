@@ -8,8 +8,8 @@ assignees: ''
 
 **Have you**
 
-- [ ] Read [Troubleshooting Guide](../../docs/readmes/README.troubleshooting.md)
-- [ ] Read [Known Issues](../../docs/readmes/README.known-issues.md)
+- [ ] Read [Troubleshooting Guide](https://azure.github.io/aad-pod-identity/docs/troubleshooting/)
+- [ ] Read [Known Issues](https://azure.github.io/aad-pod-identity/docs/known-issues/)
 - [ ] Searched on [GitHub issues](https://github.com/Azure/aad-pod-identity/issues)
 
 **Describe the bug**
