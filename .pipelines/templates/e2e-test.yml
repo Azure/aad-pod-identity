@@ -62,8 +62,9 @@ jobs:
             SERVICE_PRINCIPAL_CLIENT_SECRET: $(SERVICE_PRINCIPAL_CLIENT_SECRET)
           displayName: "Run E2E tests"
 
+        - template: cleanup-role-assignments.yml
+
         - script: |
-            az role assignment delete --ids ${ROLE_ASSIGNMENT_IDS} || true
             if [[ "${CLUSTER_CONFIG}" == "aks" ]]; then
               az aks delete -g ${RESOURCE_GROUP} -n ${RESOURCE_GROUP} --yes --no-wait
             fi
