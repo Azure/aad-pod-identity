@@ -1,0 +1,11 @@
+parameters:
+  - name: keyvault_name
+    type: string
+    default: $(KEYVAULT_NAME)
+
+steps:
+  - bash: |
+      az role assignment delete --ids ${ROLE_ASSIGNMENT_IDS} > /dev/null
+      az keyvault delete-policy --name ${{ parameters.keyvault_name }} --object-id "${ASSIGNEE_OBJECT_ID}" > /dev/null
+    condition: always()
+    displayName: Cleanup role assignments

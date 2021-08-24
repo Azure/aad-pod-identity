@@ -27,6 +27,8 @@ parameters:
 steps:
   - script: |
       ASSIGNEE_OBJECT_ID="$(az identity show -g ${{ parameters.node_resource_group }} -n ${{ parameters.resource_group }}-agentpool --query principalId -otsv)"
+      echo "##vso[task.setvariable variable=ASSIGNEE_OBJECT_ID]${ASSIGNEE_OBJECT_ID}"
+
       ROLE_ASSIGNMENT_IDS=""
 
       az role assignment create --assignee-object-id "${ASSIGNEE_OBJECT_ID}" --role "Virtual Machine Contributor" --scope "/subscriptions/${{ parameters.subscription_id }}/resourcegroups/${{ parameters.node_resource_group }}"
