@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: demo
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.8.2"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.8.3"
         args:
           - "--subscription-id=SUBSCRIPTION_ID"
           - "--identity-client-id=CLIENT_ID"

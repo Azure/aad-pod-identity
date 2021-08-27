@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 package framework
@@ -21,10 +22,10 @@ type Config struct {
 	KeyvaultName                       string        `envconfig:"KEYVAULT_NAME"`
 	KeyvaultSecretName                 string        `envconfig:"KEYVAULT_SECRET_NAME"`
 	KeyvaultSecretVersion              string        `envconfig:"KEYVAULT_SECRET_VERSION"`
-	MICVersion                         string        `envconfig:"MIC_VERSION" default:"v1.8.2"`
-	NMIVersion                         string        `envconfig:"NMI_VERSION" default:"v1.8.2"`
+	MICVersion                         string        `envconfig:"MIC_VERSION" default:"v1.8.3"`
+	NMIVersion                         string        `envconfig:"NMI_VERSION" default:"v1.8.3"`
 	Registry                           string        `envconfig:"REGISTRY" default:"mcr.microsoft.com/oss/azure/aad-pod-identity"`
-	IdentityValidatorVersion           string        `envconfig:"IDENTITY_VALIDATOR_VERSION" default:"v1.8.2"`
+	IdentityValidatorVersion           string        `envconfig:"IDENTITY_VALIDATOR_VERSION" default:"v1.8.3"`
 	EnableScaleFeatures                bool          `envconfig:"ENABLE_SCALE_FEATURES" default:"true"`
 	ImmutableUserMSIs                  string        `envconfig:"IMMUTABLE_IDENTITY_CLIENT_ID"`
 	NMIMode                            string        `envconfig:"NMI_MODE" default:"standard"`
