@@ -7,7 +7,6 @@ menu:
     weight: 10
 ---
 
-## v1.8.2
 
 ### Breaking Change
 
@@ -32,6 +31,32 @@ menu:
   # MANAGED MODE ONLY!
   kubectl delete crd azureassignedidentities.aadpodidentity.k8s.io
   ```
+
+## v1.8.3
+
+### Documentations
+
+- add set-retry-after-header feature flag ([#1128](https://github.com/Azure/aad-pod-identity/pull/1128))
+- fix doc links ([#1131](https://github.com/Azure/aad-pod-identity/pull/1131))
+
+### Helm
+
+- Expose updateStrategy configuration for NMI daemonset ([#1138](https://github.com/Azure/aad-pod-identity/pull/1138))
+
+### Security
+
+- fix CVE-2021-33910, CVE-2021-3712 ([#1144](https://github.com/Azure/aad-pod-identity/pull/1144))
+
+### Test Improvements
+
+- exclude website changes for pr trigger ([#1129](https://github.com/Azure/aad-pod-identity/pull/1129)))
+
+### Other Improvements
+
+- update debian-iptables base to buster-v1.6.6 ([#1134](https://github.com/Azure/aad-pod-identity/pull/1134)))
+- add redacted client ID in the error log ([#1141](https://github.com/Azure/aad-pod-identity/pull/1141)))
+
+## v1.8.2
 
 ### Security
 
