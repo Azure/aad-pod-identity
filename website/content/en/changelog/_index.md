@@ -7,31 +7,6 @@ menu:
     weight: 10
 ---
 
-
-### Breaking Change
-
-- If upgrading from versions 1.5.x to 1.7.x of pod-identity, please carefully review this [doc](https://azure.github.io/aad-pod-identity/docs/#v16x-breaking-change) before upgrade.
-- Pod Identity is disabled by default for Clusters with Kubenet. Please review this [doc](https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/) before upgrade.
-- Helm chart contains breaking changes. Please review the following docs:
-  - [Upgrading to helm chart 4.0.0+](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#400)
-  - [Upgrading to helm chart 3.0.0+](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#300)
-- The API version of Pod Identity's CRDs (`AzureIdentity`, `AzureIdentityBinding`, `AzureAssignedIdentity`, `AzurePodIdentityException`) have been upgraded from `apiextensions.k8s.io/v1beta1` to `apiextensions.k8s.io/v1`. For Kubernetes clsuters with < 1.16, `apiextensions.k8s.io/v1` CRDs would not work. You can either:
-  1. Continue using AAD Pod Identity v1.7.5 or
-  2. Upgrade your cluster to 1.16+, then upgrade AAD Pod Identity.
-
-  If AAD Pod Identity was previously installed using Helm, subsequent `helm install` or `helm upgrade` would not upgrade the CRD API version from `apiextensions.k8s.io/v1beta1` to `apiextensions.k8s.io/v1` (although `kubectl get crd -oyaml` would display `apiextensions.k8s.io/v1` since the API server internally converts v1beta1 CRDs to v1, it lacks a [structural schema](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#specifying-a-structural-schema), which is what AAD Pod Identity introduced in v1.8.0). If you wish to upgrade to the official v1 CRDs for AAD Pod Identity:
-
-  ```bash
-  kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts/aad-pod-identity/crds/crd.yaml
-  ```
-
-  With [managed mode](../docs/configure/pod_identity_in_managed_mode) enabled, you can remove the unused AzureAssignedIdentity CRD if you wish.
-
-  ```bash
-  # MANAGED MODE ONLY!
-  kubectl delete crd azureassignedidentities.aadpodidentity.k8s.io
-  ```
-
 ## v1.8.3
 
 ### Documentations
@@ -123,6 +98,25 @@ menu:
 
 ## v1.8.0
 
+### Breaking Changes
+
+- The API version of Pod Identity's CRDs (`AzureIdentity`, `AzureIdentityBinding`, `AzureAssignedIdentity`, `AzurePodIdentityException`) have been upgraded from `apiextensions.k8s.io/v1beta1` to `apiextensions.k8s.io/v1`. For Kubernetes clsuters with < 1.16, `apiextensions.k8s.io/v1` CRDs would not work. You can either:
+  1. Continue using AAD Pod Identity v1.7.5 or
+  2. Upgrade your cluster to 1.16+, then upgrade AAD Pod Identity.
+
+  If AAD Pod Identity was previously installed using Helm, subsequent `helm install` or `helm upgrade` would not upgrade the CRD API version from `apiextensions.k8s.io/v1beta1` to `apiextensions.k8s.io/v1` (although `kubectl get crd -oyaml` would display `apiextensions.k8s.io/v1` since the API server internally converts v1beta1 CRDs to v1, it lacks a [structural schema](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#specifying-a-structural-schema), which is what AAD Pod Identity introduced in v1.8.0). If you wish to upgrade to the official v1 CRDs for AAD Pod Identity:
+
+  ```bash
+  kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/master/charts/aad-pod-identity/crds/crd.yaml
+  ```
+
+  With [managed mode](./configure/pod_identity_in_managed_mode) enabled, you can remove the unused AzureAssignedIdentity CRD if you wish.
+
+  ```bash
+  # MANAGED MODE ONLY!
+  kubectl delete crd azureassignedidentities.aadpodidentity.k8s.io
+  ```
+
 ### Features
 
 - feat: add register.go to add crds to scheme ([#1053](https://github.com/Azure/aad-pod-identity/pull/1053))
@@ -159,12 +153,9 @@ menu:
 
 ## v1.7.5
 
-### Breaking Change
-- If upgrading from versions 1.5.x to 1.7.x of pod-identity, please carefully review this [doc](https://azure.github.io/aad-pod-identity/docs/#v16x-breaking-change) before upgrade.
-- Pod Identity is disabled by default for Clusters with Kubenet. Please review this [doc](https://azure.github.io/aad-pod-identity/docs/configure/aad_pod_identity_on_kubenet/) before upgrade.
-- Helm chart contains breaking changes. Please review the following docs:
-  - [Upgrading to helm chart 4.0.0+](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#400)
-  - [Upgrading to helm chart 3.0.0+](https://github.com/Azure/aad-pod-identity/tree/master/charts/aad-pod-identity#300)
+### Breaking Changes
+
+- **(Only apply to app version ≥ v1.7.5 / chart version ≥ 4.0.0)** AAD Pod Identity has dropped Helm 2 starting from chart version 4.0.0/app version 1.7.5. To install or upgrade to the latest version of AAD Pod Identity, please use Helm 3 instead. Refer to this [guide](https://helm.sh/blog/migrate-from-helm-v2-to-helm-v3/) on how to migrate from Helm 2 to Helm 3.
 
 ### Helm
 
@@ -225,6 +216,10 @@ menu:
 
 ## v1.7.2
 
+### Breaking Changes
+
+- The `forceNameSpaced` helm configuration variable is removed. Use `forceNamespaced` instead to configure pod identity to run in namespaced mode.
+
 ### Features
 
 - feat: add arm64 build ([#950](https://github.com/Azure/aad-pod-identity/pull/950))
@@ -256,6 +251,41 @@ menu:
 - chore: switch to using golang builder ([#952](https://github.com/Azure/aad-pod-identity/pull/952))
 
 ## v1.7.1
+
+### Breaking Changes
+
+- **(Only apply to app version ≥ v1.7.1 / chart version ≥ 3.0.0)** `azureIdentities` in `values.yaml` is converted to a map instead of a list of identities.
+
+  The following is an example of the required change in `values.yaml` from helm chart 2.x.x to 3.x.x:
+
+  ```diff
+  -azureIdentities:
+  -  - name: "azure-identity"
+  -    # if not defined, then the azure identity will be deployed in the same namespace as the chart
+  -    namespace: ""
+  -    # type 0: MSI, type 1: Service Principal
+  -    type: 0
+  -    # /subscriptions/subscription-id/resourcegroups/resource-group/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name
+  -    resourceID: "resource-id"
+  -    clientID: "client-id"
+  -    binding:
+  -      name: "azure-identity-binding"
+  -      # The selector will also need to be included in labels for app deployment
+  -      selector: "demo"
+  +azureIdentities:
+  +  "azure-identity":
+  +    # if not defined, then the azure identity will be deployed in the same namespace as the chart
+  +    namespace: ""
+  +    # type 0: MSI, type 1: Service Principal
+  +    type: 0
+  +    # /subscriptions/subscription-id/resourcegroups/resource-group/providers/Microsoft.ManagedIdentity/userAssignedIdentities/identity-name
+  +    resourceID: "resource-id"
+  +    clientID: "client-id"
+  +    binding:
+  +      name: "azure-identity-binding"
+  +      # The selector will also need to be included in labels for app deployment
+  +      selector: "demo"
+  ```
 
 ### Bug Fixes
 - allow overwriting NODE_RESOURCE_GROUP in role-assignment.sh ([#873](https://github.com/Azure/aad-pod-identity/pull/873))
@@ -289,6 +319,16 @@ menu:
 
 ## v1.7.0
 
+### Breaking Changes
+
+- With [Azure/aad-pod-identity#842](https://github.com/Azure/aad-pod-identity/pull/842), aad-pod-identity no longer works on clusters with kubenet as the network plugin. For more details, please see [Deploy AAD Pod Identity in a Cluster with Kubenet](configure/aad_pod_identity_on_kubenet/).
+
+  If you still wish to install aad-pod-identity on a kubenet-enabled cluster, set the helm chart value `nmi.allowNetworkPluginKubenet` to `true` in the helm command:
+
+  ```bash
+  helm (install|upgrade) ... --set nmi.allowNetworkPluginKubenet=true ...
+  ```
+
 ### Features
 - support JSON logging format ([#839](https://github.com/Azure/aad-pod-identity/pull/839))
 - disable aad-pod-identity by default for kubenet ([#842](https://github.com/Azure/aad-pod-identity/pull/842))
@@ -321,15 +361,7 @@ menu:
 - add gosec as part of linting ([#850](https://github.com/Azure/aad-pod-identity/pull/850))
 - remove --ignore-unfixed for trivy ([#854](https://github.com/Azure/aad-pod-identity/pull/854))
 
-{{% alert title="Warning" color="warning" %}}
-v1.6.0+ contains breaking changes. Please carefully review this [doc](README.md#v16x-breaking-change) before upgrade from 1.x.x versions of pod-identity.
-{{% /alert %}}
-
 ## v1.6.3
-
-### Breaking Change
-
-v1.6.0+ contains breaking changes. Please carefully review this [doc](https://azure.github.io/aad-pod-identity/docs/#v16x-breaking-change) before upgrading from 1.x.x versions of pod-identity.
 
 ### Features
 
@@ -452,6 +484,34 @@ v1.6.0+ contains breaking changes. Please carefully review this [doc](https://az
 - Support multiple identities in helm chart ([#457](https://github.com/Azure/aad-pod-identity/pull/457))
 
 ## v1.6.0
+
+### Breaking Changes
+
+With [Azure/aad-pod-identity#398](https://github.com/Azure/aad-pod-identity/pull/398), the [client-go](https://github.com/kubernetes/client-go) library is upgraded to v0.17.2, where CRD [fields are now case sensitive](https://github.com/kubernetes/kubernetes/issues/64612). If you are upgrading MIC and NMI from v1.x.x to v1.6.0, MIC v1.6.0+ will upgrade the fields of existing `AzureIdentity` and `AzureIdentityBinding` on startup to the new format to ensure backward compatibility. A configmap called `aad-pod-identity-config` is created to record and confirm the successful type upgrade.
+
+However, for future `AzureIdentity` and `AzureIdentityBinding` created using v1.6.0+, the following fields need to be changed:
+
+### `AzureIdentity`
+
+| < 1.6.0          | >= 1.6.0         |
+|------------------|------------------|
+| `ClientID`       | `clientID`       |
+| `ClientPassword` | `clientPassword` |
+| `ResourceID`     | `resourceID`     |
+| `TenantID`       | `tenantID`       |
+
+### `AzureIdentityBinding`
+
+| < 1.6.0         | >= 1.6.0        |
+|-----------------|-----------------|
+| `AzureIdentity` | `azureIdentity` |
+| `Selector`      | `selector`      |
+
+### `AzurePodIdentityException`
+
+| < 1.6.0     | >= 1.6.0    |
+|-------------|-------------|
+| `PodLabels` | `podLabels` |
 
 ### Features
 - Add support for pod-identity managed mode ([#486](https://github.com/Azure/aad-pod-identity/pull/486))
