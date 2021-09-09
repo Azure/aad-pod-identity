@@ -46,7 +46,7 @@ var _ = Describe("When sending a request to Instance Metadata Service", func() {
 			}
 
 			if config.BlockInstanceMetadata {
-				cmd = "curl -f -H 'Metadata:true' 127.0.0.1:2579/metadata/instance"
+				cmd = "curl -f 127.0.0.1:2579/metadata/instance -H Metadata:true"
 				stdout, err := exec.KubectlExec(kubeconfigPath, busyboxPod.Name, namespace, strings.Split(cmd, " "))
 				Expect(err).NotTo(BeNil())
 				Expect(strings.Contains(stdout, "403 Forbidden")).To(BeTrue())

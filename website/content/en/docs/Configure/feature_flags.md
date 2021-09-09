@@ -64,6 +64,8 @@ The list is comma separated. Example: 00000000-0000-0000-0000-000000000000,11111
 
 > Available from 1.6.0 release
 
+> This flag is enabled by default starting from v1.8.4 release
+
 When you query the Instance Metadata Service, you must provide the header `Metadata: true` to ensure the request was not unintentionally redirected. You can see examples of this header in [the Azure documentation](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service#using-headers).
 
 This is critical especially when you [acquire an access token](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http) as a mitigation against Server Side Request Forgery (SSRF) attack.
