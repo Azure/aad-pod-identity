@@ -436,6 +436,7 @@ spec:
           - "--node=$(NODE_NAME)"
           - "--http-probe-port=8085"
           - "--enableScaleFeatures=true"
+          - "--metadata-header-required=true"
         env:
           - name: HOST_IP
             valueFrom:
