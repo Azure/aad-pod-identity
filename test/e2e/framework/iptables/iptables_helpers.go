@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 package iptables
@@ -78,7 +79,7 @@ func WaitForRules(input WaitForRulesInput) {
 						Containers: []corev1.Container{
 							{
 								Name:  busybox,
-								Image: "k8s.gcr.io/build-image/debian-iptables:buster-v1.6.6",
+								Image: "k8s.gcr.io/build-image/debian-iptables:buster-v1.6.7",
 								Stdin: true,
 								Command: []string{
 									"sleep",
