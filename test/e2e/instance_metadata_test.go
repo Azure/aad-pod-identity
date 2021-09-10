@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 package e2e
@@ -29,19 +30,27 @@ var _ = Describe("When sending a request to Instance Metadata Service", func() {
 				NodeName: nmiPod.Spec.NodeName,
 			})
 
-			cmd := "clean-install wget"
+			cmd := "clean-install curl"
 			_, err := exec.KubectlExec(kubeconfigPath, busyboxPod.Name, namespace, strings.Split(cmd, " "))
 			Expect(err).To(BeNil())
 
-			cmd = "wget 127.0.0.1:2579/metadata/instance"
+			cmd = "curl -f 127.0.0.1:2579/doesnotexist -H Metadata:true"
 			stdout, err := exec.KubectlExec(kubeconfigPath, busyboxPod.Name, namespace, strings.Split(cmd, " "))
 			Expect(err).NotTo(BeNil())
-			Expect(strings.Contains(stdout, "ERROR 403: Forbidden")).To(BeTrue())
-
-			cmd = "wget 127.0.0.1:2579/doesnotexist"
-			stdout, err = exec.KubectlExec(kubeconfigPath, busyboxPod.Name, namespace, strings.Split(cmd, " "))
-			Expect(err).NotTo(BeNil())
 			Expect(strings.Contains(stdout, "404 Not Found")).To(BeTrue())
+
+			if config.MetadataHeaderRequired {
+				cmd = "curl 127.0.0.1:2579/doesnotexist"
+				stdout, _ := exec.KubectlExec(kubeconfigPath, busyboxPod.Name, namespace, strings.Split(cmd, " "))
+				Expect(strings.Contains(stdout, "Required metadata header not specified")).To(BeTrue())
+			}
+
+			if config.BlockInstanceMetadata {
+				cmd = "curl -f -H 'Metadata:true' 127.0.0.1:2579/metadata/instance"
+				stdout, err := exec.KubectlExec(kubeconfigPath, busyboxPod.Name, namespace, strings.Split(cmd, " "))
+				Expect(err).NotTo(BeNil())
+				Expect(strings.Contains(stdout, "403 Forbidden")).To(BeTrue())
+			}
 		}
 	})
 })

@@ -39,6 +39,7 @@ type Config struct {
 	RetryAttemptsForCreated            int           `envconfig:"RETRY_ATTEMPTS_FOR_CREATED" default:"16"`
 	RetryAttemptsForAssigned           int           `envconfig:"RETRY_ATTEMPTS_FOR_ASSIGNED" default:"4"`
 	FindIdentityRetryIntervalInSeconds int           `envconfig:"FIND_IDENTITY_RETRY_INTERVAL_IN_SECONDS" default:"5"`
+	MetadataHeaderRequired             bool          `envconfig:"METADATA_HEADER_REQUIRED" default:"true"`
 }
 
 func (c *Config) DeepCopy() *Config {
@@ -69,6 +70,7 @@ func (c *Config) DeepCopy() *Config {
 	copy.RetryAttemptsForCreated = c.RetryAttemptsForCreated
 	copy.RetryAttemptsForAssigned = c.RetryAttemptsForAssigned
 	copy.FindIdentityRetryIntervalInSeconds = c.FindIdentityRetryIntervalInSeconds
+	copy.MetadataHeaderRequired = c.MetadataHeaderRequired
 
 	return copy
 }

@@ -124,6 +124,10 @@ func generateValueArgs(config *framework.Config) []string {
 		args = append(args, fmt.Sprintf("--set=nmi.blockInstanceMetadata=%t", config.BlockInstanceMetadata))
 	}
 
+	if config.MetadataHeaderRequired {
+		args = append(args, fmt.Sprintf("--set=nmi.metadataHeaderRequired=%t", config.MetadataHeaderRequired))
+	}
+
 	if config.IdentityReconcileInterval != 0 {
 		args = append(args, fmt.Sprintf("--set=mic.identityAssignmentReconcileInterval=%s", config.IdentityReconcileInterval))
 	}
