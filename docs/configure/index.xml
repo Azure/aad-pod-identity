@@ -354,6 +354,9 @@ The list is comma separated. Example: 00000000-0000-0000-0000-000000000000,11111
 &lt;blockquote>
 &lt;p>Available from 1.6.0 release&lt;/p>
 &lt;/blockquote>
+&lt;blockquote>
+&lt;p>This flag is enabled by default starting from v1.8.4 release&lt;/p>
+&lt;/blockquote>
 &lt;p>When you query the Instance Metadata Service, you must provide the header &lt;code>Metadata: true&lt;/code> to ensure the request was not unintentionally redirected. You can see examples of this header in &lt;a href="https://docs.microsoft.com/en-us/azure/virtual-machines/linux/instance-metadata-service#using-headers">the Azure documentation&lt;/a>.&lt;/p>
 &lt;p>This is critical especially when you &lt;a href="https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http">acquire an access token&lt;/a> as a mitigation against Server Side Request Forgery (SSRF) attack.&lt;/p>
 &lt;p>The &lt;code>metadataHeaderRequired&lt;/code> flag for NMI will block all requests without Metadata header and return an HTTP 400 response. This flag is disabled by default for compatibility, but recommended for users to enable this feature.&lt;/p>
