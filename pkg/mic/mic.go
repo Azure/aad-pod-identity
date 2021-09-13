@@ -834,9 +834,13 @@ func (c *Client) getAzureAssignedIdentitiesToUpdate(add, del map[string]aadpodid
 	}
 	for assignedIDName, addAssignedID := range add {
 		if delAssignedID, exists := del[assignedIDName]; exists {
+			objMeta := delAssignedID.ObjectMeta
+			// the label should always be the latest as the pod could have moved to a different node
+			// with the same assigned identity
+			objMeta.SetLabels(addAssignedID.GetObjectMeta().GetLabels())
+			addAssignedID.ObjectMeta = objMeta
 			// assigned identity exists in add and del list
 			// update the assigned identity to the latest
-			addAssignedID.ObjectMeta = delAssignedID.ObjectMeta
 			beforeUpdate[assignedIDName] = delAssignedID
 			afterUpdate[assignedIDName] = addAssignedID
 			// since this is part of update, remove the assignedID from the add and del list

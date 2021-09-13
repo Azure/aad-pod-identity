@@ -414,7 +414,7 @@ func (c *TestPodClient) AddPod(podName, podNs, nodeName, binding string) {
 	c.pods = append(c.pods, pod)
 }
 
-func (c *TestPodClient) DeletePod(podName string, podNs string) {
+func (c *TestPodClient) DeletePod(podName, podNs string) {
 	var newPods []*corev1.Pod
 	changed := false
 
@@ -1030,6 +1030,34 @@ func TestUpdateAssignedIdentities(t *testing.T) {
 				assignedID.Spec.AzureIdentityRef.ResourceVersion == "changedrv2" && assignedID.Spec.AzureIdentityRef.Spec.ClientID == "test-user-msi-clientid" &&
 				assignedID.Spec.AzureIdentityRef.Spec.ResourceID == newResourceID) {
 				t.Fatalf("assigned ID spec: %v mismatch", assignedID)
+			}
+		}
+	}
+
+	// test pod with same name moving to a new node
+	// the nodename label should be updated to test-node2
+	nodeClient.AddNode("test-node2")
+	podClient.DeletePod("test-pod", "default")
+	podClient.AddPod("test-pod", "default", "test-node2", "test-select")
+
+	eventCh <- internalaadpodid.PodUpdated
+
+	evtRecorder.WaitForEvents(1)
+	if !crdClient.waitForAssignedIDs(2) {
+		t.Fatalf("expected len of assigned identities to be 2")
+	}
+	listAssignedIDs, err = crdClient.ListAssignedIDs()
+	if err != nil {
+		t.Fatalf("list assigned ids failed , error: %+v", err)
+	}
+	// check updated assigned identity has the right resource id
+	if listAssignedIDs != nil {
+		for _, assignedID := range *listAssignedIDs {
+			if assignedID.Name != "test-pod-default-test-id" {
+				continue
+			}
+			if assignedID.ObjectMeta.Labels["nodename"] != "test-node2" {
+				t.Fatalf("expected node name: test-node2, got: %s", assignedID.ObjectMeta.Labels["nodename"])
 			}
 		}
 	}
