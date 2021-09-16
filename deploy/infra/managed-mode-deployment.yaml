@@ -306,13 +306,14 @@ spec:
           type: FileOrCreate
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.8.3"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.8.4"
         args:
           - "--node=$(NODE_NAME)"
           - "--operation-mode=managed"
           - "--forceNamespaced"
           - "--http-probe-port=8085"
           - "--enableScaleFeatures=true"
+          - "--metadata-header-required=true"
         env:
           - name: HOST_IP
             valueFrom:

@@ -247,9 +247,9 @@ generate-crds: $(CONTROLLER_GEN) $(KUSTOMIZE)
 
 .PHONY: promote-staging-manifest
 promote-staging-manifest:
-	@gsed -i "s/version: .*/version: ${NEW_CHART_VERSION}/g" manifest_staging/charts/aad-pod-identity/Chart.yaml
-	@gsed -i "s/appVersion: .*/appVersion: ${NEW_APP_VERSION}/g" manifest_staging/charts/aad-pod-identity/Chart.yaml
-	@gsed -i "s/tag: .*/tag: v${NEW_APP_VERSION}/g" manifest_staging/charts/aad-pod-identity/values.yaml
+	@sed -i "s/version: .*/version: ${NEW_CHART_VERSION}/g" manifest_staging/charts/aad-pod-identity/Chart.yaml
+	@sed -i "s/appVersion: .*/appVersion: ${NEW_APP_VERSION}/g" manifest_staging/charts/aad-pod-identity/Chart.yaml
+	@sed -i "s/tag: .*/tag: v${NEW_APP_VERSION}/g" manifest_staging/charts/aad-pod-identity/values.yaml
 	@rm -rf deploy charts/aad-pod-identity
 	@cp -r manifest_staging/deploy .
 	@cp -r manifest_staging/charts .

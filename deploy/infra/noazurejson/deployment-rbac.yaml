@@ -473,11 +473,12 @@ spec:
           type: FileOrCreate
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.8.3"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.8.4"
         args:
           - "--node=$(NODE_NAME)"
           - "--http-probe-port=8085"
           - "--enableScaleFeatures=true"
+          - "--metadata-header-required=true"
         env:
           - name: HOST_IP
             valueFrom:
@@ -604,7 +605,7 @@ spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.8.3"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.8.4"
         args:
           - "--logtostderr"
         securityContext:
