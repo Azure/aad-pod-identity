@@ -7,6 +7,26 @@ menu:
     weight: 10
 ---
 
+## v1.8.4
+
+### Bug Fixes
+- update the node name label as part of AzureAssignedIdentity update ([#1161](https://github.com/Azure/aad-pod-identity/issues/1161))
+
+### Documentation
+- specify the latest version number containing the breaking changes ([#1150](https://github.com/Azure/aad-pod-identity/issues/1150))
+
+### Maintenance
+- set --metadata-header-required to true by default ([#1158](https://github.com/Azure/aad-pod-identity/issues/1158))
+- update debian-iptables to buster-v1.6.7 ([#1160](https://github.com/Azure/aad-pod-identity/issues/1160))
+- bump dependencies to newer versions ([#1159](https://github.com/Azure/aad-pod-identity/issues/1159))
+- update to go 1.17 ([#1153](https://github.com/Azure/aad-pod-identity/issues/1153))
+
+### Security Fix
+- bump go.mongodb.org/mongo-driver to v1.5.1 and add SECURITY.md ([#1156](https://github.com/Azure/aad-pod-identity/issues/1156))
+
+### Testing
+- add an option to test metadata header ([#1155](https://github.com/Azure/aad-pod-identity/issues/1155))
+
 ## v1.8.3
 
 ### Documentations
