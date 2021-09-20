@@ -1,0 +1,16 @@
+name: Codecov
+on: pull_request
+
+jobs:
+  codecov:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: "^1.17"
+      - name: Unit test
+        run: make unit-test
+      - uses: codecov/codecov-action@v2
+        with:
+          files: coverage.txt
