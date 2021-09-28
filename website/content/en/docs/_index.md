@@ -16,7 +16,7 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 
 ### v1.8.0
 
-- The API version of Pod Identity's CRDs (`AzureIdentity`, `AzureIdentityBinding`, `AzureAssignedIdentity`, `AzurePodIdentityException`) have been upgraded from `apiextensions.k8s.io/v1beta1` to `apiextensions.k8s.io/v1`. For Kubernetes clsuters with < 1.16, `apiextensions.k8s.io/v1` CRDs would not work. You can either:
+- The API version of Pod Identity's CRDs (`AzureIdentity`, `AzureIdentityBinding`, `AzureAssignedIdentity`, `AzurePodIdentityException`) have been upgraded from `apiextensions.k8s.io/v1beta1` to `apiextensions.k8s.io/v1`. For Kubernetes clusters with < 1.16, `apiextensions.k8s.io/v1` CRDs would not work. You can either:
   1. Continue using AAD Pod Identity v1.7.5 or
   2. Upgrade your cluster to 1.16+, then upgrade AAD Pod Identity.
 
