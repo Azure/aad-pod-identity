@@ -17,7 +17,7 @@ RUN export GOOS=$TARGETOS && \
     export GOARM=$(echo ${TARGETPLATFORM} | cut -d / -f3 | tr -d 'v') && \
     make build
 
-FROM k8s.gcr.io/build-image/debian-iptables:buster-v1.6.7 AS nmi
+FROM k8s.gcr.io/build-image/debian-iptables:bullseye-v1.0.0 AS nmi
 RUN clean-install ca-certificates
 COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
 RUN useradd -u 10001 nonroot
