@@ -79,7 +79,7 @@ func WaitForRules(input WaitForRulesInput) {
 						Containers: []corev1.Container{
 							{
 								Name:  busybox,
-								Image: "k8s.gcr.io/build-image/debian-iptables:buster-v1.6.7",
+								Image: "k8s.gcr.io/build-image/debian-iptables:bullseye-v1.0.0",
 								Stdin: true,
 								Command: []string{
 									"sleep",
