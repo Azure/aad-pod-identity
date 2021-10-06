@@ -145,6 +145,7 @@ docker-buildx-builder:
 	if ! docker buildx ls | grep -q container-builder; then \
 		DOCKER_CLI_EXPERIMENTAL=enabled docker buildx create --name container-builder --use; \
 	fi
+	docker buildx inspect container-builder --bootstrap
 
 .PHONY: image-nmi
 image-nmi:
