@@ -53,6 +53,8 @@ export DOCKER_BUILDKIT DOCKER_CLI_EXPERIMENTAL
 BUILD_PLATFORMS ?= linux/amd64,linux/arm64,linux/arm/v7
 # Output type of docker buildx build
 OUTPUT_TYPE ?= registry
+QEMU_VERSION ?= 5.2.0-2
+BUILDX_BUILDER_NAME ?= container-builder
 
 CONTROLLER_GEN := $(TOOLS_DIR)/controller-gen
 GOLANGCI_LINT := $(TOOLS_DIR)/golangci-lint
@@ -141,11 +143,11 @@ deepcopy-gen:
 
 .PHONY: docker-buildx-builder
 docker-buildx-builder:
-	docker run --rm --privileged docker/binfmt:820fdd95a9972a5308930a2bdfb8573dd4447ad3
-	if ! docker buildx ls | grep -q container-builder; then \
-		DOCKER_CLI_EXPERIMENTAL=enabled docker buildx create --name container-builder --use; \
+	if ! docker buildx ls | grep -q $(BUILDX_BUILDER_NAME); then \
+		docker run --rm --privileged multiarch/qemu-user-static:$(QEMU_VERSION) --reset -p yes; \
+		DOCKER_CLI_EXPERIMENTAL=enabled docker buildx create --name $(BUILDX_BUILDER_NAME) --use; \
+		docker buildx inspect $(BUILDX_BUILDER_NAME) --bootstrap; \
 	fi
-	docker buildx inspect container-builder --bootstrap
 
 .PHONY: image-nmi
 image-nmi:
