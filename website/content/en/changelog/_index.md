@@ -7,6 +7,24 @@ menu:
     weight: 10
 ---
 
+## v1.8.5
+
+### Documentation
+
+- Fix typo in homepage docs ([#1169](https://github.com/Azure/aad-pod-identity/issues/1169))
+- add note about managed mode in role assignments doc ([#1173](https://github.com/Azure/aad-pod-identity/issues/1173))
+
+### Maintenance
+
+- replace deprecated codecov uploader with GitHub Actions ([#1167](https://github.com/Azure/aad-pod-identity/issues/1167))
+- update nmi to bullseye (#1170) ([#1169](https://github.com/Azure/aad-pod-identity/issues/1169))
+- bootstrap buildx builder after creating ([#1175](https://github.com/Azure/aad-pod-identity/issues/1175))
+- install qemu instead of docker/binfmt ([#1176](https://github.com/Azure/aad-pod-identity/issues/1176))
+
+### Security Fix
+
+- fix CVE-2021-37750 ([#1178](https://github.com/Azure/aad-pod-identity/issues/1178))
+
 ## v1.8.4
 
 ### Bug Fixes
@@ -514,7 +532,7 @@ However, for future `AzureIdentity` and `AzureIdentityBinding` created using v1.
 ### `AzureIdentity`
 
 | < 1.6.0          | >= 1.6.0         |
-|------------------|------------------|
+| ---------------- | ---------------- |
 | `ClientID`       | `clientID`       |
 | `ClientPassword` | `clientPassword` |
 | `ResourceID`     | `resourceID`     |
@@ -523,14 +541,14 @@ However, for future `AzureIdentity` and `AzureIdentityBinding` created using v1.
 ### `AzureIdentityBinding`
 
 | < 1.6.0         | >= 1.6.0        |
-|-----------------|-----------------|
+| --------------- | --------------- |
 | `AzureIdentity` | `azureIdentity` |
 | `Selector`      | `selector`      |
 
 ### `AzurePodIdentityException`
 
 | < 1.6.0     | >= 1.6.0    |
-|-------------|-------------|
+| ----------- | ----------- |
 | `PodLabels` | `podLabels` |
 
 ### Features
