@@ -50,7 +50,7 @@ TOOLS_DIR := $(abspath ./.tools)
 DOCKER_BUILDKIT = 1
 DOCKER_CLI_EXPERIMENTAL = enabled
 export DOCKER_BUILDKIT DOCKER_CLI_EXPERIMENTAL
-BUILD_PLATFORMS ?= linux/amd64,linux/arm64,linux/arm/v7
+BUILD_PLATFORMS ?= linux/amd64,linux/arm64
 # Output type of docker buildx build
 OUTPUT_TYPE ?= registry
 QEMU_VERSION ?= 5.2.0-2
