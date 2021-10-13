@@ -3,7 +3,7 @@ parameters:
     type: object
   - name: buildPlatforms
     type: string
-    default: linux/amd64,linux/arm64,linux/arm/v7
+    default: linux/amd64,linux/arm64
 
 jobs:
   - ${{ each clusterConfig in parameters.clusterConfigs }}:
