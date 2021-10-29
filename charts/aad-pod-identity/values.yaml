@@ -295,8 +295,7 @@ azureIdentities:
 # ADAL, ARM and Kube API server requests.
 customUserAgent: ""
 
-# Prometheus PodMonitor configuration
-# Reference: https://github.com/prometheus-operator/prometheus-operator/blob/master/Documentation/api.md#podmonitor
+# -- Prometheus PodMonitor configuration
 podMonitor:
 
   # enabled determines whether a podMonitor should deployed to scrape the metrics.
