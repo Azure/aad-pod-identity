@@ -9,6 +9,10 @@ image:
   repository: mcr.microsoft.com/oss/azure/aad-pod-identity
   imagePullPolicy: IfNotPresent
 
+# -- Custom labels to add into metadata
+customLabels: {}
+  # app: aad-pod-identity
+
 # One or more secrets to be used when pulling images
 # imagePullSecrets:
 #   - name: myRegistryKeySecretName
