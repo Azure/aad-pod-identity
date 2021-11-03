@@ -5,6 +5,8 @@ kind: AzurePodIdentityException
 metadata:
   name: mic
   namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aad-pod-identity.labels" . | nindent 4 }}
 spec:
   podLabels:
     app: mic
@@ -17,6 +19,8 @@ kind: AzurePodIdentityException
 metadata:
   name: aks-addon-exception
   namespace: kube-system
+  labels:
+    {{- include "aad-pod-identity.labels" . | nindent 4 }}
 spec:
   podLabels:
     kubernetes.azure.com/managedby: aks
