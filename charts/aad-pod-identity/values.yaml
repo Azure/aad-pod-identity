@@ -9,10 +9,6 @@ image:
   repository: mcr.microsoft.com/oss/azure/aad-pod-identity
   imagePullPolicy: IfNotPresent
 
-# -- Custom labels to add into metadata
-customLabels: {}
-  # app: aad-pod-identity
-
 # One or more secrets to be used when pulling images
 # imagePullSecrets:
 #   - name: myRegistryKeySecretName
@@ -294,22 +290,3 @@ azureIdentities:
 # If provided, the userAgent string will be appended to the pod identity user agents for all
 # ADAL, ARM and Kube API server requests.
 customUserAgent: ""
-
-# -- Prometheus PodMonitor configuration
-podMonitor:
-
-  # enabled determines whether a podMonitor should deployed to scrape the metrics.
-  enabled: false
-
-  # labels adds additional labels to the podMonitor
-  labels: {}
-    # release: prometheus
-
-  # annotations adds additional annotations to the podMonitor
-  annotations: {}
-
-  # interval specifies the interval at which metrics should be scraped
-  interval: 5m
-
-  # scrapeTimeout specifies the timeout after which the scrape is ended
-  scrapeTimeout: 30s

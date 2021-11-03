@@ -60,13 +60,6 @@ Common labels.
 */}}
 {{- define "aad-pod-identity.labels" -}}
 {{- include "aad-pod-identity.selectors" . }}
-app.kubernetes.io/part-of: {{ template "aad-pod-identity.name" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
 helm.sh/chart: {{ template "aad-pod-identity.chart" . }}
-{{- if .Values.customLabels }}
-{{ toYaml .Values.customLabels }}
-{{- end }}
 {{- end -}}
