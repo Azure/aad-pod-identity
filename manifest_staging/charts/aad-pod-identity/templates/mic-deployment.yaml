@@ -155,11 +155,9 @@ spec:
                 key: UserAssignedMSIClientID
                 name: {{ template "aad-pod-identity.mic.fullname" . }}
           {{- end }}
-          {{- else }}
-          {{- if .Values.mic.customCloud.enabled }}
+          {{- else if .Values.mic.customCloud.enabled }}
           - name: AZURE_ENVIRONMENT_FILEPATH
             value: "{{ .Values.mic.customCloud.configPath }}"
-          {{- end }}
           {{- end }}
         {{- if .Values.mic.prometheusPort }}
         ports:
@@ -174,7 +172,7 @@ spec:
             readOnly: true
           {{- if .Values.mic.customCloud.enabled }}
           - name: custom-env-file
-            mountPath: {{ .Values.mic.customCloud.configPath}}
+            mountPath: {{ .Values.mic.customCloud.configPath }}
             readOnly: true
           {{- end }}
         {{- end }}
@@ -200,7 +198,7 @@ spec:
       {{- if .Values.mic.customCloud.enabled }}
       - name: custom-env-file
         hostPath:
-          path: {{ .Values.mic.customCloud.configPath}}
+          path: {{ .Values.mic.customCloud.configPath }}
       {{- end }}
       {{- end }}
 {{- with .Values.mic.nodeSelector }}
