@@ -379,7 +379,10 @@ The list is comma separated. Example: 00000000-0000-0000-0000-000000000000,11111
 &lt;/ul>
 &lt;/li>
 &lt;/ul></description></item><item><title>Docs: Pod Identity in Custom Cloud</title><link>https://azure.github.io/aad-pod-identity/docs/configure/custom_cloud/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/custom_cloud/</guid><description>
-&lt;p>This document highlights the steps to configure and use AAD Pod Identity in custom Azure cloud environments.&lt;/p>
+&lt;p>This document highlights the steps to configure and use AAD Pod Identity in custom Azure cloud environments.
+If you are deploying with helm, then set &lt;code>mic.customCloud.enabled&lt;/code> to true (e.g., &lt;code>--set mic.customCloud.enabled=true&lt;/code>
+on the command line) to have the following configuration changes rendered. The custom cloud environment file
+name can be changed from &lt;code>/etc/kubernetes/akscustom.json&lt;/code> by setting &lt;code>mic.customCloud.configPath&lt;/code>.&lt;/p>
 &lt;ol>
 &lt;li>
 &lt;p>Ensure the cloud name in &lt;code>/etc/kubernetes/azure.json&lt;/code> is set to &lt;code>AzureStackCloud&lt;/code>&lt;/p>
