@@ -7,6 +7,9 @@ description: >
 ---
 
 This document highlights the steps to configure and use AAD Pod Identity in custom Azure cloud environments.
+If you are deploying with helm, then set `mic.customCloud.enabled` to true (e.g., `--set mic.customCloud.enabled=true`
+on the command line) to have the following configuration changes rendered. The custom cloud environment file
+name can be changed from `/etc/kubernetes/akscustom.json` by setting `mic.customCloud.configPath`.
 
 1. Ensure the cloud name in `/etc/kubernetes/azure.json` is set to `AzureStackCloud`
 
