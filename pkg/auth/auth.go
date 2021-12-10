@@ -3,14 +3,12 @@ package auth
 import (
 	"context"
 	"crypto/rsa"
-	"fmt"
 	"time"
 
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/version"
 
 	"github.com/Azure/go-autorest/autorest/adal"
-
 	"golang.org/x/crypto/pkcs12"
 	"k8s.io/klog/v2"
 )
@@ -38,19 +36,14 @@ func GetServicePrincipalTokenFromMSI(resource string) (_ *adal.Token, err error)
 		}
 	}()
 
-	msiEndpoint, err := adal.GetMSIVMEndpoint()
+	spt, err := adal.NewServicePrincipalTokenFromManagedIdentity(resource, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get the MSI endpoint, error: %+v", err)
-	}
-	// Set up the configuration of the service principal
-	spt, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, resource)
-	if err != nil {
-		return nil, fmt.Errorf("failed to acquire a token for MSI, error: %+v", err)
+		return nil, err
 	}
 	// obtain a fresh token
 	err = spt.Refresh()
 	if err != nil {
-		return nil, fmt.Errorf("failed to refresh token, error: %+v", err)
+		return nil, err
 	}
 	token := spt.Token()
 	return &token, nil
@@ -73,22 +66,16 @@ func GetServicePrincipalTokenFromMSIWithUserAssignedID(clientID, resource string
 		}
 	}()
 
-	msiEndpoint, err := adal.GetMSIVMEndpoint()
+	managedIdentityOptions := &adal.ManagedIdentityOptions{ClientID: clientID}
+	spt, err := adal.NewServicePrincipalTokenFromManagedIdentity(resource, managedIdentityOptions)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get the MSI endpoint, error: %+v", err)
-	}
-	// The ID of the user for whom the token is requested
-	userAssignedID := clientID
-	// Set up the configuration of the service principal
-	spt, err := adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(msiEndpoint, resource, userAssignedID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to acquire a token using the MSI VM extension, error: %+v", err)
+		return nil, err
 	}
 
 	// obtain a fresh token
 	err = spt.Refresh()
 	if err != nil {
-		return nil, fmt.Errorf("failed to refresh token, error: %+v", err)
+		return nil, err
 	}
 	token := spt.Token()
 	return &token, nil
@@ -127,7 +114,7 @@ func GetServicePrincipalToken(adEndpointFromSpec, tenantID, clientID, secret, re
 func newServicePrincipalToken(activeDirectoryEndpoint, tenantID, clientID, secret, resource string) ([]*adal.Token, error) {
 	oauthConfig, err := adal.NewOAuthConfig(activeDirectoryEndpoint, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create OAuth config, error: %+v", err)
+		return nil, err
 	}
 	spt, err := adal.NewServicePrincipalToken(*oauthConfig, clientID, secret, resource)
 	if err != nil {
@@ -136,7 +123,7 @@ func newServicePrincipalToken(activeDirectoryEndpoint, tenantID, clientID, secre
 	// obtain a fresh token
 	err = spt.Refresh()
 	if err != nil {
-		return nil, fmt.Errorf("failed to refresh token, error: %+v", err)
+		return nil, err
 	}
 	token := spt.Token()
 	return []*adal.Token{&token}, nil
@@ -148,7 +135,7 @@ func newServicePrincipalToken(activeDirectoryEndpoint, tenantID, clientID, secre
 func newMultiTenantServicePrincipalToken(activeDirectoryEndpoint, primaryTenantID, clientID, secret, resource string, auxiliaryTenantIDs []string) ([]*adal.Token, error) {
 	oauthConfig, err := adal.NewMultiTenantOAuthConfig(activeDirectoryEndpoint, primaryTenantID, auxiliaryTenantIDs, adal.OAuthOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create MultiTenantOAuth config, error: %+v", err)
+		return nil, err
 	}
 	spt, err := adal.NewMultiTenantServicePrincipalToken(oauthConfig, clientID, secret, resource)
 	if err != nil {
@@ -156,7 +143,7 @@ func newMultiTenantServicePrincipalToken(activeDirectoryEndpoint, primaryTenantI
 	}
 	err = spt.RefreshWithContext(context.TODO())
 	if err != nil {
-		return nil, fmt.Errorf("failed to refresh token, error: %+v", err)
+		return nil, err
 	}
 
 	var tokens []*adal.Token
@@ -195,12 +182,12 @@ func GetServicePrincipalTokenWithCertificate(adEndpointFromSpec, tenantID, clien
 	}
 	oauthConfig, err := adal.NewOAuthConfig(activeDirectoryEndpoint, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create OAuth config, error: %+v", err)
+		return nil, err
 	}
 
 	privateKey, cert, err := pkcs12.Decode(certificate, password)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode certificate, error: %+v", err)
+		return nil, err
 	}
 
 	spt, err := adal.NewServicePrincipalTokenFromCertificate(*oauthConfig, clientID, cert, privateKey.(*rsa.PrivateKey), resource)
@@ -210,7 +197,7 @@ func GetServicePrincipalTokenWithCertificate(adEndpointFromSpec, tenantID, clien
 	// obtain a fresh token
 	err = spt.Refresh()
 	if err != nil {
-		return nil, fmt.Errorf("failed to refresh token, error: %+v", err)
+		return nil, err
 	}
 	token := spt.Token()
 	return &token, nil
