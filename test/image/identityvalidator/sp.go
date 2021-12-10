@@ -9,29 +9,25 @@ import (
 	"k8s.io/klog/v2"
 )
 
-type servicePrincipalTester struct {
-	imdsTokenEndpoint string
-}
-
 // assertWithSystemAssignedIdentity obtains a service principal token with system-assigned identity.
-func (spt *servicePrincipalTester) assertWithSystemAssignedIdentity() error {
-	spToken, err := adal.NewServicePrincipalTokenFromMSI(spt.imdsTokenEndpoint, azure.PublicCloud.ResourceManagerEndpoint)
+func assertWithSystemAssignedIdentity() error {
+	spt, err := adal.NewServicePrincipalTokenFromManagedIdentity(azure.PublicCloud.ResourceManagerEndpoint, nil)
 	if err != nil {
-		return fmt.Errorf("failed to acquire a service principal token with %s, error: %+v", spt.imdsTokenEndpoint, err)
+		return fmt.Errorf("failed to acquire a service principal token from IMDS, error: %+v", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
 	defer cancel()
 
-	if err := spToken.RefreshWithContext(ctx); err != nil {
+	if err := spt.RefreshWithContext(ctx); err != nil {
 		return fmt.Errorf("failed to refresh the service principal token, error: %+v", err)
 	}
 
-	token := spToken.Token()
+	token := spt.Token()
 	if token.IsZero() {
 		return fmt.Errorf("%+v is a zero token", token)
 	}
 
-	klog.Infof("successfully acquired a service principal token from %s", spt.imdsTokenEndpoint)
+	klog.Infof("successfully acquired a service principal token from IMDS")
 	return nil
 }

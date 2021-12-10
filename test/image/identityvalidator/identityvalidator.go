@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
-	"github.com/Azure/go-autorest/autorest/adal"
 	"k8s.io/klog/v2"
 )
 
@@ -56,7 +55,6 @@ func main() {
 
 	klog.Infof("starting identity validator pod %s/%s with pod IP %s", podnamespace, podname, podip)
 
-	imdsTokenEndpoint, _ := adal.GetMSIVMEndpoint()
 	kvt := &keyvaultTester{
 		client:             keyvault.New(),
 		subscriptionID:     subscriptionID,
@@ -66,10 +64,6 @@ func main() {
 		secretName:         keyvaultSecretName,
 		secretVersion:      keyvaultSecretVersion,
 		secretValue:        keyvaultSecretValue,
-		imdsTokenEndpoint:  imdsTokenEndpoint,
-	}
-	spt := &servicePrincipalTester{
-		imdsTokenEndpoint: imdsTokenEndpoint,
 	}
 
 	var wg sync.WaitGroup
@@ -78,7 +72,7 @@ func main() {
 	for _, assert := range []assertFunction{
 		kvt.assertWithIdentityClientID,
 		kvt.assertWithIdentityResourceID,
-		spt.assertWithSystemAssignedIdentity,
+		assertWithSystemAssignedIdentity,
 	} {
 		wg.Add(1)
 		go func(assert assertFunction) {
