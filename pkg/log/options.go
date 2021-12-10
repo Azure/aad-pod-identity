@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 
+	"k8s.io/component-base/config"
 	json "k8s.io/component-base/logs/json"
 	"k8s.io/klog/v2"
 )
@@ -49,7 +50,8 @@ func (o *Options) Apply() error {
 	}
 
 	if o.LogFormat == jsonLogFormat {
-		klog.SetLogger(json.JSONLogger)
+		logger, _ := json.Factory{}.Create(config.FormatOptions{})
+		klog.SetLogger(logger)
 	}
 
 	return nil
