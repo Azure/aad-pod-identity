@@ -5,9 +5,9 @@ go 1.17
 require (
 	github.com/Azure/aad-pod-identity v1.8.5
 	github.com/Azure/azure-sdk-for-go v57.2.0+incompatible
-	github.com/Azure/go-autorest/autorest v0.11.19
-	github.com/Azure/go-autorest/autorest/adal v0.9.14
-	github.com/Azure/go-autorest/autorest/azure/auth v0.5.9
+	github.com/Azure/go-autorest/autorest v0.11.23
+	github.com/Azure/go-autorest/autorest/adal v0.9.18
+	github.com/Azure/go-autorest/autorest/azure/auth v0.5.10
 	github.com/Azure/go-autorest/autorest/to v0.4.0
 	github.com/gofrs/uuid v4.0.0+incompatible // indirect
 	github.com/kelseyhightower/envconfig v1.4.0
@@ -32,10 +32,10 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
-	github.com/form3tech-oss/jwt-go v3.2.3+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-logr/logr v1.2.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
+	github.com/golang-jwt/jwt/v4 v4.0.0 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-cmp v0.5.5 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
