@@ -8,3 +8,8 @@ func IsTokenRefreshError(err error) bool {
 	_, ok := err.(adal.TokenRefreshError)
 	return ok
 }
+
+// IsHealthCheckError returns true if the error is not a token refresh error.
+func IsHealthCheckError(err error) bool {
+	return !IsTokenRefreshError(err)
+}

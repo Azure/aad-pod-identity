@@ -246,7 +246,7 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 	if err != nil {
 		klog.Errorf("failed to get service principal token for pod:%s/%s, error: %+v", podns, podname, err)
 		httpErrorCode := http.StatusForbidden
-		if !auth.IsTokenRefreshError(err) {
+		if auth.IsHealthCheckError(err) {
 			// the adal library performs a health check prior to making the token request
 			// if the health check fails, we want to return a 503 instead of 403
 			// for health check failures, the error is not a token refresh error
@@ -398,7 +398,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	if err != nil {
 		klog.Errorf("failed to get service principal token for pod: %s/%s, error: %+v", podns, podname, err)
 		httpErrorCode := http.StatusForbidden
-		if !auth.IsTokenRefreshError(err) {
+		if auth.IsHealthCheckError(err) {
 			// the adal library performs a health check prior to making the token request
 			// if the health check fails, we want to return a 503 instead of 403
 			// for health check failures, the error is not a token refresh error
