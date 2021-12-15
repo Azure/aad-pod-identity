@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 package helm
@@ -105,6 +106,8 @@ func generateValueArgs(config *framework.Config) []string {
 		fmt.Sprintf("--set=nmi.retryAttemptsForCreated=%d", config.RetryAttemptsForCreated),
 		fmt.Sprintf("--set=nmi.retryAttemptsForAssigned=%d", config.RetryAttemptsForAssigned),
 		fmt.Sprintf("--set=nmi.findIdentityRetryIntervalInSeconds=%d", config.FindIdentityRetryIntervalInSeconds),
+		// Setting this explicitly as the old charts don't have this value object and fail with --reuse-values
+		fmt.Sprintf("--set=mic.customCloud.enabled=false"),
 	}
 
 	// TODO (aramase) bump this to compare against v1.7.3 after next release
