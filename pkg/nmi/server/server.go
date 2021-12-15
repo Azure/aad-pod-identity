@@ -245,7 +245,14 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 	tokens, err := s.TokenClient.GetTokens(r.Context(), tokenRequest.ClientID, tokenRequest.Resource, *podID)
 	if err != nil {
 		klog.Errorf("failed to get service principal token for pod:%s/%s, error: %+v", podns, podname, err)
-		http.Error(w, err.Error(), http.StatusForbidden)
+		httpErrorCode := http.StatusForbidden
+		if auth.IsHealthCheckError(err) {
+			// the adal library performs a health check prior to making the token request
+			// if the health check fails, we want to return a 503 instead of 403
+			// for health check failures, the error is not a token refresh error
+			httpErrorCode = http.StatusServiceUnavailable
+		}
+		http.Error(w, err.Error(), httpErrorCode)
 		return
 	}
 	nmiResp := NMIResponse{
@@ -390,7 +397,14 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 	tokens, err := s.TokenClient.GetTokens(r.Context(), tokenRequest.ClientID, tokenRequest.Resource, *podID)
 	if err != nil {
 		klog.Errorf("failed to get service principal token for pod: %s/%s, error: %+v", podns, podname, err)
-		http.Error(w, err.Error(), http.StatusForbidden)
+		httpErrorCode := http.StatusForbidden
+		if auth.IsHealthCheckError(err) {
+			// the adal library performs a health check prior to making the token request
+			// if the health check fails, we want to return a 503 instead of 403
+			// for health check failures, the error is not a token refresh error
+			httpErrorCode = http.StatusServiceUnavailable
+		}
+		http.Error(w, err.Error(), httpErrorCode)
 		return
 	}
 

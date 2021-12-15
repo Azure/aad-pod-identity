@@ -32,18 +32,13 @@ func main() {
 	flag.StringVar(&identityClientID, "identity-client-id", "", "The user-assigned identity client ID")
 	flag.Parse()
 
-	imdsTokenEndpoint, err := adal.GetMSIVMEndpoint()
-	if err != nil {
-		klog.Fatalf("failed to get IMDS token endpoint, error: %+v", err)
-	}
-
 	ticker := time.NewTicker(period)
 	defer ticker.Stop()
 
 	for ; true; <-ticker.C {
 		curlIMDSMetadataInstanceEndpoint()
-		t1 := getTokenFromIMDS(imdsTokenEndpoint)
-		t2 := getTokenFromIMDSWithUserAssignedID(imdsTokenEndpoint)
+		t1 := getTokenFromIMDS()
+		t2 := getTokenFromIMDSWithUserAssignedID()
 		if t1 == nil || t2 == nil || !strings.EqualFold(t1.AccessToken, t2.AccessToken) {
 			klog.Error("Tokens acquired from IMDS with and without identity client ID do not match")
 		}
@@ -51,8 +46,9 @@ func main() {
 	}
 }
 
-func getTokenFromIMDS(imdsTokenEndpoint string) *adal.Token {
-	spt, err := adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(imdsTokenEndpoint, resourceName, identityClientID)
+func getTokenFromIMDS() *adal.Token {
+	managedIdentityOpts := &adal.ManagedIdentityOptions{ClientID: identityClientID}
+	spt, err := adal.NewServicePrincipalTokenFromManagedIdentity(resourceName, managedIdentityOpts)
 	if err != nil {
 		klog.Errorf("failed to acquire a token from IMDS using user-assigned identity, error: %+v", err)
 		return nil
@@ -72,12 +68,13 @@ func getTokenFromIMDS(imdsTokenEndpoint string) *adal.Token {
 		return nil
 	}
 
-	klog.Infof("successfully acquired a service principal token from %s", imdsTokenEndpoint)
+	klog.Infof("successfully acquired a service principal token from IMDS")
 	return &token
 }
 
-func getTokenFromIMDSWithUserAssignedID(imdsTokenEndpoint string) *adal.Token {
-	spt, err := adal.NewServicePrincipalTokenFromMSIWithUserAssignedID(imdsTokenEndpoint, resourceName, identityClientID)
+func getTokenFromIMDSWithUserAssignedID() *adal.Token {
+	managedIdentityOpts := &adal.ManagedIdentityOptions{ClientID: identityClientID}
+	spt, err := adal.NewServicePrincipalTokenFromManagedIdentity(resourceName, managedIdentityOpts)
 	if err != nil {
 		klog.Errorf("failed to acquire a token from IMDS using user-assigned identity, error: %+v", err)
 		return nil
@@ -97,7 +94,7 @@ func getTokenFromIMDSWithUserAssignedID(imdsTokenEndpoint string) *adal.Token {
 		return nil
 	}
 
-	klog.Infof("successfully acquired a service principal token from %s using a user-assigned identity (%s)", imdsTokenEndpoint, identityClientID)
+	klog.Infof("successfully acquired a service principal token from IMDS using a user-assigned identity (%s)", identityClientID)
 	return &token
 }
 

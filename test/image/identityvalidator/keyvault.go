@@ -2,11 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
-	"net/url"
 	"os"
 
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
@@ -29,7 +25,6 @@ type keyvaultTester struct {
 	secretName         string
 	secretVersion      string
 	secretValue        string
-	imdsTokenEndpoint  string
 }
 
 // assertWithIdentityClientID obtains the secret value from a keyvault using
@@ -126,47 +121,15 @@ func (kvt *keyvaultTester) getKeyvaultURL() string {
 // getADALTokenWithIdentityResourceID returns an ADAL token
 // using the resource ID of a user-assigned identity.
 func (kvt *keyvaultTester) getADALTokenWithIdentityResourceID() (*adal.Token, error) {
-	// Create HTTP request for a managed services for Azure resources token to access Azure Resource Manager
-	imdsTokenURL, err := url.Parse(kvt.imdsTokenEndpoint)
+	managedIdentityOptions := &adal.ManagedIdentityOptions{IdentityResourceID: kvt.identityResourceID}
+	spt, err := adal.NewServicePrincipalTokenFromManagedIdentity(keyvaultResource, managedIdentityOptions)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse IMDS token endpoint (%s), error: %+v", kvt.imdsTokenEndpoint, err)
+		return nil, err
 	}
-
-	v := url.Values{}
-	v.Set("resource", keyvaultResource)
-	v.Set("msi_res_id", kvt.identityResourceID)
-	imdsTokenURL.RawQuery = v.Encode()
-
-	ctx, cancel := context.WithTimeout(context.Background(), contextTimeout)
-	defer cancel()
-
-	req, err := http.NewRequestWithContext(ctx, "GET", imdsTokenURL.String(), nil)
+	err = spt.Refresh()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create a new HTTP request, error: %+v", err)
+		return nil, err
 	}
-	req.Header.Add("Metadata", "true")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send a HTTP request, error: %+v", err)
-	}
-	defer resp.Body.Close()
-
-	responseBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read the response body, error: %+v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Status Code = '%d'. Response body: %s", resp.StatusCode, string(responseBytes))
-	}
-
-	var token adal.Token
-	err = json.Unmarshal(responseBytes, &token)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal %s, error: %+v", string(responseBytes), err)
-	}
-
+	token := spt.Token()
 	return &token, nil
 }
