@@ -7,6 +7,23 @@ menu:
     weight: 10
 ---
 
+## v1.8.6
+
+### Features
+
+- return http 503 when IMDS healthcheck fails ([#1206](https://github.com/Azure/aad-pod-identity/issues/1206))
+
+### Maintenance
+
+- remove armv7 from build platforms ([#1180](https://github.com/Azure/aad-pod-identity/issues/1180))
+- update debian-iptables to bullseye-v1.1.0 ([#1200](https://github.com/Azure/aad-pod-identity/issues/1200))
+- upgrade various packages to remove jwt-go v3.2.0 dependency ([#1205](https://github.com/Azure/aad-pod-identity/issues/1205))
+- update adal deps to v0.9.18 ([#1208](https://github.com/Azure/aad-pod-identity/issues/1208))
+
+### Helm
+
+- support custom cloud configuration in helm chart ([#1203](https://github.com/Azure/aad-pod-identity/issues/1203))
+
 ## v1.8.5
 
 ### Documentation
