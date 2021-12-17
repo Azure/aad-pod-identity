@@ -43,7 +43,7 @@ operationMode: "standard"
 
 mic:
   image: mic
-  tag: v1.8.5
+  tag: v1.8.6
 
   # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
@@ -141,6 +141,12 @@ mic:
   # cloud configuration used to authenticate with Azure
   cloudConfig: "/etc/kubernetes/azure.json"
 
+  # Configures for a custom cloud per the example here:
+  # https://azure.github.io/aad-pod-identity/docs/configure/custom_cloud/
+  customCloud:
+    enabled: false
+    configPath: "/etc/kubernetes/akscustom.json"
+
   # The maximum retry of UpdateUserMSI call. MIC updates all the identities in a batch. If a single identity contains an error
   # or is invalid, then the entire operation fails. Configuring this flag will make MIC retry by removing the erroneous identities
   # returned in the error
@@ -157,7 +163,7 @@ mic:
 
 nmi:
   image: nmi
-  tag: v1.8.5
+  tag: v1.8.6
 
   # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""

@@ -156,17 +156,28 @@ spec:
                 name: {{ template "aad-pod-identity.mic.fullname" . }}
           {{- end }}
           {{- end }}
+          {{- if .Values.mic.customCloud.enabled }}
+          - name: AZURE_ENVIRONMENT_FILEPATH
+            value: "{{ .Values.mic.customCloud.configPath }}"
+          {{- end }}
         {{- if .Values.mic.prometheusPort }}
         ports:
           - containerPort: {{ .Values.mic.prometheusPort }}
             name: metrics
             protocol: TCP
         {{- end }}
-        {{- if not .Values.adminsecret }}
+        {{- if or (not .Values.adminsecret) .Values.mic.customCloud.enabled }}
         volumeMounts:
+          {{- if not .Values.adminsecret }}
           - name: k8s-azure-file
             mountPath: {{ .Values.mic.cloudConfig }}
             readOnly: true
+          {{- end }}
+          {{- if .Values.mic.customCloud.enabled }}
+          - name: custom-env-file
+            mountPath: {{ .Values.mic.customCloud.configPath }}
+            readOnly: true
+          {{- end }}
         {{- end }}
         livenessProbe:
           httpGet:
@@ -182,11 +193,18 @@ spec:
         resources:
 {{ toYaml . | indent 12 }}
 {{- end }}
-      {{- if not .Values.adminsecret }}
+      {{- if or (not .Values.adminsecret) .Values.mic.customCloud.enabled }}
       volumes:
+      {{- if not .Values.adminsecret }}
       - name: k8s-azure-file
         hostPath:
           path: {{ .Values.mic.cloudConfig }}
+      {{- end }}
+      {{- if .Values.mic.customCloud.enabled }}
+      - name: custom-env-file
+        hostPath:
+          path: {{ .Values.mic.customCloud.configPath }}
+      {{- end }}
       {{- end }}
 {{- with .Values.mic.nodeSelector }}
       nodeSelector:
