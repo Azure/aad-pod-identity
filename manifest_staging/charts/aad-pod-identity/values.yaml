@@ -293,6 +293,18 @@ azureIdentities:
   #     # The selector will also need to be included in labels for app deployment
   #     selector: "demo"
 
+# Create AzurePodIdentityExceptions
+# This is a map with the AzurePodIdentityExceptionName being the key and the rest of the blob as value in accordance
+# to helm best practices: https://helm.sh/docs/chart_best_practices/values/#consider-how-users-will-use-your-values
+podIdentityExceptions:
+  # "podidentity-exception":
+  #   # if not defined, then the pod identity exception will be deployed in the same namespace as the chart
+  #   namespace: ""
+  #   # if not defined, then the name of pod identity exception will be the same as the key
+  #   name: ""
+  #   # A list of podLabels to matches pods with the selector defined. If request originates from a pod that matches the selector, nmi will proxy the request and send response back without any validation.
+  #   podLabels: {}
+
 # If provided, the userAgent string will be appended to the pod identity user agents for all
 # ADAL, ARM and Kube API server requests.
 customUserAgent: ""

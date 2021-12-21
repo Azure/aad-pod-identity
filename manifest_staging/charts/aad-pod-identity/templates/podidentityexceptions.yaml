@@ -1,0 +1,16 @@
+{{- if not (empty .Values.podIdentityExceptions) -}}
+{{- range $key, $value := .Values.podIdentityExceptions }}
+apiVersion: "aadpodidentity.k8s.io/v1"
+kind: AzurePodIdentityException
+metadata:
+  name: {{ default $key $value.name }}
+  namespace: {{ default $.Release.Namespace $value.namespace }}
+  labels:
+    {{- include "aad-pod-identity.labels" $ | nindent 8 }}
+spec:
+  podLabels:    
+        {{- range $key2, $value2 := $value.podLabels }}
+        {{ $key2 }}: {{ $value2 }}
+        {{- end }}
+{{- end -}}
+{{- end -}}
