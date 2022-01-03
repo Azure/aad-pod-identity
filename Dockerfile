@@ -20,7 +20,8 @@ RUN export GOOS=$TARGETOS && \
 FROM k8s.gcr.io/build-image/debian-iptables:bullseye-v1.1.0 AS nmi
 # upgrading libssl1.1 due to CVE-2021-3711 and CVE-2021-3712
 # upgrading libgssapi-krb5-2 and libk5crypto3 due to CVE-2021-37750
-RUN clean-install ca-certificates libssl1.1 libgssapi-krb5-2 libk5crypto3
+# upgrading libgmp10 due to CVE-2021-43618
+RUN clean-install ca-certificates libssl1.1 libgssapi-krb5-2 libk5crypto3 libgmp10
 COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
 RUN useradd -u 10001 nonroot
 USER nonroot
