@@ -96,10 +96,11 @@ spec:
           {{- if .Values.customUserAgent }}
           - --custom-user-agent={{ .Values.customUserAgent }}
           {{- end }}
-        {{- if not .Values.adminsecret }}
         securityContext:
+        {{- if not .Values.adminsecret }}
           runAsUser: 0
         {{- end }}
+          readOnlyRootFilesystem: true
         env:
           - name: MIC_POD_NAMESPACE
             valueFrom:

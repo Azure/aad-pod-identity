@@ -514,6 +514,7 @@ spec:
           - "--logtostderr"
         securityContext:
           runAsUser: 0
+          readOnlyRootFilesystem: true
         env:
           - name: MIC_POD_NAMESPACE
             valueFrom:
