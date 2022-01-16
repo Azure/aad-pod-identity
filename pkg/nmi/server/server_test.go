@@ -89,6 +89,34 @@ func TestMsiHandler_NoRemoteAddress(t *testing.T) {
 	}
 }
 
+func TestDefaultPathHandler_BlockInstanceMetadata(t *testing.T) {
+	setup()
+	defer teardown()
+
+	s := &Server{
+		BlockInstanceMetadata:              true,
+		AllowedNamespaceToInstanceMetadata: "",
+	}
+	rtr.PathPrefix("/{type:(?i:metadata)}/instance").HandlerFunc(s.instancePathHandler)
+
+	req, err := http.NewRequest(http.MethodGet, "/metadata/instance", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	recorder := httptest.NewRecorder()
+	rtr.ServeHTTP(recorder, req)
+
+	if recorder.Code != http.StatusForbidden {
+		t.Errorf("Unexpected status code %d", recorder.Code)
+	}
+
+	expected := "Request blocked by AAD Pod Identity NMI"
+	if expected != strings.TrimSpace(recorder.Body.String()) {
+		t.Errorf("Unexpected response body %s", recorder.Body.String())
+	}
+}
+
 func TestParseTokenRequest(t *testing.T) {
 	const endpoint = "http://127.0.0.1/metadata/identity/oauth2/token"
 

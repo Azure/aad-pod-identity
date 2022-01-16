@@ -45,6 +45,7 @@ var (
 	enableProfile                      = pflag.Bool("enableProfile", false, "Enable/Disable pprof profiling")
 	enableScaleFeatures                = pflag.Bool("enableScaleFeatures", true, "Enable/Disable features for scale clusters")
 	blockInstanceMetadata              = pflag.Bool("block-instance-metadata", false, "Block instance metadata endpoints")
+	allowedNamespaceToInstanceMetadata = pflag.String("allowed-namespace-to-instance-metadata", "kube-system", "Allowed namespace to instance metadata endpoints if `block-instance-metadata` flag is set")
 	metadataHeaderRequired             = pflag.Bool("metadata-header-required", true, "Metadata header required for querying Azure Instance Metadata service")
 	prometheusPort                     = pflag.String("prometheus-port", "9090", "Prometheus port for metrics")
 	operationMode                      = pflag.String("operation-mode", "standard", "NMI operation mode")
@@ -113,7 +114,7 @@ func main() {
 	*forceNamespaced = *forceNamespaced || "true" == os.Getenv("FORCENAMESPACED")
 	klog.Infof("running NMI in namespaced mode: %v", *forceNamespaced)
 
-	s := server.NewServer(*micNamespace, *blockInstanceMetadata, *metadataHeaderRequired, *setRetryAfterHeader)
+	s := server.NewServer(*micNamespace, *allowedNamespaceToInstanceMetadata, *blockInstanceMetadata, *metadataHeaderRequired, *setRetryAfterHeader)
 	s.KubeClient = client
 	s.MetadataIP = *metadataIP
 	s.MetadataPort = *metadataPort

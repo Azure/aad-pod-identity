@@ -30,6 +30,7 @@ type Config struct {
 	ImmutableUserMSIs                  string        `envconfig:"IMMUTABLE_IDENTITY_CLIENT_ID"`
 	NMIMode                            string        `envconfig:"NMI_MODE" default:"standard"`
 	BlockInstanceMetadata              bool          `envconfig:"BLOCK_INSTANCE_METADATA" default:"true"`
+	AllowedNamespaceToInstanceMetadata string        `envconfig:"ALLOWED_NAMESPACE_TO_INSTANCE_METADATA" default:""`
 	IsSoakTest                         bool          `envconfig:"IS_SOAK_TEST" default:"false"`
 	IdentityReconcileInterval          time.Duration `envconfig:"IDENTITY_RECONCILE_INTERVAL" default:"2m"`
 	ServicePrincipalClientID           string        `envconfig:"SERVICE_PRINCIPAL_CLIENT_ID"`
@@ -62,6 +63,7 @@ func (c *Config) DeepCopy() *Config {
 	copy.ImmutableUserMSIs = c.ImmutableUserMSIs
 	copy.NMIMode = c.NMIMode
 	copy.BlockInstanceMetadata = c.BlockInstanceMetadata
+	copy.AllowedNamespaceToInstanceMetadata = c.AllowedNamespaceToInstanceMetadata
 	copy.IsSoakTest = c.IsSoakTest
 	copy.ServicePrincipalClientID = c.ServicePrincipalClientID
 	copy.ServicePrincipalClientSecret = c.ServicePrincipalClientSecret

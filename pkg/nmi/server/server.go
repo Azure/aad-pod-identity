@@ -49,6 +49,7 @@ type Server struct {
 	NodeName                           string
 	IPTableUpdateTimeIntervalInSeconds int
 	MICNamespace                       string
+	AllowedNamespaceToInstanceMetadata string
 	Initialized                        bool
 	BlockInstanceMetadata              bool
 	MetadataHeaderRequired             bool
@@ -72,7 +73,7 @@ type MetadataResponse struct {
 }
 
 // NewServer will create a new Server with default values.
-func NewServer(micNamespace string, blockInstanceMetadata, metadataHeaderRequired, setRetryAfterHeader bool) *Server {
+func NewServer(micNamespace, allowedNamespaceToInstanceMetadata string, blockInstanceMetadata, metadataHeaderRequired, setRetryAfterHeader bool) *Server {
 	reporter, err := metrics.NewReporter()
 	if err != nil {
 		klog.Errorf("failed to create reporter for metrics, error: %+v", err)
@@ -82,11 +83,12 @@ func NewServer(micNamespace string, blockInstanceMetadata, metadataHeaderRequire
 		auth.InitReporter(reporter)
 	}
 	return &Server{
-		MICNamespace:           micNamespace,
-		BlockInstanceMetadata:  blockInstanceMetadata,
-		MetadataHeaderRequired: metadataHeaderRequired,
-		Reporter:               reporter,
-		SetRetryAfterHeader:    setRetryAfterHeader,
+		MICNamespace:                       micNamespace,
+		AllowedNamespaceToInstanceMetadata: allowedNamespaceToInstanceMetadata,
+		BlockInstanceMetadata:              blockInstanceMetadata,
+		MetadataHeaderRequired:             metadataHeaderRequired,
+		Reporter:                           reporter,
+		SetRetryAfterHeader:                setRetryAfterHeader,
 	}
 }
 
@@ -98,7 +100,7 @@ func (s *Server) Run() error {
 	rtr.PathPrefix(tokenPathPrefix).Handler(appHandler(s.msiHandler))
 	rtr.PathPrefix(hostTokenPathPrefix).Handler(appHandler(s.hostHandler))
 	if s.BlockInstanceMetadata {
-		rtr.PathPrefix(instancePathPrefix).HandlerFunc(forbiddenHandler)
+		rtr.PathPrefix(instancePathPrefix).HandlerFunc(s.instancePathHandler)
 	}
 	rtr.PathPrefix("/").HandlerFunc(s.defaultPathHandler)
 
@@ -512,6 +514,20 @@ func parseTokenRequest(r *http.Request) (request TokenRequest) {
 	return request
 }
 
+// instancePathHandler creates a new instance metadata request and returns the response body and code
+func (s *Server) instancePathHandler(w http.ResponseWriter, r *http.Request) {
+	if s.BlockInstanceMetadata {
+		if s.AllowedNamespaceToInstanceMetadata == "" {
+			http.Error(w, "Request blocked by AAD Pod Identity NMI", http.StatusForbidden)
+			return
+		}
+		if !s.hasAccessToInstanceMetadata(w, r) {
+			return
+		}
+	}
+	s.defaultPathHandler(w, r)
+}
+
 // defaultPathHandler creates a new request and returns the response body and code
 func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) {
 	if s.MetadataHeaderRequired && parseMetadata(r) != "true" {
@@ -552,9 +568,31 @@ func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(body)
 }
 
-// forbiddenHandler responds to any request with HTTP 403 Forbidden
-func forbiddenHandler(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "Request blocked by AAD Pod Identity NMI", http.StatusForbidden)
+// hasAccessToInstanceMetadata validates if the requester has access to instance metadata
+func (s *Server) hasAccessToInstanceMetadata(w http.ResponseWriter, r *http.Request) bool {
+	podIP := parseRemoteAddr(r.RemoteAddr)
+	if podIP == "" {
+		klog.Error("request remote address is empty")
+		http.Error(w, "request remote address is empty", http.StatusInternalServerError)
+		return false
+	}
+	podns, _, _, _, err := s.KubeClient.GetPodInfo(podIP)
+	if err != nil {
+		klog.Errorf("failed to get pod info from pod IP: %s, error: %+v", podIP, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return false
+	}
+
+	if podns == "" {
+		klog.Errorf("failed to get podns from pod IP: %s", podIP)
+		http.Error(w, "failed to get podns from pod IP", http.StatusInternalServerError)
+		return false
+	}
+	if podns != s.AllowedNamespaceToInstanceMetadata {
+		http.Error(w, "Request blocked by AAD Pod Identity NMI", http.StatusForbidden)
+		return false
+	}
+	return true
 }
 
 func copyHeader(dst, src http.Header) {

@@ -53,6 +53,13 @@ Forbidden response. This flag is disabled by default to maximize compatibility.
 Users are encouraged to determine if this option is relevant and beneficial for
 their use cases.
 
+## Allowed Namespace To Instance Metadata flag
+
+> Available from 1.8.7 release
+
+The `allowed-namespace-to-instance-metadata` flag for NMI allows pods from specified namespace to access the instance metadata when
+`blockInstanceMetadata` flag is set. If empty, no pods will have access to instance metadata.
+
 ## ImmutableUserMSIs flag
 
 > Available from 1.5.4 release
