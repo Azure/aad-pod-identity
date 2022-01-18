@@ -6,6 +6,8 @@ menu:
     weight: 20
 ---
 
+> **❗ IMPORTANT**: As mentioned in the [announcement](https://cloudblogs.microsoft.com/opensource/2022/01/18/announcing-azure-active-directory-azure-ad-workload-identity-for-kubernetes/), we are planning to replace AAD Pod Identity with [Azure Workload Identity](https://azure.github.io/azure-workload-identity). Going forward, we will no longer add new features to this project in favor of Azure Workload Identity. However, we will continue patching critical bugs and security vulnerabilities until further notice.
+
 AAD Pod Identity enables Kubernetes applications to access cloud resources securely with [Azure Active Directory](https://azure.microsoft.com/en-us/services/active-directory/) using User-assigned managed identity and Service Principal.
 
 > Note: Configuring system-assigned managed identity with AAD Pod Identity to access cloud resources is not supported.
@@ -95,7 +97,7 @@ However, for future `AzureIdentity` and `AzureIdentityBinding` created using v1.
 ### `AzureIdentity`
 
 | < 1.6.0          | >= 1.6.0         |
-|------------------|------------------|
+| ---------------- | ---------------- |
 | `ClientID`       | `clientID`       |
 | `ClientPassword` | `clientPassword` |
 | `ResourceID`     | `resourceID`     |
@@ -104,14 +106,14 @@ However, for future `AzureIdentity` and `AzureIdentityBinding` created using v1.
 ### `AzureIdentityBinding`
 
 | < 1.6.0         | >= 1.6.0        |
-|-----------------|-----------------|
+| --------------- | --------------- |
 | `AzureIdentity` | `azureIdentity` |
 | `Selector`      | `selector`      |
 
 ### `AzurePodIdentityException`
 
 | < 1.6.0     | >= 1.6.0    |
-|-------------|-------------|
+| ----------- | ----------- |
 | `PodLabels` | `podLabels` |
 
 

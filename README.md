@@ -1,5 +1,7 @@
 # AAD Pod Identity
 
+> **❗ IMPORTANT**: As mentioned in the [announcement](https://cloudblogs.microsoft.com/opensource/2022/01/18/announcing-azure-active-directory-azure-ad-workload-identity-for-kubernetes/), we are planning to replace AAD Pod Identity with [Azure Workload Identity](https://azure.github.io/azure-workload-identity). Going forward, we will no longer add new features to this project in favor of Azure Workload Identity. However, we will continue patching critical bugs and security vulnerabilities until further notice.
+
 [![Build Status](https://dev.azure.com/AzureContainerUpstream/AAD%20Pod%20Identity/_apis/build/status/AAD%20Pod%20Identity%20Nightly?branchName=master)](https://dev.azure.com/AzureContainerUpstream/AAD%20Pod%20Identity/_build/latest?definitionId=295&branchName=master)
 [![codecov](https://codecov.io/gh/Azure/aad-pod-identity/branch/master/graph/badge.svg)](https://codecov.io/gh/Azure/aad-pod-identity)
 [![GoDoc](https://godoc.org/github.com/Azure/aad-pod-identity?status.svg)](https://godoc.org/github.com/Azure/aad-pod-identity)
