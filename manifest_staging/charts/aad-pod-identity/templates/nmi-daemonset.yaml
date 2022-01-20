@@ -82,18 +82,14 @@ spec:
           {{- if .Values.nmi.findIdentityRetryIntervalInSeconds }}
           - --find-identity-retry-interval={{ .Values.nmi.findIdentityRetryIntervalInSeconds }}
           {{- end }}
-          {{- if .Values.nmi.enableScaleFeatures }}
           - --enableScaleFeatures={{ .Values.nmi.enableScaleFeatures }}
-          {{- end }}
           {{- if .Values.nmi.prometheusPort }}
           - --prometheus-port={{ .Values.nmi.prometheusPort }}
           {{- end }}
           {{- if .Values.nmi.blockInstanceMetadata }}
           - --block-instance-metadata={{ .Values.nmi.blockInstanceMetadata }}
           {{- end }}
-          {{- if .Values.nmi.metadataHeaderRequired}}
           - --metadata-header-required={{ .Values.nmi.metadataHeaderRequired }}
-          {{- end }}
           {{- if .Values.nmi.loggingFormat }}
           - --log-format={{ .Values.nmi.loggingFormat }}
           {{- end}}

@@ -44,6 +44,10 @@ menu:
 
 ## v1.8.4
 
+### Breaking Changes
+
+The metadata header required flag is enabled by default to prevent SSRF attacks. Check [Metadata Header Required](https://azure.github.io/aad-pod-identity/docs/configure/feature_flags/#metadata-header-required-flag) for more information. To disable the metadata header check, set `--metadata-header-required=false` in NMI [container args](https://github.com/Azure/aad-pod-identity/blob/v1.8.6/deploy/infra/deployment-rbac.yaml#L483).
+
 ### Bug Fixes
 - update the node name label as part of AzureAssignedIdentity update ([#1161](https://github.com/Azure/aad-pod-identity/issues/1161))
 
