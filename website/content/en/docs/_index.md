@@ -16,6 +16,10 @@ Using Kubernetes primitives, administrators configure identities and bindings to
 
 ## Breaking Changes
 
+### v1.8.4
+
+The metadata header required flag is enabled by default to prevent SSRF attacks. Check [Metadata Header Required](./configure/feature_flags/#metadata-header-required-flag) for more information. To disable the metadata header check, set `--metadata-header-required=false` in NMI [container args](https://github.com/Azure/aad-pod-identity/blob/v1.8.6/deploy/infra/deployment-rbac.yaml#L483).
+
 ### v1.8.0
 
 - The API version of Pod Identity's CRDs (`AzureIdentity`, `AzureIdentityBinding`, `AzureAssignedIdentity`, `AzurePodIdentityException`) have been upgraded from `apiextensions.k8s.io/v1beta1` to `apiextensions.k8s.io/v1`. For Kubernetes clusters with < 1.16, `apiextensions.k8s.io/v1` CRDs would not work. You can either:
