@@ -86,3 +86,14 @@ While enabling this feature, you must also disable the internal retries in NMI.
   - Set `--retry-attempts-for-created=1`, `--retry-attempts-for-assigned=1` and `--find-identity-retry-interval=1` flags in the NMI container to disable the internal retries in NMI.
 - If using [helm](../../getting-started/installation/#helm) to deploy aad-pod-identity, you can enable this feature by setting `nmi.setRetryAfterHeader=true` as part of helm install/upgrade.
   - Set `nmi.retryAttemptsForCreated=1`, `nmi.retryAttemptsForAssigned=1` and `nmi.findIdentityRetryIntervalInSeconds=1` flags in the helm install/upgrade command to disable the internal retries in NMI.
+
+## Do not Flush Iptables on Exit
+
+> Available from v1.8.7 release
+
+NMI currently flushes the iptables rule on exit. For some applications this causes requests to reach metadata endpoint directly instead of going through nmi pod. This flag disables flushing of iptable rules when the nmi pod terminates
+
+### How to enable this feature
+
+- If using the [yaml](../../getting-started/installation/#quick-install) to deploy aad-pod-identity, you can enable this feature by setting the `--dont-flush-iptables-on-exit=true` flag in the NMI container.
+- If using [helm](../../getting-started/installation/#helm) to deploy aad-pod-identity, you can enable this feature by setting `nmi.dontFlushIptablesOnExit=true` as part of helm install/upgrade.

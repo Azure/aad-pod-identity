@@ -51,6 +51,7 @@ var (
 	allowNetworkPluginKubenet          = pflag.Bool("allow-network-plugin-kubenet", false, "Allow running aad-pod-identity in cluster with kubenet")
 	kubeletConfig                      = pflag.String("kubelet-config", "/etc/default/kubelet", "Path to kubelet default config")
 	setRetryAfterHeader                = pflag.Bool("set-retry-after-header", false, "Set Retry-After header in NMI responses")
+	dontFlushIptableOnExit             = pflag.Bool("dont-flush-iptables-on-exit", false, "Do not flush iptables rules on exit")
 )
 
 func main() {
@@ -120,6 +121,7 @@ func main() {
 	s.NMIPort = *nmiPort
 	s.NodeName = *nodename
 	s.IPTableUpdateTimeIntervalInSeconds = *ipTableUpdateTimeIntervalInSeconds
+	s.DontFlushIptablesOnExit = *dontFlushIptableOnExit
 
 	nmiConfig := nmi.Config{
 		Mode:                               strings.ToLower(*operationMode),

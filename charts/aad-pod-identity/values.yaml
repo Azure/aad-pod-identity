@@ -212,6 +212,8 @@ nmi:
 
   # Override iptables update interval in seconds (default is 60)
   ipTableUpdateTimeIntervalInSeconds: ""
+  # Control whether iptables will be flushed on exit
+  dontFlushIptablesOnExit: "false"
 
   # Override mic namespace to short circuit MIC token requests (default is default namespace)
   micNamespace: ""

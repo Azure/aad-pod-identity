@@ -48,6 +48,7 @@ type Server struct {
 	MetadataPort                       string
 	NodeName                           string
 	IPTableUpdateTimeIntervalInSeconds int
+	DontFlushIptablesOnExit            bool
 	MICNamespace                       string
 	Initialized                        bool
 	BlockInstanceMetadata              bool
@@ -140,7 +141,7 @@ loop:
 	for {
 		select {
 		case <-signalChan:
-			handleTermination()
+			s.handleTermination()
 			break loop
 
 		case <-ticker.C:
@@ -565,14 +566,19 @@ func copyHeader(dst, src http.Header) {
 	}
 }
 
-func handleTermination() {
+func (s *Server) handleTermination() {
 	klog.Info("received SIGTERM, shutting down")
 
 	exitCode := 0
-	// clean up iptables
-	if err := iptables.DeleteCustomChain(); err != nil {
-		klog.Errorf("failed to clean up during shutdown, error: %+v", err)
-		exitCode = 1
+	if s.DontFlushIptablesOnExit {
+		klog.Info("don`t flush iptables rule")
+	} else {
+		//  clean up iptables
+		klog.Info("flushing iptables rule")
+		if err := iptables.DeleteCustomChain(); err != nil {
+			klog.Errorf("failed to clean up during shutdown, error: %+v", err)
+			exitCode = 1
+		}
 	}
 
 	// wait for pod to delete

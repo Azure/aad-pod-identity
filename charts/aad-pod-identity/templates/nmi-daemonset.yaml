@@ -70,6 +70,9 @@ spec:
           {{- if .Values.nmi.ipTableUpdateTimeIntervalInSeconds }}
           - --ipt-update-interval-sec={{ .Values.nmi.ipTableUpdateTimeIntervalInSeconds }}
           {{- end }}
+          {{- if .Values.nmi.dontFlushIptableOnExit  }}
+          - --dont-flush-iptables-on-exit={{ .Values.nmi.dontFlushIptablesOnExit }}
+          {{- end }}
           {{- if .Values.nmi.micNamespace }}
           - --MICNamespace={{ .Values.nmi.micNamespace }}
           {{- end }}
