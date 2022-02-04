@@ -86,3 +86,16 @@ While enabling this feature, you must also disable the internal retries in NMI.
   - Set `--retry-attempts-for-created=1`, `--retry-attempts-for-assigned=1` and `--find-identity-retry-interval=1` flags in the NMI container to disable the internal retries in NMI.
 - If using [helm](../../getting-started/installation/#helm) to deploy aad-pod-identity, you can enable this feature by setting `nmi.setRetryAfterHeader=true` as part of helm install/upgrade.
   - Set `nmi.retryAttemptsForCreated=1`, `nmi.retryAttemptsForAssigned=1` and `nmi.findIdentityRetryIntervalInSeconds=1` flags in the helm install/upgrade command to disable the internal retries in NMI.
+
+## Enable deletion of conntrack entries
+
+> Available from v1.8.7 release
+
+NMI redirects Instance Metadata Service (IMDS) requests to itself by setting up iptables rules after it starts running on the node.
+However, these rules are not applicable to pre-existing connections. In such a scenario, the token request will be directly sent to IMDS instead of being intercepted by NMI. What this means is that the workload pod that runs before the NMI pod on the node can access identities that it doesn't have access to.
+The `enable-conntrack-deletion` flag enables deletion of entries for pre-existing connections to IMDS endpoint, this causes applications which had pre-existing connections to be intercepted by NMI.
+
+### How to enable this feature
+
+- If using the [yaml](../../getting-started/installation/#quick-install) to deploy aad-pod-identity, you can enable this feature by setting the `--enable-conntrack-deletion=true` flag in the NMI container.
+- If using [helm](../../getting-started/installation/#helm) to deploy aad-pod-identity, you can enable this feature by setting `nmi.enableConntrackDeletion=true` as part of helm install/upgrade.

@@ -25,6 +25,7 @@ import (
 	"github.com/Azure/aad-pod-identity/pkg/k8s"
 	"github.com/Azure/aad-pod-identity/pkg/metrics"
 	"github.com/Azure/aad-pod-identity/pkg/nmi"
+	"github.com/Azure/aad-pod-identity/pkg/nmi/conntrack"
 	"github.com/Azure/aad-pod-identity/pkg/nmi/iptables"
 	"github.com/Azure/aad-pod-identity/pkg/pod"
 )
@@ -53,6 +54,7 @@ type Server struct {
 	BlockInstanceMetadata              bool
 	MetadataHeaderRequired             bool
 	SetRetryAfterHeader                bool
+	EnableConntrackDeletion            bool
 	// TokenClient is client that fetches identities and tokens
 	TokenClient nmi.TokenClient
 	Reporter    *metrics.Reporter
@@ -120,6 +122,15 @@ func (s *Server) updateIPTableRulesInternal() {
 	}
 }
 
+// try to delete pre-existing conntrack entries for metadata endpoint
+func (s *Server) deleteConntrackEntries() {
+	klog.Infof("deleting conntrack entries for %s:%s", s.MetadataIP, s.MetadataPort)
+
+	if err := conntrack.DeleteConntrackEntries(s.MetadataIP, s.MetadataPort); err != nil {
+		klog.Fatalf("failed to delete conntrack entries for metadata ip: %s", err)
+	}
+}
+
 // updateIPTableRules ensures the correct iptable rules are set
 // such that metadata requests are received by nmi assigned port
 // NOT originating from HostIP destined to metadata endpoint are
@@ -130,10 +141,13 @@ func (s *Server) updateIPTableRules() {
 
 	ticker := time.NewTicker(time.Second * time.Duration(s.IPTableUpdateTimeIntervalInSeconds))
 	defer ticker.Stop()
-
 	// Run once before the waiting on ticker for the rules to take effect
 	// immediately.
 	s.updateIPTableRulesInternal()
+	// delete conntrack entries for pre-existing connections to metadata endpoint
+	if s.EnableConntrackDeletion {
+		s.deleteConntrackEntries()
+	}
 	s.Initialized = true
 
 loop:
