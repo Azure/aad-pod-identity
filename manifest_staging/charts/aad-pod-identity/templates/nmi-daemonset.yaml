@@ -114,6 +114,9 @@ spec:
           {{- if .Values.nmi.setRetryAfterHeader }}
           - --set-retry-after-header={{ .Values.nmi.setRetryAfterHeader }}
           {{- end }}
+          {{- if .Values.nmi.enableConntrackDeletion  }}
+          - --enable-conntrack-deletion={{ .Values.nmi.enableConntrackDeletion }}
+          {{- end }}
         env:
           {{- if semverCompare "<= 1.6.1-0" .Values.nmi.tag }}
           - name: HOST_IP

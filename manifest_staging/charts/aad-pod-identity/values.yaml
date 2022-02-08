@@ -255,6 +255,9 @@ nmi:
   # Set retry-after header in the NMI responses when the identity is still being assigned.
   setRetryAfterHeader: false
 
+  # Enable/Disable deletion of conntrack entries for pre-existing connections to metadata endpoint
+  enableConntrackDeletion: false
+
 rbac:
   enabled: true
   # NMI requires permissions to get secrets when service principal (type: 1) is used in AzureIdentity.
