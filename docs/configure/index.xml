@@ -378,6 +378,18 @@ The list is comma separated. Example: 00000000-0000-0000-0000-000000000000,11111
 &lt;li>Set &lt;code>nmi.retryAttemptsForCreated=1&lt;/code>, &lt;code>nmi.retryAttemptsForAssigned=1&lt;/code> and &lt;code>nmi.findIdentityRetryIntervalInSeconds=1&lt;/code> flags in the helm install/upgrade command to disable the internal retries in NMI.&lt;/li>
 &lt;/ul>
 &lt;/li>
+&lt;/ul>
+&lt;h2 id="enable-deletion-of-conntrack-entries">Enable deletion of conntrack entries&lt;/h2>
+&lt;blockquote>
+&lt;p>Available from v1.8.7 release&lt;/p>
+&lt;/blockquote>
+&lt;p>NMI redirects Instance Metadata Service (IMDS) requests to itself by setting up iptables rules after it starts running on the node.
+However, these rules are not applicable to pre-existing connections. In such a scenario, the token request will be directly sent to IMDS instead of being intercepted by NMI. What this means is that the workload pod that runs before the NMI pod on the node can access identities that it doesn&amp;rsquo;t have access to.
+The &lt;code>enable-conntrack-deletion&lt;/code> flag enables deletion of entries for pre-existing connections to IMDS endpoint, this causes applications which had pre-existing connections to be intercepted by NMI.&lt;/p>
+&lt;h3 id="how-to-enable-this-feature-1">How to enable this feature&lt;/h3>
+&lt;ul>
+&lt;li>If using the &lt;a href="../../getting-started/installation/#quick-install">yaml&lt;/a> to deploy aad-pod-identity, you can enable this feature by setting the &lt;code>--enable-conntrack-deletion=true&lt;/code> flag in the NMI container.&lt;/li>
+&lt;li>If using &lt;a href="../../getting-started/installation/#helm">helm&lt;/a> to deploy aad-pod-identity, you can enable this feature by setting &lt;code>nmi.enableConntrackDeletion=true&lt;/code> as part of helm install/upgrade.&lt;/li>
 &lt;/ul></description></item><item><title>Docs: Pod Identity in Custom Cloud</title><link>https://azure.github.io/aad-pod-identity/docs/configure/custom_cloud/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/configure/custom_cloud/</guid><description>
 &lt;p>This document highlights the steps to configure and use AAD Pod Identity in custom Azure cloud environments.
 If you are deploying with helm, then set &lt;code>mic.customCloud.enabled&lt;/code> to true (e.g., &lt;code>--set mic.customCloud.enabled=true&lt;/code>

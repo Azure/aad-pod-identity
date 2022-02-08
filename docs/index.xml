@@ -1228,6 +1228,18 @@ The list is comma separated. Example: 00000000-0000-0000-0000-000000000000,11111
 &lt;li>Set &lt;code>nmi.retryAttemptsForCreated=1&lt;/code>, &lt;code>nmi.retryAttemptsForAssigned=1&lt;/code> and &lt;code>nmi.findIdentityRetryIntervalInSeconds=1&lt;/code> flags in the helm install/upgrade command to disable the internal retries in NMI.&lt;/li>
 &lt;/ul>
 &lt;/li>
+&lt;/ul>
+&lt;h2 id="enable-deletion-of-conntrack-entries">Enable deletion of conntrack entries&lt;/h2>
+&lt;blockquote>
+&lt;p>Available from v1.8.7 release&lt;/p>
+&lt;/blockquote>
+&lt;p>NMI redirects Instance Metadata Service (IMDS) requests to itself by setting up iptables rules after it starts running on the node.
+However, these rules are not applicable to pre-existing connections. In such a scenario, the token request will be directly sent to IMDS instead of being intercepted by NMI. What this means is that the workload pod that runs before the NMI pod on the node can access identities that it doesn&amp;rsquo;t have access to.
+The &lt;code>enable-conntrack-deletion&lt;/code> flag enables deletion of entries for pre-existing connections to IMDS endpoint, this causes applications which had pre-existing connections to be intercepted by NMI.&lt;/p>
+&lt;h3 id="how-to-enable-this-feature-1">How to enable this feature&lt;/h3>
+&lt;ul>
+&lt;li>If using the &lt;a href="../../getting-started/installation/#quick-install">yaml&lt;/a> to deploy aad-pod-identity, you can enable this feature by setting the &lt;code>--enable-conntrack-deletion=true&lt;/code> flag in the NMI container.&lt;/li>
+&lt;li>If using &lt;a href="../../getting-started/installation/#helm">helm&lt;/a> to deploy aad-pod-identity, you can enable this feature by setting &lt;code>nmi.enableConntrackDeletion=true&lt;/code> as part of helm install/upgrade.&lt;/li>
 &lt;/ul></description></item><item><title>Docs: Managed Identity Controller (MIC)</title><link>https://azure.github.io/aad-pod-identity/docs/concepts/mic/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/concepts/mic/</guid><description>
 &lt;p>Specifically, when a pod is scheduled, the MIC assigns the identity on Azure to the underlying VM/VMSS during the creation phase. When all pods using the identity are deleted, it removes the identity from the underlying VM/VMSS on Azure. The MIC takes similar actions when &lt;code>AzureIdentity&lt;/code> or &lt;code>AzureIdentityBinding&lt;/code> are created or deleted.&lt;/p></description></item><item><title>Docs: Node Managed Identity (NMI)</title><link>https://azure.github.io/aad-pod-identity/docs/concepts/nmi/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://azure.github.io/aad-pod-identity/docs/concepts/nmi/</guid><description>
 &lt;p>The authorization request to fetch a Service Principal Token from an MSI endpoint is sent to Azure Instance Metadata Service (IMDS) endpoint (169.254.169.254), which is redirected to the NMI pod. The redirection is accomplished by adding iptable rules to redirect all non-host traffic with IMDS endpoint on port 80 as destination to the NMI endpoint. The NMI server identifies the pod based on the remote address of the request and then queries Kubernetes (through &lt;code>AzureAssignedIdentity&lt;/code>) for a matching Azure identity. NMI then makes an Azure Active Directory Authentication Library (&lt;a href="https://docs.microsoft.com/en-us/azure/active-directory/azuread-dev/active-directory-authentication-libraries">ADAL&lt;/a>) request to get the token for the client ID and returns it as a response. If the request had client ID as part of the query, it is validated against the admin-configured client ID.&lt;/p>
