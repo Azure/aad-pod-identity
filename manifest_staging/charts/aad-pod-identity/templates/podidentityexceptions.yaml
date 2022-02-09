@@ -6,7 +6,7 @@ metadata:
   name: {{ default $key $value.name }}
   namespace: {{ default $.Release.Namespace $value.namespace }}
   labels:
-    {{- include "aad-pod-identity.labels" $ | nindent 8 }}
+    {{- include "aad-pod-identity.labels" $ | nindent 4 }}
 spec:
   podLabels:    
         {{- range $key2, $value2 := $value.podLabels }}
