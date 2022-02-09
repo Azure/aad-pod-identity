@@ -7,6 +7,27 @@ menu:
     weight: 10
 ---
 
+## v1.8.7
+
+### Bug Fixes
+
+- make metadata header required configurable in helm ([#1240](https://github.com/Azure/aad-pod-identity/issues/1240))
+- delete conntrack entries after adding iptables rules on initialization ([#1243](https://github.com/Azure/aad-pod-identity/issues/1243))
+
+### Documentation
+
+- add disclaimer for current project status ([#1231](https://github.com/Azure/aad-pod-identity/issues/1231))
+
+### Security Fix
+
+- fix CVE-2021-43618 ([#1224](https://github.com/Azure/aad-pod-identity/issues/1224))
+- enable readOnlyRootFilesystem for MIC ([#1225](https://github.com/Azure/aad-pod-identity/issues/1225))
+- fix CVE-2021-3995, CVE-2021-3996 ([#1241](https://github.com/Azure/aad-pod-identity/issues/1241))
+
+### Other Improvements
+
+- add semantic.yml ([#1214](https://github.com/Azure/aad-pod-identity/issues/1214))
+
 ## v1.8.6
 
 ### Features

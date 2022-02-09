@@ -473,7 +473,7 @@ spec:
           type: FileOrCreate
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.8.6"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.8.7"
         args:
           - "--node=$(NODE_NAME)"
           - "--http-probe-port=8085"
@@ -605,11 +605,12 @@ spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.8.6"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.8.7"
         args:
           - "--logtostderr"
         securityContext:
           runAsUser: 0
+          readOnlyRootFilesystem: true
         env:
           - name: MIC_POD_NAMESPACE
             valueFrom:
