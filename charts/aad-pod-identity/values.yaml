@@ -43,7 +43,7 @@ operationMode: "standard"
 
 mic:
   image: mic
-  tag: v1.8.6
+  tag: v1.8.7
 
   # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
@@ -163,7 +163,7 @@ mic:
 
 nmi:
   image: nmi
-  tag: v1.8.6
+  tag: v1.8.7
 
   # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
@@ -254,6 +254,9 @@ nmi:
 
   # Set retry-after header in the NMI responses when the identity is still being assigned.
   setRetryAfterHeader: false
+
+  # Enable/Disable deletion of conntrack entries for pre-existing connections to metadata endpoint
+  enableConntrackDeletion: false
 
 rbac:
   enabled: true

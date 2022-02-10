@@ -431,7 +431,7 @@ spec:
           type: FileOrCreate
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.8.6"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.8.7"
         args:
           - "--node=$(NODE_NAME)"
           - "--http-probe-port=8085"
@@ -496,7 +496,7 @@ spec:
     spec:
       containers:
       - name: mic
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.8.6"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.8.7"
         args:
           - "--kubeconfig=/var/lib/kubelet/kubeconfig"
           - "--cloudconfig=/etc/kubernetes/azure.json"
