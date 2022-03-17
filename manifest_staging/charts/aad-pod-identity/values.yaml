@@ -202,7 +202,7 @@ nmi:
   affinity: {}
     # nodeAffinity:
     #   preferredDuringSchedulingIgnoredDuringExecution:
-    #     - weight 1
+    #     - weight: 1
     #       preference:
     #         matchExpressions:
     #           - key: kubernetes.azure.com/mode
