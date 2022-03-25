@@ -5,7 +5,6 @@ import (
 	"flag"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/Azure/go-autorest/autorest/adal"
@@ -37,39 +36,13 @@ func main() {
 
 	for ; true; <-ticker.C {
 		curlIMDSMetadataInstanceEndpoint()
-		t1 := getTokenFromIMDS()
-		t2 := getTokenFromIMDSWithUserAssignedID()
-		if t1 == nil || t2 == nil || !strings.EqualFold(t1.AccessToken, t2.AccessToken) {
-			klog.Error("Tokens acquired from IMDS with and without identity client ID do not match")
+		t1 := getTokenFromIMDSWithUserAssignedID()
+		if t1 == nil {
+			klog.Error("Failed to acquire token from IMDS with identity client ID")
+		} else {
+			klog.Infof("Try decoding your token %s at https://jwt.io", t1.AccessToken)
 		}
-		klog.Infof("Try decoding your token %s at https://jwt.io", t1.AccessToken)
 	}
-}
-
-func getTokenFromIMDS() *adal.Token {
-	managedIdentityOpts := &adal.ManagedIdentityOptions{ClientID: identityClientID}
-	spt, err := adal.NewServicePrincipalTokenFromManagedIdentity(resourceName, managedIdentityOpts)
-	if err != nil {
-		klog.Errorf("failed to acquire a token from IMDS using user-assigned identity, error: %+v", err)
-		return nil
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	if err := spt.RefreshWithContext(ctx); err != nil {
-		klog.Errorf("failed to refresh the service principal token, error: %+v", err)
-		return nil
-	}
-
-	token := spt.Token()
-	if token.IsZero() {
-		klog.Errorf("%+v is a zero token", token)
-		return nil
-	}
-
-	klog.Infof("successfully acquired a service principal token from IMDS")
-	return &token
 }
 
 func getTokenFromIMDSWithUserAssignedID() *adal.Token {
