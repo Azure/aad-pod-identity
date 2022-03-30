@@ -17,12 +17,13 @@ RUN export GOOS=$TARGETOS && \
     export GOARM=$(echo ${TARGETPLATFORM} | cut -d / -f3 | tr -d 'v') && \
     make build
 
-FROM k8s.gcr.io/build-image/debian-iptables:bullseye-v1.1.0 AS nmi
+FROM k8s.gcr.io/build-image/debian-iptables:bullseye-v1.2.0 AS nmi
 # upgrading libssl1.1 due to CVE-2021-3711 and CVE-2021-3712
-# upgrading libgssapi-krb5-2 and libk5crypto3 due to CVE-2021-37750
 # upgrading libgmp10 due to CVE-2021-43618
 # upgrading bsdutils due to CVE-2021-3995 and CVE-2021-3996
-RUN clean-install ca-certificates libssl1.1 libgssapi-krb5-2 libk5crypto3 libgmp10 bsdutils
+# upgrading libc-bin and libc6 due to CVE-2021-33574, CVE-2022-23218, CVE-2022-23219 and CVE-2021-43396
+# upgrading libsystemd0 and libudev1 due to CVE-2021-3997
+RUN clean-install ca-certificates libssl1.1 libgmp10 bsdutils libc6 libc-bin libsystemd0 libudev1
 COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
 RUN useradd -u 10001 nonroot
 USER nonroot
