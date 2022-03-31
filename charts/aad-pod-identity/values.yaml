@@ -43,7 +43,7 @@ operationMode: "standard"
 
 mic:
   image: mic
-  tag: v1.8.7
+  tag: v1.8.8
 
   # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
@@ -163,7 +163,7 @@ mic:
 
 nmi:
   image: nmi
-  tag: v1.8.7
+  tag: v1.8.8
 
   # ref: https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/#marking-pod-as-critical
   priorityClassName: ""
@@ -202,7 +202,7 @@ nmi:
   affinity: {}
     # nodeAffinity:
     #   preferredDuringSchedulingIgnoredDuringExecution:
-    #     - weight 1
+    #     - weight: 1
     #       preference:
     #         matchExpressions:
     #           - key: kubernetes.azure.com/mode
