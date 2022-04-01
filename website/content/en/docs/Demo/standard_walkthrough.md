@@ -124,7 +124,7 @@ metadata:
 spec:
   containers:
   - name: demo
-    image: mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.8.7
+    image: mcr.microsoft.com/oss/azure/aad-pod-identity/demo:v1.8.8
     args:
       - --subscription-id=${SUBSCRIPTION_ID}
       - --resource-group=${IDENTITY_RESOURCE_GROUP}
@@ -146,7 +146,6 @@ If successful, the log output would be similar to the following output:
 
 ```log
 I0510 18:16:53.042124       1 main.go:128] curl -H Metadata:true "http://169.254.169.254/metadata/instance?api-version=2017-08-01": {"compute":{"location":"westus2","name":"aks-nodepool1-17529566-vmss_1","offer":"aks","osType":"Linux","placementGroupId":"877d5750-2bed-43dd-bad6-62e4f3b58a3c","platformFaultDomain":"0","platformUpdateDomain":"1","publisher":"microsoft-aks","resourceGroupName":"MC_chuwon_chuwon_westus2","sku":"aks-ubuntu-1804-gen2-2021-q1","subscriptionId":"2d31b5ab-0ddc-4991-bf8d-61b6ad196f5a","tags":"aksEngineVersion:v0.47.0-aks-gomod-b4-aks;creationSource:aks-aks-nodepool1-17529566-vmss;orchestrator:Kubernetes:1.18.14;poolName:nodepool1;resourceNameSuffix:17529566","version":"2021.01.28","vmId":"4fc9f60c-170c-4e76-84ff-81c6c0cecea1","vmSize":"Standard_DS2_v2"},"network":{"interface":[{"ipv4":{"ipAddress":[{"privateIpAddress":"10.240.0.5","publicIpAddress":""}],"subnet":[{"address":"10.240.0.0","prefix":"16"}]},"ipv6":{"ipAddress":[]},"macAddress":"000D3AFE98BF"}]}}
-I0510 18:17:04.463222       1 main.go:75] successfully acquired a service principal token from http://169.254.169.254/metadata/identity/oauth2/token
 I0510 18:17:04.474588       1 main.go:100] successfully acquired a service principal token from http://169.254.169.254/metadata/identity/oauth2/token using a user-assigned identity (a9979fb6-6655-4612-95c9-7e4d0c83001b)
 I0510 18:17:04.474610       1 main.go:50] Try decoding your token <JWT token> at https://jwt.io
 ```

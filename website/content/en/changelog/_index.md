@@ -7,6 +7,21 @@ menu:
     weight: 10
 ---
 
+## v1.8.8
+
+### Security Fix
+
+- fix CVE-2022-23218 ([#1259](https://github.com/Azure/aad-pod-identity/issues/1259))
+
+### Helm
+
+- use policy/v1 for PodDisruptionBudget ([#1254](https://github.com/Azure/aad-pod-identity/issues/1254))
+- update nmi affinity sample in charts ([#1256](https://github.com/Azure/aad-pod-identity/issues/1256))
+
+### Other Improvements
+
+- remove redundant token get from demo ([#1258](https://github.com/Azure/aad-pod-identity/issues/1258))
+
 ## v1.8.7
 
 ### Bug Fixes
