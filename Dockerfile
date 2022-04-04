@@ -23,7 +23,8 @@ FROM k8s.gcr.io/build-image/debian-iptables:bullseye-v1.2.0 AS nmi
 # upgrading bsdutils due to CVE-2021-3995 and CVE-2021-3996
 # upgrading libc-bin and libc6 due to CVE-2021-33574, CVE-2022-23218, CVE-2022-23219 and CVE-2021-43396
 # upgrading libsystemd0 and libudev1 due to CVE-2021-3997
-RUN clean-install ca-certificates libssl1.1 libgmp10 bsdutils libc6 libc-bin libsystemd0 libudev1
+# upgrading zlib1g due to CVE-2018-25032
+RUN clean-install ca-certificates libssl1.1 libgmp10 bsdutils libc6 libc-bin libsystemd0 libudev1 zlib1g
 COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
 RUN useradd -u 10001 nonroot
 USER nonroot
