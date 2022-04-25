@@ -17,7 +17,7 @@ When you submit a pull request, a CLA-bot will automatically determine whether y
 
 ### Prerequisites
 
-- Go 1.17
+- Go 1.18
 - Docker
 - an AKS cluster / AKS-Engine cluster
 - Helm 3
