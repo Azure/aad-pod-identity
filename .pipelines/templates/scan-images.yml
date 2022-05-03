@@ -15,8 +15,8 @@ steps:
       ./trivy "${REGISTRY}/identityvalidator:${IMAGE_VERSION}"
       ./trivy "${REGISTRY}/demo:${IMAGE_VERSION}"
 
-      ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL --vuln-type os "${REGISTRY}/mic:${IMAGE_VERSION}" || exit 1
-      ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL --vuln-type os "${REGISTRY}/nmi:${IMAGE_VERSION}" || exit 1
-      ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL --vuln-type os "${REGISTRY}/identityvalidator:${IMAGE_VERSION}" || exit 1
-      ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL --vuln-type os "${REGISTRY}/demo:${IMAGE_VERSION}" || exit 1
+      ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL --vuln-type os,library "${REGISTRY}/mic:${IMAGE_VERSION}" || exit 1
+      ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL --vuln-type os,library "${REGISTRY}/nmi:${IMAGE_VERSION}" || exit 1
+      ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL --vuln-type os,library "${REGISTRY}/identityvalidator:${IMAGE_VERSION}" || exit 1
+      ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL --vuln-type os,library "${REGISTRY}/demo:${IMAGE_VERSION}" || exit 1
     displayName: "Scan images for vulnerability"
