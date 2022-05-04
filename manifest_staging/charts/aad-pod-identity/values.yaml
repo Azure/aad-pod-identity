@@ -66,6 +66,9 @@ mic:
 
   podLabels: {}
 
+  containerSecurityContext:
+    readOnlyRootFilesystem: true
+
   ## Node labels for pod assignment
   ## aad-pod-identity is currently only supported on linux
   nodeSelector:
@@ -188,6 +191,16 @@ nmi:
   podAnnotations: {}
 
   podLabels: {}
+
+  containerSecurityContext:
+    runAsUser: 0
+    capabilities:
+      drop:
+      - ALL
+      add:
+      - DAC_READ_SEARCH
+      - NET_ADMIN
+      - NET_RAW
 
   ## Node labels for pod assignment
   ## aad-pod-identity is currently only supported on linux

@@ -96,11 +96,13 @@ spec:
           {{- if .Values.customUserAgent }}
           - --custom-user-agent={{ .Values.customUserAgent }}
           {{- end }}
+        {{- with .Values.mic.containerSecurityContext }}
         securityContext:
-        {{- if not .Values.adminsecret }}
+          {{- toYaml . | nindent 10 }}
+        {{- if not $.Values.adminsecret }}
           runAsUser: 0
         {{- end }}
-          readOnlyRootFilesystem: true
+        {{- end }}
         env:
           - name: MIC_POD_NAMESPACE
             valueFrom:
@@ -181,6 +183,16 @@ spec:
           {{- end }}
         {{- end }}
         livenessProbe:
+          httpGet:
+            path: /healthz
+            {{- if .Values.mic.probePort }}
+            port: {{ .Values.mic.probePort }}
+            {{- else }}
+            port: 8080
+            {{- end }}
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        readinessProbe:
           httpGet:
             path: /healthz
             {{- if .Values.mic.probePort }}

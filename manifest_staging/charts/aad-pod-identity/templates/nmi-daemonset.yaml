@@ -138,15 +138,10 @@ spec:
             name: metrics
             protocol: TCP
         {{- end }}
+        {{- with .Values.nmi.containerSecurityContext }}
         securityContext:
-          runAsUser: 0
-          capabilities:
-            drop:
-            - ALL
-            add:
-            - DAC_READ_SEARCH
-            - NET_ADMIN
-            - NET_RAW
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         volumeMounts:
         - mountPath: /run/xtables.lock
           name: iptableslock
@@ -156,6 +151,16 @@ spec:
           readOnly: true
         {{- end }}
         livenessProbe:
+          httpGet:
+            path: /healthz
+            {{- if .Values.nmi.probePort }}
+            port: {{ .Values.nmi.probePort }}
+            {{- else }}
+            port: 8080
+            {{- end }}
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        readinessProbe:
           httpGet:
             path: /healthz
             {{- if .Values.nmi.probePort }}
