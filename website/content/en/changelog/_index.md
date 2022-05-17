@@ -7,6 +7,19 @@ menu:
     weight: 10
 ---
 
+## v1.8.9
+
+### Security Fix
+
+- fix CVE-2018-25032 ([#1261](https://github.com/Azure/aad-pod-identity/pull/1261))
+- fix CVE-2022-1271 ([#1270](https://github.com/Azure/aad-pod-identity/pull/1270))
+
+### Other Improvements
+
+- upgrade to debian-iptables:bullseye-v1.3.0 ([#1263](https://github.com/Azure/aad-pod-identity/pull/1263))
+- update to go 1.18 ([#1273](https://github.com/Azure/aad-pod-identity/pull/1273))
+- bump ansi-regex from 5.0.0 to 5.0.1 in /website ([#1275](https://github.com/Azure/aad-pod-identity/pull/1275))
+
 ## v1.8.8
 
 ### Security Fix

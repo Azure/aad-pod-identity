@@ -11,7 +11,7 @@ description: >
 To install/upgrade AAD Pod Identity on RBAC-enabled clusters:
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.8.8/deploy/infra/deployment-rbac.yaml
+kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.8.9/deploy/infra/deployment-rbac.yaml
 ```
 
 <details>
@@ -37,7 +37,7 @@ deployment.apps/mic created
 To install/upgrade aad-pod-identity on RBAC-disabled clusters:
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.8.8/deploy/infra/deployment.yaml
+kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.8.9/deploy/infra/deployment.yaml
 ```
 
 <details>
@@ -57,7 +57,7 @@ deployment.apps/mic created
 For AKS clusters, you will have to allow MIC and AKS add-ons to access IMDS without being intercepted by NMI:
 
 ```
-kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.8.8/deploy/infra/mic-exception.yaml
+kubectl apply -f https://raw.githubusercontent.com/Azure/aad-pod-identity/v1.8.9/deploy/infra/mic-exception.yaml
 ```
 
 {{% alert title="Warning" color="warning" %}}
