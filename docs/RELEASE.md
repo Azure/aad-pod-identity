@@ -8,7 +8,7 @@ This document describes AAD Pod Identity project release management, which talks
 
 ## Release Cadence
 
-`1.8` will be the last minor release of AAD Pod Identity. We will not release a new major or minor version of AAD Pod Identity. However, we will continue publishing patch releases the **first week of every month** to fix critical bugs and security vulnerabilities.
+`1.8` will be the last major and minor release of AAD Pod Identity. We will not release a new major or minor version of AAD Pod Identity. However, we will continue publishing patch releases the **first week of every month** to fix critical bugs and security vulnerabilities until further notice.
 
 ## Security Vulnerabilities
 
