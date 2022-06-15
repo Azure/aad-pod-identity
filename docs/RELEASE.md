@@ -12,4 +12,5 @@ This document describes AAD Pod Identity project release management, which talks
 
 ## Security Vulnerabilities
 
-We use [trivy](https://github.com/aquasecurity/trivy) to scan the base image for known vulnerabilities. When a vulnerability is detected and has a fixed version, we will update the image to include the fix. For vulnerabilities that are not in a fixed version, there is nothing that can be done immediately. These CVE patches will be part of the patch releases published **first week of every month**.
+We use [trivy](https://github.com/aquasecurity/trivy) to scan the base image for known vulnerabilities. When a vulnerability is detected and has a fixed version, we will update the image to include the fix. For vulnerabilities that are not in a fixed version, there is nothing that can be done immediately. 
+Fixable CVE patches will be part of the patch releases published **first week of every month** until further notice.
