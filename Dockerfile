@@ -19,7 +19,8 @@ RUN export GOOS=$TARGETOS && \
 
 FROM k8s.gcr.io/build-image/debian-iptables:bullseye-v1.4.0 AS nmi
 # upgrading dpkg due to CVE-2022-1664
-RUN clean-install ca-certificates dpkg
+# upgrading libssl1.1 due to CVE-2022-2068
+RUN clean-install ca-certificates dpkg libssl1.1
 COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
 RUN useradd -u 10001 nonroot
 USER nonroot
