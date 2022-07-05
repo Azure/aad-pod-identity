@@ -22,6 +22,7 @@ import (
 const (
 	defaultMetadataIP                         = "169.254.169.254"
 	defaultMetadataPort                       = "80"
+	defaultNmiHost                            = "127.0.0.1"
 	defaultNmiPort                            = "2579"
 	defaultIPTableUpdateTimeIntervalInSeconds = 60
 	defaultlistPodIDsRetryAttemptsForCreated  = 16
@@ -31,6 +32,7 @@ const (
 
 var (
 	versionInfo                        = pflag.Bool("version", false, "prints the version information")
+	nmiHost                            = pflag.String("nmi-listen-address", defaultNmiHost, "NMI listen address")
 	nmiPort                            = pflag.String("nmi-port", defaultNmiPort, "NMI application port")
 	metadataIP                         = pflag.String("metadata-ip", defaultMetadataIP, "instance metadata host ip")
 	metadataPort                       = pflag.String("metadata-port", defaultMetadataPort, "instance metadata host ip")
@@ -118,6 +120,7 @@ func main() {
 	s.KubeClient = client
 	s.MetadataIP = *metadataIP
 	s.MetadataPort = *metadataPort
+	s.NMIHost = *nmiHost
 	s.NMIPort = *nmiPort
 	s.NodeName = *nodename
 	s.IPTableUpdateTimeIntervalInSeconds = *ipTableUpdateTimeIntervalInSeconds

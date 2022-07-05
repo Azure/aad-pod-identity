@@ -44,6 +44,7 @@ const (
 // the server. These can be set via command line.
 type Server struct {
 	KubeClient                         k8s.Client
+	NMIHost                            string
 	NMIPort                            string
 	MetadataIP                         string
 	MetadataPort                       string
@@ -104,17 +105,23 @@ func (s *Server) Run() error {
 	}
 	rtr.PathPrefix("/").HandlerFunc(s.defaultPathHandler)
 
-	klog.Infof("listening on port %s", s.NMIPort)
-	if err := http.ListenAndServe("localhost:"+s.NMIPort, rtr); err != nil {
+	klog.Infof("listening on %s:%s", s.NMIHost, s.NMIPort)
+	if err := http.ListenAndServe(fmt.Sprintf("%s:%s", s.NMIHost, s.NMIPort), rtr); err != nil {
 		klog.Fatalf("error creating http server: %+v", err)
 	}
 	return nil
 }
 
 func (s *Server) updateIPTableRulesInternal() {
-	klog.V(5).Infof("node(%s) ip(%s) metadata address(%s:%s) nmi port(%s)", s.NodeName, localhost, s.MetadataIP, s.MetadataPort, s.NMIPort)
+	target := s.NMIHost
+	if target == "0.0.0.0" {
+		// if we're binding to all interfaces, we still want to add iptables rules for localhost only
+		target = localhost
+	}
 
-	if err := iptables.AddCustomChain(s.MetadataIP, s.MetadataPort, localhost, s.NMIPort); err != nil {
+	klog.V(5).Infof("node(%s) ip(%s) metadata address(%s:%s) nmi port(%s)", s.NodeName, target, s.MetadataIP, s.MetadataPort, s.NMIPort)
+
+	if err := iptables.AddCustomChain(s.MetadataIP, s.MetadataPort, target, s.NMIPort); err != nil {
 		klog.Fatalf("%s", err)
 	}
 	if err := iptables.LogCustomChain(); err != nil {
