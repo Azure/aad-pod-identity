@@ -7,6 +7,22 @@ menu:
     weight: 10
 ---
 
+## v1.8.10
+
+### Security Fix
+
+- fix CVE-2022-1664 ([#1285](https://github.com/Azure/aad-pod-identity/pull/1285))
+- fix CVE-2022-2068 ([#1290](https://github.com/Azure/aad-pod-identity/pull/1290))
+
+### Documentation
+
+- add release cadence ([#1286](https://github.com/Azure/aad-pod-identity/pull/1286))
+
+### Other Improvements
+
+- Allow selecting bind address for NMI ([#1284](https://github.com/Azure/aad-pod-identity/pull/1284))
+- update debian-iptables to bullseye-v1.5.0 ([#1292](https://github.com/Azure/aad-pod-identity/pull/1292))
+
 ## v1.8.9
 
 ### Security Fix
