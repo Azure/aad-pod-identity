@@ -19,7 +19,8 @@ RUN export GOOS=$TARGETOS && \
 
 FROM k8s.gcr.io/build-image/debian-iptables:bullseye-v1.5.0 AS nmi
 # upgrading gpgv due to CVE-2022-34903
-RUN clean-install ca-certificates gpgv
+# upgrading libgnutls30 due to CVE-2021-4209
+RUN clean-install ca-certificates gpgv libgnutls30
 COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
 RUN useradd -u 10001 nonroot
 USER nonroot
