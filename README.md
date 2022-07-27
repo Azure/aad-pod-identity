@@ -15,6 +15,10 @@ Setup the correct [role assignments](https://azure.github.io/aad-pod-identity/do
 
 Try our [walkthrough](https://azure.github.io/aad-pod-identity/docs/demo/standard_walkthrough/) to get a better understanding of the application workflow.
 
+## Release
+
+Currently, AAD Pod Identity releases on a monthly basis to patch security vulnerabilities, targeting the **first** week of the month. Refer to [Release Cadence](docs/RELEASE.md) for more details.
+
 ## Code of Conduct
 
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/). For more information, see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq) or contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
