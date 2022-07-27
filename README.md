@@ -17,7 +17,7 @@ Try our [walkthrough](https://azure.github.io/aad-pod-identity/docs/demo/standar
 
 ## Release
 
-Currently, Azure Workload Identity releases on a monthly basis to patch security vulnerabilities, targeting the **first** week of the month.
+Currently, AAD Pod Identity releases on a monthly basis to patch security vulnerabilities, targeting the **first** week of the month. Refer to [Release Cadence](docs/RELEASE.md) for more details.
 
 ## Code of Conduct
 
