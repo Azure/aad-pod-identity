@@ -286,6 +286,7 @@ func (s *Server) hostHandler(w http.ResponseWriter, r *http.Request) (ns string)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Length", strconv.Itoa(len(response)))
 	_, _ = w.Write(response)
 	return
 }
@@ -397,6 +398,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 			http.Error(w, err.Error(), errorCode)
 			return
 		}
+		w.Header().Set("Content-Length", strconv.Itoa(len(response)))
 		_, _ = w.Write(response)
 		return
 	}
@@ -446,6 +448,7 @@ func (s *Server) msiHandler(w http.ResponseWriter, r *http.Request) (ns string) 
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Length", strconv.Itoa(len(response)))
 	_, _ = w.Write(response)
 	return
 }
