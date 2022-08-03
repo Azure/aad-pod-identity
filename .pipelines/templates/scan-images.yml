@@ -6,8 +6,8 @@ steps:
       export BUILD_PLATFORMS="linux/amd64"
       make images
 
-      wget https://github.com/aquasecurity/trivy/releases/download/v0.18.0/trivy_0.18.0_Linux-64bit.tar.gz
-      tar zxvf trivy_0.18.0_Linux-64bit.tar.gz
+      wget https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION:-0.30.4}/trivy_${TRIVY_VERSION:-0.30.4}_Linux-64bit.tar.gz
+      tar zxvf trivy_${TRIVY_VERSION:-0.30.4}_Linux-64bit.tar.gz
 
       # show all vulnerabilities in the logs
       ./trivy "${REGISTRY}/mic:${IMAGE_VERSION}"
@@ -15,8 +15,8 @@ steps:
       ./trivy "${REGISTRY}/identityvalidator:${IMAGE_VERSION}"
       ./trivy "${REGISTRY}/demo:${IMAGE_VERSION}"
 
-      ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL --vuln-type os,library "${REGISTRY}/mic:${IMAGE_VERSION}" || exit 1
-      ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL --vuln-type os,library "${REGISTRY}/nmi:${IMAGE_VERSION}" || exit 1
-      ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL --vuln-type os,library "${REGISTRY}/identityvalidator:${IMAGE_VERSION}" || exit 1
-      ./trivy --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL --vuln-type os,library "${REGISTRY}/demo:${IMAGE_VERSION}" || exit 1
+      ./trivy image --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL --vuln-type os,library "${REGISTRY}/mic:${IMAGE_VERSION}" || exit 1
+      ./trivy image --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL --vuln-type os,library "${REGISTRY}/nmi:${IMAGE_VERSION}" || exit 1
+      ./trivy image --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL --vuln-type os,library "${REGISTRY}/identityvalidator:${IMAGE_VERSION}" || exit 1
+      ./trivy image --exit-code 1 --ignore-unfixed --severity MEDIUM,HIGH,CRITICAL --vuln-type os,library "${REGISTRY}/demo:${IMAGE_VERSION}" || exit 1
     displayName: "Scan images for vulnerability"
