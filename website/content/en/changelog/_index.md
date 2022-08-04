@@ -7,6 +7,21 @@ menu:
     weight: 10
 ---
 
+## v1.8.11
+
+### Bug Fixes
+
+- set `Content-Length` header in NMI response ([#1297](https://github.com/Azure/aad-pod-identity/pull/1297))
+
+### Security Fix
+
+- fix CVE-2021-4209 ([#1294](https://github.com/Azure/aad-pod-identity/pull/1294))
+- fix multiple CVEs ([#1299](https://github.com/Azure/aad-pod-identity/pull/1299))
+
+### Documentation
+
+- add release cadence to readme ([#1296](https://github.com/Azure/aad-pod-identity/pull/1296))
+
 ## v1.8.10
 
 ### Security Fix
