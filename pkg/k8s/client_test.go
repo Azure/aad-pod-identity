@@ -129,85 +129,85 @@ func (t *TestClientSet) GetPodList() io.ReadCloser {
 /*
 func TestGetPodInfo(t *testing.T) {
 
-	testClientSet := &TestClientSet{mu: &sync.Mutex{}}
-	client, restClient := testClientSet.GetTestClientSet()
+		testClientSet := &TestClientSet{mu: &sync.Mutex{}}
+		client, restClient := testClientSet.GetTestClientSet()
 
-	optionsModifier := func(options *metav1.ListOptions) {}
-	podListWatch := cache.NewFilteredListWatchFromClient(
-		restClient,
-		"pods",
-		v1.NamespaceAll,
-		optionsModifier,
-	)
-	kubeClient := &KubeClient{ClientSet: client, PodListWatch: podListWatch}
+		optionsModifier := func(options *metav1.ListOptions) {}
+		podListWatch := cache.NewFilteredListWatchFromClient(
+			restClient,
+			"pods",
+			v1.NamespaceAll,
+			optionsModifier,
+		)
+		kubeClient := &KubeClient{ClientSet: client, PodListWatch: podListWatch}
 
-	// Test a single pod
-	testPodName := "testpodname"
-	testPodNs := "default"
-	testPodIP := "10.0.0.8"
-	testClientSet.AddPod(testPodName, testPodNs, testPodIP)
-	podNs, podName, _, _, err := kubeClient.GetPodInfo(testPodIP)
-	if err != nil {
-		t.Fatalf("Error getting pod: %v", err)
-	}
-	if podName != testPodName {
-		t.Fatalf("Incorrect pod name: %v", podName)
-	}
-	if podNs != testPodNs {
-		t.Fatalf("Incorrect pod ns: %v", podNs)
-	}
-
-	// Delete test
-	testPodIP = "10.0.0.8"
-	testClientSet.DeletePod(testPodName, testPodNs)
-	podNs, podName, _, _, err = kubeClient.GetPodInfo(testPodIP)
-	if err == nil {
-		t.Fatal("Pod still in pod list")
-	}
-}
-
-func TestPodListRetries(t *testing.T) {
-	// this test is to solely test the retry and sleep logic works as expected
-	podIP := "10.0.0.8"
-	testClientSet := &TestClientSet{mu: &sync.Mutex{}}
-	client, restClient := testClientSet.GetTestClientSet()
-
-	testPodName := "testpodname"
-	testPodNs := "default"
-	testPodIP := "10.0.0.8"
-
-	optionsModifier := func(options *metav1.ListOptions) {}
-	podListWatch := cache.NewFilteredListWatchFromClient(
-		restClient,
-		"pods",
-		v1.NamespaceAll,
-		optionsModifier,
-	)
-
-	kubeClient := &KubeClient{ClientSet: client, PodListWatch: podListWatch}
-
-	time.AfterFunc(time.Duration(1200*time.Millisecond), func() {
+		// Test a single pod
+		testPodName := "testpodname"
+		testPodNs := "default"
+		testPodIP := "10.0.0.8"
 		testClientSet.AddPod(testPodName, testPodNs, testPodIP)
-	})
+		podNs, podName, _, _, err := kubeClient.GetPodInfo(testPodIP)
+		if err != nil {
+			t.Fatalf("Error getting pod: %v", err)
+		}
+		if podName != testPodName {
+			t.Fatalf("Incorrect pod name: %v", podName)
+		}
+		if podNs != testPodNs {
+			t.Fatalf("Incorrect pod ns: %v", podNs)
+		}
 
-	start := time.Now()
-	podNs, podName, _, _, err := kubeClient.GetPodInfo(podIP)
-	elapsed := time.Since(start)
+		// Delete test
+		testPodIP = "10.0.0.8"
+		testClientSet.DeletePod(testPodName, testPodNs)
+		podNs, podName, _, _, err = kubeClient.GetPodInfo(testPodIP)
+		if err == nil {
+			t.Fatal("Pod still in pod list")
+		}
+	}
 
-	if err != nil {
-		t.Fatalf("Error getting pod: %v", err)
+	func TestPodListRetries(t *testing.T) {
+		// this test is to solely test the retry and sleep logic works as expected
+		podIP := "10.0.0.8"
+		testClientSet := &TestClientSet{mu: &sync.Mutex{}}
+		client, restClient := testClientSet.GetTestClientSet()
+
+		testPodName := "testpodname"
+		testPodNs := "default"
+		testPodIP := "10.0.0.8"
+
+		optionsModifier := func(options *metav1.ListOptions) {}
+		podListWatch := cache.NewFilteredListWatchFromClient(
+			restClient,
+			"pods",
+			v1.NamespaceAll,
+			optionsModifier,
+		)
+
+		kubeClient := &KubeClient{ClientSet: client, PodListWatch: podListWatch}
+
+		time.AfterFunc(time.Duration(1200*time.Millisecond), func() {
+			testClientSet.AddPod(testPodName, testPodNs, testPodIP)
+		})
+
+		start := time.Now()
+		podNs, podName, _, _, err := kubeClient.GetPodInfo(podIP)
+		elapsed := time.Since(start)
+
+		if err != nil {
+			t.Fatalf("Error getting pod: %v", err)
+		}
+		if podName != testPodName {
+			t.Fatalf("Incorrect pod name: %v", podName)
+		}
+		if podNs != testPodNs {
+			t.Fatalf("Incorrect pod ns: %v", podNs)
+		}
+		// check the retries actually work as the pod object is created only after 1.2s
+		if elapsed < 1200*time.Millisecond {
+			t.Fatalf("Retry logic not working as expected. Elapsed time: %v", elapsed)
+		}
 	}
-	if podName != testPodName {
-		t.Fatalf("Incorrect pod name: %v", podName)
-	}
-	if podNs != testPodNs {
-		t.Fatalf("Incorrect pod ns: %v", podNs)
-	}
-	// check the retries actually work as the pod object is created only after 1.2s
-	if elapsed < 1200*time.Millisecond {
-		t.Fatalf("Retry logic not working as expected. Elapsed time: %v", elapsed)
-	}
-}
 */
 func TestGetReplicaSet(t *testing.T) {
 	pod := &v1.Pod{}

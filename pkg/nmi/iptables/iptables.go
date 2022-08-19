@@ -60,7 +60,7 @@ func LogCustomChain() error {
 	return nil
 }
 
-//	iptables -t nat -I "chain" 1 -j "customchainname"
+// iptables -t nat -I "chain" 1 -j "customchainname"
 func placeCustomChainInChain(ipt *iptables.IPTables, table, chain string) error {
 	exists, err := ipt.Exists(table, chain, "-j", customchainname)
 	if err != nil || !exists {
