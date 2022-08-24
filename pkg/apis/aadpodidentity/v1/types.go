@@ -30,10 +30,10 @@ const (
 )
 
 // AzureIdentity is the specification of the identity data structure.
-//+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-//+kubebuilder:printcolumn:name="Type",type="string",JSONPath=".spec.type",description="",priority=0
-//+kubebuilder:printcolumn:name="ClientID",type="string",JSONPath=".spec.clientID",description="",priority=0
-//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC."
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:printcolumn:name="Type",type="string",JSONPath=".spec.type",description="",priority=0
+// +kubebuilder:printcolumn:name="ClientID",type="string",JSONPath=".spec.clientID",description="",priority=0
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC."
 type AzureIdentity struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -43,10 +43,10 @@ type AzureIdentity struct {
 }
 
 // AzureIdentityBinding brings together the spec of matching pods and the identity which they can use.
-//+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-//+kubebuilder:printcolumn:name="AzureIdentity",type="string",JSONPath=".spec.azureIdentity",description="",priority=0
-//+kubebuilder:printcolumn:name="Selector",type="string",JSONPath=".spec.selector",description="",priority=0
-//+kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC."
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:printcolumn:name="AzureIdentity",type="string",JSONPath=".spec.azureIdentity",description="",priority=0
+// +kubebuilder:printcolumn:name="Selector",type="string",JSONPath=".spec.selector",description="",priority=0
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description="CreationTimestamp is a timestamp representing the server time when this object was created. It is not guaranteed to be set in happens-before order across separate operations. Clients may not set this value. It is represented in RFC3339 form and is in UTC."
 type AzureIdentityBinding struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -56,7 +56,7 @@ type AzureIdentityBinding struct {
 }
 
 // AzureAssignedIdentity contains the identity <-> pod mapping which is matched.
-//+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AzureAssignedIdentity struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -67,7 +67,7 @@ type AzureAssignedIdentity struct {
 
 // AzurePodIdentityException contains the pod selectors for all pods that don't require
 // NMI to process and request token on their behalf.
-//+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AzurePodIdentityException struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -77,7 +77,7 @@ type AzurePodIdentityException struct {
 }
 
 // AzureIdentityList contains a list of AzureIdentities.
-//+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AzureIdentityList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -86,7 +86,7 @@ type AzureIdentityList struct {
 }
 
 // AzureIdentityBindingList contains a list of AzureIdentityBindings.
-//+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AzureIdentityBindingList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -95,7 +95,7 @@ type AzureIdentityBindingList struct {
 }
 
 // AzureAssignedIdentityList contains a list of AzureAssignedIdentities.
-//+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AzureAssignedIdentityList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -104,7 +104,7 @@ type AzureAssignedIdentityList struct {
 }
 
 // AzurePodIdentityExceptionList contains a list of AzurePodIdentityExceptions.
-//+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type AzurePodIdentityExceptionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
@@ -113,7 +113,7 @@ type AzurePodIdentityExceptionList struct {
 }
 
 // IdentityType represents different types of identities.
-//+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 type IdentityType int
 
 const (
