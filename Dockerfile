@@ -18,7 +18,8 @@ RUN export GOOS=$TARGETOS && \
     make build
 
 FROM k8s.gcr.io/build-image/debian-iptables:bullseye-v1.5.1 AS nmi
-RUN clean-install ca-certificates
+# upgrading zlib1g due to CVE-2022-37434
+RUN clean-install ca-certificates zlib1g
 COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
 RUN useradd -u 10001 nonroot
 USER nonroot
