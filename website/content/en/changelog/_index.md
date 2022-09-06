@@ -7,6 +7,22 @@ menu:
     weight: 10
 ---
 
+## v1.8.12
+
+### Bug Fixes
+
+- set `Content-Length` header in NMI response ([#1297](https://github.com/Azure/aad-pod-identity/pull/1297))
+
+### Security Fix
+
+- fix CVE-2021-46828 ([#1306](https://github.com/Azure/aad-pod-identity/pull/1306))
+- fix CVE-2022-37434 ([#1310](https://github.com/Azure/aad-pod-identity/pull/1310))
+
+### Maintenance
+
+- update to go 1.19 ([#1307](https://github.com/Azure/aad-pod-identity/pull/1307))
+- update debian-iptables to bullseye-v1.5.1 ([#1309](https://github.com/Azure/aad-pod-identity/pull/1309))
+
 ## v1.8.11
 
 ### Bug Fixes
