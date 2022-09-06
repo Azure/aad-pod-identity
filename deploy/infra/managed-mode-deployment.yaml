@@ -306,7 +306,7 @@ spec:
           type: FileOrCreate
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.8.11"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.8.12"
         args:
           - "--node=$(NODE_NAME)"
           - "--operation-mode=managed"
