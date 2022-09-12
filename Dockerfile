@@ -20,7 +20,7 @@ RUN export GOOS=$TARGETOS && \
 FROM k8s.gcr.io/build-image/debian-iptables:bullseye-v1.5.1 AS nmi
 RUN apt update && \
     apt upgrade -y && \
-    clean-install ca-certificates zlib1g
+    clean-install ca-certificates
 COPY --from=builder /go/src/github.com/Azure/aad-pod-identity/bin/aad-pod-identity/nmi /bin/
 RUN useradd -u 10001 nonroot
 USER nonroot
