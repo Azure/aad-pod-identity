@@ -40,6 +40,17 @@ const (
 	headerRetryAfter   = "Retry-After"
 )
 
+var (
+	// invalidTokenPathMatcher matches the token path that is not supported by IMDS
+	// this handler is configured right after the token path handler to block requests with
+	// invalid token path instead of sending it to IMDS.
+	// we don't have to handle case sensitivity for "/identity/" as that's rejected by IMDS
+	invalidTokenPathMatcher = mux.MatcherFunc(func(req *http.Request, rm *mux.RouteMatch) bool {
+		r := regexp.MustCompile("/(?i:metadata)/identity(.*?)oauth2(.*?)token") // #nosec
+		return r.MatchString(req.URL.Path)
+	})
+)
+
 // Server encapsulates all of the parameters necessary for starting up
 // the server. These can be set via command line.
 type Server struct {
@@ -98,7 +109,15 @@ func (s *Server) Run() error {
 	go s.updateIPTableRules()
 
 	rtr := mux.NewRouter()
+	// Flow for the request is as follows:
+	// 1. If the request is for token, then it will be handled by tokenHandler post validation.
+	// 2. If the request is for token but the path is invalid, then it will be handled by invalidTokenPathHandler.
+	// 3. If the request is for host token, then it will be handled by hostTokenHandler.
+	// 4. If the request is for instance metadata
+	//    4.1 If blockInstanceMetadata is set to true, then it will be handled by blockInstanceMetadataHandler (deny access to instance metadata).
+	// 5. If the request is for any other path, it will be proxied to IMDS and the response will be returned to the caller.
 	rtr.PathPrefix(tokenPathPrefix).Handler(appHandler(s.msiHandler))
+	rtr.MatcherFunc(invalidTokenPathMatcher).HandlerFunc(invalidTokenPathHandler)
 	rtr.PathPrefix(hostTokenPathPrefix).Handler(appHandler(s.hostHandler))
 	if s.BlockInstanceMetadata {
 		rtr.PathPrefix(instancePathPrefix).HandlerFunc(forbiddenHandler)
@@ -579,6 +598,11 @@ func (s *Server) defaultPathHandler(w http.ResponseWriter, r *http.Request) {
 // forbiddenHandler responds to any request with HTTP 403 Forbidden
 func forbiddenHandler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Request blocked by AAD Pod Identity NMI", http.StatusForbidden)
+}
+
+// invalidTokenPathHandler responds to invalid token requests with HTTP 400 Bad Request
+func invalidTokenPathHandler(w http.ResponseWriter, r *http.Request) {
+	http.Error(w, "Invalid request", http.StatusBadRequest)
 }
 
 func copyHeader(dst, src http.Header) {
