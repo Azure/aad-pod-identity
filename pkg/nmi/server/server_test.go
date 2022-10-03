@@ -217,6 +217,36 @@ func TestRouterPathPrefix(t *testing.T) {
 			expectedStatusCode: http.StatusOK,
 			expectedBody:       "default_handler",
 		},
+		{
+			name:               "invalid token request with \\oauth2",
+			url:                `/metadata/identity\oauth2/token/`,
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "invalid_request_handler",
+		},
+		{
+			name:               "invalid token request with \\token",
+			url:                `/metadata/identity/oauth2\token/`,
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "invalid_request_handler",
+		},
+		{
+			name:               "invalid token request with \\oauth2\\token",
+			url:                `/metadata/identity\oauth2\token/`,
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "invalid_request_handler",
+		},
+		{
+			name:               "invalid token request with mix of / and \\",
+			url:                `/metadata/identity/\oauth2\token/`,
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "invalid_request_handler",
+		},
+		{
+			name:               "invalid token request with multiple \\",
+			url:                `/metadata/identity\\\oauth2\\token/`,
+			expectedStatusCode: http.StatusOK,
+			expectedBody:       "invalid_request_handler",
+		},
 	}
 
 	for _, test := range tests {
@@ -225,6 +255,7 @@ func TestRouterPathPrefix(t *testing.T) {
 			defer teardown()
 
 			rtr.PathPrefix(tokenPathPrefix).HandlerFunc(testTokenHandler)
+			rtr.MatcherFunc(invalidTokenPathMatcher).HandlerFunc(testInvalidRequestHandler)
 			rtr.PathPrefix(hostTokenPathPrefix).HandlerFunc(testHostTokenHandler)
 			rtr.PathPrefix(instancePathPrefix).HandlerFunc(testInstanceHandler)
 			rtr.PathPrefix("/").HandlerFunc(testDefaultHandler)
@@ -262,4 +293,8 @@ func testInstanceHandler(w http.ResponseWriter, r *http.Request) {
 
 func testDefaultHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "default_handler\n")
+}
+
+func testInvalidRequestHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "invalid_request_handler\n")
 }
