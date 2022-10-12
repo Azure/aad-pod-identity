@@ -7,7 +7,21 @@ menu:
     weight: 10
 ---
 
-## v1.8.12
+## v1.8.13
+
+### Bug Fixes
+
+- add handler for invalid token requests ([#1325](https://github.com/Azure/aad-pod-identity/pull/1325))
+
+### Security Fix
+
+- fix CVE-2022-27664 ([#1326](https://github.com/Azure/aad-pod-identity/pull/1326))
+
+### Maintenance
+
+- run `apt update && apt upgrade -y` in Dockerfile ([#1317](https://github.com/Azure/aad-pod-identity/pull/1317))
+
+## v1.8.13
 
 ### Bug Fixes
 
