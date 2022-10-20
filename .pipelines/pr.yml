@@ -8,6 +8,8 @@ pr:
     exclude:
       - docs/*
       - website/*
+      - .github/*
+      - README.md
 
 pool: staging-pool
 
