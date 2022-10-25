@@ -16,14 +16,9 @@ jobs:
     parameters:
       clusterConfigs:
         - "aks"
-        # File names in test/e2e/cluster_configs without file extension
-        - "vmss"
-        - "vmas"
   - template: templates/soak-test.yml
     parameters:
       clusterConfigs:
-        - "pi-vmas-e2e-daily"
-        - "pi-vmss-e2e-daily"
         - "pi-aks-e2e-daily"
   - template: templates/load-test.yml
     parameters:
