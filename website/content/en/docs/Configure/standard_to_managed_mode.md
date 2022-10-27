@@ -10,7 +10,7 @@ description: >
 
 ## Introduction
 
-AAD Pod Identity supports 2 modes of operation:
+AAD Pod Identity supports 2 modes of operation ([full explanation of both modes](https://azure.github.io/aad-pod-identity/docs/configure/pod_identity_in_managed_mode/)):
 
 1. Standard Mode: In this mode, there is MIC and NMI components deployed to the cluster. MIC handles assigning/un-assigning the identity to the underlying VM/VMSS. NMI will intercept token request, validate if the pod has access to the identity it's requesting a token for and fetch the token on behalf of the application.
 2. Managed Mode: In this mode, there is only NMI. The identity needs to be manually assigned and managed by the user. Refer to [this doc](../pod_identity_in_managed_mode) for more details on this mode.
