@@ -21,7 +21,7 @@ menu:
 
 - run `apt update && apt upgrade -y` in Dockerfile ([#1317](https://github.com/Azure/aad-pod-identity/pull/1317))
 
-## v1.8.13
+## v1.8.12
 
 ### Bug Fixes
 
