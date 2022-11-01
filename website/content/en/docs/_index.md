@@ -6,7 +6,9 @@ menu:
     weight: 20
 ---
 
-> **❗ IMPORTANT**: As of Monday 10/24/2022, AAD Pod Identity is **deprecated**. As mentioned in the [announcement](https://cloudblogs.microsoft.com/opensource/2022/01/18/announcing-azure-active-directory-azure-ad-workload-identity-for-kubernetes/), AAD Pod Identity has been replaced with [Azure Workload Identity](https://azure.github.io/azure-workload-identity). Going forward, we will no longer add new features to this project in favor of Azure Workload Identity. We will continue to provide critical bug fixes until Azure Workload Identity reaches general availability. Following that, we will provide CVE patches until September 2023, at which time the project will be archived.
+## 📣 Announcement
+
+**❗ IMPORTANT**: As of Monday 10/24/2022, AAD Pod Identity is **deprecated**. As mentioned in the [announcement](https://cloudblogs.microsoft.com/opensource/2022/01/18/announcing-azure-active-directory-azure-ad-workload-identity-for-kubernetes/), AAD Pod Identity has been replaced with [Azure Workload Identity](https://azure.github.io/azure-workload-identity). Going forward, we will no longer add new features to this project in favor of Azure Workload Identity. We will continue to provide critical bug fixes until Azure Workload Identity reaches general availability. Following that, we will provide CVE patches until September 2023, at which time the project will be archived.
 
 AAD Pod Identity enables Kubernetes applications to access cloud resources securely with [Azure Active Directory](https://azure.microsoft.com/en-us/services/active-directory/) using User-assigned managed identity and Service Principal.
 
