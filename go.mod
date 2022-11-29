@@ -5,7 +5,7 @@ go 1.18
 require (
 	contrib.go.opencensus.io/exporter/prometheus v0.1.0
 	github.com/Azure/azure-sdk-for-go v57.2.0+incompatible
-	github.com/Azure/go-autorest/autorest v0.11.23
+	github.com/Azure/go-autorest/autorest v0.11.28
 	github.com/Azure/go-autorest/autorest/adal v0.9.18
 	github.com/coreos/go-iptables v0.3.0
 	github.com/fsnotify/fsnotify v1.4.9
@@ -15,7 +15,7 @@ require (
 	github.com/stretchr/testify v1.7.0
 	github.com/vishvananda/netlink v1.1.1-0.20220112194529-e5fd1f8193de
 	go.opencensus.io v0.23.0
-	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd
+	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/sys v0.0.0-20220728004956-3c1f35247d10
 	gopkg.in/yaml.v2 v2.4.0
@@ -44,7 +44,7 @@ require (
 	github.com/go-logr/logr v1.2.0 // indirect
 	github.com/go-logr/zapr v1.2.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt/v4 v4.0.0 // indirect
+	github.com/golang-jwt/jwt/v4 v4.2.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
