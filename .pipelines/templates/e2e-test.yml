@@ -9,7 +9,10 @@ jobs:
   - ${{ each clusterConfig in parameters.clusterConfigs }}:
     - job:
       displayName: ${{ format('{0}', clusterConfig) }}
-      dependsOn: unit_test
+      dependsOn:
+      - scan_images
+      - lint
+      - unit_test
       timeoutInMinutes: 120
       cancelTimeoutInMinutes: 5
       workspace:
@@ -34,9 +37,6 @@ jobs:
 
         - ${{ if eq(clusterConfig, 'aks') }}:
           - template: deploy-aks-cluster.yml
-
-        - ${{ if not(eq(clusterConfig, 'aks')) }}:
-          - template: deploy-aks-engine-cluster.yml
 
         - template: role-assignment.yml
           parameters:

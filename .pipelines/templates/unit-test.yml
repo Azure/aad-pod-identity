@@ -1,4 +1,19 @@
 jobs:
+  - job: scan_images
+    timeoutInMinutes: 15
+    workspace:
+      clean: all
+    steps:
+      - template: scan-images.yml
+  - job: lint
+    timeoutInMinutes: 15
+    workspace:
+      clean: all
+    steps:
+      - script: make lint
+        displayName: golangci-lint
+      - script: make helm-lint
+        displayName: helm lint
   - job: unit_test
     timeoutInMinutes: 20
     cancelTimeoutInMinutes: 5
@@ -7,8 +22,3 @@ jobs:
     steps:
       - script: make unit-test
         displayName: Run unit tests
-      - script: make lint
-        displayName: Run lint
-      - script: make helm-lint
-        displayName: Run helm lint
-      - template: scan-images.yml

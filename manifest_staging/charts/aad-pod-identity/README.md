@@ -52,7 +52,7 @@ The following steps will help you create a new Azure identity ([Managed Service 
 
 ### Prerequisites
 * [Azure Subscription](https://azure.microsoft.com/)
-* [Azure Kubernetes Service (AKS)](https://azure.microsoft.com/services/kubernetes-service/) or [AKS Engine](https://github.com/Azure/aks-engine) deployment
+* [Azure Kubernetes Service (AKS)](https://azure.microsoft.com/services/kubernetes-service/) deployment
 * [kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl/) (authenticated to your Kubernetes cluster)
 * [Helm 3](https://v3.helm.sh/)
 * [Azure CLI 2.0](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-latest)

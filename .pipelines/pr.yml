@@ -19,6 +19,3 @@ jobs:
     parameters:
       clusterConfigs:
         - "aks"
-        # File names in test/e2e/cluster_configs without file extension
-        - "vmss"
-        - "vmas"

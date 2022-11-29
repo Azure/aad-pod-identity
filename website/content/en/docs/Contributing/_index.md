@@ -19,7 +19,7 @@ When you submit a pull request, a CLA-bot will automatically determine whether y
 
 - Go 1.18
 - Docker
-- an AKS cluster / AKS-Engine cluster
+- an AKS cluster
 - Helm 3
 - A container registry. One of the following would work:
   - Dockerhub
