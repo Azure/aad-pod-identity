@@ -12,7 +12,7 @@ require (
 	github.com/google/go-cmp v0.5.5
 	github.com/gorilla/mux v1.8.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.5
 	github.com/vishvananda/netlink v1.1.1-0.20220112194529-e5fd1f8193de
 	go.opencensus.io v0.23.0
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
@@ -73,7 +73,7 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20211115234752-e816edb12b65 // indirect
 	sigs.k8s.io/json v0.0.0-20211020170558-c049b76a60c6 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.1.2 // indirect
