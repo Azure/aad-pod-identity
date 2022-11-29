@@ -12,7 +12,7 @@ require (
 	github.com/google/go-cmp v0.5.5
 	github.com/gorilla/mux v1.8.0
 	github.com/spf13/pflag v1.0.5
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/vishvananda/netlink v1.1.1-0.20220112194529-e5fd1f8193de
 	go.opencensus.io v0.23.0
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
