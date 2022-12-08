@@ -351,5 +351,7 @@ spec:
             port: 8085
           initialDelaySeconds: 10
           periodSeconds: 5
+      tolerations:
+      - operator: Exists
       nodeSelector:
         kubernetes.io/os: linux
