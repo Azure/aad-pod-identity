@@ -194,9 +194,10 @@ nmi:
   nodeSelector:
     kubernetes.io/os: linux
 
-  tolerations: []
-    # - key: "CriticalAddonsOnly"
-    #   operator: "Exists"
+  ## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+  ## An empty key with operator Exists matches all keys, values and effects which means this will tolerate everything.
+  tolerations:
+    - operator: "Exists"
 
   # ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity
   affinity: {}
