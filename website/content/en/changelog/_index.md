@@ -7,6 +7,40 @@ menu:
     weight: 10
 ---
 
+## v1.8.14
+
+### Continuous Integration
+
+- ci: exclude .github path and README.md in tests ([#1343](https://github.com/Azure/aad-pod-identity/pull/1343))
+- ci: remove aks-engine soak clusters from pr and nightly ([#1346](https://github.com/Azure/aad-pod-identity/pull/1346))
+
+### Documentation
+
+- docs: add deprecation notice to readme ([#1345](https://github.com/Azure/aad-pod-identity/pull/1345))
+- Link to full description of Standard and Managed modes ([#1348](https://github.com/Azure/aad-pod-identity/pull/1348))
+- docs: add an anchor for deprecation announcement ([#1353](https://github.com/Azure/aad-pod-identity/pull/1353))
+
+### Maintenance
+
+- chore: add dependabot.yml ([#1331](https://github.com/Azure/aad-pod-identity/pull/1331))
+- chore: bump actions/stale from 4 to 6 ([#1332](https://github.com/Azure/aad-pod-identity/pull/1332))
+- chore: bump actions/setup-go from 2 to 3 ([#1333](https://github.com/Azure/aad-pod-identity/pull/1333))
+- chore: bump codecov/codecov-action from 2 to 3 ([#1334](https://github.com/Azure/aad-pod-identity/pull/1334))
+- chore: bump actions/checkout from 2 to 3 ([#1335](https://github.com/Azure/aad-pod-identity/pull/1335))
+- chore: bump postcss-cli from 7.1.2 to 10.0.0 in /website ([#1336](https://github.com/Azure/aad-pod-identity/pull/1336))
+- chore: bump autoprefixer from 9.8.6 to 10.4.13 in /website ([#1351](https://github.com/Azure/aad-pod-identity/pull/1351))
+- chore: bump k8s.io/client-go from 0.23.0 to 0.23.14 ([#1359](https://github.com/Azure/aad-pod-identity/pull/1359))
+- chore: bump github.com/Azure/go-autorest/autorest from 0.11.23 to 0.11.28 ([#1363](https://github.com/Azure/aad-pod-identity/pull/1363))
+- chore: bump github.com/stretchr/testify from 1.8.0 to 1.8.1 ([#1364](https://github.com/Azure/aad-pod-identity/pull/1364))
+- chore: bump postcss-cli from 10.0.0 to 10.1.0 in /website ([#1365](https://github.com/Azure/aad-pod-identity/pull/1365))
+- chore: bump github.com/Azure/go-autorest/autorest/adal from 0.9.18 to 0.9.21 ([#1367](https://github.com/Azure/aad-pod-identity/pull/1367))
+- chore: bump k8s.io/component-base from 0.23.0 to 0.23.14 ([#1368](https://github.com/Azure/aad-pod-identity/pull/1368))
+- chore: bump github.com/Azure/azure-sdk-for-go from 57.2.0+incompatible to 67.1.0+incompatible ([#1369](https://github.com/Azure/aad-pod-identity/pull/1369))
+
+### Security Fix
+
+- security: fix CVE-2022-32149 ([#1330](https://github.com/Azure/aad-pod-identity/pull/1330))
+
 ## v1.8.13
 
 ### Bug Fixes
