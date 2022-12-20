@@ -57,10 +57,6 @@ menu:
 
 ## v1.8.12
 
-### Bug Fixes
-
-- set `Content-Length` header in NMI response ([#1297](https://github.com/Azure/aad-pod-identity/pull/1297))
-
 ### Security Fix
 
 - fix CVE-2021-46828 ([#1306](https://github.com/Azure/aad-pod-identity/pull/1306))
