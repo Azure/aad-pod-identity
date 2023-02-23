@@ -30,6 +30,7 @@ steps:
           --name ${RESOURCE_GROUP} \
           --max-pods ${MAX_PODS} \
           --network-plugin azure \
+          --node-count 2 \
           --generate-ssh-keys > /dev/null
       fi
 
