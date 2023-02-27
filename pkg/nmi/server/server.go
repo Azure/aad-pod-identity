@@ -549,6 +549,9 @@ func parseTokenRequest(r *http.Request) (request TokenRequest) {
 		// These are mutually exclusive values (client_id, msi_resource_id)
 		request.ClientID = vals.Get("client_id")
 		request.ResourceID = vals.Get("msi_res_id")
+		if len(request.ResourceID) == 0 {
+			request.ResourceID = vals.Get("mi_res_id")
+		}
 
 		request.Resource = vals.Get("resource")
 	}
