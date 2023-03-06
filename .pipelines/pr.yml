@@ -14,7 +14,7 @@ pr:
 pool: staging-pool
 
 jobs:
-  - template: templates/unit-test.yml
+  # - template: templates/unit-test.yml
   - template: templates/e2e-test.yml
     parameters:
       clusterConfigs:

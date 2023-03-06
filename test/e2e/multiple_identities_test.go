@@ -56,14 +56,14 @@ var _ = Describe("When deploying multiple identities", func() {
 		}
 	})
 
-	AfterEach(func() {
-		Cleanup(CleanupInput{
-			Namespace: ns,
-			Getter:    kubeClient,
-			Lister:    kubeClient,
-			Deleter:   kubeClient,
-		})
-	})
+	// AfterEach(func() {
+	// 	Cleanup(CleanupInput{
+	// 		Namespace: ns,
+	// 		Getter:    kubeClient,
+	// 		Lister:    kubeClient,
+	// 		Deleter:   kubeClient,
+	// 	})
+	// })
 
 	It("should remove the correct identities when adding AzureIdentity and AzureIdentityBinding in order and removing them in random order", func() {
 		identityValidators := identityvalidator.CreateBatch(identityvalidator.CreateBatchInput{

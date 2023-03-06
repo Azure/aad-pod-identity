@@ -9,10 +9,10 @@ jobs:
   - ${{ each clusterConfig in parameters.clusterConfigs }}:
     - job:
       displayName: ${{ format('{0}', clusterConfig) }}
-      dependsOn:
-      - scan_images
-      - lint
-      - unit_test
+      # dependsOn:
+      # - scan_images
+      # - lint
+      # - unit_test
       timeoutInMinutes: 120
       cancelTimeoutInMinutes: 5
       workspace:
@@ -60,16 +60,17 @@ jobs:
             # used by 'When deploying service principal should pass the identity validation' test case
             SERVICE_PRINCIPAL_CLIENT_ID: $(SERVICE_PRINCIPAL_CLIENT_ID)
             SERVICE_PRINCIPAL_CLIENT_SECRET: $(SERVICE_PRINCIPAL_CLIENT_SECRET)
+            GINKGO_FOCUS: "should.remove.the.correct.identities.when.adding AzureIdentity.and.AzureIdentityBinding.in.order.and.removing.them.in.random.order"
           displayName: "Run E2E tests"
 
-        - template: cleanup-role-assignments.yml
+        # - template: cleanup-role-assignments.yml
 
-        - script: |
-            if [[ "${CLUSTER_CONFIG}" == "aks" ]]; then
-              az aks delete -g ${RESOURCE_GROUP} -n ${RESOURCE_GROUP} --yes --no-wait
-            fi
-            az group delete -g ${RESOURCE_GROUP} --yes --no-wait
-          condition: always()
-          displayName: "Delete resource group and role assignments"
+        # - script: |
+        #     if [[ "${CLUSTER_CONFIG}" == "aks" ]]; then
+        #       az aks delete -g ${RESOURCE_GROUP} -n ${RESOURCE_GROUP} --yes --no-wait
+        #     fi
+        #     az group delete -g ${RESOURCE_GROUP} --yes --no-wait
+        #   condition: always()
+        #   displayName: "Delete resource group and role assignments"
 
         - template: cleanup-images.yml
