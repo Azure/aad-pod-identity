@@ -11,6 +11,7 @@ assignees: ''
 - [ ] Read [Troubleshooting Guide](https://azure.github.io/aad-pod-identity/docs/troubleshooting/)
 - [ ] Read [Known Issues](https://azure.github.io/aad-pod-identity/docs/known-issues/)
 - [ ] Searched on [GitHub issues](https://github.com/Azure/aad-pod-identity/issues)
+- [ ] Acknowledge AAD Pod Identity is [deprecated](https://github.com/Azure/aad-pod-identity#-announcement) in favor of [Azure Workload Identity](https://github.com/Azure/azure-workload-identity)
 
 **Describe the bug**
 
