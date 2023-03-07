@@ -7,6 +7,8 @@ assignees: ''
 
 ---
 
+❗ AAD Pod Identity is [deprecated](https://github.com/Azure/aad-pod-identity#-announcement) and it is no longer accepting new features.
+
 **Describe the request**
 
 **Explain why AAD Pod Identity needs it**
