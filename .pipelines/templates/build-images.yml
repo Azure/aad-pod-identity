@@ -17,5 +17,5 @@ steps:
 
       export IMAGE_VERSION
       az acr login -n $(REGISTRY_NAME)
-      make docker-buildx-builder images
+      BUILD_PLATFORMS="linux/amd64" make docker-buildx-builder images
     displayName: "Build and push MIC, NMI and identity-validator images"
