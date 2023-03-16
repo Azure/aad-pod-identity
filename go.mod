@@ -20,7 +20,7 @@ require (
 	golang.org/x/sys v0.5.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.23.15
-	k8s.io/apimachinery v0.23.15
+	k8s.io/apimachinery v0.23.17
 	k8s.io/client-go v0.23.15
 	k8s.io/component-base v0.23.14
 	k8s.io/klog/v2 v2.30.0
