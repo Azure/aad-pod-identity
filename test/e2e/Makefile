@@ -2,7 +2,7 @@ REPO_ROOT := $(shell git rev-parse --show-toplevel)
 TEST_E2E_DIR := $(REPO_ROOT)/test/e2e
 GINKGO_FOCUS ?=
 GINKGO_SKIP ?=
-GINKGO_FAIL_FAST ?= true
+GINKGO_FAIL_FAST ?= false
 GINKGO_DRY_RUN ?= false
 
 .PHONY: run

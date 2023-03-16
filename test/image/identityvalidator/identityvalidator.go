@@ -78,13 +78,15 @@ func main() {
 		go func(assert assertFunction) {
 			defer wg.Done()
 			var err error
-			// allow at most 2 retries if we encounter "Identity not found" error
-			for i := 0; i < 2; i++ {
+			// allow at most 10 retries if we encounter "Identity not found" error
+			// The 10 retries is because of the IMDS cache bug that resolves sometimes after a minute
+			for i := 0; i < 10; i++ {
 				err = assert()
 				if !isIdentityNotFoundError(err) {
 					break
 				}
-				if i < 2 {
+				klog.Infof("got identity not found error, retrying in 10 seconds... (%d/7)", i+1)
+				if i < 10 {
 					time.Sleep(10 * time.Second)
 				}
 			}
