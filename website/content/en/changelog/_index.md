@@ -7,6 +7,37 @@ menu:
     weight: 10
 ---
 
+## v1.8.15
+
+### Continuous Integration
+
+- ci: increase retries in identity validator ([#1412](https://github.com/Azure/aad-pod-identity/pull/1412))
+- ci: update codecov config ([#1413](https://github.com/Azure/aad-pod-identity/pull/1413))
+
+### Documentation
+
+- docs: fix changelog for v1.8.12 release ([#1378](https://github.com/Azure/aad-pod-identity/pull/1378))
+
+### Maintenance
+
+- chore: bump k8s.io/client-go from 0.23.14 to 0.23.15 ([#1374](https://github.com/Azure/aad-pod-identity/pull/1374))
+- chore: bump github.com/Azure/azure-sdk-for-go from 67.1.0+incompatible to 67.2.0+incompatible ([#1377](https://github.com/Azure/aad-pod-identity/pull/1377))
+- chore: bump actions/stale from 6 to 7 ([#1379](https://github.com/Azure/aad-pod-identity/pull/1379))
+- chore: bump github.com/Azure/go-autorest/autorest/adal from 0.9.21 to 0.9.22 ([#1383](https://github.com/Azure/aad-pod-identity/pull/1383))
+- chore: bump k8s.io/component-base from 0.23.14 to 0.23.17 ([#1406](https://github.com/Azure/aad-pod-identity/pull/1406))
+- chore: bump autoprefixer from 10.4.13 to 10.4.14 in /website ([#1410](https://github.com/Azure/aad-pod-identity/pull/1410))
+- chore: bump actions/setup-go from 3 to 4 ([#1411](https://github.com/Azure/aad-pod-identity/pull/1411))
+- chore: update debian-iptables to bullseye-v1.5.3 ([#1414](https://github.com/Azure/aad-pod-identity/pull/1414))
+
+### Other Improvements
+
+- Update NMI server resource id query key ([#1401](https://github.com/Azure/aad-pod-identity/pull/1401))
+- update to github issues and pr templates for deprecation notice ([#1409](https://github.com/Azure/aad-pod-identity/pull/1409))
+
+### Security Fix
+
+- security: fix CVE-2022-41717 ([#1376](https://github.com/Azure/aad-pod-identity/pull/1376))
+
 ## v1.8.14
 
 ### Continuous Integration

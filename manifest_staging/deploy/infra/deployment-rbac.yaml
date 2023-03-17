@@ -475,7 +475,7 @@ spec:
           type: FileOrCreate
       containers:
       - name: nmi
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.8.14"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/nmi:v1.8.15"
         args:
           - "--node=$(NODE_NAME)"
           - "--http-probe-port=8085"
@@ -597,7 +597,7 @@ spec:
       serviceAccountName: aad-pod-id-mic-service-account
       containers:
       - name: mic
-        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.8.14"
+        image: "mcr.microsoft.com/oss/azure/aad-pod-identity/mic:v1.8.15"
         args:
           - "--cloudconfig=/etc/kubernetes/azure.json"
           - "--logtostderr"
