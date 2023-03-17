@@ -115,6 +115,20 @@ func TestParseTokenRequest(t *testing.T) {
 		}
 	})
 
+	t.Run("query present with latest resource id", func(t *testing.T) {
+		const resource = "https://vault.azure.net"
+		const resourceID = "/subscriptions/9f2be85c-f8ae-4569-9353-38e5e8b459ef/resourcegroups/test/providers/Microsoft.ManagedIdentity/userAssignedIdentities/test"
+
+		var r http.Request
+		r.URL, _ = url.Parse(fmt.Sprintf("%s?mi_res_id=%s&resource=%s", endpoint, resourceID, resource))
+
+		result := parseTokenRequest(&r)
+
+		if result.ResourceID != resourceID {
+			t.Errorf("invalid ResourceID - expected: %q, actual: %q", resourceID, result.ResourceID)
+		}
+	})
+
 	t.Run("bare endpoint", func(t *testing.T) {
 		var r http.Request
 		r.URL, _ = url.Parse(endpoint)
