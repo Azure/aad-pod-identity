@@ -17,7 +17,7 @@ RUN export GOOS=$TARGETOS && \
     export GOARM=$(echo ${TARGETPLATFORM} | cut -d / -f3 | tr -d 'v') && \
     make build
 
-FROM k8s.gcr.io/build-image/debian-iptables:bullseye-v1.5.1 AS nmi
+FROM k8s.gcr.io/build-image/debian-iptables:bullseye-v1.5.3 AS nmi
 RUN apt update && \
     apt upgrade -y && \
     clean-install ca-certificates
