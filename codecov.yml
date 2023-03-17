@@ -1,29 +1,14 @@
-codecov:
-  notify:
-    require_ci_to_pass: no
-
 coverage:
-  precision: 2
-  round: down
-  range: "50...100"
+  # Commit status https://docs.codecov.io/docs/commit-status are used
+  # to block PR based on coverage threshold.
   status:
     project:
       default:
-        threshold: 0.5
+        target: auto
+        threshold: 0%
     patch:
       default:
-        threshold: 0.5
-    changes: no
-
-parsers:
-  gcov:
-    branch_detection:
-      conditional: yes
-      loop: yes
-      method: no
-      macro: no
-
-comment: false
+        informational: true
 
 ignore:
   - "test/**/*.go"
