@@ -22,10 +22,10 @@ type Config struct {
 	KeyvaultName                       string        `envconfig:"KEYVAULT_NAME"`
 	KeyvaultSecretName                 string        `envconfig:"KEYVAULT_SECRET_NAME"`
 	KeyvaultSecretVersion              string        `envconfig:"KEYVAULT_SECRET_VERSION"`
-	MICVersion                         string        `envconfig:"MIC_VERSION" default:"v1.8.14"`
-	NMIVersion                         string        `envconfig:"NMI_VERSION" default:"v1.8.14"`
+	MICVersion                         string        `envconfig:"MIC_VERSION" default:"v1.8.15"`
+	NMIVersion                         string        `envconfig:"NMI_VERSION" default:"v1.8.15"`
 	Registry                           string        `envconfig:"REGISTRY" default:"mcr.microsoft.com/oss/azure/aad-pod-identity"`
-	IdentityValidatorVersion           string        `envconfig:"IDENTITY_VALIDATOR_VERSION" default:"v1.8.14"`
+	IdentityValidatorVersion           string        `envconfig:"IDENTITY_VALIDATOR_VERSION" default:"v1.8.15"`
 	EnableScaleFeatures                bool          `envconfig:"ENABLE_SCALE_FEATURES" default:"true"`
 	ImmutableUserMSIs                  string        `envconfig:"IMMUTABLE_IDENTITY_CLIENT_ID"`
 	NMIMode                            string        `envconfig:"NMI_MODE" default:"standard"`
