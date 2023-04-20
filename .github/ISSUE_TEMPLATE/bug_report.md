@@ -6,6 +6,8 @@ labels: bug
 assignees: ''
 ---
 
+❗ AAD Pod Identity is [deprecated](https://github.com/Azure/aad-pod-identity#-announcement) and [Azure Workload Identity](https://github.com/Azure/azure-workload-identity) has reached stable (OSS) and GA (AKS) milestones. AAD Pod Identity has transitioned to CVE fixes only.
+
 **Have you**
 
 - [ ] Read [Troubleshooting Guide](https://azure.github.io/aad-pod-identity/docs/troubleshooting/)
