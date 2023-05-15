@@ -7,6 +7,17 @@ menu:
     weight: 10
 ---
 
+## v1.8.16
+
+### Maintenance
+
+- chore: bump github.com/Azure/go-autorest/autorest/adal from 0.9.22 to 0.9.23 ([#1415](https://github.com/Azure/aad-pod-identity/pull/1415))
+- chore: bump actions/stale from 7 to 8 ([#1416](https://github.com/Azure/aad-pod-identity/pull/1416))
+- chore: update debian-iptables to bullseye-v1.5.4 ([#1417](https://github.com/Azure/aad-pod-identity/pull/1417))
+- chore: update bug report template for deprecation notice ([#1419](https://github.com/Azure/aad-pod-identity/pull/1419))
+- chore: update golangci-lint to v1.52.2 ([#1424](https://github.com/Azure/aad-pod-identity/pull/1424))
+- chore: update docker base image to `registry.k8s.io/build-image/debian-iptables:bullseye-v1.5.6` ([#1425](https://github.com/Azure/aad-pod-identity/pull/1425))
+
 ## v1.8.15
 
 ### Continuous Integration
