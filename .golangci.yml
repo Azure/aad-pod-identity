@@ -2,6 +2,7 @@
 run:
   issues-exit-code: 1 # default
   tests: true # default
+  go: "1.19"
 
 linters:
   enable:
@@ -16,3 +17,9 @@ linters-settings:
     locale: US
   goimports:
     local-prefixes: github.com/Azure/aad-pod-identity
+
+issues:
+  exclude:
+  - G114
+  - SA4023
+  - SA1019
