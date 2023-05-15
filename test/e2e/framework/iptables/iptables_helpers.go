@@ -79,7 +79,7 @@ func WaitForRules(input WaitForRulesInput) {
 						Containers: []corev1.Container{
 							{
 								Name:  busybox,
-								Image: "k8s.gcr.io/build-image/debian-iptables:bullseye-v1.1.0",
+								Image: "registry.k8s.io/build-image/debian-iptables:bullseye-v1.5.6",
 								Stdin: true,
 								Command: []string{
 									"sleep",
@@ -149,7 +149,7 @@ func WaitForRules(input WaitForRulesInput) {
 			}{
 				{
 					command:          "iptables -t nat --check PREROUTING -j aad-metadata",
-					expectedErrorMsg: "Couldn't load target `aad-metadata':No such file or directory",
+					expectedErrorMsg: `Chain 'aad-metadata' does not exist`,
 				},
 				{
 					command:          "iptables -t nat -L aad-metadata",
