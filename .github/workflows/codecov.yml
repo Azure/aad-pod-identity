@@ -3,7 +3,7 @@ on: pull_request
 
 jobs:
   codecov:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: actions/setup-go@v4
