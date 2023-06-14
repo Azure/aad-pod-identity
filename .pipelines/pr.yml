@@ -11,7 +11,7 @@ pr:
       - .github/*
       - README.md
 
-pool: staging-pool
+pool: staging-pool-amd64-mariner-2
 
 jobs:
   - template: templates/unit-test.yml
