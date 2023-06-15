@@ -153,7 +153,7 @@ func WaitForRules(input WaitForRulesInput) {
 				},
 				{
 					command:          "iptables -t nat -L aad-metadata",
-					expectedErrorMsg: "No chain/target/match by that name",
+					expectedErrorMsg: "chain `aad-metadata' in table `nat' is incompatible",
 				},
 			} {
 				stderr, err := exec.KubectlExec(input.KubeconfigPath, p.Name, input.Namespace, strings.Split(cmd.command, " "))
