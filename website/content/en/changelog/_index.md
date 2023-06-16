@@ -7,6 +7,22 @@ menu:
     weight: 10
 ---
 
+## v1.8.17
+
+### Continuous Integration
+
+- ci: restrict permissions for gh workflows ([#1428](https://github.com/Azure/aad-pod-identity/pull/1428))
+- ci: remove nightly and load test pipeline ([#1432](https://github.com/Azure/aad-pod-identity/pull/1432))
+
+### Documentation
+
+- docs: Update RELEASE.md to clarify September EOL ([#1433](https://github.com/Azure/aad-pod-identity/pull/1433))
+
+### Maintenance
+
+- chore: use ubuntu-latest gh runner ([#1427](https://github.com/Azure/aad-pod-identity/pull/1427))
+- chore: update debian-iptables to bullseye-v1.5.7 ([#1435](https://github.com/Azure/aad-pod-identity/pull/1435))
+
 ## v1.8.16
 
 ### Maintenance

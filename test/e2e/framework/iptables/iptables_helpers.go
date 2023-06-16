@@ -79,7 +79,7 @@ func WaitForRules(input WaitForRulesInput) {
 						Containers: []corev1.Container{
 							{
 								Name:  busybox,
-								Image: "registry.k8s.io/build-image/debian-iptables:bullseye-v1.5.6",
+								Image: "registry.k8s.io/build-image/debian-iptables:bullseye-v1.5.7",
 								Stdin: true,
 								Command: []string{
 									"sleep",
@@ -153,7 +153,7 @@ func WaitForRules(input WaitForRulesInput) {
 				},
 				{
 					command:          "iptables -t nat -L aad-metadata",
-					expectedErrorMsg: "No chain/target/match by that name",
+					expectedErrorMsg: "chain `aad-metadata' in table `nat' is incompatible",
 				},
 			} {
 				stderr, err := exec.KubectlExec(input.KubeconfigPath, p.Name, input.Namespace, strings.Split(cmd.command, " "))
