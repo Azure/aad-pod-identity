@@ -16,7 +16,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -177,7 +176,7 @@ func newRestClient(config *rest.Config) (*rest.RESTClient, error) {
 }
 
 func newBindingListWatch(r *rest.RESTClient) *cache.ListWatch {
-	return cache.NewListWatchFromClient(r, aadpodv1.AzureIDBindingResource, v1.NamespaceAll, fields.Everything())
+	return cache.NewListWatchFromClient(r, aadpodv1.AzureIDBindingResource, metav1.NamespaceAll, fields.Everything())
 }
 
 func newBindingInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cache.ListWatch) (cache.SharedInformer, error) {
@@ -208,7 +207,7 @@ func newBindingInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw 
 }
 
 func newIDListWatch(r *rest.RESTClient) *cache.ListWatch {
-	return cache.NewListWatchFromClient(r, aadpodv1.AzureIDResource, v1.NamespaceAll, fields.Everything())
+	return cache.NewListWatchFromClient(r, aadpodv1.AzureIDResource, metav1.NamespaceAll, fields.Everything())
 }
 
 func newIDInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cache.ListWatch) (cache.SharedInformer, error) {
@@ -242,20 +241,20 @@ func newIDInformer(r *rest.RESTClient, eventCh chan aadpodid.EventType, lw *cach
 // apply labels with node name and then later use the NodeNameFilter to tweak
 // options to filter using nodename label.
 func NodeNameFilter(nodeName string) internalinterfaces.TweakListOptionsFunc {
-	return func(l *v1.ListOptions) {
+	return func(l *metav1.ListOptions) {
 		if l == nil {
-			l = &v1.ListOptions{}
+			l = &metav1.ListOptions{}
 		}
 		l.LabelSelector = l.LabelSelector + "nodename=" + nodeName
 	}
 }
 
 func newAssignedIDNodeListWatch(r *rest.RESTClient, nodeName string) *cache.ListWatch {
-	return cache.NewFilteredListWatchFromClient(r, aadpodv1.AzureAssignedIDResource, v1.NamespaceAll, NodeNameFilter(nodeName))
+	return cache.NewFilteredListWatchFromClient(r, aadpodv1.AzureAssignedIDResource, metav1.NamespaceAll, NodeNameFilter(nodeName))
 }
 
 func newAssignedIDListWatch(r *rest.RESTClient) *cache.ListWatch {
-	return cache.NewListWatchFromClient(r, aadpodv1.AzureAssignedIDResource, v1.NamespaceAll, fields.Everything())
+	return cache.NewListWatchFromClient(r, aadpodv1.AzureAssignedIDResource, metav1.NamespaceAll, fields.Everything())
 }
 
 func newAssignedIDInformer(lw *cache.ListWatch) (cache.SharedInformer, error) {
@@ -283,11 +282,11 @@ func newIDInformerLite(lw *cache.ListWatch) (cache.SharedInformer, error) {
 }
 
 func newPodIdentityExceptionListWatch(r *rest.RESTClient) *cache.ListWatch {
-	optionsModifier := func(options *v1.ListOptions) {}
+	optionsModifier := func(options *metav1.ListOptions) {}
 	return cache.NewFilteredListWatchFromClient(
 		r,
 		aadpodv1.AzurePodIdentityExceptionResource,
-		v1.NamespaceAll,
+		metav1.NamespaceAll,
 		optionsModifier,
 	)
 }
@@ -301,8 +300,8 @@ func newPodIdentityExceptionInformer(lw *cache.ListWatch) (cache.SharedInformer,
 }
 
 func (c *Client) getObjectList(resource string, i runtime.Object) (runtime.Object, error) {
-	options := v1.ListOptions{}
-	do := c.rest.Get().Namespace(v1.NamespaceAll).Resource(resource).VersionedParams(&options, v1.ParameterCodec).Do(context.TODO())
+	options := metav1.ListOptions{}
+	do := c.rest.Get().Namespace(metav1.NamespaceAll).Resource(resource).VersionedParams(&options, metav1.ParameterCodec).Do(context.TODO())
 	body, err := do.Raw()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get %s, error: %+v", resource, err)

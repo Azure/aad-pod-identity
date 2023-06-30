@@ -26,7 +26,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -286,7 +285,7 @@ func (c *Client) NewLeaderElector(clientSet *kubernetes.Clientset, recorder reco
 // UpgradeTypeIfRequired performs type upgrade for all aad-pod-identity CRDs if required.
 func (c *Client) UpgradeTypeIfRequired() error {
 	if c.TypeUpgradeCfg.EnableTypeUpgrade {
-		cm, err := c.CMClient.Get(context.TODO(), c.CMCfg.Name, v1.GetOptions{})
+		cm, err := c.CMClient.Get(context.TODO(), c.CMCfg.Name, metav1.GetOptions{})
 		// If we get an error and its not NotFound then return, because we cannot proceed.
 		if err != nil && !apierrors.IsNotFound(err) {
 			return fmt.Errorf("failed to get ConfigMap %s/%s, error: %+v", c.CMCfg.Namespace, c.CMCfg.Name, err)
@@ -297,7 +296,7 @@ func (c *Client) UpgradeTypeIfRequired() error {
 		if err != nil && apierrors.IsNotFound(err) {
 			// Create the configmap
 			newCfgMap := &corev1.ConfigMap{
-				ObjectMeta: v1.ObjectMeta{
+				ObjectMeta: metav1.ObjectMeta{
 					Namespace: c.CMCfg.Namespace,
 					Name:      c.CMCfg.Name,
 				},
@@ -858,7 +857,7 @@ func (c *Client) makeAssignedIDs(azID aadpodid.AzureIdentity, azBinding aadpodid
 	labels := make(map[string]string)
 	labels["nodename"] = nodeName
 
-	oMeta := v1.ObjectMeta{
+	oMeta := metav1.ObjectMeta{
 		Name:   c.getAssignedIDName(podName, podNameSpace, azID.Name),
 		Labels: labels,
 	}

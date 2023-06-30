@@ -19,7 +19,6 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/services/compute/mgmt/2019-12-01/compute"
 	"github.com/stretchr/testify/assert"
-	api "k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -523,7 +522,7 @@ func (c *TestCrdClient) CreateBinding(name, ns, idName, selector, resourceVersio
 	c.mu.Unlock()
 }
 
-func (c *TestCrdClient) CreateID(idName, ns string, t aadpodid.IdentityType, rID, cID string, cp *api.SecretReference, tID, adRID, adEpt, resourceVersion string) {
+func (c *TestCrdClient) CreateID(idName, ns string, t aadpodid.IdentityType, rID, cID string, cp *corev1.SecretReference, tID, adRID, adEpt, resourceVersion string) {
 	id := &aadpodid.AzureIdentity{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            idName,
