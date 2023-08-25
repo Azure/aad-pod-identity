@@ -1,4 +1,4 @@
-# AAD Pod Identity
+# AAD Pod Identity [DEPRECATED]
 
 ## 📣 Announcement
 
