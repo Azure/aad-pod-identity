@@ -13,6 +13,6 @@ jobs:
           go-version: "1.19"
       - name: Unit test
         run: make unit-test
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         with:
           files: coverage.txt
