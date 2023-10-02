@@ -1,6 +1,10 @@
-# AAD Pod Identity [DEPRECATED]
+> # ⚠️ [AAD Pod Identity repo has been archived and is no longer maintained.](#-announcement)
 
 ## 📣 Announcement
+
+**❗ UPDATE**: As of Monday 10/02/2023, AAD Pod Identity repo has been **archived** and is no longer maintained. The repo will be available in read-only mode. **There will be no new releases.** Please use [Azure Workload Identity](https://azure.github.io/azure-workload-identity/) instead.
+
+Thanks to all the contributors and users who have supported this project over the years! We hope you will continue to support us in our new project, [Azure Workload Identity](https://azure.github.io/azure-workload-identity/).
 
 **❗ IMPORTANT**: As of Monday 10/24/2022, AAD Pod Identity is **deprecated**. As mentioned in the [announcement](https://cloudblogs.microsoft.com/opensource/2022/01/18/announcing-azure-active-directory-azure-ad-workload-identity-for-kubernetes/), AAD Pod Identity has been replaced with [Azure Workload Identity](https://azure.github.io/azure-workload-identity). Going forward, we will no longer add new features or bug fixes to this project in favor of Azure Workload Identity, which reached [General Availability (GA) in Azure Kubernetes Service (AKS)](https://azure.microsoft.com/en-us/updates/ga-azure-active-directory-workload-identity-with-aks-2/). We will provide CVE patches until September 2023, at which time the project will be archived. **There will be no new releases after September 2023.**
 
